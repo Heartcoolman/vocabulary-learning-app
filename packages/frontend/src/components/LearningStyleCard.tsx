@@ -88,7 +88,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   const maxScore = Math.max(...Object.values(profile.scores));
 
   return (
-    <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm">
+    <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="p-6 pb-4">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -96,11 +96,11 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
               <MainIcon size={24} weight="duotone" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">{config.label}</h3>
-              <p className="mt-1 text-xs text-gray-500">AMAS 学习风格模型</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h3>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">AMAS 学习风格模型</p>
             </div>
           </div>
-          <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+          <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-slate-700 dark:text-gray-300">
             {(profile.confidence * 100).toFixed(0)}% 置信度
           </div>
         </div>
@@ -109,12 +109,14 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
           {metrics.map((m, idx) => (
             <div key={m.key} className="relative">
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-gray-600">
+                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                   <m.icon size={14} weight="bold" className="opacity-70" /> {m.label}
                 </span>
-                <span className="font-medium text-gray-900">{(m.score * 100).toFixed(0)}</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {(m.score * 100).toFixed(0)}
+                </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                 <div
                   style={{
                     width: `${(m.score / (maxScore || 1)) * 100}%`,
@@ -128,11 +130,11 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
         </div>
       </div>
 
-      <div className="mt-auto border-t border-gray-100 bg-gray-50/80 p-4">
+      <div className="mt-auto border-t border-gray-100 bg-gray-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/80">
         <div className="flex gap-3">
           <Sparkle className="mt-0.5 shrink-0 text-yellow-500" size={16} weight="duotone" />
-          <p className="text-sm leading-snug text-gray-600">
-            <span className="font-medium text-gray-900">建议：</span>
+          <p className="text-sm leading-snug text-gray-600 dark:text-gray-300">
+            <span className="font-medium text-gray-900 dark:text-white">建议：</span>
             {config.desc}
           </p>
         </div>

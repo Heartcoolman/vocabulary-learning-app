@@ -1,8 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 // ========== Types ==========
@@ -17,7 +16,9 @@ pub enum WordState {
 }
 
 impl Default for WordState {
-    fn default() -> Self { Self::New }
+    fn default() -> Self {
+        Self::New
+    }
 }
 
 impl WordState {
@@ -53,6 +54,14 @@ pub struct WordLearningState {
     pub next_review_date: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
+    // FSRS fields
+    pub stability: f64,
+    pub difficulty: f64,
+    pub desired_retention: f64,
+    pub lapses: i32,
+    pub reps: i32,
+    pub scheduled_days: f64,
+    pub elapsed_days: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,10 +70,13 @@ pub struct WordScore {
     pub id: String,
     pub user_id: String,
     pub word_id: String,
-    pub score: f64,
-    pub correct_count: i32,
-    pub incorrect_count: i32,
-    pub total_response_time: i64,
+    pub total_score: f64,
+    pub accuracy_score: f64,
+    pub speed_score: f64,
+    pub total_attempts: i32,
+    pub correct_attempts: i32,
+    pub average_response_time: f64,
+    pub recent_accuracy: f64,
     pub updated_at: i64,
 }
 
@@ -136,6 +148,16 @@ pub struct WordStateUpdateData {
     pub review_count: Option<i32>,
     pub last_review_date: Option<i64>,
     pub next_review_date: Option<i64>,
+    #[serde(default)]
+    pub increment_review: bool,
+    // FSRS fields
+    pub stability: Option<f64>,
+    pub difficulty: Option<f64>,
+    pub desired_retention: Option<f64>,
+    pub lapses: Option<i32>,
+    pub reps: Option<i32>,
+    pub scheduled_days: Option<f64>,
+    pub elapsed_days: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -144,45 +166,20 @@ pub struct ReviewEventInput {
     pub timestamp: i64,
     pub is_correct: bool,
     pub response_time: i64,
-}
-
-pub enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
+    pub session_id: Option<String>,
 }
 
 // ========== Service Implementation ==========
 
-pub async fn select_pool(proxy: &DatabaseProxy, state: DatabaseState) -> Result<SelectedPool, String> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool().await
-            .map(SelectedPool::Fallback)
-            .ok_or_else(|| "服务不可用".to_string()),
-        _ => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedPool::Primary(pool)),
-            None => proxy.fallback_pool().await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-        },
-    }
-}
-
 pub async fn get_word_state(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
     word_id: &str,
 ) -> Result<Option<WordLearningState>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => get_word_state_pg(pg, user_id, word_id).await,
-        SelectedPool::Fallback(sqlite) => get_word_state_sqlite(sqlite, user_id, word_id).await,
-    }
-}
-
-async fn get_word_state_pg(pool: &PgPool, user_id: &str, word_id: &str) -> Result<Option<WordLearningState>, String> {
     let row = sqlx::query(
         r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
+           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
+           "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays"
            FROM "word_learning_states" WHERE "userId" = $1 AND "wordId" = $2"#,
     )
     .bind(user_id)
@@ -192,73 +189,55 @@ async fn get_word_state_pg(pool: &PgPool, user_id: &str, word_id: &str) -> Resul
     .map_err(|e| format!("查询失败: {e}"))?;
 
     let Some(row) = row else { return Ok(None) };
-    Ok(Some(parse_learning_state_pg(&row)?))
+    Ok(Some(parse_word_learning_state(&row)?))
 }
 
-async fn get_word_state_sqlite(pool: &SqlitePool, user_id: &str, word_id: &str) -> Result<Option<WordLearningState>, String> {
-    let row = sqlx::query(
-        r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
-           FROM "word_learning_states" WHERE "userId" = ? AND "wordId" = ?"#,
-    )
-    .bind(user_id)
-    .bind(word_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| format!("查询失败: {e}"))?;
-
-    let Some(row) = row else { return Ok(None) };
-    Ok(Some(parse_learning_state_sqlite(&row)?))
-}
-
-fn parse_learning_state_pg(row: &sqlx::postgres::PgRow) -> Result<WordLearningState, String> {
+fn parse_word_learning_state(row: &sqlx::postgres::PgRow) -> Result<WordLearningState, String> {
     Ok(WordLearningState {
         id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
-        user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
-        word_id: row.try_get("wordId").map_err(|e| format!("解析失败: {e}"))?,
-        state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
+        user_id: row
+            .try_get("userId")
+            .map_err(|e| format!("解析失败: {e}"))?,
+        word_id: row
+            .try_get("wordId")
+            .map_err(|e| format!("解析失败: {e}"))?,
+        state: WordState::from_str(
+            row.try_get::<String, _>("state")
+                .unwrap_or_default()
+                .as_str(),
+        ),
         mastery_level: row.try_get("masteryLevel").unwrap_or(0),
         ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
         review_count: row.try_get("reviewCount").unwrap_or(0),
-        last_review_date: row.try_get::<Option<DateTime<Utc>>, _>("lastReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-        next_review_date: row.try_get::<Option<DateTime<Utc>>, _>("nextReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-        created_at: row.try_get::<DateTime<Utc>, _>("createdAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-        updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        last_review_date: row
+            .try_get::<Option<DateTime<Utc>>, _>("lastReviewDate")
+            .ok()
+            .flatten()
+            .map(|d| d.timestamp_millis()),
+        next_review_date: row
+            .try_get::<Option<DateTime<Utc>>, _>("nextReviewDate")
+            .ok()
+            .flatten()
+            .map(|d| d.timestamp_millis()),
+        created_at: row
+            .try_get::<DateTime<Utc>, _>("createdAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        updated_at: row
+            .try_get::<DateTime<Utc>, _>("updatedAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        stability: row.try_get("stability").unwrap_or(1.0),
+        difficulty: row.try_get("difficulty").unwrap_or(0.3),
+        desired_retention: row.try_get("desiredRetention").unwrap_or(0.9),
+        lapses: row.try_get("lapses").unwrap_or(0),
+        reps: row.try_get("reps").unwrap_or(0),
+        scheduled_days: row.try_get("scheduledDays").unwrap_or(0.0),
+        elapsed_days: row.try_get("elapsedDays").unwrap_or(0.0),
     })
 }
 
-fn parse_learning_state_sqlite(row: &sqlx::sqlite::SqliteRow) -> Result<WordLearningState, String> {
-    Ok(WordLearningState {
-        id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
-        user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
-        word_id: row.try_get("wordId").map_err(|e| format!("解析失败: {e}"))?,
-        state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
-        mastery_level: row.try_get("masteryLevel").unwrap_or(0),
-        ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
-        review_count: row.try_get("reviewCount").unwrap_or(0),
-        last_review_date: parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("lastReviewDate").ok().flatten()),
-        next_review_date: parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("nextReviewDate").ok().flatten()),
-        created_at: parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("createdAt").ok().flatten()).unwrap_or_else(|| Utc::now().timestamp_millis()),
-        updated_at: parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("updatedAt").ok().flatten()).unwrap_or_else(|| Utc::now().timestamp_millis()),
-    })
-}
-
-fn parse_datetime_sqlite(s: Option<String>) -> Option<DateTime<Utc>> {
-    s.and_then(|v| chrono::DateTime::parse_from_rfc3339(&v).ok().map(|d| d.with_timezone(&Utc)))
-}
-
-fn parse_datetime_sqlite_ms(s: Option<String>) -> Option<i64> {
-    parse_datetime_sqlite(s).map(|d| d.timestamp_millis())
-}
-
-pub async fn get_user_stats(pool: &SelectedPool, user_id: &str) -> Result<UserStats, String> {
-    match pool {
-        SelectedPool::Primary(pg) => get_user_stats_pg(pg, user_id).await,
-        SelectedPool::Fallback(sqlite) => get_user_stats_sqlite(sqlite, user_id).await,
-    }
-}
-
-async fn get_user_stats_pg(pool: &PgPool, user_id: &str) -> Result<UserStats, String> {
+pub async fn get_user_stats(pool: &PgPool, user_id: &str) -> Result<UserStats, String> {
     let row = sqlx::query(
         r#"SELECT
            COUNT(*) as total,
@@ -282,275 +261,157 @@ async fn get_user_stats_pg(pool: &PgPool, user_id: &str) -> Result<UserStats, St
     })
 }
 
-async fn get_user_stats_sqlite(pool: &SqlitePool, user_id: &str) -> Result<UserStats, String> {
+pub async fn get_due_words(
+    pool: &PgPool,
+    user_id: &str,
+    limit: i32,
+) -> Result<Vec<WordLearningState>, String> {
+    let now = Utc::now();
+    let rows = sqlx::query(
+        r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
+           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
+           "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays"
+           FROM "word_learning_states"
+           WHERE "userId" = $1 AND "nextReviewDate" <= $2
+           ORDER BY "nextReviewDate" ASC LIMIT $3"#,
+    )
+    .bind(user_id)
+    .bind(now)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
+
+    rows.iter()
+        .map(|row| parse_word_learning_state(row))
+        .collect()
+}
+
+pub async fn get_words_by_state(
+    pool: &PgPool,
+    user_id: &str,
+    state: WordState,
+    limit: i32,
+) -> Result<Vec<WordLearningState>, String> {
+    let state_str = state.as_str();
+    let rows = sqlx::query(
+        r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
+           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
+           "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays"
+           FROM "word_learning_states"
+           WHERE "userId" = $1 AND "state" = $2 LIMIT $3"#,
+    )
+    .bind(user_id)
+    .bind(state_str)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
+
+    rows.iter()
+        .map(|row| parse_word_learning_state(row))
+        .collect()
+}
+
+pub async fn get_word_score(
+    pool: &PgPool,
+    user_id: &str,
+    word_id: &str,
+) -> Result<Option<WordScore>, String> {
+    let row = sqlx::query(
+        r#"SELECT "id", "userId", "wordId", "totalScore", "accuracyScore", "speedScore",
+           "totalAttempts", "correctAttempts", "averageResponseTime", "recentAccuracy", "updatedAt"
+           FROM "word_scores" WHERE "userId" = $1 AND "wordId" = $2"#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
+
+    let Some(row) = row else { return Ok(None) };
+    Ok(Some(WordScore {
+        id: row.try_get("id").unwrap_or_default(),
+        user_id: row.try_get("userId").unwrap_or_default(),
+        word_id: row.try_get("wordId").unwrap_or_default(),
+        total_score: row.try_get("totalScore").unwrap_or(0.0),
+        accuracy_score: row.try_get("accuracyScore").unwrap_or(0.0),
+        speed_score: row.try_get("speedScore").unwrap_or(0.0),
+        total_attempts: row.try_get("totalAttempts").unwrap_or(0),
+        correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
+        average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
+        recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
+        updated_at: row
+            .try_get::<DateTime<Utc>, _>("updatedAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or_else(|_| Utc::now().timestamp_millis()),
+    }))
+}
+
+pub async fn get_low_score_words(
+    pool: &PgPool,
+    user_id: &str,
+    threshold: f64,
+    limit: i32,
+) -> Result<Vec<WordScore>, String> {
+    let rows = sqlx::query(
+        r#"SELECT "id", "userId", "wordId", "totalScore", "accuracyScore", "speedScore",
+           "totalAttempts", "correctAttempts", "averageResponseTime", "recentAccuracy", "updatedAt"
+           FROM "word_scores" WHERE "userId" = $1 AND "totalScore" < $2
+           ORDER BY "totalScore" ASC LIMIT $3"#,
+    )
+    .bind(user_id)
+    .bind(threshold)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
+
+    Ok(rows
+        .iter()
+        .map(|row| WordScore {
+            id: row.try_get("id").unwrap_or_default(),
+            user_id: row.try_get("userId").unwrap_or_default(),
+            word_id: row.try_get("wordId").unwrap_or_default(),
+            total_score: row.try_get("totalScore").unwrap_or(0.0),
+            accuracy_score: row.try_get("accuracyScore").unwrap_or(0.0),
+            speed_score: row.try_get("speedScore").unwrap_or(0.0),
+            total_attempts: row.try_get("totalAttempts").unwrap_or(0),
+            correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
+            average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
+            recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
+            updated_at: row
+                .try_get::<DateTime<Utc>, _>("updatedAt")
+                .map(|d| d.timestamp_millis())
+                .unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        })
+        .collect())
+}
+
+pub async fn get_score_stats(pool: &PgPool, user_id: &str) -> Result<ScoreStats, String> {
     let row = sqlx::query(
         r#"SELECT
-           COUNT(*) as total,
-           SUM(CASE WHEN "state" = 'NEW' THEN 1 ELSE 0 END) as new_count,
-           SUM(CASE WHEN "state" = 'LEARNING' THEN 1 ELSE 0 END) as learning_count,
-           SUM(CASE WHEN "state" = 'REVIEWING' THEN 1 ELSE 0 END) as reviewing_count,
-           SUM(CASE WHEN "state" = 'MASTERED' THEN 1 ELSE 0 END) as mastered_count
-           FROM "word_learning_states" WHERE "userId" = ?"#,
+           COALESCE(AVG("totalScore"), 0) as avg_score,
+           COUNT(*) FILTER (WHERE "totalScore" >= 80) as high_count,
+           COUNT(*) FILTER (WHERE "totalScore" >= 40 AND "totalScore" < 80) as medium_count,
+           COUNT(*) FILTER (WHERE "totalScore" < 40) as low_count
+           FROM "word_scores" WHERE "userId" = $1"#,
     )
     .bind(user_id)
     .fetch_one(pool)
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(UserStats {
-        total_words: row.try_get("total").unwrap_or(0),
-        new_words: row.try_get("new_count").unwrap_or(0),
-        learning_words: row.try_get("learning_count").unwrap_or(0),
-        reviewing_words: row.try_get("reviewing_count").unwrap_or(0),
-        mastered_words: row.try_get("mastered_count").unwrap_or(0),
+    Ok(ScoreStats {
+        average_score: row.try_get("avg_score").unwrap_or(0.0),
+        high_score_count: row.try_get("high_count").unwrap_or(0),
+        medium_score_count: row.try_get("medium_count").unwrap_or(0),
+        low_score_count: row.try_get("low_count").unwrap_or(0),
     })
 }
 
-pub async fn get_due_words(
-    pool: &SelectedPool,
-    user_id: &str,
-    limit: i32,
-) -> Result<Vec<WordLearningState>, String> {
-    let now = Utc::now();
-    let _now_ms = now.timestamp_millis();
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-                   "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
-                   FROM "word_learning_states"
-                   WHERE "userId" = $1 AND "nextReviewDate" <= $2
-                   ORDER BY "nextReviewDate" ASC LIMIT $3"#,
-            )
-            .bind(user_id)
-            .bind(now)
-            .bind(limit)
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            rows.iter().map(parse_learning_state_pg).collect()
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let now_str = now.to_rfc3339();
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-                   "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
-                   FROM "word_learning_states"
-                   WHERE "userId" = ? AND "nextReviewDate" <= ?
-                   ORDER BY "nextReviewDate" ASC LIMIT ?"#,
-            )
-            .bind(user_id)
-            .bind(&now_str)
-            .bind(limit)
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            rows.iter().map(parse_learning_state_sqlite).collect()
-        }
-    }
-}
-
-pub async fn get_words_by_state(
-    pool: &SelectedPool,
-    user_id: &str,
-    state: WordState,
-    limit: i32,
-) -> Result<Vec<WordLearningState>, String> {
-    let state_str = state.as_str();
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-                   "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
-                   FROM "word_learning_states"
-                   WHERE "userId" = $1 AND "state" = $2 LIMIT $3"#,
-            )
-            .bind(user_id)
-            .bind(state_str)
-            .bind(limit)
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            rows.iter().map(parse_learning_state_pg).collect()
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-                   "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
-                   FROM "word_learning_states"
-                   WHERE "userId" = ? AND "state" = ? LIMIT ?"#,
-            )
-            .bind(user_id)
-            .bind(state_str)
-            .bind(limit)
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            rows.iter().map(parse_learning_state_sqlite).collect()
-        }
-    }
-}
-
-pub async fn get_word_score(
-    pool: &SelectedPool,
-    user_id: &str,
-    word_id: &str,
-) -> Result<Option<WordScore>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "score", "correctCount", "incorrectCount",
-                   "totalResponseTime", "updatedAt"
-                   FROM "word_scores" WHERE "userId" = $1 AND "wordId" = $2"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_optional(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            let Some(row) = row else { return Ok(None) };
-            Ok(Some(WordScore {
-                id: row.try_get("id").unwrap_or_default(),
-                user_id: row.try_get("userId").unwrap_or_default(),
-                word_id: row.try_get("wordId").unwrap_or_default(),
-                score: row.try_get("score").unwrap_or(0.0),
-                correct_count: row.try_get("correctCount").unwrap_or(0),
-                incorrect_count: row.try_get("incorrectCount").unwrap_or(0),
-                total_response_time: row.try_get("totalResponseTime").unwrap_or(0),
-                updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-            }))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "score", "correctCount", "incorrectCount",
-                   "totalResponseTime", "updatedAt"
-                   FROM "word_scores" WHERE "userId" = ? AND "wordId" = ?"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_optional(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            let Some(row) = row else { return Ok(None) };
-            Ok(Some(WordScore {
-                id: row.try_get("id").unwrap_or_default(),
-                user_id: row.try_get("userId").unwrap_or_default(),
-                word_id: row.try_get("wordId").unwrap_or_default(),
-                score: row.try_get("score").unwrap_or(0.0),
-                correct_count: row.try_get("correctCount").unwrap_or(0),
-                incorrect_count: row.try_get("incorrectCount").unwrap_or(0),
-                total_response_time: row.try_get("totalResponseTime").unwrap_or(0),
-                updated_at: parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("updatedAt").ok().flatten()).unwrap_or_else(|| Utc::now().timestamp_millis()),
-            }))
-        }
-    }
-}
-
-pub async fn get_low_score_words(
-    pool: &SelectedPool,
-    user_id: &str,
-    threshold: f64,
-    limit: i32,
-) -> Result<Vec<WordScore>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "score", "correctCount", "incorrectCount",
-                   "totalResponseTime", "updatedAt"
-                   FROM "word_scores" WHERE "userId" = $1 AND "score" < $2
-                   ORDER BY "score" ASC LIMIT $3"#,
-            )
-            .bind(user_id)
-            .bind(threshold)
-            .bind(limit)
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.iter().map(|row| WordScore {
-                id: row.try_get("id").unwrap_or_default(),
-                user_id: row.try_get("userId").unwrap_or_default(),
-                word_id: row.try_get("wordId").unwrap_or_default(),
-                score: row.try_get("score").unwrap_or(0.0),
-                correct_count: row.try_get("correctCount").unwrap_or(0),
-                incorrect_count: row.try_get("incorrectCount").unwrap_or(0),
-                total_response_time: row.try_get("totalResponseTime").unwrap_or(0),
-                updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "wordId", "score", "correctCount", "incorrectCount",
-                   "totalResponseTime", "updatedAt"
-                   FROM "word_scores" WHERE "userId" = ? AND "score" < ?
-                   ORDER BY "score" ASC LIMIT ?"#,
-            )
-            .bind(user_id)
-            .bind(threshold)
-            .bind(limit)
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.iter().map(|row| WordScore {
-                id: row.try_get("id").unwrap_or_default(),
-                user_id: row.try_get("userId").unwrap_or_default(),
-                word_id: row.try_get("wordId").unwrap_or_default(),
-                score: row.try_get("score").unwrap_or(0.0),
-                correct_count: row.try_get("correctCount").unwrap_or(0),
-                incorrect_count: row.try_get("incorrectCount").unwrap_or(0),
-                total_response_time: row.try_get("totalResponseTime").unwrap_or(0),
-                updated_at: parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("updatedAt").ok().flatten()).unwrap_or_else(|| Utc::now().timestamp_millis()),
-            }).collect())
-        }
-    }
-}
-
-pub async fn get_score_stats(pool: &SelectedPool, user_id: &str) -> Result<ScoreStats, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(
-                r#"SELECT
-                   COALESCE(AVG("score"), 0) as avg_score,
-                   COUNT(*) FILTER (WHERE "score" >= 80) as high_count,
-                   COUNT(*) FILTER (WHERE "score" >= 40 AND "score" < 80) as medium_count,
-                   COUNT(*) FILTER (WHERE "score" < 40) as low_count
-                   FROM "word_scores" WHERE "userId" = $1"#,
-            )
-            .bind(user_id)
-            .fetch_one(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            Ok(ScoreStats {
-                average_score: row.try_get("avg_score").unwrap_or(0.0),
-                high_score_count: row.try_get("high_count").unwrap_or(0),
-                medium_score_count: row.try_get("medium_count").unwrap_or(0),
-                low_score_count: row.try_get("low_count").unwrap_or(0),
-            })
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(
-                r#"SELECT
-                   COALESCE(AVG("score"), 0) as avg_score,
-                   SUM(CASE WHEN "score" >= 80 THEN 1 ELSE 0 END) as high_count,
-                   SUM(CASE WHEN "score" >= 40 AND "score" < 80 THEN 1 ELSE 0 END) as medium_count,
-                   SUM(CASE WHEN "score" < 40 THEN 1 ELSE 0 END) as low_count
-                   FROM "word_scores" WHERE "userId" = ?"#,
-            )
-            .bind(user_id)
-            .fetch_one(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-            Ok(ScoreStats {
-                average_score: row.try_get("avg_score").unwrap_or(0.0),
-                high_score_count: row.try_get("high_count").unwrap_or(0),
-                medium_score_count: row.try_get("medium_count").unwrap_or(0),
-                low_score_count: row.try_get("low_count").unwrap_or(0),
-            })
-        }
-    }
-}
-
 pub async fn get_complete_word_state(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
     word_id: &str,
     include_mastery: bool,
@@ -559,16 +420,25 @@ pub async fn get_complete_word_state(
     let score = get_word_score(pool, user_id, word_id).await?;
 
     let mastery = if include_mastery {
-        learning_state.as_ref().map(|ls| compute_mastery_evaluation(ls, score.as_ref()))
+        learning_state
+            .as_ref()
+            .map(|ls| compute_mastery_evaluation(ls, score.as_ref()))
     } else {
         None
     };
 
-    Ok(CompleteWordState { learning_state, score, mastery })
+    Ok(CompleteWordState {
+        learning_state,
+        score,
+        mastery,
+    })
 }
 
-fn compute_mastery_evaluation(state: &WordLearningState, score: Option<&WordScore>) -> MasteryEvaluation {
-    let base_score = score.map(|s| s.score).unwrap_or(50.0);
+fn compute_mastery_evaluation(
+    state: &WordLearningState,
+    score: Option<&WordScore>,
+) -> MasteryEvaluation {
+    let base_score = score.map(|s| s.total_score).unwrap_or(50.0);
     let mastery_factor = (state.mastery_level as f64 / 10.0).min(1.0);
     let review_factor = (state.review_count as f64 / 20.0).min(1.0);
     let combined_score = base_score * 0.5 + mastery_factor * 30.0 + review_factor * 20.0;
@@ -582,11 +452,17 @@ fn compute_mastery_evaluation(state: &WordLearningState, score: Option<&WordScor
         stability,
         confidence: mastery_factor,
         is_mastered: state.state == WordState::Mastered || combined_score >= 80.0,
-        needs_review: state.next_review_date.map(|d| d <= Utc::now().timestamp_millis()).unwrap_or(false),
+        needs_review: state
+            .next_review_date
+            .map(|d| d <= Utc::now().timestamp_millis())
+            .unwrap_or(false),
     }
 }
 
-pub async fn get_user_learning_stats(pool: &SelectedPool, user_id: &str) -> Result<UserLearningStats, String> {
+pub async fn get_user_learning_stats(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<UserLearningStats, String> {
     let state_stats = get_user_stats(pool, user_id).await?;
     let score_stats = get_score_stats(pool, user_id).await?;
 
@@ -600,266 +476,182 @@ pub async fn get_user_learning_stats(pool: &SelectedPool, user_id: &str) -> Resu
         need_review_count: state_stats.reviewing_words,
     };
 
-    Ok(UserLearningStats { state_stats, score_stats, mastery_stats })
+    Ok(UserLearningStats {
+        state_stats,
+        score_stats,
+        mastery_stats,
+    })
 }
 
 // ========== Write Operations ==========
 
 pub async fn upsert_word_state(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     data: WordStateUpdateData,
 ) -> Result<(), String> {
+    let pool = proxy.pool();
     let now = Utc::now();
-    let now_str = now.to_rfc3339();
     let id = uuid::Uuid::new_v4().to_string();
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".into(), serde_json::json!(user_id));
-        where_clause.insert("wordId".into(), serde_json::json!(word_id));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".into(), serde_json::json!(id));
-        create.insert("userId".into(), serde_json::json!(user_id));
-        create.insert("wordId".into(), serde_json::json!(word_id));
-        create.insert("state".into(), serde_json::json!(data.state.map(|s| s.as_str()).unwrap_or("NEW")));
-        create.insert("masteryLevel".into(), serde_json::json!(data.mastery_level.unwrap_or(0)));
-        create.insert("easeFactor".into(), serde_json::json!(data.ease_factor.unwrap_or(2.5)));
-        create.insert("reviewCount".into(), serde_json::json!(data.review_count.unwrap_or(0)));
-        if let Some(ts) = data.last_review_date {
-            create.insert("lastReviewDate".into(), serde_json::json!(DateTime::from_timestamp_millis(ts).map(|d| d.to_rfc3339())));
-        }
-        if let Some(ts) = data.next_review_date {
-            create.insert("nextReviewDate".into(), serde_json::json!(DateTime::from_timestamp_millis(ts).map(|d| d.to_rfc3339())));
-        }
-        create.insert("createdAt".into(), serde_json::json!(now_str));
-        create.insert("updatedAt".into(), serde_json::json!(now_str));
-
-        let mut update = serde_json::Map::new();
-        if let Some(s) = &data.state {
-            update.insert("state".into(), serde_json::json!(s.as_str()));
-        }
-        if let Some(v) = data.mastery_level {
-            update.insert("masteryLevel".into(), serde_json::json!(v));
-        }
-        if let Some(v) = data.ease_factor {
-            update.insert("easeFactor".into(), serde_json::json!(v));
-        }
-        if let Some(v) = data.review_count {
-            update.insert("reviewCount".into(), serde_json::json!(v));
-        }
-        if let Some(ts) = data.last_review_date {
-            update.insert("lastReviewDate".into(), serde_json::json!(DateTime::from_timestamp_millis(ts).map(|d| d.to_rfc3339())));
-        }
-        if let Some(ts) = data.next_review_date {
-            update.insert("nextReviewDate".into(), serde_json::json!(DateTime::from_timestamp_millis(ts).map(|d| d.to_rfc3339())));
-        }
-        update.insert("updatedAt".into(), serde_json::json!(now_str));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "word_learning_states".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
-
-    let state_str = data.state.map(|s| s.as_str()).unwrap_or("NEW");
-    let mastery_level = data.mastery_level.unwrap_or(0);
-    let ease_factor = data.ease_factor.unwrap_or(2.5);
-    let review_count = data.review_count.unwrap_or(0);
-    let last_review: Option<DateTime<Utc>> = data.last_review_date.and_then(DateTime::from_timestamp_millis);
-    let next_review: Option<DateTime<Utc>> = data.next_review_date.and_then(DateTime::from_timestamp_millis);
+    let state_str: Option<&str> = data.state.map(|s| s.as_str());
+    let last_review: Option<DateTime<Utc>> = data
+        .last_review_date
+        .and_then(DateTime::from_timestamp_millis);
+    let next_review: Option<DateTime<Utc>> = data
+        .next_review_date
+        .and_then(DateTime::from_timestamp_millis);
 
     sqlx::query(
-        r#"INSERT INTO "word_learning_states" ("id","userId","wordId","state","masteryLevel","easeFactor",
-           "reviewCount","lastReviewDate","nextReviewDate","createdAt","updatedAt")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-           ON CONFLICT ("userId","wordId") DO UPDATE SET
-           "state"=COALESCE($4,"word_learning_states"."state"),
+        r#"INSERT INTO "word_learning_states" (
+           "id","userId","wordId","state","masteryLevel","easeFactor",
+           "reviewCount","lastReviewDate","nextReviewDate","createdAt","updatedAt",
+           "stability","difficulty","desiredRetention","lapses","reps","scheduledDays","elapsedDays"
+         )
+         VALUES ($1,$2,$3,COALESCE($4::"WordState",'NEW'::"WordState"),COALESCE($5,0),COALESCE($6,2.5),
+                 COALESCE($7,0),$8,$9,$10,$11,
+                 COALESCE($13,1.0),COALESCE($14,0.3),COALESCE($15,0.9),COALESCE($16,0),COALESCE($17,0),COALESCE($18,0.0),COALESCE($19,0.0))
+         ON CONFLICT ("userId","wordId") DO UPDATE SET
+           "state"=COALESCE($4::"WordState","word_learning_states"."state"),
            "masteryLevel"=COALESCE($5,"word_learning_states"."masteryLevel"),
            "easeFactor"=COALESCE($6,"word_learning_states"."easeFactor"),
-           "reviewCount"=COALESCE($7,"word_learning_states"."reviewCount"),
+           "reviewCount"=CASE WHEN $12 THEN "word_learning_states"."reviewCount"+1 ELSE COALESCE($7,"word_learning_states"."reviewCount") END,
            "lastReviewDate"=COALESCE($8,"word_learning_states"."lastReviewDate"),
            "nextReviewDate"=COALESCE($9,"word_learning_states"."nextReviewDate"),
-           "updatedAt"=$11"#,
+           "updatedAt"=$11,
+           "stability"=COALESCE($13,"word_learning_states"."stability"),
+           "difficulty"=COALESCE($14,"word_learning_states"."difficulty"),
+           "desiredRetention"=COALESCE($15,"word_learning_states"."desiredRetention"),
+           "lapses"=COALESCE($16,"word_learning_states"."lapses"),
+           "reps"=CASE WHEN $12 THEN "word_learning_states"."reps"+1 ELSE COALESCE($17,"word_learning_states"."reps") END,
+           "scheduledDays"=COALESCE($18,"word_learning_states"."scheduledDays"),
+           "elapsedDays"=COALESCE($19,"word_learning_states"."elapsedDays")"#,
     )
     .bind(&id).bind(user_id).bind(word_id).bind(state_str)
-    .bind(mastery_level).bind(ease_factor).bind(review_count)
+    .bind(data.mastery_level).bind(data.ease_factor).bind(data.review_count)
     .bind(last_review).bind(next_review).bind(now).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .bind(data.increment_review)
+    .bind(data.stability).bind(data.difficulty).bind(data.desired_retention)
+    .bind(data.lapses).bind(data.reps).bind(data.scheduled_days).bind(data.elapsed_days)
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())
 }
 
 pub async fn upsert_word_score(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     score: f64,
     is_correct: bool,
     response_time: i64,
 ) -> Result<(), String> {
+    let pool = proxy.pool();
     let now = Utc::now();
-    let now_str = now.to_rfc3339();
     let id = uuid::Uuid::new_v4().to_string();
-
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".into(), serde_json::json!(user_id));
-        where_clause.insert("wordId".into(), serde_json::json!(word_id));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".into(), serde_json::json!(id));
-        create.insert("userId".into(), serde_json::json!(user_id));
-        create.insert("wordId".into(), serde_json::json!(word_id));
-        create.insert("score".into(), serde_json::json!(score));
-        create.insert("correctCount".into(), serde_json::json!(if is_correct { 1 } else { 0 }));
-        create.insert("incorrectCount".into(), serde_json::json!(if is_correct { 0 } else { 1 }));
-        create.insert("totalResponseTime".into(), serde_json::json!(response_time));
-        create.insert("updatedAt".into(), serde_json::json!(now_str));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "word_scores".to_string(),
-            r#where: where_clause.clone(),
-            create: create.clone(),
-            update: create,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
     let correct_inc = if is_correct { 1 } else { 0 };
-    let incorrect_inc = if is_correct { 0 } else { 1 };
+    let accuracy = if is_correct { 1.0 } else { 0.0 };
 
     sqlx::query(
-        r#"INSERT INTO "word_scores" ("id","userId","wordId","score","correctCount","incorrectCount","totalResponseTime","updatedAt")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        r#"INSERT INTO "word_scores" ("id","userId","wordId","totalScore","accuracyScore","speedScore","totalAttempts","correctAttempts","averageResponseTime","recentAccuracy","createdAt","updatedAt")
+           VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,$9,$10,$10)
            ON CONFLICT ("userId","wordId") DO UPDATE SET
-           "score"=$4,
-           "correctCount"="word_scores"."correctCount"+$5,
-           "incorrectCount"="word_scores"."incorrectCount"+$6,
-           "totalResponseTime"="word_scores"."totalResponseTime"+$7,
-           "updatedAt"=$8"#,
+           "totalScore"=EXCLUDED."totalScore",
+           "accuracyScore"=("word_scores"."accuracyScore" * "word_scores"."totalAttempts" + EXCLUDED."accuracyScore") / ("word_scores"."totalAttempts" + 1),
+           "totalAttempts"="word_scores"."totalAttempts"+1,
+           "correctAttempts"="word_scores"."correctAttempts"+$7,
+           "averageResponseTime"=("word_scores"."averageResponseTime" * "word_scores"."totalAttempts" + $8) / ("word_scores"."totalAttempts" + 1),
+           "recentAccuracy"=EXCLUDED."recentAccuracy",
+           "updatedAt"=$10"#,
     )
     .bind(&id).bind(user_id).bind(word_id).bind(score)
-    .bind(correct_inc).bind(incorrect_inc).bind(response_time).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .bind(accuracy).bind(calculate_speed_score(response_time)).bind(correct_inc)
+    .bind(response_time as f64).bind(accuracy).bind(now)
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())
 }
 
+fn calculate_speed_score(response_time: i64) -> f64 {
+    let max_time = 10000.0;
+    let min_time = 500.0;
+    let rt = response_time as f64;
+    if rt <= min_time {
+        1.0
+    } else if rt >= max_time {
+        0.0
+    } else {
+        1.0 - (rt - min_time) / (max_time - min_time)
+    }
+}
+
 pub async fn record_review(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     event: ReviewEventInput,
 ) -> Result<(), String> {
+    let pool = proxy.pool();
     let now = Utc::now();
-    let now_str = now.to_rfc3339();
     let id = uuid::Uuid::new_v4().to_string();
     let event_ts = DateTime::from_timestamp_millis(event.timestamp);
 
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".into(), serde_json::json!(id));
-        data.insert("userId".into(), serde_json::json!(user_id));
-        data.insert("wordId".into(), serde_json::json!(word_id));
-        data.insert("isCorrect".into(), serde_json::json!(event.is_correct));
-        data.insert("responseTime".into(), serde_json::json!(event.response_time));
-        data.insert("timestamp".into(), serde_json::json!(event_ts.map(|d| d.to_rfc3339()).unwrap_or(now_str.clone())));
-        data.insert("createdAt".into(), serde_json::json!(now_str));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "word_review_traces".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
     sqlx::query(
         r#"INSERT INTO "word_review_traces" ("id","userId","wordId","isCorrect","responseTime","timestamp","createdAt")
            VALUES ($1,$2,$3,$4,$5,$6,$7)"#,
     )
     .bind(&id).bind(user_id).bind(word_id).bind(event.is_correct)
     .bind(event.response_time).bind(event_ts.unwrap_or(now)).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
+
+    if let Some(ref session_id) = event.session_id {
+        sqlx::query(
+            r#"UPDATE "learning_sessions" SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1 WHERE "id" = $2"#,
+        )
+        .bind(now.naive_utc())
+        .bind(session_id)
+        .execute(pool)
+        .await
+        .ok();
+    }
 
     Ok(())
 }
 
 pub async fn get_memory_trace(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
     word_id: &str,
     limit: i32,
 ) -> Result<Vec<ReviewTraceRecord>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "timestamp", "isCorrect", "responseTime"
-                   FROM "word_review_traces" WHERE "userId" = $1 AND "wordId" = $2
-                   ORDER BY "timestamp" DESC LIMIT $3"#,
-            )
-            .bind(user_id).bind(word_id).bind(limit)
-            .fetch_all(pg).await.map_err(|e| format!("查询失败: {e}"))?;
+    let rows = sqlx::query(
+        r#"SELECT "id", "timestamp", "isCorrect", "responseTime"
+           FROM "word_review_traces" WHERE "userId" = $1 AND "wordId" = $2
+           ORDER BY "timestamp" DESC LIMIT $3"#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            let now = Utc::now().timestamp_millis();
-            Ok(rows.iter().map(|row| {
-                let ts: DateTime<Utc> = row.try_get("timestamp").unwrap_or(Utc::now());
-                let ts_ms = ts.timestamp_millis();
-                ReviewTraceRecord {
-                    id: row.try_get("id").unwrap_or_default(),
-                    timestamp: ts_ms,
-                    is_correct: row.try_get("isCorrect").unwrap_or(false),
-                    response_time: row.try_get("responseTime").unwrap_or(0),
-                    seconds_ago: ((now - ts_ms) / 1000) as i64,
-                }
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "timestamp", "isCorrect", "responseTime"
-                   FROM "word_review_traces" WHERE "userId" = ? AND "wordId" = ?
-                   ORDER BY "timestamp" DESC LIMIT ?"#,
-            )
-            .bind(user_id).bind(word_id).bind(limit)
-            .fetch_all(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-
-            let now = Utc::now().timestamp_millis();
-            Ok(rows.iter().map(|row| {
-                let ts_ms = parse_datetime_sqlite_ms(row.try_get::<Option<String>, _>("timestamp").ok().flatten()).unwrap_or(now);
-                ReviewTraceRecord {
-                    id: row.try_get("id").unwrap_or_default(),
-                    timestamp: ts_ms,
-                    is_correct: row.try_get("isCorrect").unwrap_or(false),
-                    response_time: row.try_get("responseTime").unwrap_or(0),
-                    seconds_ago: ((now - ts_ms) / 1000) as i64,
-                }
-            }).collect())
-        }
-    }
+    let now = Utc::now().timestamp_millis();
+    Ok(rows
+        .iter()
+        .map(|row| {
+            let ts: DateTime<Utc> = row.try_get("timestamp").unwrap_or(Utc::now());
+            let ts_ms = ts.timestamp_millis();
+            ReviewTraceRecord {
+                id: row.try_get("id").unwrap_or_default(),
+                timestamp: ts_ms,
+                is_correct: row.try_get("isCorrect").unwrap_or(false),
+                response_time: row.try_get("responseTime").unwrap_or(0),
+                seconds_ago: ((now - ts_ms) / 1000) as i64,
+            }
+        })
+        .collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

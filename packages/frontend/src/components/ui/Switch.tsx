@@ -96,7 +96,7 @@ export const Switch = memo(
             'rounded-full p-0.5',
             'transition-colors duration-g3-fast ease-g3',
             'focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2',
-            isChecked ? 'bg-blue-500' : 'bg-gray-300',
+            isChecked ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-600',
             disabled && 'cursor-not-allowed opacity-50',
             track,
           )}
@@ -137,14 +137,14 @@ export const Switch = memo(
               <label
                 htmlFor={inputId}
                 className={cn(
-                  'text-sm font-medium text-gray-900',
+                  'text-sm font-medium text-gray-900 dark:text-white',
                   disabled && 'cursor-not-allowed opacity-50',
                 )}
               >
                 {label}
               </label>
               {description && (
-                <p id={descriptionId} className="mt-0.5 text-sm text-gray-500">
+                <p id={descriptionId} className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                   {description}
                 </p>
               )}
@@ -158,14 +158,14 @@ export const Switch = memo(
               <label
                 htmlFor={inputId}
                 className={cn(
-                  'text-sm font-medium text-gray-900',
+                  'text-sm font-medium text-gray-900 dark:text-white',
                   disabled && 'cursor-not-allowed opacity-50',
                 )}
               >
                 {label}
               </label>
               {description && (
-                <p id={descriptionId} className="mt-0.5 text-sm text-gray-500">
+                <p id={descriptionId} className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                   {description}
                 </p>
               )}

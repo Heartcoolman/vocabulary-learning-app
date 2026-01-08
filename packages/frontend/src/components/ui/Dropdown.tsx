@@ -173,10 +173,10 @@ export const Dropdown = memo(
             onKeyDown={handleKeyDown}
             className={cn(
               'inline-flex items-center gap-1.5 px-3 py-2',
-              'rounded-button border border-gray-200 bg-white',
-              'text-sm font-medium text-gray-700',
+              'rounded-button border border-gray-200 bg-white dark:border-slate-600 dark:bg-slate-800',
+              'text-sm font-medium text-gray-700 dark:text-gray-200',
               'transition-all duration-g3-fast ease-g3',
-              'hover:border-gray-300 hover:bg-gray-50',
+              'hover:border-gray-300 hover:bg-gray-50 dark:hover:border-slate-500 dark:hover:bg-slate-700',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
               disabled && 'cursor-not-allowed opacity-50',
             )}
@@ -197,7 +197,7 @@ export const Dropdown = memo(
               aria-orientation="vertical"
               className={cn(
                 'absolute z-50 min-w-[160px]',
-                'rounded-card border border-gray-100 bg-white',
+                'rounded-card border border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800',
                 'py-1 shadow-elevated',
                 'animate-g3-fade-in',
                 placementStyles[placement],
@@ -205,7 +205,13 @@ export const Dropdown = memo(
             >
               {items.map((item, index) => {
                 if (item.divider) {
-                  return <div key={item.key} className="my-1 h-px bg-gray-100" role="separator" />;
+                  return (
+                    <div
+                      key={item.key}
+                      className="my-1 h-px bg-gray-100 dark:bg-slate-700"
+                      role="separator"
+                    />
+                  );
                 }
 
                 const enabledIndex = enabledItems.findIndex((i) => i.key === item.key);
@@ -224,11 +230,15 @@ export const Dropdown = memo(
                       'text-left text-sm',
                       'transition-colors duration-g3-instant',
                       item.disabled
-                        ? 'cursor-not-allowed text-gray-400'
+                        ? 'cursor-not-allowed text-gray-400 dark:text-gray-500'
                         : item.danger
-                          ? 'text-red-600 hover:bg-red-50'
-                          : 'text-gray-700 hover:bg-gray-50',
-                      isActive && !item.disabled && (item.danger ? 'bg-red-50' : 'bg-gray-50'),
+                          ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'
+                          : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-slate-700',
+                      isActive &&
+                        !item.disabled &&
+                        (item.danger
+                          ? 'bg-red-50 dark:bg-red-900/30'
+                          : 'bg-gray-50 dark:bg-slate-700'),
                     )}
                   >
                     {item.icon && <span className="h-4 w-4 flex-shrink-0">{item.icon}</span>}

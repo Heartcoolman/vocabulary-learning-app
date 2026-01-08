@@ -8,7 +8,9 @@ export interface User {
   email: string;
   username: string;
   role: 'USER' | 'ADMIN';
+  rewardProfile: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -26,6 +28,23 @@ export interface Statistics {
   totalWords: number;
   totalRecords: number;
   correctRate: number;
+  recentRecords: Array<{
+    id: string;
+    userId: string;
+    wordId: string;
+    selectedAnswer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+    timestamp: string;
+    responseTime?: number;
+    dwellTime?: number;
+    sessionId?: string;
+    word: {
+      id: string;
+      word: string;
+      definition: string;
+    };
+  }>;
 }
 
 /**
@@ -85,6 +104,27 @@ export class AuthClient extends BaseClient {
     return this.request<void>('/api/users/me/password', {
       method: 'PUT',
       body: JSON.stringify({ oldPassword, newPassword }),
+    });
+  }
+
+  async updateProfile(data: { username?: string }): Promise<User> {
+    return this.request<User>('/api/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    return this.request<void>('/api/auth/password/request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    return this.request<void>('/api/auth/password/reset', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword }),
     });
   }
 

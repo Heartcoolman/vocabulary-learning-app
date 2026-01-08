@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - dev
     paths:
       - 'packages/native/**'
       - '.github/workflows/native.yml'
@@ -29,38 +30,41 @@ jobs:
             target: x86_64-unknown-linux-gnu
             build: |
               set -e
+              rm -f *.node
               pnpm build --target x86_64-unknown-linux-gnu
               strip -x *.node
 
           # Linux x64 (musl - Alpine)
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: set -e && pnpm build --target x86_64-unknown-linux-musl && strip -x *.node
+            build: |
+              set -e
+              rm -f *.node
+              pnpm build --target x86_64-unknown-linux-musl
+              strip -x *.node
 
           # Linux ARM64 (glibc)
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             build: |
               set -e
+              rm -f *.node
               pnpm build --target aarch64-unknown-linux-gnu
-              aarch64-linux-gnu-strip -x *.node
-
-          # Linux ARM64 (musl - Alpine)
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: |
-              set -e
-              rustup target add aarch64-unknown-linux-musl
-              pnpm build --target aarch64-unknown-linux-musl
-              /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
+              built=$(ls *.node 2>/dev/null | head -1)
+              if [ -z "$built" ]; then
+                echo "No .node file produced"
+                exit 1
+              fi
+              echo "Built file: $built"
+              file "$built"
+              aarch64-linux-gnu-strip -x "$built"
 
           # macOS x64 (Intel)
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             build: |
               set -e
+              rm -f *.node
               pnpm build --target x86_64-apple-darwin
               strip -x *.node
 
@@ -69,18 +73,16 @@ jobs:
             target: aarch64-apple-darwin
             build: |
               set -e
-              sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*
-              export CC=$(xcrun -f clang)
-              export CXX=$(xcrun -f clang++)
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path)
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT"
+              rm -f *.node
               pnpm build --target aarch64-apple-darwin
               strip -x *.node
 
           # Windows x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            build: pnpm build --target x86_64-pc-windows-msvc
+            build: |
+              rm -f *.node 2>/dev/null || true
+              pnpm build --target x86_64-pc-windows-msvc
 
     name: Build - ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -95,44 +97,46 @@ jobs:
           node-version: '20'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+        uses: pnpm/action-setup@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        if: ${{ !matrix.docker }}
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
-        if: ${{ !matrix.docker }}
         with:
           workspaces: packages/native -> target
           shared-key: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (x86_64-linux-musl)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
 
       - name: Install cross-compilation tools (aarch64-linux-gnu)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build in Docker
-        uses: addnab/docker-run-action@v3
-        if: ${{ matrix.docker }}
-        with:
-          image: ${{ matrix.docker }}
-          options: '--user 0:0 -v ${{ github.workspace }}:/build -w /build/packages/native'
-          run: ${{ matrix.build }}
-
       - name: Build
-        if: ${{ !matrix.docker }}
         working-directory: packages/native
         run: ${{ matrix.build }}
+        shell: bash
+
+      - name: List built files
+        working-directory: packages/native
+        run: ls -la *.node || echo "No .node files found"
         shell: bash
 
       - name: Upload artifact
@@ -151,7 +155,7 @@ jobs:
         settings:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -169,9 +173,13 @@ jobs:
           node-version: '20'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          version: 9
+          toolchain: stable
+          targets: ${{ matrix.settings.target }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -181,14 +189,46 @@ jobs:
         with:
           name: bindings-${{ matrix.settings.target }}
           path: packages/native
+        continue-on-error: true
 
-      - name: List packages
-        run: ls -R packages/native
+      - name: List downloaded files
+        working-directory: packages/native
+        run: |
+          echo "Contents of packages/native:"
+          ls -la
+          echo "Looking for .node files:"
+          ls -la *.node 2>/dev/null || echo "No .node files found"
+        shell: bash
+
+      - name: Build native module if artifact missing
+        working-directory: packages/native
+        run: |
+          if [ -z "$(ls -1 *.node 2>/dev/null | head -1)" ]; then
+            echo "No .node file found, building locally..."
+            pnpm build --target ${{ matrix.settings.target }}
+            echo "Built files:"
+            ls -la *.node || echo "Build failed - no .node files"
+          else
+            echo "Using downloaded artifact"
+          fi
+        shell: bash
+
+      - name: Verify native binding exists
+        working-directory: packages/native
+        run: |
+          if [ -z "$(ls -1 *.node 2>/dev/null | head -1)" ]; then
+            echo "ERROR: No native .node binding found"
+            exit 1
+          fi
+          echo "Native binding found:"
+          ls -la *.node
         shell: bash
 
       - name: Run tests
         working-directory: packages/native
         run: pnpm test
+        env:
+          RUST_BACKTRACE: 1
 
   publish:
     name: Publish to npm
@@ -209,9 +249,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+        uses: pnpm/action-setup@v4
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

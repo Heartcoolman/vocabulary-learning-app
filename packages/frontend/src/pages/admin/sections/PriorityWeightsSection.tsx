@@ -32,10 +32,10 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
   };
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900">优先级权重</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">优先级权重</h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           配置学习队列优先级计算的各项权重（总和必须为 100%）
           {!isDefault && <span className="ml-2 text-blue-600">（已修改）</span>}
         </p>
@@ -45,7 +45,9 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
         {/* 新单词权重 */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">新单词权重</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              新单词权重
+            </label>
             <span className="text-lg font-bold text-blue-600">{weights.newWord}%</span>
           </div>
           <input
@@ -54,14 +56,16 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
             max="100"
             value={weights.newWord}
             onChange={(e) => updateWeight('newWord', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500 dark:bg-slate-700"
           />
         </div>
 
         {/* 错误率权重 */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">错误率权重</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              错误率权重
+            </label>
             <span className="text-lg font-bold text-red-600">{weights.errorRate}%</span>
           </div>
           <input
@@ -70,14 +74,16 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
             max="100"
             value={weights.errorRate}
             onChange={(e) => updateWeight('errorRate', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-red-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-red-500 dark:bg-slate-700"
           />
         </div>
 
         {/* 逾期时间权重 */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">逾期时间权重</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              逾期时间权重
+            </label>
             <span className="text-lg font-bold text-yellow-600">{weights.overdueTime}%</span>
           </div>
           <input
@@ -86,14 +92,16 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
             max="100"
             value={weights.overdueTime}
             onChange={(e) => updateWeight('overdueTime', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-yellow-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-yellow-500 dark:bg-slate-700"
           />
         </div>
 
         {/* 单词得分权重 */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">单词得分权重</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              单词得分权重
+            </label>
             <span className="text-lg font-bold text-purple-600">{weights.wordScore}%</span>
           </div>
           <input
@@ -102,15 +110,17 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
             max="100"
             value={weights.wordScore}
             onChange={(e) => updateWeight('wordScore', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-purple-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-purple-500 dark:bg-slate-700"
           />
         </div>
       </div>
 
       {/* 总和显示 */}
-      <div className={`mt-4 rounded-button p-3 ${isValid ? 'bg-green-50' : 'bg-red-50'}`}>
+      <div
+        className={`mt-4 rounded-button p-3 ${isValid ? 'bg-green-50 dark:bg-green-900/30' : 'bg-red-50 dark:bg-red-900/30'}`}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">权重总和</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">权重总和</span>
           <span className={`text-lg font-bold ${isValid ? 'text-green-600' : 'text-red-600'}`}>
             {total.toFixed(1)}%
           </span>
@@ -122,8 +132,8 @@ export const PriorityWeightsSection = memo(function PriorityWeightsSection({
         )}
       </div>
 
-      <div className="mt-4 rounded-button bg-gray-50 p-3">
-        <p className="text-sm text-gray-600">
+      <div className="mt-4 rounded-button bg-gray-50 p-3 dark:bg-slate-900">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           <strong>默认值：</strong>
           新单词 {defaultWeights.newWord}%、 错误率 {defaultWeights.errorRate}%、 逾期时间{' '}
           {defaultWeights.overdueTime}%、 单词得分 {defaultWeights.wordScore}%

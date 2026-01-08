@@ -404,7 +404,7 @@ describe('ConfirmModal', () => {
   // ==================== Loading State Tests ====================
 
   describe('loading state', () => {
-    it('should show loading text when isLoading is true', () => {
+    it('should show loading spinner when isLoading is true', () => {
       render(
         <ConfirmModal
           isOpen={true}
@@ -416,7 +416,8 @@ describe('ConfirmModal', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: '处理中...' })).toBeInTheDocument();
+      // Button still shows text but with loading spinner icon
+      expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
     });
 
     it('should disable buttons when isLoading is true', () => {
@@ -431,7 +432,7 @@ describe('ConfirmModal', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: '处理中...' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '确定' })).toBeDisabled();
       expect(screen.getByRole('button', { name: '取消' })).toBeDisabled();
     });
   });
@@ -452,7 +453,7 @@ describe('ConfirmModal', () => {
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
-      expect(confirmButton.classList.contains('bg-red-500')).toBe(true);
+      expect(confirmButton.classList.contains('from-red-500')).toBe(true);
     });
 
     it('should apply warning variant styles', () => {
@@ -468,7 +469,7 @@ describe('ConfirmModal', () => {
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
-      expect(confirmButton.classList.contains('bg-amber-500')).toBe(true);
+      expect(confirmButton.classList.contains('from-amber-500')).toBe(true);
     });
 
     it('should apply info variant styles', () => {
@@ -484,7 +485,7 @@ describe('ConfirmModal', () => {
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
-      expect(confirmButton.classList.contains('bg-blue-500')).toBe(true);
+      expect(confirmButton.classList.contains('from-blue-500')).toBe(true);
     });
   });
 });
@@ -572,7 +573,7 @@ describe('AlertModal', () => {
       );
 
       const button = screen.getByRole('button', { name: '确定' });
-      expect(button.classList.contains('bg-green-500')).toBe(true);
+      expect(button.classList.contains('from-green-500')).toBe(true);
     });
 
     it('should apply error variant styles', () => {
@@ -587,7 +588,7 @@ describe('AlertModal', () => {
       );
 
       const button = screen.getByRole('button', { name: '确定' });
-      expect(button.classList.contains('bg-red-500')).toBe(true);
+      expect(button.classList.contains('from-red-500')).toBe(true);
     });
 
     it('should apply warning variant styles', () => {
@@ -602,14 +603,14 @@ describe('AlertModal', () => {
       );
 
       const button = screen.getByRole('button', { name: '确定' });
-      expect(button.classList.contains('bg-amber-500')).toBe(true);
+      expect(button.classList.contains('from-amber-500')).toBe(true);
     });
 
     it('should apply info variant styles by default', () => {
       render(<AlertModal isOpen={true} onClose={vi.fn()} title="Alert" message="Message" />);
 
       const button = screen.getByRole('button', { name: '确定' });
-      expect(button.classList.contains('bg-blue-500')).toBe(true);
+      expect(button.classList.contains('from-blue-500')).toBe(true);
     });
   });
 });

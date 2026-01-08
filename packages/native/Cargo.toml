@@ -11,9 +11,9 @@ default = ["napi"]
 napi = ["dep:napi", "dep:napi-derive"]
 
 [dependencies]
-# 使用精确版本号，避免兼容性问题
-napi = { version = "2.16", default-features = false, features = ["napi8", "serde-json"], optional = true }
-napi-derive = { version = "2.16", optional = true }
+# 使用 napi 3.x 版本
+napi = { version = "3", default-features = false, features = ["napi8", "serde-json"], optional = true }
+napi-derive = { version = "3", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.8"

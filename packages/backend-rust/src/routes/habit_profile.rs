@@ -2,14 +2,11 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::Json;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Timelike, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::Row;
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -23,6 +20,8 @@ struct SuccessResponse<T> {
 #[serde(rename_all = "camelCase")]
 struct EndSessionRequest {
     session_id: String,
+    #[serde(default)]
+    auth_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -101,13 +100,12 @@ pub fn router() -> axum::Router<AppState> {
 
 async fn get_habit_profile(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    let stored = select_stored_habit_profile(proxy.as_ref(), db_state, &user.id).await?;
-    let realtime = compute_realtime_habit_profile(proxy.as_ref(), db_state, &user.id).await?;
+    let stored = select_stored_habit_profile(proxy.as_ref(), &user.id).await?;
+    let realtime = compute_realtime_habit_profile(proxy.as_ref(), &user.id).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -117,13 +115,12 @@ async fn get_habit_profile(
 
 async fn initialize(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    let profile = compute_realtime_habit_profile(proxy.as_ref(), db_state, &user.id).await?;
-    let saved = persist_habit_profile(proxy.as_ref(), db_state, &user.id, profile.as_ref()).await?;
+    let profile = compute_realtime_habit_profile(proxy.as_ref(), &user.id).await?;
+    let saved = persist_habit_profile(proxy.as_ref(), &user.id, profile.as_ref()).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -137,13 +134,12 @@ async fn initialize(
 
 async fn persist(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    let profile = compute_realtime_habit_profile(proxy.as_ref(), db_state, &user.id).await?;
-    let saved = persist_habit_profile(proxy.as_ref(), db_state, &user.id, profile.as_ref()).await?;
+    let profile = compute_realtime_habit_profile(proxy.as_ref(), &user.id).await?;
+    let saved = persist_habit_profile(proxy.as_ref(), &user.id, profile.as_ref()).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -153,11 +149,36 @@ async fn persist(
 
 async fn end_session(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<EndSessionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let Some(proxy) = state.db_proxy() else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "数据库服务不可用",
+        ));
+    };
+
+    let token = crate::auth::extract_token(&headers).or_else(|| payload.auth_token.clone());
+
+    let Some(token) = token else {
+        return Err(json_error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "未提供认证令牌",
+        ));
+    };
+
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
+        .await
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     let session_id = payload.session_id.trim().to_string();
     if session_id.is_empty() {
@@ -168,19 +189,23 @@ async fn end_session(
         ));
     }
 
-    let session = select_learning_session_for_user(proxy.as_ref(), db_state, &session_id, &user.id).await?;
+    let session = select_learning_session_for_user(proxy.as_ref(), &session_id, &user.id).await?;
     let Some(session) = session else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "Session not found"));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "Session not found",
+        ));
     };
 
     let now_ms = Utc::now().timestamp_millis();
     let start_ms = session.started_at_ms.unwrap_or(now_ms);
     let duration_minutes = ((now_ms - start_ms) as f64 / 60_000.0).max(0.0);
 
-    set_learning_session_ended_at(proxy.as_ref(), db_state, &session_id, &user.id).await?;
+    set_learning_session_ended_at(proxy.as_ref(), &session_id, &user.id).await?;
 
-    let profile = compute_realtime_habit_profile(proxy.as_ref(), db_state, &user.id).await?;
-    let saved = persist_habit_profile(proxy.as_ref(), db_state, &user.id, profile.as_ref()).await?;
+    let profile = compute_realtime_habit_profile(proxy.as_ref(), &user.id).await?;
+    let saved = persist_habit_profile(proxy.as_ref(), &user.id, profile.as_ref()).await?;
 
     let (habit_profile_saved, habit_profile_message, preferred_time_slots) = match profile {
         Some(ref profile) => {
@@ -225,26 +250,36 @@ async fn end_session(
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
-    let token = crate::auth::extract_token(headers).ok_or_else(|| {
-        json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
+    let token = crate::auth::extract_token(headers)
+        .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
+
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
     })?;
 
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
-
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(&proxy, &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 fn format_naive_datetime(value: NaiveDateTime) -> String {
@@ -299,88 +334,51 @@ fn median_i64(values: &mut [i64], default: i64) -> i64 {
 
 async fn select_stored_habit_profile(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<StoredHabitProfile>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT "timePref","rhythmPref","updatedAt"
-                FROM "habit_profiles"
-                WHERE "userId" = $1
-                LIMIT 1
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "timePref","rhythmPref","updatedAt"
+        FROM "habit_profiles"
+        WHERE "userId" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-            let Some(row) = row else { return Ok(None) };
+    let Some(row) = row else { return Ok(None) };
 
-            let time_pref_value = row
-                .try_get::<Option<serde_json::Value>, _>("timePref")
-                .ok()
-                .flatten()
-                .and_then(parse_time_pref);
-            let Some(time_pref) = time_pref_value else {
-                return Ok(None);
-            };
-            let rhythm_pref = row
-                .try_get::<Option<serde_json::Value>, _>("rhythmPref")
-                .ok()
-                .flatten()
-                .and_then(parse_rhythm_pref)
-                .unwrap_or(RhythmPref { session_median_minutes: 15.0, batch_median: 8.0 });
+    let time_pref_value = row
+        .try_get::<Option<serde_json::Value>, _>("timePref")
+        .ok()
+        .flatten()
+        .and_then(parse_time_pref);
+    let Some(time_pref) = time_pref_value else {
+        return Ok(None);
+    };
+    let rhythm_pref = row
+        .try_get::<Option<serde_json::Value>, _>("rhythmPref")
+        .ok()
+        .flatten()
+        .and_then(parse_rhythm_pref)
+        .unwrap_or(RhythmPref {
+            session_median_minutes: 15.0,
+            batch_median: 8.0,
+        });
 
-            let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
-            Ok(Some(StoredHabitProfile {
-                time_pref,
-                rhythm_pref,
-                updated_at: format_naive_datetime(updated_at),
-            }))
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT "timePref","rhythmPref","updatedAt"
-                FROM "habit_profiles"
-                WHERE "userId" = ?
-                LIMIT 1
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-            let Some(row) = row else { return Ok(None) };
-
-            let time_pref_raw: Option<String> = row.try_get("timePref").ok().flatten();
-            let time_pref = time_pref_raw
-                .and_then(|v| serde_json::from_str::<serde_json::Value>(&v).ok())
-                .and_then(parse_time_pref);
-            let Some(time_pref) = time_pref else {
-                return Ok(None);
-            };
-
-            let rhythm_raw: Option<String> = row.try_get("rhythmPref").ok().flatten();
-            let rhythm_pref = rhythm_raw
-                .and_then(|v| serde_json::from_str::<serde_json::Value>(&v).ok())
-                .and_then(parse_rhythm_pref)
-                .unwrap_or(RhythmPref { session_median_minutes: 15.0, batch_median: 8.0 });
-
-            let updated_at_raw: String = row.try_get("updatedAt").unwrap_or_default();
-            Ok(Some(StoredHabitProfile {
-                time_pref,
-                rhythm_pref,
-                updated_at: normalize_datetime_str(&updated_at_raw),
-            }))
-        }
-    }
+    Ok(Some(StoredHabitProfile {
+        time_pref,
+        rhythm_pref,
+        updated_at: format_naive_datetime(updated_at),
+    }))
 }
 
 fn parse_time_pref(value: serde_json::Value) -> Option<Vec<f64>> {
@@ -397,23 +395,35 @@ fn parse_time_pref(value: serde_json::Value) -> Option<Vec<f64>> {
 
 fn parse_rhythm_pref(value: serde_json::Value) -> Option<RhythmPref> {
     let obj = value.as_object()?;
-    let session_median_minutes = obj.get("sessionMedianMinutes").and_then(|v| v.as_f64()).unwrap_or(15.0);
-    let batch_median = obj.get("batchMedian").and_then(|v| v.as_f64()).unwrap_or(8.0);
-    Some(RhythmPref { session_median_minutes, batch_median })
+    let session_median_minutes = obj
+        .get("sessionMedianMinutes")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(15.0);
+    let batch_median = obj
+        .get("batchMedian")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(8.0);
+    Some(RhythmPref {
+        session_median_minutes,
+        batch_median,
+    })
 }
 
 fn compute_preferred_slots(time_pref: &[f64]) -> Vec<i64> {
     let mut indexed: Vec<(usize, f64)> = time_pref.iter().copied().enumerate().collect();
     indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    indexed.into_iter().take(3).map(|(hour, _)| hour as i64).collect()
+    indexed
+        .into_iter()
+        .take(3)
+        .map(|(hour, _)| hour as i64)
+        .collect()
 }
 
 async fn compute_realtime_habit_profile(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<RealtimeHabitProfile>, AppError> {
-    let sessions = select_recent_sessions(proxy, state, user_id).await?;
+    let sessions = select_recent_sessions(proxy, user_id).await?;
     if sessions.is_empty() {
         return Ok(None);
     }
@@ -456,7 +466,10 @@ async fn compute_realtime_habit_profile(
     Ok(Some(RealtimeHabitProfile {
         time_pref,
         preferred_time_slots,
-        rhythm_pref: RhythmPref { session_median_minutes, batch_median },
+        rhythm_pref: RhythmPref {
+            session_median_minutes,
+            batch_median,
+        },
         samples: HabitSamples {
             time_events,
             sessions: durations.len() as i64,
@@ -475,17 +488,9 @@ struct SessionSummary {
 
 async fn select_recent_sessions(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Vec<SessionSummary>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => select_recent_sessions_pg(&pool, user_id).await,
-        SelectedReadPool::Fallback(pool) => select_recent_sessions_sqlite(&pool, user_id).await,
-    }
-}
-
-async fn select_recent_sessions_pg(pool: &PgPool, user_id: &str) -> Result<Vec<SessionSummary>, AppError> {
+    let pool = proxy.pool();
     let rows = sqlx::query(
         r#"
         SELECT ls."startedAt", ls."endedAt",
@@ -503,7 +508,9 @@ async fn select_recent_sessions_pg(pool: &PgPool, user_id: &str) -> Result<Vec<S
 
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let started_at: NaiveDateTime = row
+            .try_get("startedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let ended_at: Option<NaiveDateTime> = row.try_get("endedAt").ok().flatten();
         let started_dt = DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc);
         let started_hour = Some(started_dt.hour());
@@ -524,112 +531,19 @@ async fn select_recent_sessions_pg(pool: &PgPool, user_id: &str) -> Result<Vec<S
     Ok(out)
 }
 
-async fn select_recent_sessions_sqlite(pool: &SqlitePool, user_id: &str) -> Result<Vec<SessionSummary>, AppError> {
-    let rows = sqlx::query(
-        r#"
-        SELECT ls."startedAt", ls."endedAt",
-               (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
-        FROM "learning_sessions" ls
-        WHERE ls."userId" = ?
-        ORDER BY ls."startedAt" DESC
-        LIMIT 200
-        "#,
-    )
-    .bind(user_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        let started_raw: String = row.try_get("startedAt").unwrap_or_default();
-        let ended_raw: Option<String> = row.try_get("endedAt").ok().flatten();
-        let started_at_ms = parse_datetime_millis(&started_raw);
-        let started_hour = started_at_ms
-            .and_then(DateTime::<Utc>::from_timestamp_millis)
-            .map(|dt| dt.hour());
-        let duration_minutes = match (started_at_ms, ended_raw.as_deref().and_then(parse_datetime_millis)) {
-            (Some(start), Some(end)) => Some(((end - start) as f64 / 60_000.0).max(0.0)),
-            _ => None,
-        };
-
-        out.push(SessionSummary {
-            started_hour,
-            started_at_ms,
-            duration_minutes,
-            answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0),
-        });
-    }
-    Ok(out)
-}
-
 async fn persist_habit_profile(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     profile: Option<&RealtimeHabitProfile>,
 ) -> Result<bool, AppError> {
-    let Some(profile) = profile else { return Ok(false) };
+    let Some(profile) = profile else {
+        return Ok(false);
+    };
     if profile.samples.time_events < 10 {
         return Ok(false);
     }
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-
-        let mut update = serde_json::Map::new();
-        update.insert(
-            "timePref".to_string(),
-            serde_json::Value::Array(profile.time_pref.iter().map(|v| serde_json::Value::Number(serde_json::Number::from_f64(*v).unwrap_or_else(|| serde_json::Number::from(0)))).collect()),
-        );
-        update.insert(
-            "rhythmPref".to_string(),
-            serde_json::Value::Object({
-                let mut map = serde_json::Map::new();
-                map.insert(
-                    "sessionMedianMinutes".to_string(),
-                    serde_json::Value::Number(
-                        serde_json::Number::from_f64(profile.rhythm_pref.session_median_minutes)
-                            .unwrap_or_else(|| serde_json::Number::from(0)),
-                    ),
-                );
-                map.insert(
-                    "batchMedian".to_string(),
-                    serde_json::Value::Number(
-                        serde_json::Number::from_f64(profile.rhythm_pref.batch_median)
-                            .unwrap_or_else(|| serde_json::Number::from(0)),
-                    ),
-                );
-                map
-            }),
-        );
-
-        let mut create = update.clone();
-        create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "habit_profiles".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(true);
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -642,16 +556,22 @@ async fn persist_habit_profile(
         "#,
     )
     .bind(user_id)
-    .bind(&profile.time_pref)
+    .bind(serde_json::to_value(&profile.time_pref).unwrap_or_default())
     .bind(serde_json::json!({
         "sessionMedianMinutes": profile.rhythm_pref.session_median_minutes,
         "batchMedian": profile.rhythm_pref.batch_median,
     }))
     .bind(now)
     .bind(now)
-    .execute(&pool)
+    .execute(pool)
     .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "数据库写入失败",
+        )
+    })?;
 
     Ok(true)
 }
@@ -664,128 +584,58 @@ struct OwnedSessionRow {
 
 async fn select_learning_session_for_user(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
     user_id: &str,
 ) -> Result<Option<OwnedSessionRow>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT ls."startedAt",
-                       (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
-                FROM "learning_sessions" ls
-                WHERE ls."id" = $1 AND ls."userId" = $2
-                LIMIT 1
-                "#,
-            )
-            .bind(session_id)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            let Some(row) = row else { return Ok(None) };
-            let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-            let started_at_ms = Some(DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis());
-            Ok(Some(OwnedSessionRow { started_at_ms, answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0) }))
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT ls."startedAt",
-                       (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
-                FROM "learning_sessions" ls
-                WHERE ls."id" = ? AND ls."userId" = ?
-                LIMIT 1
-                "#,
-            )
-            .bind(session_id)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            let Some(row) = row else { return Ok(None) };
-            let started_raw: String = row.try_get("startedAt").unwrap_or_default();
-            let started_at_ms = parse_datetime_millis(&started_raw);
-            Ok(Some(OwnedSessionRow { started_at_ms, answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0) }))
-        }
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT ls."startedAt",
+               (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
+        FROM "learning_sessions" ls
+        WHERE ls."id" = $1 AND ls."userId" = $2
+        LIMIT 1
+        "#,
+    )
+    .bind(session_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let Some(row) = row else { return Ok(None) };
+    let started_at: NaiveDateTime = row
+        .try_get("startedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let started_at_ms =
+        Some(DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis());
+    Ok(Some(OwnedSessionRow {
+        started_at_ms,
+        answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0),
+    }))
 }
 
 async fn set_learning_session_ended_at(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
     user_id: &str,
 ) -> Result<(), AppError> {
-    if proxy.sqlite_enabled() {
-        let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(session_id.to_string()));
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-
-        let mut data = serde_json::Map::new();
-        data.insert("endedAt".to_string(), serde_json::Value::String(now_iso));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "learning_sessions".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     let affected = sqlx::query(r#"UPDATE "learning_sessions" SET "endedAt" = $1, "updatedAt" = $2 WHERE "id" = $3 AND "userId" = $4"#)
         .bind(now)
         .bind(now)
         .bind(session_id)
         .bind(user_id)
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
         .rows_affected();
     if affected == 0 {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "Session not found"));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "Session not found",
+        ));
     }
     Ok(())
-}
-
-enum SelectedReadPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
-async fn select_read_pool(
-    proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
-) -> Result<SelectedReadPool, AppError> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedReadPool::Fallback)
-            .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedReadPool::Primary(pool)),
-            None => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedReadPool::Fallback)
-                .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        },
-    }
 }

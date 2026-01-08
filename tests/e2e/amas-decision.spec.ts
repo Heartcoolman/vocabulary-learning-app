@@ -67,7 +67,7 @@ test.describe('AMAS Decision Chain', () => {
     test('should call AMAS processLearningEvent API on answer', async ({ page }) => {
       // Monitor API calls
       const apiCalls: string[] = [];
-      page.on('request', request => {
+      page.on('request', (request) => {
         if (request.url().includes('/api/')) {
           apiCalls.push(request.url());
         }
@@ -76,7 +76,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer a question
@@ -84,8 +87,8 @@ test.describe('AMAS Decision Chain', () => {
         await page.waitForTimeout(1000);
 
         // Should have made learning-related API call
-        const hasLearningCall = apiCalls.some(url =>
-          url.includes('learning') || url.includes('amas') || url.includes('study')
+        const hasLearningCall = apiCalls.some(
+          (url) => url.includes('learning') || url.includes('amas') || url.includes('study'),
         );
         expect(hasLearningCall).toBeTruthy();
       }
@@ -94,7 +97,7 @@ test.describe('AMAS Decision Chain', () => {
     test('should receive strategy params from AMAS', async ({ page }) => {
       // Monitor API responses
       let amasResponse: unknown = null;
-      page.on('response', async response => {
+      page.on('response', async (response) => {
         if (response.url().includes('learning') || response.url().includes('amas')) {
           try {
             const json = await response.json();
@@ -110,7 +113,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         await page.locator('[data-testid="option-0"]').click();
@@ -129,7 +135,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer several questions quickly (simulating good performance)
@@ -151,27 +160,33 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Record initial strategy text
         await page.locator('[data-testid="option-0"]').click();
         await page.waitForTimeout(500);
 
-        const initialStrategy = await page.locator('text=当前学习策略').textContent() || '';
+        const initialStrategy = (await page.locator('text=当前学习策略').textContent()) || '';
 
         // Wait for next word
         await page.waitForTimeout(2500);
 
         // Continue answering
-        const stillActive = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+        const stillActive = await page
+          .locator('[data-testid="word-card"]')
+          .isVisible()
+          .catch(() => false);
         if (stillActive) {
           // Slow answer to change performance pattern
           await page.waitForTimeout(6000);
           await page.locator('[data-testid="option-0"]').click();
           await page.waitForTimeout(500);
 
-          const laterStrategy = await page.locator('text=当前学习策略').textContent() || '';
+          const laterStrategy = (await page.locator('text=当前学习策略').textContent()) || '';
 
           // Strategy explanation should exist
           expect(laterStrategy.length).toBeGreaterThan(0);
@@ -185,7 +200,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer a question to enable insights
@@ -207,7 +225,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer multiple questions to ensure AMAS result exists
@@ -233,7 +254,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Look for status monitoring button (ChartPie icon)
@@ -256,7 +280,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer to generate AMAS result
@@ -275,7 +302,7 @@ test.describe('AMAS Decision Chain', () => {
     test('should track response time for AMAS calculation', async ({ page }) => {
       // Monitor API request bodies
       let capturedResponseTime = 0;
-      page.on('request', async request => {
+      page.on('request', async (request) => {
         if (request.method() === 'POST' && request.url().includes('learning')) {
           try {
             const postData = request.postData();
@@ -294,7 +321,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Wait a bit before answering to have measurable response time
@@ -312,7 +342,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Open a modal (simulating pause)
@@ -337,7 +370,9 @@ test.describe('AMAS Decision Chain', () => {
 
         // Session should continue normally
         await page.waitForTimeout(500);
-        expect(await page.locator('[data-testid="word-card"], text=目标达成').isVisible()).toBeTruthy();
+        expect(
+          await page.locator('[data-testid="word-card"], text=目标达成').isVisible(),
+        ).toBeTruthy();
       }
     });
   });
@@ -352,8 +387,14 @@ test.describe('AMAS Decision Chain', () => {
 
       // For new users, AMAS should be in cold start phase
       // The system should still function normally
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
-      const hasNoWords = await page.locator('text=暂无单词').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
+      const hasNoWords = await page
+        .locator('text=暂无单词')
+        .isVisible()
+        .catch(() => false);
 
       // Either should show words or indicate no words available
       expect(hasWordCard || hasNoWords).toBeTruthy();
@@ -365,7 +406,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer several questions quickly
@@ -385,7 +429,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Track words seen
@@ -411,7 +458,7 @@ test.describe('AMAS Decision Chain', () => {
     test('should load more words when queue is low', async ({ page }) => {
       // Monitor API calls for word loading
       let wordLoadCalls = 0;
-      page.on('request', request => {
+      page.on('request', (request) => {
         if (request.url().includes('words') || request.url().includes('next')) {
           wordLoadCalls++;
         }
@@ -420,7 +467,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer many questions to potentially trigger queue refill
@@ -438,7 +488,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Get initial mastered count
@@ -474,7 +527,10 @@ test.describe('AMAS Decision Chain', () => {
         if (!isVisible) {
           // Session may have completed
           const completion = page.locator('text=目标达成, text=今日学习结束');
-          const isCompleted = await completion.first().isVisible().catch(() => false);
+          const isCompleted = await completion
+            .first()
+            .isVisible()
+            .catch(() => false);
           if (isCompleted) {
             expect(isCompleted).toBeTruthy();
             break;
@@ -493,15 +549,25 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Learning mode selector should be visible
-        const modeSelector = page.locator('[class*="LearningModeSelector"], button:has-text("模式")');
-        const hasSelector = await modeSelector.first().isVisible().catch(() => false);
+        const modeSelector = page.locator(
+          '[class*="LearningModeSelector"], button:has-text("模式")',
+        );
+        const hasSelector = await modeSelector
+          .first()
+          .isVisible()
+          .catch(() => false);
 
         // Mode selector may be minimal or full version
-        expect(hasSelector || await page.locator('[data-testid="mastery-progress"]').isVisible()).toBeTruthy();
+        expect(
+          hasSelector || (await page.locator('[data-testid="mastery-progress"]').isVisible()),
+        ).toBeTruthy();
       }
     });
   });
@@ -511,7 +577,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Rapid keyboard interactions
@@ -532,7 +601,10 @@ test.describe('AMAS Decision Chain', () => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Multiple rapid clicks on same option
@@ -604,10 +676,13 @@ test.describe('AMAS Decision - Edge Cases', () => {
       await page.locator('[data-testid="option-0"]').click();
 
       // Wait for option to be processed (disabled state indicates processing complete)
-      await page.locator('[data-testid="option-0"]').waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+      await page
+        .locator('[data-testid="option-0"]')
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .catch(() => {});
 
       // Block API temporarily
-      await page.route('**/api/**', route => route.abort());
+      await page.route('**/api/**', (route) => route.abort());
 
       // Check if still active before trying to answer
       const stillActive = await wordCard.isVisible().catch(() => false);
@@ -643,9 +718,7 @@ test.describe('AMAS Decision - Edge Cases', () => {
       const questionCount = page.locator('[data-testid="question-count"]');
       const hasQuestionCount = await questionCount.isVisible({ timeout: 2000 }).catch(() => false);
 
-      const initialProgress = hasQuestionCount
-        ? await questionCount.textContent()
-        : null;
+      const initialProgress = hasQuestionCount ? await questionCount.textContent() : null;
 
       // Simulate tab becoming hidden
       await page.evaluate(() => {

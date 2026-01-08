@@ -79,6 +79,7 @@ export function useAutoPlayPronunciation(
   const [isEnabled, setIsEnabled] = useState(enabled);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+  const isPlayingRef = useRef(false);
 
   // 同步外部 enabled 状态
   useEffect(() => {
@@ -87,7 +88,8 @@ export function useAutoPlayPronunciation(
 
   // 手动触发播放
   const play = useCallback(async () => {
-    if (!word || isPlaying) return;
+    if (!word || isPlayingRef.current) return;
+    isPlayingRef.current = true;
 
     try {
       setIsPlaying(true);
@@ -106,8 +108,10 @@ export function useAutoPlayPronunciation(
         learningLogger.error({ err, word }, '播放发音失败');
         onPlayError?.(err);
       }
+    } finally {
+      isPlayingRef.current = false;
     }
-  }, [word, isPlaying, onPlayStart, onPlayEnd, onPlayError]);
+  }, [word, onPlayStart, onPlayEnd, onPlayError]);
 
   // 停止播放
   const stop = useCallback(() => {

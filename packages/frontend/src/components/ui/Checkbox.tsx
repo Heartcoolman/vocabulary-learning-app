@@ -20,7 +20,7 @@ export interface CheckboxProps extends Omit<
   /** 不确定状态（用于全选） */
   indeterminate?: boolean;
   /** 尺寸 */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   /** 标签文本 */
   label?: ReactNode;
   /** 描述文本 */
@@ -30,6 +30,11 @@ export interface CheckboxProps extends Omit<
 }
 
 const sizeStyles = {
+  xs: {
+    box: 'w-3.5 h-3.5',
+    icon: 8,
+    text: 'text-xs',
+  },
   sm: {
     box: 'w-4 h-4',
     icon: 10,
@@ -44,6 +49,11 @@ const sizeStyles = {
     box: 'w-6 h-6',
     icon: 14,
     text: 'text-base',
+  },
+  xl: {
+    box: 'w-7 h-7',
+    icon: 16,
+    text: 'text-lg',
   },
 };
 
@@ -98,8 +108,8 @@ export const Checkbox = memo(
               isChecked || indeterminate
                 ? 'border-blue-500 bg-blue-500'
                 : error
-                  ? 'border-red-300 bg-white'
-                  : 'border-gray-300 bg-white hover:border-gray-400',
+                  ? 'border-red-300 bg-white dark:bg-slate-800'
+                  : 'border-gray-300 bg-white hover:border-gray-400 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500',
               // 禁用样式
               disabled && 'cursor-not-allowed opacity-50',
             )}
@@ -133,7 +143,7 @@ export const Checkbox = memo(
                 <label
                   htmlFor={inputId}
                   className={cn(
-                    'cursor-pointer font-medium text-gray-900',
+                    'cursor-pointer font-medium text-gray-900 dark:text-white',
                     textSize,
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
@@ -144,7 +154,10 @@ export const Checkbox = memo(
               {description && (
                 <p
                   id={descriptionId}
-                  className={cn('mt-0.5 text-gray-500', size === 'lg' ? 'text-sm' : 'text-xs')}
+                  className={cn(
+                    'mt-0.5 text-gray-500 dark:text-gray-400',
+                    size === 'lg' ? 'text-sm' : 'text-xs',
+                  )}
                 >
                   {description}
                 </p>
@@ -212,7 +225,11 @@ export const CheckboxGroup = memo(
 
       return (
         <div ref={ref} role="group" aria-label={label} className={className}>
-          {label && <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>}
+          {label && (
+            <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
+              {label}
+            </span>
+          )}
           <div
             className={cn(
               'flex gap-3',

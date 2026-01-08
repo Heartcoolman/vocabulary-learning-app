@@ -63,7 +63,7 @@ describe('LinUCBNative', () => {
       recentAccuracy: 0.7,
       studyStreak: 5,
       totalInteractions: 100,
-      averageResponseTime: 2000
+      averageResponseTime: 2000,
     };
 
     const actions = [
@@ -76,7 +76,7 @@ describe('LinUCBNative', () => {
       timeOfDay: 0.5,
       dayOfWeek: 3,
       sessionDuration: 1800,
-      fatigueFactor: 0.2
+      fatigueFactor: 0.2,
     };
 
     it('should return valid ActionSelection', () => {
@@ -124,7 +124,7 @@ describe('LinUCBNative', () => {
       recentAccuracy: 0.7,
       studyStreak: 5,
       totalInteractions: 100,
-      averageResponseTime: 2000
+      averageResponseTime: 2000,
     };
 
     const action = { wordId: 'word1', difficulty: 'recall', scheduledAt: undefined };
@@ -194,7 +194,7 @@ describe('LinUCBNative', () => {
       recentAccuracy: 0.7,
       studyStreak: 5,
       totalInteractions: 100,
-      averageResponseTime: 2000
+      averageResponseTime: 2000,
     };
 
     const action = { wordId: 'word1', difficulty: 'recall', scheduledAt: undefined };
@@ -237,21 +237,21 @@ describe('LinUCBNative', () => {
           recentAccuracy: Math.random(),
           studyStreak: Math.floor(Math.random() * 30),
           totalInteractions: Math.floor(Math.random() * 1000),
-          averageResponseTime: Math.random() * 10000
+          averageResponseTime: Math.random() * 10000,
         };
 
         const difficulties = ['recognition', 'recall', 'spelling', 'listening', 'usage'];
         const varAction = {
           wordId: `word${i}`,
           difficulty: difficulties[Math.floor(Math.random() * 5)],
-          scheduledAt: undefined
+          scheduledAt: undefined,
         };
 
         const varContext = {
           timeOfDay: Math.random(),
           dayOfWeek: Math.floor(Math.random() * 7),
           sessionDuration: Math.random() * 7200,
-          fatigueFactor: Math.random()
+          fatigueFactor: Math.random(),
         };
 
         linucb.update(varState, varAction, Math.random() * 2 - 1, varContext);
@@ -268,7 +268,7 @@ describe('LinUCBNative', () => {
         recentAccuracy: 0.7,
         studyStreak: 5,
         totalInteractions: 100,
-        averageResponseTime: 2000
+        averageResponseTime: 2000,
       };
       const action = { wordId: 'word1', difficulty: 'recall', scheduledAt: undefined };
       const context = { timeOfDay: 0.5, dayOfWeek: 3, sessionDuration: 1800, fatigueFactor: 0.2 };
@@ -288,10 +288,16 @@ describe('LinUCBNative', () => {
 
     it('should reset correctly', () => {
       linucb.update(
-        { masteryLevel: 0.5, recentAccuracy: 0.7, studyStreak: 5, totalInteractions: 100, averageResponseTime: 2000 },
+        {
+          masteryLevel: 0.5,
+          recentAccuracy: 0.7,
+          studyStreak: 5,
+          totalInteractions: 100,
+          averageResponseTime: 2000,
+        },
         { wordId: 'w1', difficulty: 'recall', scheduledAt: undefined },
         1.0,
-        { timeOfDay: 0.5, dayOfWeek: 3, sessionDuration: 1800, fatigueFactor: 0.2 }
+        { timeOfDay: 0.5, dayOfWeek: 3, sessionDuration: 1800, fatigueFactor: 0.2 },
       );
 
       expect(linucb.updateCount).toBe(1);

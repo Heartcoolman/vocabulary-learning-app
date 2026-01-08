@@ -58,6 +58,12 @@ export interface WeeklyStats {
   };
 }
 
+export interface SkippedItem {
+  id: string;
+  target: string;
+  reason: string;
+}
+
 export interface StoredSuggestion {
   id: string;
   weekStart: string;
@@ -70,6 +76,7 @@ export interface StoredSuggestion {
   reviewedAt: string | null;
   reviewNotes: string | null;
   appliedItems: string[] | null;
+  skippedItems: SkippedItem[] | null;
   createdAt: string;
 }
 

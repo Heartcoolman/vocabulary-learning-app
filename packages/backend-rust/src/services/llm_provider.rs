@@ -57,7 +57,10 @@ pub enum LLMError {
     #[error("request failed: {0}")]
     Request(#[from] reqwest::Error),
     #[error("HTTP {status}: {body}")]
-    HttpStatus { status: reqwest::StatusCode, body: String },
+    HttpStatus {
+        status: reqwest::StatusCode,
+        body: String,
+    },
     #[error("JSON decode failed: {0}")]
     Json(#[from] serde_json::Error),
     #[error("empty response")]
@@ -87,23 +90,37 @@ impl LLMProvider {
             .unwrap_or_else(|_| reqwest::Client::new());
 
         Self {
-            config: LLMConfig { api_key, model, api_endpoint, timeout },
+            config: LLMConfig {
+                api_key,
+                model,
+                api_endpoint,
+                timeout,
+            },
             client,
         }
     }
 
     pub fn is_available(&self) -> bool {
-        self.config.api_key.as_deref().is_some_and(|v| !v.trim().is_empty())
+        self.config
+            .api_key
+            .as_deref()
+            .is_some_and(|v| !v.trim().is_empty())
             && !self.config.model.trim().is_empty()
             && !self.config.api_endpoint.trim().is_empty()
     }
 
     pub async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, LLMError> {
-        let api_key = self.config.api_key.as_deref()
+        let api_key = self
+            .config
+            .api_key
+            .as_deref()
             .filter(|v| !v.trim().is_empty())
             .ok_or(LLMError::NotConfigured("LLM_API_KEY"))?;
 
-        let url = format!("{}/chat/completions", self.config.api_endpoint.trim_end_matches('/'));
+        let url = format!(
+            "{}/chat/completions",
+            self.config.api_endpoint.trim_end_matches('/')
+        );
         let payload = serde_json::json!({
             "model": self.config.model,
             "messages": messages,
@@ -115,11 +132,20 @@ impl LLMProvider {
 
     pub async fn complete_with_system(&self, system: &str, user: &str) -> Result<String, LLMError> {
         let messages = [
-            ChatMessage { role: "system".into(), content: system.into() },
-            ChatMessage { role: "user".into(), content: user.into() },
+            ChatMessage {
+                role: "system".into(),
+                content: system.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user.into(),
+            },
         ];
         let response = self.chat(&messages).await?;
-        response.first_content().map(|s| s.to_string()).ok_or(LLMError::EmptyChoices)
+        response
+            .first_content()
+            .map(|s| s.to_string())
+            .ok_or(LLMError::EmptyChoices)
     }
 
     async fn post_with_retry(
@@ -131,12 +157,30 @@ impl LLMProvider {
         let mut last_error: Option<LLMError> = None;
 
         for retry in 0..=MAX_RETRIES {
-            match self.client.post(url).bearer_auth(api_key).json(payload).send().await {
+            match self
+                .client
+                .post(url)
+                .bearer_auth(api_key)
+                .json(payload)
+                .send()
+                .await
+            {
                 Ok(resp) => {
                     let status = resp.status();
                     if status.is_success() {
                         let bytes = resp.bytes().await?;
-                        return Ok(serde_json::from_slice(&bytes)?);
+                        match serde_json::from_slice(&bytes) {
+                            Ok(v) => return Ok(v),
+                            Err(e) => {
+                                let body_str = String::from_utf8_lossy(&bytes);
+                                tracing::error!(
+                                    "Failed to parse LLM response JSON: {}. Body: {}",
+                                    e,
+                                    body_str
+                                );
+                                return Err(LLMError::Json(e));
+                            }
+                        }
                     }
                     let body = resp.text().await.unwrap_or_default();
                     let err = LLMError::HttpStatus { status, body };

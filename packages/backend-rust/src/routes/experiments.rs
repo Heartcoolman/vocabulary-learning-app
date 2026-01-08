@@ -5,15 +5,12 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::{Json, Router};
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -194,46 +191,53 @@ pub fn router() -> Router<AppState> {
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 async fn require_admin_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
-    let (proxy, user, db_state) = require_user(state, request_state, headers).await?;
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
+    let (proxy, user) = require_user(state, headers).await?;
     if user.role != "ADMIN" {
-        return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限"));
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        ));
     }
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 async fn list_experiments(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Query(query): Query<ListQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     let page = query.page.unwrap_or(1).max(1);
     let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
@@ -242,59 +246,52 @@ async fn list_experiments(
     let status_filter = normalize_status_filter(query.status.as_deref());
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    let (items, total) = if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        list_experiments_sqlite(&pool, status_filter.as_deref(), page_size, offset).await?
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        list_experiments_pg(&pool, status_filter.as_deref(), page_size, offset).await?
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
     };
+    let (items, total) =
+        list_experiments_pg(&pool, status_filter.as_deref(), page_size, offset).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
         data: ListExperimentsResponse {
             data: items,
-            pagination: PaginationMeta { total, page, page_size },
+            pagination: PaginationMeta {
+                total,
+                page,
+                page_size,
+            },
         },
     }))
 }
 
 async fn create_experiment(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<CreateExperimentBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     validate_create_experiment(&payload)?;
 
     let experiment_id = Uuid::new_v4().to_string();
-    let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let auto_decision = payload.auto_decision.unwrap_or(false);
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        create_experiment_sqlite(&pool, &experiment_id, &now, &payload, auto_decision).await?;
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        create_experiment_pg(&pool, &experiment_id, &payload, auto_decision).await?;
-    }
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    create_experiment_pg(&pool, &experiment_id, &payload, auto_decision).await?;
 
     Ok((
         StatusCode::CREATED,
@@ -310,85 +307,75 @@ async fn create_experiment(
 
 async fn get_experiment(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(experiment_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    let experiment = if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        fetch_experiment_sqlite(&pool, experiment_id.trim()).await?
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        fetch_experiment_pg(&pool, experiment_id.trim()).await?
-    }
-    .ok_or_else(|| json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"))?;
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    let experiment = fetch_experiment_pg(&pool, experiment_id.trim())
+        .await?
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"))?;
 
-    Ok(Json(SuccessResponse { success: true, data: experiment }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: experiment,
+    }))
 }
 
 async fn get_experiment_status(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(experiment_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    let experiment = if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        fetch_experiment_sqlite(&pool, experiment_id.trim()).await?
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        fetch_experiment_pg(&pool, experiment_id.trim()).await?
-    }
-    .ok_or_else(|| json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"))?;
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    let experiment = fetch_experiment_pg(&pool, experiment_id.trim())
+        .await?
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"))?;
 
     let status = compute_experiment_status(&experiment);
-    Ok(Json(SuccessResponse { success: true, data: status }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: status,
+    }))
 }
 
 async fn start_experiment(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(experiment_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
     let experiment_id = experiment_id.trim();
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        start_experiment_sqlite(&pool, experiment_id).await?;
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        start_experiment_pg(&pool, experiment_id).await?;
-    }
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    start_experiment_pg(&pool, experiment_id).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -398,28 +385,22 @@ async fn start_experiment(
 
 async fn stop_experiment(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(experiment_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
     let experiment_id = experiment_id.trim();
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        stop_experiment_sqlite(&pool, experiment_id).await?;
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        stop_experiment_pg(&pool, experiment_id).await?;
-    }
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    stop_experiment_pg(&pool, experiment_id).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -429,28 +410,22 @@ async fn stop_experiment(
 
 async fn delete_experiment(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(experiment_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
     let experiment_id = experiment_id.trim();
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        delete_experiment_sqlite(&pool, experiment_id).await?;
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        delete_experiment_pg(&pool, experiment_id).await?;
-    }
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    delete_experiment_pg(&pool, experiment_id).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -460,16 +435,19 @@ async fn delete_experiment(
 
 async fn record_metric(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(experiment_id): Path<String>,
     Json(payload): Json<RecordMetricBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_user(&state, &headers).await?;
     let experiment_id = experiment_id.trim();
 
     if payload.variant_id.trim().is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "variantId 不能为空"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "variantId 不能为空",
+        ));
     }
     if !payload.reward.is_finite() || payload.reward < -1.0 || payload.reward > 1.0 {
         return Err(json_error(
@@ -480,20 +458,21 @@ async fn record_metric(
     }
 
     let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        record_metric_sqlite(&pool, experiment_id, payload.variant_id.trim(), payload.reward).await?;
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        record_metric_pg(&pool, experiment_id, payload.variant_id.trim(), payload.reward).await?;
-    }
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+    record_metric_pg(
+        &pool,
+        experiment_id,
+        payload.variant_id.trim(),
+        payload.reward,
+    )
+    .await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -518,29 +497,57 @@ fn normalize_status_filter(raw: Option<&str>) -> Option<String> {
 fn validate_create_experiment(payload: &CreateExperimentBody) -> Result<(), AppError> {
     let name = payload.name.trim();
     if name.is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "实验名称不能为空"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "实验名称不能为空",
+        ));
     }
     if name.len() > 200 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "实验名称不能超过200个字符"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "实验名称不能超过200个字符",
+        ));
     }
 
     if payload.variants.len() < 2 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "至少需要两个变体"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "至少需要两个变体",
+        ));
     }
 
     let allocation = payload.traffic_allocation.trim().to_ascii_uppercase();
     if !["EVEN", "WEIGHTED", "DYNAMIC"].contains(&allocation.as_str()) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效的流量分配类型"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "无效的流量分配类型",
+        ));
     }
 
     if payload.min_sample_size < 10 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "最小样本数必须至少为10"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "最小样本数必须至少为10",
+        ));
     }
     if !(0.0 < payload.significance_level && payload.significance_level < 1.0) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "显著性水平必须在 0 和 1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "显著性水平必须在 0 和 1 之间",
+        ));
     }
     if !(0.0 < payload.minimum_detectable_effect && payload.minimum_detectable_effect < 1.0) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "最小可检测效应必须在 0 和 1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "最小可检测效应必须在 0 和 1 之间",
+        ));
     }
 
     let mut total_weight = 0.0;
@@ -549,16 +556,32 @@ fn validate_create_experiment(payload: &CreateExperimentBody) -> Result<(), AppE
     for variant in &payload.variants {
         let id = variant.id.trim();
         if id.is_empty() {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "每个变体必须有唯一ID"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "每个变体必须有唯一ID",
+            ));
         }
         if ids.insert(id.to_string(), ()).is_some() {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "变体ID重复"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "变体ID重复",
+            ));
         }
         if variant.name.trim().is_empty() {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "每个变体必须有名称"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "每个变体必须有名称",
+            ));
         }
         if !(0.0..=1.0).contains(&variant.weight) {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "变体权重必须在 0 和 1 之间"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "变体权重必须在 0 和 1 之间",
+            ));
         }
         total_weight += variant.weight;
         if variant.is_control {
@@ -566,10 +589,18 @@ fn validate_create_experiment(payload: &CreateExperimentBody) -> Result<(), AppE
         }
     }
     if (total_weight - 1.0).abs() > 0.01 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "变体权重总和必须为 1"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "变体权重总和必须为 1",
+        ));
     }
     if control_count != 1 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "必须有且仅有一个控制组"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "必须有且仅有一个控制组",
+        ));
     }
 
     Ok(())
@@ -645,147 +676,52 @@ async fn list_experiments_pg(
         .map(|row| ExperimentListItemDto {
             id: row.try_get::<String, _>("id").unwrap_or_default(),
             name: row.try_get::<String, _>("name").unwrap_or_default(),
-            description: row.try_get::<Option<String>, _>("description").unwrap_or(None),
-            status: row.try_get::<String, _>("status").unwrap_or_else(|_| "DRAFT".to_string()),
+            description: row
+                .try_get::<Option<String>, _>("description")
+                .unwrap_or(None),
+            status: row
+                .try_get::<String, _>("status")
+                .unwrap_or_else(|_| "DRAFT".to_string()),
             traffic_allocation: row
                 .try_get::<String, _>("trafficAllocation")
                 .unwrap_or_else(|_| "WEIGHTED".to_string()),
-            min_sample_size: row.try_get::<i32, _>("minSampleSize").map(|v| v as i64).unwrap_or(100),
+            min_sample_size: row
+                .try_get::<i32, _>("minSampleSize")
+                .map(|v| v as i64)
+                .unwrap_or(100),
             significance_level: row.try_get::<f64, _>("significanceLevel").unwrap_or(0.05),
             started_at: row
                 .try_get::<Option<NaiveDateTime>, _>("startedAt")
                 .ok()
                 .flatten()
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)),
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                }),
             ended_at: row
                 .try_get::<Option<NaiveDateTime>, _>("endedAt")
                 .ok()
                 .flatten()
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)),
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                }),
             created_at: row
                 .try_get::<NaiveDateTime, _>("createdAt")
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                })
                 .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
             updated_at: row
                 .try_get::<NaiveDateTime, _>("updatedAt")
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                })
                 .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
             variant_count: row.try_get::<i64, _>("variantCount").unwrap_or(0),
             total_samples: row.try_get::<i64, _>("totalSamples").unwrap_or(0),
-        })
-        .collect();
-
-    Ok((items, total))
-}
-
-async fn list_experiments_sqlite(
-    pool: &sqlx::SqlitePool,
-    status: Option<&str>,
-    limit: i64,
-    offset: i64,
-) -> Result<(Vec<ExperimentListItemDto>, i64), AppError> {
-    let total: i64 = if let Some(status) = status {
-        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "ab_experiments" WHERE "status" = ?"#)
-            .bind(status)
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0)
-    } else {
-        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "ab_experiments""#)
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0)
-    };
-
-    let rows = if let Some(status) = status {
-        sqlx::query(
-            r#"
-            SELECT
-              "id","name","description",
-              "status" as "status",
-              "trafficAllocation" as "trafficAllocation",
-              "minSampleSize" as "minSampleSize",
-              "significanceLevel" as "significanceLevel",
-              "startedAt" as "startedAt",
-              "endedAt" as "endedAt",
-              "createdAt" as "createdAt",
-              "updatedAt" as "updatedAt",
-              (SELECT COUNT(*) FROM "ab_variants" v WHERE v."experimentId" = e."id") as "variantCount",
-              (SELECT COALESCE(SUM("sampleCount"),0) FROM "ab_experiment_metrics" m WHERE m."experimentId" = e."id") as "totalSamples"
-            FROM "ab_experiments" e
-            WHERE "status" = ?
-            ORDER BY "createdAt" DESC
-            LIMIT ? OFFSET ?
-            "#,
-        )
-        .bind(status)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default()
-    } else {
-        sqlx::query(
-            r#"
-            SELECT
-              "id","name","description",
-              "status" as "status",
-              "trafficAllocation" as "trafficAllocation",
-              "minSampleSize" as "minSampleSize",
-              "significanceLevel" as "significanceLevel",
-              "startedAt" as "startedAt",
-              "endedAt" as "endedAt",
-              "createdAt" as "createdAt",
-              "updatedAt" as "updatedAt",
-              (SELECT COUNT(*) FROM "ab_variants" v WHERE v."experimentId" = e."id") as "variantCount",
-              (SELECT COALESCE(SUM("sampleCount"),0) FROM "ab_experiment_metrics" m WHERE m."experimentId" = e."id") as "totalSamples"
-            FROM "ab_experiments" e
-            ORDER BY "createdAt" DESC
-            LIMIT ? OFFSET ?
-            "#,
-        )
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default()
-    };
-
-    let items = rows
-        .into_iter()
-        .map(|row| {
-            let created_raw = row.try_get::<String, _>("createdAt").unwrap_or_default();
-            let updated_raw = row.try_get::<String, _>("updatedAt").unwrap_or_default();
-            let started_raw = row.try_get::<Option<String>, _>("startedAt").unwrap_or(None);
-            let ended_raw = row.try_get::<Option<String>, _>("endedAt").unwrap_or(None);
-
-            ExperimentListItemDto {
-                id: row.try_get::<String, _>("id").unwrap_or_default(),
-                name: row.try_get::<String, _>("name").unwrap_or_default(),
-                description: row.try_get::<Option<String>, _>("description").unwrap_or(None),
-                status: row.try_get::<String, _>("status").unwrap_or_else(|_| "DRAFT".to_string()),
-                traffic_allocation: row
-                    .try_get::<String, _>("trafficAllocation")
-                    .unwrap_or_else(|_| "WEIGHTED".to_string()),
-                min_sample_size: row.try_get::<i64, _>("minSampleSize").unwrap_or(100),
-                significance_level: row.try_get::<f64, _>("significanceLevel").unwrap_or(0.05),
-                started_at: started_raw
-                    .as_deref()
-                    .and_then(crate::auth::parse_sqlite_datetime_ms)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis),
-                ended_at: ended_raw
-                    .as_deref()
-                    .and_then(crate::auth::parse_sqlite_datetime_ms)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis),
-                created_at: crate::auth::parse_sqlite_datetime_ms(&created_raw)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis)
-                    .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
-                updated_at: crate::auth::parse_sqlite_datetime_ms(&updated_raw)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis)
-                    .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
-                variant_count: row.try_get::<i64, _>("variantCount").unwrap_or(0),
-                total_samples: row.try_get::<i64, _>("totalSamples").unwrap_or(0),
-            }
         })
         .collect();
 
@@ -798,10 +734,13 @@ async fn create_experiment_pg(
     payload: &CreateExperimentBody,
     auto_decision: bool,
 ) -> Result<(), AppError> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    let mut tx = pool.begin().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     sqlx::query(
         r#"
@@ -843,76 +782,20 @@ async fn create_experiment_pg(
         .map_err(|_| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "创建变体失败"))?;
     }
 
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    Ok(())
-}
-
-async fn create_experiment_sqlite(
-    pool: &sqlx::SqlitePool,
-    experiment_id: &str,
-    now_iso: &str,
-    payload: &CreateExperimentBody,
-    auto_decision: bool,
-) -> Result<(), AppError> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-
-    sqlx::query(
-        r#"
-        INSERT INTO "ab_experiments"
-          ("id","name","description","trafficAllocation","minSampleSize","significanceLevel","minimumDetectableEffect","autoDecision","status","createdAt","updatedAt")
-        VALUES
-          (?,?,?,?,?,?,?,?, 'DRAFT', ?, ?)
-        "#,
-    )
-    .bind(experiment_id)
-    .bind(payload.name.trim())
-    .bind(payload.description.as_deref().map(|v| v.trim()).filter(|v| !v.is_empty()))
-    .bind(payload.traffic_allocation.trim().to_ascii_uppercase())
-    .bind(payload.min_sample_size)
-    .bind(payload.significance_level)
-    .bind(payload.minimum_detectable_effect)
-    .bind(if auto_decision { 1 } else { 0 })
-    .bind(now_iso)
-    .bind(now_iso)
-    .execute(&mut *tx)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "创建实验失败"))?;
-
-    for variant in &payload.variants {
-        let params = serde_json::to_string(&variant.parameters).unwrap_or_else(|_| "{}".to_string());
-        sqlx::query(
-            r#"
-            INSERT INTO "ab_variants"
-              ("id","experimentId","name","weight","isControl","parameters","createdAt","updatedAt")
-            VALUES
-              (?,?,?,?,?,?,?,?)
-            "#,
+    tx.commit().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
         )
-        .bind(variant.id.trim())
-        .bind(experiment_id)
-        .bind(variant.name.trim())
-        .bind(variant.weight)
-        .bind(if variant.is_control { 1 } else { 0 })
-        .bind(params)
-        .bind(now_iso)
-        .bind(now_iso)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "创建变体失败"))?;
-    }
-
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    })?;
     Ok(())
 }
 
-async fn fetch_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result<Option<ExperimentDto>, AppError> {
+async fn fetch_experiment_pg(
+    pool: &sqlx::PgPool,
+    experiment_id: &str,
+) -> Result<Option<ExperimentDto>, AppError> {
     let experiment_row = sqlx::query(
         r#"
         SELECT
@@ -928,9 +811,17 @@ async fn fetch_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
     .bind(experiment_id)
     .fetch_optional(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
-    let Some(row) = experiment_row else { return Ok(None) };
+    let Some(row) = experiment_row else {
+        return Ok(None);
+    };
 
     let variants_rows = sqlx::query(
         r#"
@@ -961,23 +852,35 @@ async fn fetch_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
 
     let created_at = row
         .try_get::<NaiveDateTime, _>("createdAt")
-        .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+        .map(|dt| {
+            DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                .to_rfc3339_opts(SecondsFormat::Millis, true)
+        })
         .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
     let updated_at = row
         .try_get::<NaiveDateTime, _>("updatedAt")
-        .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+        .map(|dt| {
+            DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                .to_rfc3339_opts(SecondsFormat::Millis, true)
+        })
         .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
 
     let started_at = row
         .try_get::<Option<NaiveDateTime>, _>("startedAt")
         .ok()
         .flatten()
-        .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true));
+        .map(|dt| {
+            DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                .to_rfc3339_opts(SecondsFormat::Millis, true)
+        });
     let ended_at = row
         .try_get::<Option<NaiveDateTime>, _>("endedAt")
         .ok()
         .flatten()
-        .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true));
+        .map(|dt| {
+            DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                .to_rfc3339_opts(SecondsFormat::Millis, true)
+        });
 
     let variants = variants_rows
         .into_iter()
@@ -993,11 +896,17 @@ async fn fetch_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
                 .unwrap_or_else(|_| serde_json::json!({})),
             created_at: row
                 .try_get::<NaiveDateTime, _>("createdAt")
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                })
                 .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
             updated_at: row
                 .try_get::<NaiveDateTime, _>("updatedAt")
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                })
                 .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
         })
         .collect();
@@ -1008,14 +917,20 @@ async fn fetch_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
             id: row.try_get::<String, _>("id").unwrap_or_default(),
             experiment_id: row.try_get::<String, _>("experimentId").unwrap_or_default(),
             variant_id: row.try_get::<String, _>("variantId").unwrap_or_default(),
-            sample_count: row.try_get::<i32, _>("sampleCount").map(|v| v as i64).unwrap_or(0),
+            sample_count: row
+                .try_get::<i32, _>("sampleCount")
+                .map(|v| v as i64)
+                .unwrap_or(0),
             primary_metric: row.try_get::<f64, _>("primaryMetric").unwrap_or(0.0),
             average_reward: row.try_get::<f64, _>("averageReward").unwrap_or(0.0),
             std_dev: row.try_get::<f64, _>("stdDev").unwrap_or(0.0),
             m2: row.try_get::<f64, _>("m2").unwrap_or(0.0),
             updated_at: row
                 .try_get::<NaiveDateTime, _>("updatedAt")
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                })
                 .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
         })
         .collect();
@@ -1023,147 +938,24 @@ async fn fetch_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
     Ok(Some(ExperimentDto {
         id: row.try_get::<String, _>("id").unwrap_or_default(),
         name: row.try_get::<String, _>("name").unwrap_or_default(),
-        description: row.try_get::<Option<String>, _>("description").unwrap_or(None),
+        description: row
+            .try_get::<Option<String>, _>("description")
+            .unwrap_or(None),
         traffic_allocation: row
             .try_get::<String, _>("trafficAllocation")
             .unwrap_or_else(|_| "WEIGHTED".to_string()),
-        min_sample_size: row.try_get::<i32, _>("minSampleSize").map(|v| v as i64).unwrap_or(100),
+        min_sample_size: row
+            .try_get::<i32, _>("minSampleSize")
+            .map(|v| v as i64)
+            .unwrap_or(100),
         significance_level: row.try_get::<f64, _>("significanceLevel").unwrap_or(0.05),
-        minimum_detectable_effect: row.try_get::<f64, _>("minimumDetectableEffect").unwrap_or(0.05),
+        minimum_detectable_effect: row
+            .try_get::<f64, _>("minimumDetectableEffect")
+            .unwrap_or(0.05),
         auto_decision: row.try_get::<bool, _>("autoDecision").unwrap_or(false),
-        status: row.try_get::<String, _>("status").unwrap_or_else(|_| "DRAFT".to_string()),
-        started_at,
-        ended_at,
-        created_at,
-        updated_at,
-        variants,
-        metrics,
-    }))
-}
-
-async fn fetch_experiment_sqlite(
-    pool: &sqlx::SqlitePool,
-    experiment_id: &str,
-) -> Result<Option<ExperimentDto>, AppError> {
-    let row = sqlx::query(
-        r#"
-        SELECT
-          "id","name","description",
-          "trafficAllocation","minSampleSize","significanceLevel","minimumDetectableEffect","autoDecision",
-          "status","startedAt","endedAt","createdAt","updatedAt"
-        FROM "ab_experiments"
-        WHERE "id" = ?
-        "#,
-    )
-    .bind(experiment_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-
-    let Some(row) = row else { return Ok(None) };
-
-    let variants_rows = sqlx::query(
-        r#"
-        SELECT
-          "id","experimentId","name","weight","isControl","parameters","createdAt","updatedAt"
-        FROM "ab_variants"
-        WHERE "experimentId" = ?
-        ORDER BY "createdAt" ASC
-        "#,
-    )
-    .bind(experiment_id)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default();
-
-    let metrics_rows = sqlx::query(
-        r#"
-        SELECT
-          "id","experimentId","variantId","sampleCount","primaryMetric","averageReward","stdDev","m2","updatedAt"
-        FROM "ab_experiment_metrics"
-        WHERE "experimentId" = ?
-        "#,
-    )
-    .bind(experiment_id)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default();
-
-    let created_raw = row.try_get::<String, _>("createdAt").unwrap_or_default();
-    let updated_raw = row.try_get::<String, _>("updatedAt").unwrap_or_default();
-    let started_raw = row.try_get::<Option<String>, _>("startedAt").unwrap_or(None);
-    let ended_raw = row.try_get::<Option<String>, _>("endedAt").unwrap_or(None);
-
-    let created_at = crate::auth::parse_sqlite_datetime_ms(&created_raw)
-        .and_then(crate::auth::format_timestamp_ms_iso_millis)
-        .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
-    let updated_at = crate::auth::parse_sqlite_datetime_ms(&updated_raw)
-        .and_then(crate::auth::format_timestamp_ms_iso_millis)
-        .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
-
-    let started_at = started_raw
-        .as_deref()
-        .and_then(crate::auth::parse_sqlite_datetime_ms)
-        .and_then(crate::auth::format_timestamp_ms_iso_millis);
-    let ended_at = ended_raw
-        .as_deref()
-        .and_then(crate::auth::parse_sqlite_datetime_ms)
-        .and_then(crate::auth::format_timestamp_ms_iso_millis);
-
-    let variants = variants_rows
-        .into_iter()
-        .map(|row| {
-            let params_raw = row.try_get::<String, _>("parameters").unwrap_or_else(|_| "{}".to_string());
-            let params = serde_json::from_str::<serde_json::Value>(&params_raw).unwrap_or_else(|_| serde_json::json!({}));
-            let created_raw = row.try_get::<String, _>("createdAt").unwrap_or_default();
-            let updated_raw = row.try_get::<String, _>("updatedAt").unwrap_or_default();
-            VariantDto {
-                id: row.try_get::<String, _>("id").unwrap_or_default(),
-                experiment_id: row.try_get::<String, _>("experimentId").unwrap_or_default(),
-                name: row.try_get::<String, _>("name").unwrap_or_default(),
-                weight: row.try_get::<f64, _>("weight").unwrap_or(0.5),
-                is_control: row.try_get::<i64, _>("isControl").unwrap_or(0) != 0,
-                parameters: params,
-                created_at: crate::auth::parse_sqlite_datetime_ms(&created_raw)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis)
-                    .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
-                updated_at: crate::auth::parse_sqlite_datetime_ms(&updated_raw)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis)
-                    .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
-            }
-        })
-        .collect();
-
-    let metrics = metrics_rows
-        .into_iter()
-        .map(|row| {
-            let updated_raw = row.try_get::<String, _>("updatedAt").unwrap_or_default();
-            MetricsDto {
-                id: row.try_get::<String, _>("id").unwrap_or_default(),
-                experiment_id: row.try_get::<String, _>("experimentId").unwrap_or_default(),
-                variant_id: row.try_get::<String, _>("variantId").unwrap_or_default(),
-                sample_count: row.try_get::<i64, _>("sampleCount").unwrap_or(0),
-                primary_metric: row.try_get::<f64, _>("primaryMetric").unwrap_or(0.0),
-                average_reward: row.try_get::<f64, _>("averageReward").unwrap_or(0.0),
-                std_dev: row.try_get::<f64, _>("stdDev").unwrap_or(0.0),
-                m2: row.try_get::<f64, _>("m2").unwrap_or(0.0),
-                updated_at: crate::auth::parse_sqlite_datetime_ms(&updated_raw)
-                    .and_then(crate::auth::format_timestamp_ms_iso_millis)
-                    .unwrap_or_else(|| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
-            }
-        })
-        .collect();
-
-    Ok(Some(ExperimentDto {
-        id: row.try_get::<String, _>("id").unwrap_or_default(),
-        name: row.try_get::<String, _>("name").unwrap_or_default(),
-        description: row.try_get::<Option<String>, _>("description").unwrap_or(None),
-        traffic_allocation: row.try_get::<String, _>("trafficAllocation").unwrap_or_else(|_| "WEIGHTED".to_string()),
-        min_sample_size: row.try_get::<i64, _>("minSampleSize").unwrap_or(100),
-        significance_level: row.try_get::<f64, _>("significanceLevel").unwrap_or(0.05),
-        minimum_detectable_effect: row.try_get::<f64, _>("minimumDetectableEffect").unwrap_or(0.05),
-        auto_decision: row.try_get::<i64, _>("autoDecision").unwrap_or(0) != 0,
-        status: row.try_get::<String, _>("status").unwrap_or_else(|_| "DRAFT".to_string()),
+        status: row
+            .try_get::<String, _>("status")
+            .unwrap_or_else(|_| "DRAFT".to_string()),
         started_at,
         ended_at,
         created_at,
@@ -1174,25 +966,39 @@ async fn fetch_experiment_sqlite(
 }
 
 async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result<(), AppError> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    let mut tx = pool.begin().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
-    let exp = sqlx::query(
-        r#"SELECT "status"::text as "status" FROM "ab_experiments" WHERE "id" = $1"#,
-    )
-    .bind(experiment_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    let exp =
+        sqlx::query(r#"SELECT "status"::text as "status" FROM "ab_experiments" WHERE "id" = $1"#)
+            .bind(experiment_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|_| {
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+            })?;
 
     let Some(exp) = exp else {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"));
     };
-    let status = exp.try_get::<String, _>("status").unwrap_or_else(|_| "DRAFT".to_string());
+    let status = exp
+        .try_get::<String, _>("status")
+        .unwrap_or_else(|_| "DRAFT".to_string());
     if status != "DRAFT" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "只能启动草稿状态的实验"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "只能启动草稿状态的实验",
+        ));
     }
 
     let variants = sqlx::query(r#"SELECT "id" FROM "ab_variants" WHERE "experimentId" = $1"#)
@@ -1201,7 +1007,11 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
         .await
         .unwrap_or_default();
     if variants.len() < 2 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "实验至少需要两个变体"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "实验至少需要两个变体",
+        ));
     }
 
     sqlx::query(
@@ -1210,7 +1020,13 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
     .bind(experiment_id)
     .execute(&mut *tx)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     for row in variants {
         let variant_id = row.try_get::<String, _>("id").unwrap_or_default();
@@ -1234,92 +1050,33 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
         .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
     }
 
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    Ok(())
-}
-
-async fn start_experiment_sqlite(pool: &sqlx::SqlitePool, experiment_id: &str) -> Result<(), AppError> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-
-    let exp = sqlx::query(r#"SELECT "status" as "status" FROM "ab_experiments" WHERE "id" = ?"#)
-        .bind(experiment_id)
-        .fetch_optional(&mut *tx)
-        .await
-        .unwrap_or(None);
-    let Some(exp) = exp else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"));
-    };
-    let status = exp.try_get::<String, _>("status").unwrap_or_else(|_| "DRAFT".to_string());
-    if status != "DRAFT" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "只能启动草稿状态的实验"));
-    }
-
-    let variants = sqlx::query(r#"SELECT "id" as "id" FROM "ab_variants" WHERE "experimentId" = ?"#)
-        .bind(experiment_id)
-        .fetch_all(&mut *tx)
-        .await
-        .unwrap_or_default();
-    if variants.len() < 2 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "实验至少需要两个变体"));
-    }
-
-    let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-    sqlx::query(
-        r#"UPDATE "ab_experiments" SET "status" = 'RUNNING', "startedAt" = ?, "updatedAt" = ? WHERE "id" = ?"#,
-    )
-    .bind(&now)
-    .bind(&now)
-    .bind(experiment_id)
-    .execute(&mut *tx)
-    .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-
-    for row in variants {
-        let variant_id = row.try_get::<String, _>("id").unwrap_or_default();
-        if variant_id.is_empty() {
-            continue;
-        }
-        sqlx::query(
-            r#"
-            INSERT OR IGNORE INTO "ab_experiment_metrics"
-              ("id","experimentId","variantId","sampleCount","primaryMetric","averageReward","stdDev","m2","updatedAt")
-            VALUES
-              (?,?,?,?,0,0,0,0,?)
-            "#,
+    tx.commit().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
         )
-        .bind(Uuid::new_v4().to_string())
-        .bind(experiment_id)
-        .bind(variant_id)
-        .bind(0i64)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    }
-
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    })?;
     Ok(())
 }
 
 async fn stop_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result<(), AppError> {
-    let status: Option<String> = sqlx::query_scalar(
-        r#"SELECT "status"::text FROM "ab_experiments" WHERE "id" = $1"#,
-    )
-    .bind(experiment_id)
-    .fetch_optional(pool)
-    .await
-    .unwrap_or(None);
+    let status: Option<String> =
+        sqlx::query_scalar(r#"SELECT "status"::text FROM "ab_experiments" WHERE "id" = $1"#)
+            .bind(experiment_id)
+            .fetch_optional(pool)
+            .await
+            .unwrap_or(None);
 
-    let Some(status) = status else { return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在")) };
+    let Some(status) = status else {
+        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"));
+    };
     if status != "RUNNING" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "只能停止运行中的实验"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "只能停止运行中的实验",
+        ));
     }
 
     sqlx::query(
@@ -1328,48 +1085,41 @@ async fn stop_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result<
     .bind(experiment_id)
     .execute(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    Ok(())
-}
-
-async fn stop_experiment_sqlite(pool: &sqlx::SqlitePool, experiment_id: &str) -> Result<(), AppError> {
-    let status: Option<String> = sqlx::query_scalar(r#"SELECT "status" FROM "ab_experiments" WHERE "id" = ?"#)
-        .bind(experiment_id)
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
-    let Some(status) = status else { return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在")) };
-    if status != "RUNNING" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "只能停止运行中的实验"));
-    }
-    let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-    sqlx::query(r#"UPDATE "ab_experiments" SET "status" = 'COMPLETED', "endedAt" = ?, "updatedAt" = ? WHERE "id" = ?"#)
-        .bind(&now)
-        .bind(&now)
-        .bind(experiment_id)
-        .execute(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
     Ok(())
 }
 
 async fn delete_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result<(), AppError> {
-    let status: Option<String> = sqlx::query_scalar(
-        r#"SELECT "status"::text FROM "ab_experiments" WHERE "id" = $1"#,
-    )
-    .bind(experiment_id)
-    .fetch_optional(pool)
-    .await
-    .unwrap_or(None);
-    let Some(status) = status else { return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在")) };
+    let status: Option<String> =
+        sqlx::query_scalar(r#"SELECT "status"::text FROM "ab_experiments" WHERE "id" = $1"#)
+            .bind(experiment_id)
+            .fetch_optional(pool)
+            .await
+            .unwrap_or(None);
+    let Some(status) = status else {
+        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"));
+    };
     if status == "RUNNING" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无法删除运行中的实验"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "无法删除运行中的实验",
+        ));
     }
 
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    let mut tx = pool.begin().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
     sqlx::query(r#"DELETE FROM "ab_user_assignments" WHERE "experimentId" = $1"#)
         .bind(experiment_id)
         .execute(&mut *tx)
@@ -1389,51 +1139,20 @@ async fn delete_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Resul
         .bind(experiment_id)
         .execute(&mut *tx)
         .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    Ok(())
-}
-
-async fn delete_experiment_sqlite(pool: &sqlx::SqlitePool, experiment_id: &str) -> Result<(), AppError> {
-    let status: Option<String> = sqlx::query_scalar(r#"SELECT "status" FROM "ab_experiments" WHERE "id" = ?"#)
-        .bind(experiment_id)
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
-    let Some(status) = status else { return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在")) };
-    if status == "RUNNING" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无法删除运行中的实验"));
-    }
-
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    sqlx::query(r#"DELETE FROM "ab_user_assignments" WHERE "experimentId" = ?"#)
-        .bind(experiment_id)
-        .execute(&mut *tx)
-        .await
-        .ok();
-    sqlx::query(r#"DELETE FROM "ab_experiment_metrics" WHERE "experimentId" = ?"#)
-        .bind(experiment_id)
-        .execute(&mut *tx)
-        .await
-        .ok();
-    sqlx::query(r#"DELETE FROM "ab_variants" WHERE "experimentId" = ?"#)
-        .bind(experiment_id)
-        .execute(&mut *tx)
-        .await
-        .ok();
-    sqlx::query(r#"DELETE FROM "ab_experiments" WHERE "id" = ?"#)
-        .bind(experiment_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+        })?;
+    tx.commit().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
     Ok(())
 }
 
@@ -1443,10 +1162,13 @@ async fn record_metric_pg(
     variant_id: &str,
     reward: f64,
 ) -> Result<(), AppError> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    let mut tx = pool.begin().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     let current = sqlx::query(
         r#"
@@ -1460,10 +1182,20 @@ async fn record_metric_pg(
     .bind(variant_id)
     .fetch_optional(&mut *tx)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     let Some(row) = current else {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "指标记录不存在"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "指标记录不存在",
+        ));
     };
 
     let sample_count = row.try_get::<i32, _>("sampleCount").unwrap_or(0) as i64;
@@ -1501,100 +1233,22 @@ async fn record_metric_pg(
     .bind(variant_id)
     .execute(&mut *tx)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    tx.commit().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
     Ok(())
-}
-
-async fn record_metric_sqlite(
-    pool: &sqlx::SqlitePool,
-    experiment_id: &str,
-    variant_id: &str,
-    reward: f64,
-) -> Result<(), AppError> {
-    const MAX_RETRIES: usize = 5;
-    let mut delay_ms: u64 = 10;
-
-    for attempt in 0..MAX_RETRIES {
-        let current = sqlx::query(
-            r#"
-            SELECT "sampleCount","averageReward","m2"
-            FROM "ab_experiment_metrics"
-            WHERE "experimentId" = ? AND "variantId" = ?
-            "#,
-        )
-        .bind(experiment_id)
-        .bind(variant_id)
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
-
-        let Some(row) = current else {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "指标记录不存在"));
-        };
-
-        let old_sample_count = row.try_get::<i64, _>("sampleCount").unwrap_or(0);
-        let average_reward = row.try_get::<f64, _>("averageReward").unwrap_or(0.0);
-        let m2 = row.try_get::<f64, _>("m2").unwrap_or(0.0);
-
-        let n = old_sample_count + 1;
-        let delta = reward - average_reward;
-        let new_mean = average_reward + delta / n as f64;
-        let delta2 = reward - new_mean;
-        let new_m2 = m2 + delta * delta2;
-        let new_std_dev = if n > 1 {
-            (new_m2 / (n - 1) as f64).sqrt()
-        } else {
-            0.0
-        };
-
-        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let result = sqlx::query(
-            r#"
-            UPDATE "ab_experiment_metrics"
-            SET "sampleCount" = ?,
-                "averageReward" = ?,
-                "m2" = ?,
-                "stdDev" = ?,
-                "primaryMetric" = ?,
-                "updatedAt" = ?
-            WHERE "experimentId" = ?
-              AND "variantId" = ?
-              AND "sampleCount" = ?
-            "#,
-        )
-        .bind(n)
-        .bind(new_mean)
-        .bind(new_m2)
-        .bind(new_std_dev)
-        .bind(new_mean)
-        .bind(&now)
-        .bind(experiment_id)
-        .bind(variant_id)
-        .bind(old_sample_count)
-        .execute(pool)
-        .await;
-
-        if let Ok(done) = result {
-            if done.rows_affected() > 0 {
-                return Ok(());
-            }
-        }
-
-        if attempt + 1 < MAX_RETRIES {
-            tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
-            delay_ms = delay_ms.saturating_mul(2);
-        }
-    }
-
-    Err(json_error(
-        StatusCode::CONFLICT,
-        "CONFLICT",
-        "记录指标失败：并发冲突重试次数已用尽",
-    ))
 }
 
 fn compute_experiment_status(experiment: &ExperimentDto) -> ExperimentStatusDto {
@@ -1617,9 +1271,16 @@ fn compute_experiment_status(experiment: &ExperimentDto) -> ExperimentStatusDto 
         return default_status(&experiment.status, sample_sizes);
     };
 
-    let control_metrics = experiment.metrics.iter().find(|m| m.variant_id == control.id);
-    let treatment_metrics = experiment.metrics.iter().find(|m| m.variant_id == treatment.id);
-    let (Some(control_metrics), Some(treatment_metrics)) = (control_metrics, treatment_metrics) else {
+    let control_metrics = experiment
+        .metrics
+        .iter()
+        .find(|m| m.variant_id == control.id);
+    let treatment_metrics = experiment
+        .metrics
+        .iter()
+        .find(|m| m.variant_id == treatment.id);
+    let (Some(control_metrics), Some(treatment_metrics)) = (control_metrics, treatment_metrics)
+    else {
         return default_status(&experiment.status, sample_sizes);
     };
 
@@ -1655,46 +1316,56 @@ fn compute_experiment_status(experiment: &ExperimentDto) -> ExperimentStatusDto 
     let total_samples: i64 = sample_sizes.iter().map(|s| s.sample_count).sum();
 
     let mut winner: Option<String> = None;
-    let (recommendation, reason) = if significance.is_significant && effect_size > experiment.minimum_detectable_effect {
-        winner = Some(if effect_size > 0.0 { treatment.id.clone() } else { control.id.clone() });
-        (
-            format!(
-                "建议采用 {}",
-                if winner.as_deref() == Some(&treatment.id) {
-                    &treatment.name
-                } else {
-                    &control.name
-                }
-            ),
-            format!(
-                "效应量 {:.1}% 超过最小可检测效应 {:.1}%，且统计显著",
-                effect_size * 100.0,
-                experiment.minimum_detectable_effect * 100.0
-            ),
-        )
-    } else if total_samples < experiment.min_sample_size {
-        (
-            "继续收集数据".to_string(),
-            format!("当前样本量 {total_samples} 未达到最小要求 {}", experiment.min_sample_size),
-        )
-    } else if !significance.is_significant {
-        (
-            "无显著差异，可考虑结束实验".to_string(),
-            format!(
-                "p值 {:.4} 大于显著性水平 {}",
-                significance.p_value, experiment.significance_level
-            ),
-        )
-    } else {
-        (
-            "效应量较小，建议继续观察".to_string(),
-            format!("效应量 {:.1}% 未达到最小可检测效应", effect_size * 100.0),
-        )
-    };
+    let (recommendation, reason) =
+        if significance.is_significant && effect_size > experiment.minimum_detectable_effect {
+            winner = Some(if effect_size > 0.0 {
+                treatment.id.clone()
+            } else {
+                control.id.clone()
+            });
+            (
+                format!(
+                    "建议采用 {}",
+                    if winner.as_deref() == Some(&treatment.id) {
+                        &treatment.name
+                    } else {
+                        &control.name
+                    }
+                ),
+                format!(
+                    "效应量 {:.1}% 超过最小可检测效应 {:.1}%，且统计显著",
+                    effect_size * 100.0,
+                    experiment.minimum_detectable_effect * 100.0
+                ),
+            )
+        } else if total_samples < experiment.min_sample_size {
+            (
+                "继续收集数据".to_string(),
+                format!(
+                    "当前样本量 {total_samples} 未达到最小要求 {}",
+                    experiment.min_sample_size
+                ),
+            )
+        } else if !significance.is_significant {
+            (
+                "无显著差异，可考虑结束实验".to_string(),
+                format!(
+                    "p值 {:.4} 大于显著性水平 {}",
+                    significance.p_value, experiment.significance_level
+                ),
+            )
+        } else {
+            (
+                "效应量较小，建议继续观察".to_string(),
+                format!("效应量 {:.1}% 未达到最小可检测效应", effect_size * 100.0),
+            )
+        };
 
     let status = match experiment.status.as_str() {
         "RUNNING" => "running",
         "COMPLETED" => "completed",
+        "DRAFT" => "draft",
+        "ABORTED" => "aborted",
         _ => "stopped",
     };
 
@@ -1739,8 +1410,16 @@ fn calculate_significance(
 
     let z_critical = 1.96;
     let margin = z_critical * se;
-    let relative_diff = if mean1.abs() > f64::EPSILON { diff / mean1 } else { 0.0 };
-    let relative_margin = if mean1.abs() > f64::EPSILON { margin / mean1.abs() } else { 0.0 };
+    let relative_diff = if mean1.abs() > f64::EPSILON {
+        diff / mean1
+    } else {
+        0.0
+    };
+    let relative_margin = if mean1.abs() > f64::EPSILON {
+        margin / mean1.abs()
+    } else {
+        0.0
+    };
 
     SignificanceResult {
         p_value: p_value.clamp(0.0, 1.0),
@@ -1760,11 +1439,13 @@ fn calculate_power(n1: f64, n2: f64, effect_size: f64, alpha: f64) -> f64 {
 fn normal_cdf(x: f64) -> f64 {
     let t = 1.0 / (1.0 + 0.2316419 * x.abs());
     let d = 0.3989422804 * (-x * x / 2.0).exp();
-    let p = d
-        * t
-        * (0.3193815
-            + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-    if x > 0.0 { 1.0 - p } else { p }
+    let p =
+        d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    if x > 0.0 {
+        1.0 - p
+    } else {
+        p
+    }
 }
 
 fn normal_quantile(p: f64) -> f64 {
@@ -1833,13 +1514,18 @@ fn default_status(status: &str, sample_sizes: Vec<SampleSizeDto>) -> ExperimentS
     let mapped = match status {
         "RUNNING" => "running",
         "COMPLETED" => "completed",
+        "DRAFT" => "draft",
+        "ABORTED" => "aborted",
         _ => "stopped",
     };
     ExperimentStatusDto {
         status: mapped.to_string(),
         p_value: 1.0,
         effect_size: 0.0,
-        confidence_interval: ConfidenceIntervalDto { lower: 0.0, upper: 0.0 },
+        confidence_interval: ConfidenceIntervalDto {
+            lower: 0.0,
+            upper: 0.0,
+        },
         is_significant: false,
         statistical_power: 0.0,
         sample_sizes,

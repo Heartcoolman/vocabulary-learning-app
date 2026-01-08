@@ -37,7 +37,11 @@ function createTestResult(overrides: Partial<AmasProcessResult> = {}): AmasProce
       speed: 0.65,
       stability: 0.7,
     },
-    explanation: '',
+    explanation: {
+      factors: [],
+      changes: [],
+      text: '',
+    },
     suggestion: '',
     shouldBreak: false,
     ...overrides,
@@ -71,7 +75,7 @@ describe('AmasSuggestion', () => {
   describe('AI suggestion display', () => {
     it('should display AI suggestion title', () => {
       const result = createTestResult({
-        explanation: 'Test explanation',
+        explanation: { factors: [], changes: [], text: 'Test explanation' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -80,7 +84,7 @@ describe('AmasSuggestion', () => {
 
     it('should display lightbulb icon for AI suggestion', () => {
       const result = createTestResult({
-        explanation: 'Test explanation',
+        explanation: { factors: [], changes: [], text: 'Test explanation' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -89,7 +93,7 @@ describe('AmasSuggestion', () => {
 
     it('should display explanation text', () => {
       const result = createTestResult({
-        explanation: 'This is a test explanation',
+        explanation: { factors: [], changes: [], text: 'This is a test explanation' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -120,7 +124,7 @@ describe('AmasSuggestion', () => {
   describe('break suggestion', () => {
     it('should display break suggestion title', () => {
       const result = createTestResult({
-        explanation: 'You need a break',
+        explanation: { factors: [], changes: [], text: 'You need a break' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
@@ -130,7 +134,7 @@ describe('AmasSuggestion', () => {
 
     it('should display coffee icon for break suggestion', () => {
       const result = createTestResult({
-        explanation: 'You need a break',
+        explanation: { factors: [], changes: [], text: 'You need a break' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
@@ -140,7 +144,7 @@ describe('AmasSuggestion', () => {
 
     it('should display break button when shouldBreak is true', () => {
       const result = createTestResult({
-        explanation: 'You need a break',
+        explanation: { factors: [], changes: [], text: 'You need a break' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
@@ -150,7 +154,7 @@ describe('AmasSuggestion', () => {
 
     it('should call onBreak when break button is clicked', () => {
       const result = createTestResult({
-        explanation: 'You need a break',
+        explanation: { factors: [], changes: [], text: 'You need a break' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
@@ -163,7 +167,7 @@ describe('AmasSuggestion', () => {
 
     it('should not display break button when onBreak is not provided', () => {
       const result = createTestResult({
-        explanation: 'You need a break',
+        explanation: { factors: [], changes: [], text: 'You need a break' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} />);
@@ -177,7 +181,7 @@ describe('AmasSuggestion', () => {
   describe('strategy display', () => {
     it('should display strategy parameters', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         strategy: {
           ...createTestResult().strategy,
           difficulty: 'easy',
@@ -200,7 +204,7 @@ describe('AmasSuggestion', () => {
 
     it('should display difficulty as 简单 for easy', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         strategy: { ...createTestResult().strategy, difficulty: 'easy' },
       });
       render(<AmasSuggestion result={result} />);
@@ -210,7 +214,7 @@ describe('AmasSuggestion', () => {
 
     it('should display difficulty as 中等 for mid', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -219,7 +223,7 @@ describe('AmasSuggestion', () => {
 
     it('should display difficulty as 困难 for hard', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         strategy: { ...createTestResult().strategy, difficulty: 'hard' },
       });
       render(<AmasSuggestion result={result} />);
@@ -229,7 +233,7 @@ describe('AmasSuggestion', () => {
 
     it('should display hint level as 无 for 0', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         strategy: { ...createTestResult().strategy, hint_level: 0 },
       });
       render(<AmasSuggestion result={result} />);
@@ -239,7 +243,7 @@ describe('AmasSuggestion', () => {
 
     it('should display hint level as 少 for 1', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -248,7 +252,7 @@ describe('AmasSuggestion', () => {
 
     it('should display hint level as 多 for 2', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         strategy: { ...createTestResult().strategy, hint_level: 2 },
       });
       render(<AmasSuggestion result={result} />);
@@ -262,7 +266,7 @@ describe('AmasSuggestion', () => {
   describe('accessibility', () => {
     it('should have role alert', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -271,7 +275,7 @@ describe('AmasSuggestion', () => {
 
     it('should have aria-live polite', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
       });
       render(<AmasSuggestion result={result} />);
 
@@ -280,7 +284,7 @@ describe('AmasSuggestion', () => {
 
     it('should have aria-label on break button', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
@@ -294,7 +298,7 @@ describe('AmasSuggestion', () => {
   describe('styling', () => {
     it('should have orange styling for break suggestion', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
         shouldBreak: true,
       });
       render(<AmasSuggestion result={result} />);
@@ -305,7 +309,7 @@ describe('AmasSuggestion', () => {
 
     it('should have blue styling for AI suggestion', () => {
       const result = createTestResult({
-        explanation: 'Test',
+        explanation: { factors: [], changes: [], text: 'Test' },
       });
       render(<AmasSuggestion result={result} />);
 

@@ -238,44 +238,48 @@ export default function CausalInferencePage() {
   return (
     <div className="animate-g3-fade-in p-8">
       <div className="mb-8">
-        <h1 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900">
+        <h1 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900 dark:text-white">
           <Brain size={36} weight="duotone" className="text-purple-500" />
           因果分析
         </h1>
-        <p className="text-gray-600">记录和分析学习策略的因果效应</p>
+        <p className="text-gray-600 dark:text-gray-400">记录和分析学习策略的因果效应</p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* 左侧：观测记录表单 */}
         <div className="lg:col-span-1">
-          <div className="sticky top-8 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+          <div className="sticky top-8 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
               <Lightbulb size={24} weight="duotone" className="text-yellow-500" />
               记录观测
             </h2>
 
             <form onSubmit={handleRecordObservation} className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   特征向量 (逗号分隔)
                 </label>
                 <textarea
                   value={features}
                   onChange={(e) => setFeatures(e.target.value)}
                   placeholder="例如: 0.5, 0.8, 0.3"
-                  className="w-full resize-none rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full resize-none rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   rows={3}
                   disabled={isRecording}
                 />
-                <p className="mt-1 text-xs text-gray-500">用户特征向量，用逗号分隔各维度</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  用户特征向量，用逗号分隔各维度
+                </p>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">策略选择</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  策略选择
+                </label>
                 <select
                   value={treatment}
                   onChange={(e) => setTreatment(e.target.value as '0' | '1')}
-                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   disabled={isRecording}
                 >
                   <option value="0">策略 A (对照组)</option>
@@ -284,7 +288,7 @@ export default function CausalInferencePage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   奖励值 [-1 到 1]
                 </label>
                 <input
@@ -295,10 +299,12 @@ export default function CausalInferencePage() {
                   min="-1"
                   max="1"
                   step="0.01"
-                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   disabled={isRecording}
                 />
-                <p className="mt-1 text-xs text-gray-500">观测到的学习效果或奖励</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  观测到的学习效果或奖励
+                </p>
               </div>
 
               <button
@@ -325,16 +331,16 @@ export default function CausalInferencePage() {
         {/* 右侧：分析展示 */}
         <div className="space-y-6 lg:col-span-2">
           {/* ATE分析 */}
-          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <ChartBar size={24} weight="duotone" className="text-blue-500" />
                 平均处理效应 (ATE)
               </h2>
               <button
                 onClick={() => loadATE()}
                 disabled={isLoadingATE}
-                className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
                 title="刷新"
               >
                 <ArrowClockwise size={20} weight="bold" />
@@ -346,27 +352,29 @@ export default function CausalInferencePage() {
                 <CircleNotch className="animate-spin" size={32} weight="bold" color="#3b82f6" />
               </div>
             ) : ateError ? (
-              <div className="py-8 text-center text-gray-500">
+              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
                 <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
                 <p>{ateError}</p>
               </div>
             ) : ate ? (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-button bg-blue-50 p-4">
-                    <p className="mb-1 text-sm text-gray-600">平均处理效应</p>
-                    <p className="text-3xl font-bold text-gray-900">{formatFixed(ate.ate, 4)}</p>
+                  <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/20">
+                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">平均处理效应</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                      {formatFixed(ate.ate, 4)}
+                    </p>
                   </div>
-                  <div className="rounded-button bg-green-50 p-4">
-                    <p className="mb-1 text-sm text-gray-600">标准误</p>
-                    <p className="text-3xl font-bold text-gray-900">
+                  <div className="rounded-button bg-green-50 p-4 dark:bg-green-900/20">
+                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">标准误</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
                       {formatFixed(ate.standardError, 4)}
                     </p>
                   </div>
                 </div>
 
-                <div className="rounded-button bg-purple-50 p-4">
-                  <p className="mb-2 text-sm text-gray-600">95% 置信区间</p>
+                <div className="rounded-button bg-purple-50 p-4 dark:bg-purple-900/20">
+                  <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">95% 置信区间</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
                       <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-200">
@@ -388,43 +396,59 @@ export default function CausalInferencePage() {
                       </div>
                     </div>
                   </div>
-                  <p className="mt-2 text-sm text-gray-600">
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     [{formatFixed(ate.confidenceInterval?.[0], 4)},{' '}
                     {formatFixed(ate.confidenceInterval?.[1], 4)}]
                   </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-button bg-gray-50 p-3">
-                    <p className="mb-1 text-xs text-gray-600">样本量</p>
-                    <p className="text-xl font-bold text-gray-900">{ate.sampleSize}</p>
+                  <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-700">
+                    <p className="mb-1 text-xs text-gray-600 dark:text-gray-400">样本量</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {ate.sampleSize}
+                    </p>
                   </div>
-                  <div className="rounded-button bg-gray-50 p-3">
-                    <p className="mb-1 text-xs text-gray-600">有效样本</p>
-                    <p className="text-xl font-bold text-gray-900">{ate.effectiveSampleSize}</p>
+                  <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-700">
+                    <p className="mb-1 text-xs text-gray-600 dark:text-gray-400">有效样本</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {ate.effectiveSampleSize}
+                    </p>
                   </div>
-                  <div className="rounded-button bg-gray-50 p-3">
-                    <p className="mb-1 text-xs text-gray-600">P 值</p>
-                    <p className="text-xl font-bold text-gray-900">{formatFixed(ate.pValue, 4)}</p>
+                  <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-700">
+                    <p className="mb-1 text-xs text-gray-600 dark:text-gray-400">P 值</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {formatFixed(ate.pValue, 4)}
+                    </p>
                   </div>
                 </div>
 
                 <div
                   className={`rounded-button p-4 ${
                     ate.significant
-                      ? 'border border-green-200 bg-green-50'
-                      : 'border border-yellow-200 bg-yellow-50'
+                      ? 'border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                      : 'border border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     {ate.significant ? (
-                      <CheckCircle size={20} weight="bold" className="text-green-600" />
+                      <CheckCircle
+                        size={20}
+                        weight="bold"
+                        className="text-green-600 dark:text-green-400"
+                      />
                     ) : (
-                      <Warning size={20} weight="bold" className="text-yellow-600" />
+                      <Warning
+                        size={20}
+                        weight="bold"
+                        className="text-yellow-600 dark:text-yellow-400"
+                      />
                     )}
                     <span
                       className={`font-medium ${
-                        ate.significant ? 'text-green-700' : 'text-yellow-700'
+                        ate.significant
+                          ? 'text-green-700 dark:text-green-300'
+                          : 'text-yellow-700 dark:text-yellow-300'
                       }`}
                     >
                       {ate.significant ? '效应显著 (α=0.05)' : '效应不显著'}
@@ -433,10 +457,10 @@ export default function CausalInferencePage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-button border border-yellow-200 bg-yellow-50 p-6 text-center">
+              <div className="rounded-button border border-yellow-200 bg-yellow-50 p-6 text-center dark:border-yellow-800 dark:bg-yellow-900/30">
                 <Warning size={32} weight="duotone" className="mx-auto mb-2 text-yellow-500" />
-                <p className="font-medium text-yellow-700">样本数据不足</p>
-                <p className="mt-1 text-sm text-yellow-600">
+                <p className="font-medium text-yellow-700 dark:text-yellow-300">样本数据不足</p>
+                <p className="mt-1 text-sm text-yellow-600 dark:text-yellow-400">
                   至少需要10个观测数据，且处理组和对照组各需至少5个样本才能计算因果效应。
                 </p>
               </div>
@@ -444,16 +468,16 @@ export default function CausalInferencePage() {
           </div>
 
           {/* 倾向得分诊断 */}
-          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <Lightbulb size={24} weight="duotone" className="text-yellow-500" />
                 倾向得分诊断
               </h2>
               <button
                 onClick={() => loadDiagnostics()}
                 disabled={isLoadingDiagnostics}
-                className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
                 title="刷新"
               >
                 <ArrowClockwise size={20} weight="bold" />
@@ -465,7 +489,7 @@ export default function CausalInferencePage() {
                 <CircleNotch className="animate-spin" size={32} weight="bold" color="#3b82f6" />
               </div>
             ) : diagnosticsError ? (
-              <div className="py-8 text-center text-gray-500">
+              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
                 <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
                 <p>{diagnosticsError}</p>
               </div>
@@ -473,23 +497,23 @@ export default function CausalInferencePage() {
               <div className="space-y-4">
                 {/* 观测统计 */}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-button bg-blue-50 p-4">
-                    <p className="mb-1 text-sm text-gray-600">总观测数量</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                  <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/20">
+                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">总观测数量</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
                       {diagnostics.observationCount}
                     </p>
                   </div>
-                  <div className="rounded-button bg-green-50 p-4">
-                    <p className="mb-1 text-sm text-gray-600">处理组分布</p>
+                  <div className="rounded-button bg-green-50 p-4 dark:bg-green-900/20">
+                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">处理组分布</p>
                     <div className="flex gap-4">
                       <div>
-                        <span className="text-xs text-gray-500">对照组(0):</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">对照组(0):</span>
                         <span className="ml-1 font-bold">
                           {diagnostics.treatmentDistribution?.[0] ?? 0}
                         </span>
                       </div>
                       <div>
-                        <span className="text-xs text-gray-500">处理组(1):</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">处理组(1):</span>
                         <span className="ml-1 font-bold">
                           {diagnostics.treatmentDistribution?.[1] ?? 0}
                         </span>
@@ -500,25 +524,27 @@ export default function CausalInferencePage() {
 
                 {/* 最新估计（如果有） */}
                 {diagnostics.latestEstimate ? (
-                  <div className="rounded-button border border-purple-200 bg-purple-50 p-4">
-                    <p className="mb-2 text-sm font-medium text-purple-700">最新因果效应估计</p>
+                  <div className="rounded-button border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
+                    <p className="mb-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                      最新因果效应估计
+                    </p>
                     <div className="grid gap-2 text-sm md:grid-cols-3">
                       <div>
-                        <span className="text-gray-600">ATE:</span>
-                        <span className="ml-1 font-bold">
+                        <span className="text-gray-600 dark:text-gray-400">ATE:</span>
+                        <span className="ml-1 font-bold dark:text-white">
                           {formatFixed(diagnostics.latestEstimate?.ate, 4)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-600">样本量:</span>
-                        <span className="ml-1 font-bold">
+                        <span className="text-gray-600 dark:text-gray-400">样本量:</span>
+                        <span className="ml-1 font-bold dark:text-white">
                           {diagnostics.latestEstimate.sampleSize}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-600">显著性:</span>
+                        <span className="text-gray-600 dark:text-gray-400">显著性:</span>
                         <span
-                          className={`ml-1 font-bold ${diagnostics.latestEstimate.significant ? 'text-green-600' : 'text-yellow-600'}`}
+                          className={`ml-1 font-bold ${diagnostics.latestEstimate.significant ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}
                         >
                           {diagnostics.latestEstimate.significant ? '显著' : '不显著'}
                         </span>
@@ -526,7 +552,7 @@ export default function CausalInferencePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-button border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
+                  <div className="rounded-button border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                     <Warning size={16} weight="bold" className="mb-1 inline" />
                     <span className="ml-1">
                       样本不足，无法计算因果效应。至少需要10个观测数据，且处理组和对照组各需至少5个样本。
@@ -535,14 +561,14 @@ export default function CausalInferencePage() {
                 )}
               </div>
             ) : (
-              <div className="py-8 text-center text-gray-500">暂无数据</div>
+              <div className="py-8 text-center text-gray-500 dark:text-gray-400">暂无数据</div>
             )}
           </div>
 
           {/* 策略对比 */}
-          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <ChartBar size={24} weight="duotone" className="text-indigo-500" />
                 策略对比 (策略B vs 策略A)
               </h2>
@@ -551,57 +577,69 @@ export default function CausalInferencePage() {
             {comparison ? (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-button bg-indigo-50 p-4">
-                    <p className="mb-1 text-sm text-gray-600">效应差异</p>
-                    <p className="text-3xl font-bold text-gray-900">
+                  <div className="rounded-button bg-indigo-50 p-4 dark:bg-indigo-900/20">
+                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">效应差异</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
                       {formatFixed(comparison.diff, 4)}
                     </p>
                   </div>
-                  <div className="rounded-button bg-indigo-50 p-4">
-                    <p className="mb-1 text-sm text-gray-600">标准误</p>
-                    <p className="text-3xl font-bold text-gray-900">
+                  <div className="rounded-button bg-indigo-50 p-4 dark:bg-indigo-900/20">
+                    <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">标准误</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
                       {formatFixed(comparison.standardError, 4)}
                     </p>
                   </div>
                 </div>
 
-                <div className="rounded-button bg-pink-50 p-4">
-                  <p className="mb-2 text-sm text-gray-600">95% 置信区间</p>
-                  <p className="text-sm text-gray-700">
+                <div className="rounded-button bg-pink-50 p-4 dark:bg-pink-900/20">
+                  <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">95% 置信区间</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     [{formatFixed(comparison.confidenceInterval?.[0], 4)},{' '}
                     {formatFixed(comparison.confidenceInterval?.[1], 4)}]
                   </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-button bg-gray-50 p-3">
-                    <p className="mb-1 text-xs text-gray-600">P 值</p>
-                    <p className="text-xl font-bold text-gray-900">
+                  <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-700">
+                    <p className="mb-1 text-xs text-gray-600 dark:text-gray-400">P 值</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
                       {formatFixed(comparison.pValue, 4)}
                     </p>
                   </div>
-                  <div className="rounded-button bg-gray-50 p-3">
-                    <p className="mb-1 text-xs text-gray-600">样本量</p>
-                    <p className="text-xl font-bold text-gray-900">{comparison.sampleSize}</p>
+                  <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-700">
+                    <p className="mb-1 text-xs text-gray-600 dark:text-gray-400">样本量</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {comparison.sampleSize}
+                    </p>
                   </div>
                 </div>
 
                 <div
                   className={`rounded-button p-4 ${
                     comparison.significant
-                      ? 'border border-green-200 bg-green-50'
-                      : 'border border-yellow-200 bg-yellow-50'
+                      ? 'border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                      : 'border border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     {comparison.significant ? (
-                      <CheckCircle size={20} weight="bold" className="text-green-600" />
+                      <CheckCircle
+                        size={20}
+                        weight="bold"
+                        className="text-green-600 dark:text-green-400"
+                      />
                     ) : (
-                      <Warning size={20} weight="bold" className="text-yellow-600" />
+                      <Warning
+                        size={20}
+                        weight="bold"
+                        className="text-yellow-600 dark:text-yellow-400"
+                      />
                     )}
                     <span
                       className={`font-medium ${
-                        comparison.significant ? 'text-green-700' : 'text-yellow-700'
+                        comparison.significant
+                          ? 'text-green-700 dark:text-green-300'
+                          : 'text-yellow-700 dark:text-yellow-300'
                       }`}
                     >
                       {comparison.significant ? '差异显著 (α=0.05)' : '差异不显著'}
@@ -630,7 +668,7 @@ export default function CausalInferencePage() {
             )}
 
             {comparisonError && (
-              <div className="mt-4 rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <div className="mt-4 rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
                 {comparisonError}
               </div>
             )}
@@ -648,9 +686,11 @@ export default function CausalInferencePage() {
       </div>
 
       {/* 说明信息 */}
-      <div className="mt-8 rounded-card border border-blue-200 bg-blue-50 p-6">
-        <h3 className="mb-3 text-lg font-semibold text-blue-900">因果分析说明</h3>
-        <ul className="space-y-2 text-sm text-blue-800">
+      <div className="mt-8 rounded-card border border-blue-200 bg-blue-50 p-6 dark:border-blue-800 dark:bg-blue-900/30">
+        <h3 className="mb-3 text-lg font-semibold text-blue-900 dark:text-blue-300">
+          因果分析说明
+        </h3>
+        <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
           <li>
             <strong>特征向量：</strong>用户特征的数值表示，如学习进度、学习时间等
           </li>

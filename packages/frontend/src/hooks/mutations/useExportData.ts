@@ -15,6 +15,7 @@ import { apiClient } from '../../services/client';
 import type { Word, AnswerRecord } from '../../types/models';
 import { PAGINATION_CONFIG } from '../../constants/pagination';
 import { addExportHistory } from '../queries/useExportHistory';
+import { apiLogger } from '../../utils/logger';
 
 /**
  * 导出格式类型
@@ -125,7 +126,7 @@ async function exportWords(
     } catch (error) {
       // 如果按词书获取失败，回退到全量，避免导出中断
       words = await apiClient.getWords();
-      console.warn('按词书导出失败，已回退到全量导出', error);
+      apiLogger.warn({ err: error }, '按词书导出失败，已回退到全量导出');
     }
   } else {
     words = await apiClient.getWords();

@@ -104,16 +104,19 @@ export async function waitForLearningPageReady(page: Page) {
   await page.waitForTimeout(500);
 
   // Wait for one of the possible states
-  await expect(
-    wordCard.or(noWordsMessage).or(completedMessage).first()
-  ).toBeVisible({ timeout: 15000 });
+  await expect(wordCard.or(noWordsMessage).or(completedMessage).first()).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 /**
  * Check if word card is displayed
  */
 export async function hasWordCard(page: Page): Promise<boolean> {
-  return await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+  return await page
+    .locator('[data-testid="word-card"]')
+    .isVisible()
+    .catch(() => false);
 }
 
 /**
@@ -203,7 +206,7 @@ export async function expectSuccessMessage(page: Page, textPattern?: string | Re
  */
 export async function fillRegistrationForm(
   page: Page,
-  data: { username: string; email: string; password: string; confirmPassword?: string }
+  data: { username: string; email: string; password: string; confirmPassword?: string },
 ) {
   await page.fill('#username', data.username);
   await page.fill('#email', data.email);
@@ -249,14 +252,20 @@ export async function closeModal(page: Page) {
  * Check if element exists and is visible
  */
 export async function isElementVisible(page: Page, selector: string): Promise<boolean> {
-  return await page.locator(selector).isVisible().catch(() => false);
+  return await page
+    .locator(selector)
+    .isVisible()
+    .catch(() => false);
 }
 
 /**
  * Get text content of element
  */
 export async function getTextContent(page: Page, selector: string): Promise<string | null> {
-  return await page.locator(selector).textContent().catch(() => null);
+  return await page
+    .locator(selector)
+    .textContent()
+    .catch(() => null);
 }
 
 /**
@@ -266,7 +275,7 @@ export async function mockApiResponse(
   page: Page,
   urlPattern: string | RegExp,
   response: object,
-  status: number = 200
+  status: number = 200,
 ) {
   await page.route(urlPattern, (route) => {
     route.fulfill({

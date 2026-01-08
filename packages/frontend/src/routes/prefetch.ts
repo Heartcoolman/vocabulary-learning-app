@@ -10,7 +10,16 @@
 
 import { queryClient } from '../lib/queryClient';
 import { queryKeys } from '../lib/queryKeys';
-import { wordBookClient, learningClient, amasClient, authClient } from '../services/client';
+import { opsEnhanceKeys } from '../hooks/queries/useOpsEnhance';
+import {
+  wordBookClient,
+  learningClient,
+  amasClient,
+  authClient,
+  apiClient,
+  adminClient,
+  opsEnhanceClient,
+} from '../services/client';
 import { PAGINATION_CONFIG } from '../constants/pagination';
 
 // ==================== 页面代码预加载 ====================
@@ -46,6 +55,19 @@ export const routePrefetchers: Record<string, () => Promise<unknown>> = {
   '/admin': () => import('../pages/admin/AdminDashboard'),
   '/admin/users': () => import('../pages/admin/UserManagementPage'),
   '/admin/wordbooks': () => import('../pages/admin/AdminWordBooks'),
+  '/admin/word-quality': () => import('../pages/admin/WordQualityPage'),
+  '/admin/algorithm-config': () => import('../pages/admin/AlgorithmConfigPage'),
+  '/admin/config-history': () => import('../pages/admin/ConfigHistoryPage'),
+  '/admin/optimization': () => import('../pages/admin/OptimizationDashboard'),
+  '/admin/causal-analysis': () => import('../pages/admin/CausalInferencePage'),
+  '/admin/llm-advisor': () => import('../pages/admin/LLMAdvisorPage'),
+  '/admin/amas-explainability': () => import('../pages/admin/AMASExplainabilityPage'),
+  '/admin/weekly-report': () => import('../pages/admin/WeeklyReportPage'),
+  '/admin/logs': () => import('../pages/admin/LogViewerPage'),
+  '/admin/log-alerts': () => import('../pages/admin/LogAlertsPage'),
+  '/admin/system-debug': () => import('../pages/admin/SystemDebugPage'),
+  '/admin/experiments': () => import('../pages/admin/ExperimentDashboard'),
+  '/admin/batch-import': () => import('../pages/BatchImportPage'),
 };
 
 /**
@@ -147,6 +169,42 @@ export const routeDataPrefetchers: Record<string, () => void> = {
 
   // 注意: /learning-objectives 和 /word-list 页面直接使用 API 调用而非 React Query
   // 因此不配置数据预取（只保留页面代码预加载）
+
+  // ==================== 管理员页面数据预取 ====================
+
+  '/admin': () => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.admin.statistics.overview(),
+      queryFn: () => apiClient.adminGetStatistics(),
+      staleTime: 2 * 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.admin.visualFatigue.stats(),
+      queryFn: () => adminClient.getVisualFatigueStats(),
+      staleTime: 2 * 60 * 1000,
+    });
+  },
+
+  '/admin/weekly-report': () => {
+    queryClient.prefetchQuery({
+      queryKey: opsEnhanceKeys.latestWeeklyReport(),
+      queryFn: () => opsEnhanceClient.getLatestWeeklyReport(),
+      staleTime: 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: [...opsEnhanceKeys.healthTrend(), 8],
+      queryFn: () => opsEnhanceClient.getHealthTrend(8),
+      staleTime: 5 * 60 * 1000,
+    });
+  },
+
+  '/admin/wordbooks': () => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.wordbooks.list({ type: 'system' }),
+      queryFn: () => apiClient.getSystemWordBooks(),
+      staleTime: 5 * 60 * 1000,
+    });
+  },
 };
 
 /**

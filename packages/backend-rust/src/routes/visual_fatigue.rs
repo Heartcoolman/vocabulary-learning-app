@@ -5,16 +5,13 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::{Json, Router};
-use chrono::{Duration, SecondsFormat, Utc};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -184,7 +181,7 @@ const DEFAULT_VIDEO_HEIGHT: i64 = 480;
 fn default_config() -> VisualFatigueConfigDto {
     VisualFatigueConfigDto {
         enabled: false,
-        detection_interval_ms: 200,
+        detection_interval_ms: 100, // 10 FPS (WASM优化后提升)
         report_interval_ms: 5000,
         ear_threshold: DEFAULT_EAR_THRESHOLD,
         perclos_threshold: DEFAULT_PERCLOS_THRESHOLD,
@@ -229,58 +226,77 @@ pub fn router() -> Router<AppState> {
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 fn validate_metrics(payload: &VisualFatigueMetricsBody) -> Result<(), AppError> {
     let in_unit = |v: f64| v.is_finite() && (0.0..=1.0).contains(&v);
     if !in_unit(payload.score) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "score 必须在 0-1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "score 必须在 0-1 之间",
+        ));
     }
     if !in_unit(payload.perclos) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "perclos 必须在 0-1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "perclos 必须在 0-1 之间",
+        ));
     }
     if !payload.blink_rate.is_finite() || payload.blink_rate < 0.0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "blinkRate 必须是非负数字"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "blinkRate 必须是非负数字",
+        ));
     }
     if payload.yawn_count < 0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "yawnCount 必须是非负整数"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "yawnCount 必须是非负整数",
+        ));
     }
     if !in_unit(payload.confidence) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "confidence 必须在 0-1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "confidence 必须在 0-1 之间",
+        ));
     }
     if payload.timestamp <= 0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "timestamp 必须是正整数"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "timestamp 必须是正整数",
+        ));
     }
     Ok(())
-}
-
-fn json_from_sqlite(raw: Option<String>) -> serde_json::Value {
-    let Some(raw) = raw else {
-        return serde_json::Value::Null;
-    };
-    if raw.trim().is_empty() {
-        return serde_json::Value::Null;
-    }
-    serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw))
 }
 
 fn compute_temporal_fatigue(duration_minutes: f64) -> f64 {
@@ -315,7 +331,12 @@ fn detect_conflict(behavior_fatigue: f64, visual_fatigue: f64) -> (bool, Option<
     (true, Some(description.to_string()))
 }
 
-fn generate_recommendations(fused: f64, visual: f64, behavior: f64, duration_minutes: f64) -> Vec<String> {
+fn generate_recommendations(
+    fused: f64,
+    visual: f64,
+    behavior: f64,
+    duration_minutes: f64,
+) -> Vec<String> {
     let mut recommendations = Vec::new();
     if fused > 0.8 {
         recommendations.push("建议立即休息 15-20 分钟".to_string());
@@ -340,176 +361,64 @@ fn generate_recommendations(fused: f64, visual: f64, behavior: f64, duration_min
 
 async fn select_behavior_fatigue(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<f64, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(0.1) };
-        let row = sqlx::query(r#"SELECT "fatigue" as "fatigue" FROM "amas_user_states" WHERE "userId" = ?"#)
+    let pool = proxy.pool();
+    let row =
+        sqlx::query(r#"SELECT "fatigue" as "fatigue" FROM "amas_user_states" WHERE "userId" = $1"#)
             .bind(user_id)
-            .fetch_optional(&pool)
+            .fetch_optional(pool)
             .await
             .unwrap_or(None);
-        Ok(row.and_then(|r| r.try_get::<f64, _>("fatigue").ok()).unwrap_or(0.1))
-    } else {
-        let Some(pool) = primary else { return Ok(0.1) };
-        let row = sqlx::query(r#"SELECT "fatigue" as "fatigue" FROM "amas_user_states" WHERE "userId" = $1"#)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .unwrap_or(None);
-        Ok(row.and_then(|r| r.try_get::<f64, _>("fatigue").ok()).unwrap_or(0.1))
-    }
+    Ok(row
+        .and_then(|r| r.try_get::<f64, _>("fatigue").ok())
+        .unwrap_or(0.1))
 }
 
 async fn select_study_duration_minutes(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<f64, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
+    let pool = proxy.pool();
     let now = Utc::now();
-    let recent_boundary = now - Duration::minutes(30);
+    let boundary = (now - Duration::minutes(30)).naive_utc();
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(0.0) };
-        let boundary = recent_boundary.format("%Y-%m-%d %H:%M:%S").to_string();
-        let row = sqlx::query(
-            r#"
-            SELECT "startedAt" as "startedAt", "endedAt" as "endedAt"
-            FROM "learning_sessions"
-            WHERE "userId" = ? AND ("endedAt" IS NULL OR "endedAt" >= ?)
-            ORDER BY "startedAt" DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .bind(boundary)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
+    let row = sqlx::query(
+        r#"
+        SELECT "startedAt" as "startedAt", "endedAt" as "endedAt"
+        FROM "learning_sessions"
+        WHERE "userId" = $1 AND ("endedAt" IS NULL OR "endedAt" >= $2)
+        ORDER BY "startedAt" DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .bind(boundary)
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
 
-        let Some(row) = row else { return Ok(0.0) };
-        let started_raw: String = row.try_get("startedAt").unwrap_or_default();
-        let ended_raw: Option<String> = row.try_get("endedAt").ok();
-
-        let start_ms = crate::auth::parse_sqlite_datetime_ms(&started_raw).unwrap_or(now.timestamp_millis());
-        let end_ms = ended_raw
-            .as_deref()
-            .and_then(crate::auth::parse_sqlite_datetime_ms)
-            .unwrap_or_else(|| now.timestamp_millis());
-
-        Ok(((end_ms - start_ms).max(0) as f64) / 60000.0)
-    } else {
-        let Some(pool) = primary else { return Ok(0.0) };
-        let boundary = (Utc::now() - Duration::minutes(30)).naive_utc();
-        let row = sqlx::query(
-            r#"
-            SELECT "startedAt" as "startedAt", "endedAt" as "endedAt"
-            FROM "learning_sessions"
-            WHERE "userId" = $1 AND ("endedAt" IS NULL OR "endedAt" >= $2)
-            ORDER BY "startedAt" DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .bind(boundary)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-
-        let Some(row) = row else { return Ok(0.0) };
-        let started_at: chrono::NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| now.naive_utc());
-        let ended_at: Option<chrono::NaiveDateTime> = row.try_get("endedAt").ok();
-        let start_ms = chrono::DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis();
-        let end_ms = ended_at
-            .map(|dt| chrono::DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis())
-            .unwrap_or_else(|| now.timestamp_millis());
-        Ok(((end_ms - start_ms).max(0) as f64) / 60000.0)
-    }
+    let Some(row) = row else { return Ok(0.0) };
+    let started_at: chrono::NaiveDateTime =
+        row.try_get("startedAt").unwrap_or_else(|_| now.naive_utc());
+    let ended_at: Option<chrono::NaiveDateTime> = row.try_get("endedAt").ok();
+    let start_ms =
+        chrono::DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis();
+    let end_ms = ended_at
+        .map(|dt| chrono::DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis())
+        .unwrap_or_else(|| now.timestamp_millis());
+    Ok(((end_ms - start_ms).max(0) as f64) / 60000.0)
 }
 
 async fn insert_visual_fatigue_record(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     payload: &VisualFatigueMetricsBody,
     fused_score: f64,
 ) -> Result<(), AppError> {
     let id = Uuid::new_v4().to_string();
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".to_string(), serde_json::Value::String(id));
-        data.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        data.insert(
-            "score".to_string(),
-            serde_json::Number::from_f64(payload.score)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-        data.insert(
-            "fusedScore".to_string(),
-            serde_json::Number::from_f64(fused_score)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-        data.insert(
-            "perclos".to_string(),
-            serde_json::Number::from_f64(payload.perclos)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-        data.insert(
-            "blinkRate".to_string(),
-            serde_json::Number::from_f64(payload.blink_rate)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-        data.insert(
-            "yawnCount".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(payload.yawn_count)),
-        );
-        if let Some(head_pitch) = payload.head_pitch {
-            if let Some(num) = serde_json::Number::from_f64(head_pitch) {
-                data.insert("headPitch".to_string(), serde_json::Value::Number(num));
-            }
-        }
-        if let Some(head_yaw) = payload.head_yaw {
-            if let Some(num) = serde_json::Number::from_f64(head_yaw) {
-                data.insert("headYaw".to_string(), serde_json::Value::Number(num));
-            }
-        }
-        data.insert(
-            "confidence".to_string(),
-            serde_json::Number::from_f64(payload.confidence)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "visual_fatigue_records".to_string(),
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let Some(pool) = proxy.primary_pool().await else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-    };
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
 
     sqlx::query(
         r#"
@@ -523,9 +432,10 @@ async fn insert_visual_fatigue_record(
             "yawnCount",
             "headPitch",
             "headYaw",
-            "confidence"
+            "confidence",
+            "createdAt"
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
         "#,
     )
     .bind(id)
@@ -538,7 +448,8 @@ async fn insert_visual_fatigue_record(
     .bind(payload.head_pitch)
     .bind(payload.head_yaw)
     .bind(payload.confidence)
-    .execute(&pool)
+    .bind(now)
+    .execute(pool)
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
@@ -547,18 +458,17 @@ async fn insert_visual_fatigue_record(
 
 async fn report_metrics(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<VisualFatigueMetricsBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     validate_metrics(&payload)?;
 
     let is_valid = payload.confidence >= 0.2;
     let visual_fatigue = if is_valid { payload.score } else { 0.0 };
 
-    let behavior_fatigue = select_behavior_fatigue(proxy.as_ref(), db_state, &user.id).await?;
-    let study_duration_minutes = select_study_duration_minutes(proxy.as_ref(), db_state, &user.id).await?;
+    let behavior_fatigue = select_behavior_fatigue(proxy.as_ref(), &user.id).await?;
+    let study_duration_minutes = select_study_duration_minutes(proxy.as_ref(), &user.id).await?;
     let temporal_fatigue = compute_temporal_fatigue(study_duration_minutes);
 
     let (mut visual_weight, mut behavior_weight, temporal_weight) = (0.4, 0.4, 0.2);
@@ -567,9 +477,16 @@ async fn report_metrics(
         behavior_weight += 0.4;
     }
 
-    let fused_fatigue = behavior_weight * behavior_fatigue + visual_weight * visual_fatigue + temporal_weight * temporal_fatigue;
+    let fused_fatigue = behavior_weight * behavior_fatigue
+        + visual_weight * visual_fatigue
+        + temporal_weight * temporal_fatigue;
     let fatigue_level = determine_fatigue_level(fused_fatigue);
-    let recommendations = generate_recommendations(fused_fatigue, visual_fatigue, behavior_fatigue, study_duration_minutes);
+    let recommendations = generate_recommendations(
+        fused_fatigue,
+        visual_fatigue,
+        behavior_fatigue,
+        study_duration_minutes,
+    );
     let (has_conflict, conflict_description) = detect_conflict(behavior_fatigue, visual_fatigue);
 
     let fusion = FusionDto {
@@ -593,12 +510,14 @@ async fn report_metrics(
     {
         let store = store();
         let mut guard = store.users.write().await;
-        let entry = guard.entry(user.id.clone()).or_insert_with(|| VisualUserState {
-            last_update_ms: payload.timestamp,
-            latest_visual: None,
-            latest_fusion: None,
-            history: Vec::new(),
-        });
+        let entry = guard
+            .entry(user.id.clone())
+            .or_insert_with(|| VisualUserState {
+                last_update_ms: payload.timestamp,
+                latest_visual: None,
+                latest_fusion: None,
+                history: Vec::new(),
+            });
         entry.last_update_ms = payload.timestamp;
         entry.latest_visual = Some(visual.clone());
         entry.latest_fusion = Some(fusion.clone());
@@ -609,7 +528,7 @@ async fn report_metrics(
         }
     }
 
-    insert_visual_fatigue_record(proxy.as_ref(), db_state, &user.id, &payload, fused_fatigue).await?;
+    insert_visual_fatigue_record(proxy.as_ref(), &user.id, &payload, fused_fatigue).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -632,7 +551,6 @@ async fn report_metrics(
 
 async fn upsert_user_config(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     enabled: bool,
     detection_fps: i64,
@@ -640,70 +558,10 @@ async fn upsert_user_config(
     vlm_analysis_enabled: bool,
     personal_baseline_data: Option<serde_json::Value>,
 ) -> Result<(), AppError> {
-    let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".to_string(), serde_json::Value::String(Uuid::new_v4().to_string()));
-        create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        create.insert("enabled".to_string(), serde_json::Value::Bool(enabled));
-        create.insert(
-            "detectionFps".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(detection_fps)),
-        );
-        create.insert(
-            "uploadIntervalMs".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(upload_interval_ms)),
-        );
-        create.insert("vlmAnalysisEnabled".to_string(), serde_json::Value::Bool(vlm_analysis_enabled));
-        if let Some(value) = personal_baseline_data.clone() {
-            create.insert("personalBaselineData".to_string(), value);
-        }
-        create.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.clone()));
-
-        let mut update = serde_json::Map::new();
-        update.insert("enabled".to_string(), serde_json::Value::Bool(enabled));
-        update.insert(
-            "detectionFps".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(detection_fps)),
-        );
-        update.insert(
-            "uploadIntervalMs".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(upload_interval_ms)),
-        );
-        update.insert("vlmAnalysisEnabled".to_string(), serde_json::Value::Bool(vlm_analysis_enabled));
-        update.insert("updatedAt".to_string(), serde_json::Value::String(now_iso));
-        if let Some(value) = personal_baseline_data {
-            update.insert("personalBaselineData".to_string(), value);
-        }
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "user_visual_fatigue_configs".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-
-        return Ok(());
-    }
-
-    let Some(pool) = proxy.primary_pool().await else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-    };
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
-
     let id = Uuid::new_v4().to_string();
+
     sqlx::query(
         r#"
         INSERT INTO "user_visual_fatigue_configs" (
@@ -734,7 +592,7 @@ async fn upsert_user_config(
     .bind(vlm_analysis_enabled)
     .bind(personal_baseline_data)
     .bind(now)
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
@@ -743,116 +601,87 @@ async fn upsert_user_config(
 
 async fn fetch_user_config(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<(bool, i64, i64, bool, Option<serde_json::Value>)>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(None) };
-        let row = sqlx::query(
-            r#"
-            SELECT
-                "enabled" as "enabled",
-                "detectionFps" as "detectionFps",
-                "uploadIntervalMs" as "uploadIntervalMs",
-                "vlmAnalysisEnabled" as "vlmAnalysisEnabled",
-                "personalBaselineData" as "personalBaselineData"
-            FROM "user_visual_fatigue_configs"
-            WHERE "userId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let row = sqlx::query(
+        r#"
+        SELECT
+            "enabled" as "enabled",
+            "detectionFps" as "detectionFps",
+            "uploadIntervalMs" as "uploadIntervalMs",
+            "vlmAnalysisEnabled" as "vlmAnalysisEnabled",
+            "personalBaselineData" as "personalBaselineData"
+        FROM "user_visual_fatigue_configs"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-        let Some(row) = row else { return Ok(None) };
-        let enabled_raw: Option<i64> = row.try_get("enabled").ok();
-        let detection_fps: i64 = row.try_get("detectionFps").unwrap_or(5);
-        let upload_interval_ms: i64 = row.try_get("uploadIntervalMs").unwrap_or(5000);
-        let vlm_raw: Option<i64> = row.try_get("vlmAnalysisEnabled").ok();
-        let baseline_raw: Option<String> = row.try_get("personalBaselineData").ok();
-
-        let baseline_val = json_from_sqlite(baseline_raw);
-        Ok(Some((
-            enabled_raw.unwrap_or(0) != 0,
-            detection_fps,
-            upload_interval_ms,
-            vlm_raw.unwrap_or(0) != 0,
-            if baseline_val.is_null() { None } else { Some(baseline_val) },
-        )))
-    } else {
-        let Some(pool) = primary else { return Ok(None) };
-        let row = sqlx::query(
-            r#"
-            SELECT
-                "enabled" as "enabled",
-                "detectionFps" as "detectionFps",
-                "uploadIntervalMs" as "uploadIntervalMs",
-                "vlmAnalysisEnabled" as "vlmAnalysisEnabled",
-                "personalBaselineData" as "personalBaselineData"
-            FROM "user_visual_fatigue_configs"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-        let Some(row) = row else { return Ok(None) };
-        let enabled: bool = row.try_get("enabled").unwrap_or(false);
-        let detection_fps: i64 = row.try_get("detectionFps").unwrap_or(5);
-        let upload_interval_ms: i64 = row.try_get("uploadIntervalMs").unwrap_or(5000);
-        let vlm_analysis_enabled: bool = row.try_get("vlmAnalysisEnabled").unwrap_or(false);
-        let baseline: Option<serde_json::Value> = row.try_get("personalBaselineData").ok();
-        Ok(Some((enabled, detection_fps, upload_interval_ms, vlm_analysis_enabled, baseline)))
-    }
+    let Some(row) = row else { return Ok(None) };
+    let enabled: bool = row.try_get("enabled").unwrap_or(false);
+    let detection_fps: i64 = row.try_get("detectionFps").unwrap_or(5);
+    let upload_interval_ms: i64 = row.try_get("uploadIntervalMs").unwrap_or(5000);
+    let vlm_analysis_enabled: bool = row.try_get("vlmAnalysisEnabled").unwrap_or(false);
+    let baseline: Option<serde_json::Value> = row.try_get("personalBaselineData").ok();
+    Ok(Some((
+        enabled,
+        detection_fps,
+        upload_interval_ms,
+        vlm_analysis_enabled,
+        baseline,
+    )))
 }
 
 async fn get_config(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     let base = default_config();
 
-    let cfg = fetch_user_config(proxy.as_ref(), db_state, &user.id).await?;
-    let data = if let Some((enabled, detection_fps, upload_interval_ms, vlm_analysis_enabled, baseline)) = cfg {
-        VisualFatigueConfigDto {
-            enabled,
-            detection_interval_ms: (1000.0 / (detection_fps.max(1) as f64)).round() as i64,
-            report_interval_ms: upload_interval_ms,
-            ear_threshold: base.ear_threshold,
-            perclos_threshold: base.perclos_threshold,
-            yawn_duration_ms: base.yawn_duration_ms,
-            window_size_seconds: base.window_size_seconds,
-            video_width: base.video_width,
-            video_height: base.video_height,
-            vlm_analysis_enabled,
-            personal_baseline: baseline,
-        }
-    } else {
-        base
-    };
+    let cfg = fetch_user_config(proxy.as_ref(), &user.id).await?;
+    let data =
+        if let Some((enabled, detection_fps, upload_interval_ms, vlm_analysis_enabled, baseline)) =
+            cfg
+        {
+            VisualFatigueConfigDto {
+                enabled,
+                detection_interval_ms: (1000.0 / (detection_fps.max(1) as f64)).round() as i64,
+                report_interval_ms: upload_interval_ms,
+                ear_threshold: base.ear_threshold,
+                perclos_threshold: base.perclos_threshold,
+                yawn_duration_ms: base.yawn_duration_ms,
+                window_size_seconds: base.window_size_seconds,
+                video_width: base.video_width,
+                video_height: base.video_height,
+                vlm_analysis_enabled,
+                personal_baseline: baseline,
+            }
+        } else {
+            base
+        };
 
-    Ok(Json(SuccessResponse { success: true, data }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data,
+    }))
 }
 
 async fn update_config(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(patch): Json<VisualFatigueConfigPatch>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    let existing = fetch_user_config(proxy.as_ref(), db_state, &user.id).await?;
-    let (mut enabled, mut detection_fps, mut upload_interval_ms, mut vlm, mut baseline) = existing.unwrap_or((false, 5, 5000, false, None));
+    let existing = fetch_user_config(proxy.as_ref(), &user.id).await?;
+    let (mut enabled, mut detection_fps, mut upload_interval_ms, mut vlm, mut baseline) =
+        existing.unwrap_or((false, 5, 5000, false, None));
 
     if let Some(value) = patch.enabled {
         enabled = value;
@@ -872,7 +701,6 @@ async fn update_config(
 
     upsert_user_config(
         proxy.as_ref(),
-        db_state,
         &user.id,
         enabled,
         detection_fps,
@@ -896,14 +724,13 @@ async fn update_config(
 
 async fn get_baseline(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    let cfg = fetch_user_config(proxy.as_ref(), db_state, &user.id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let cfg = fetch_user_config(proxy.as_ref(), &user.id).await?;
     let baseline = cfg.and_then(|(_, _, _, _, b)| b);
 
-    let (avg, count) = fetch_visual_fatigue_aggregate(proxy.as_ref(), db_state, &user.id).await?;
+    let (avg, count) = fetch_visual_fatigue_aggregate(proxy.as_ref(), &user.id).await?;
 
     if baseline.is_none() {
         return Ok(Json(SuccessResponse {
@@ -932,19 +759,18 @@ async fn get_baseline(
 
 async fn update_baseline(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<BaselineBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     let baseline = serde_json::to_value(payload).unwrap_or(serde_json::Value::Null);
-    let existing = fetch_user_config(proxy.as_ref(), db_state, &user.id).await?;
-    let (enabled, detection_fps, upload_interval_ms, vlm, _old_baseline) = existing.unwrap_or((false, 5, 5000, false, None));
+    let existing = fetch_user_config(proxy.as_ref(), &user.id).await?;
+    let (enabled, detection_fps, upload_interval_ms, vlm, _old_baseline) =
+        existing.unwrap_or((false, 5, 5000, false, None));
 
     upsert_user_config(
         proxy.as_ref(),
-        db_state,
         &user.id,
         enabled,
         detection_fps,
@@ -963,54 +789,32 @@ async fn update_baseline(
 
 async fn fetch_visual_fatigue_aggregate(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<(f64, i64), AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok((0.0, 0)) };
-        let row = sqlx::query(
-            r#"
-            SELECT AVG("score") as "avgScore", COUNT(*) as "count"
-            FROM "visual_fatigue_records"
-            WHERE "userId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        let avg: Option<f64> = row.try_get("avgScore").ok();
-        let count: i64 = row.try_get("count").unwrap_or(0);
-        Ok((avg.unwrap_or(0.0), count))
-    } else {
-        let Some(pool) = primary else { return Ok((0.0, 0)) };
-        let row = sqlx::query(
-            r#"
-            SELECT AVG("score") as "avgScore", COUNT(*) as "count"
-            FROM "visual_fatigue_records"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        let avg: Option<f64> = row.try_get("avgScore").ok();
-        let count: i64 = row.try_get("count").unwrap_or(0);
-        Ok((avg.unwrap_or(0.0), count))
-    }
+    let row = sqlx::query(
+        r#"
+        SELECT AVG("score") as "avgScore", COUNT(*) as "count"
+        FROM "visual_fatigue_records"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+
+    let avg: Option<f64> = row.try_get("avgScore").ok();
+    let count: i64 = row.try_get("count").unwrap_or(0);
+    Ok((avg.unwrap_or(0.0), count))
 }
 
 async fn get_fusion(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_user(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_user(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -1020,14 +824,23 @@ async fn get_fusion(
     let (has_data, fusion, visual, trend) = if let Some(entry) = entry {
         let age_ms = now_ms - entry.last_update_ms;
         let fresh = age_ms <= 30_000;
-        let fusion = if fresh { entry.latest_fusion.clone() } else { None };
-        let visual = if fresh { entry.latest_visual.clone() } else { None };
+        let fusion = if fresh {
+            entry.latest_fusion.clone()
+        } else {
+            None
+        };
+        let visual = if fresh {
+            entry.latest_visual.clone()
+        } else {
+            None
+        };
 
         let trend = if entry.history.len() < 10 {
             0.0
         } else {
             let recent = &entry.history[entry.history.len().saturating_sub(5)..];
-            let earlier = &entry.history[entry.history.len().saturating_sub(10)..entry.history.len().saturating_sub(5)];
+            let earlier = &entry.history
+                [entry.history.len().saturating_sub(10)..entry.history.len().saturating_sub(5)];
             let recent_avg = recent.iter().sum::<f64>() / (recent.len() as f64);
             let earlier_avg = earlier.iter().sum::<f64>() / (earlier.len() as f64);
             recent_avg - earlier_avg
@@ -1051,10 +864,9 @@ async fn get_fusion(
 
 async fn reset_user(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_user(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_user(&state, &headers).await?;
     let store = store();
     let mut guard = store.users.write().await;
     guard.remove(&user.id);

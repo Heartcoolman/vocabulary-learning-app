@@ -1,12 +1,10 @@
 use chrono::{Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
 use crate::amas::types::{
-    ColdStartPhase, ProcessOptions, RawEvent,
-    StrategyParams as AmasStrategyParams, UserState,
+    ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams, UserState,
 };
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 // ========== Legacy types for backward compatibility ==========
@@ -21,7 +19,13 @@ pub struct StrategyParams {
 
 impl StrategyParams {
     pub fn default_strategy() -> Self {
-        Self { interval_scale: 1.0, new_ratio: 0.2, difficulty: "mid".to_string(), batch_size: 8, hint_level: 1 }
+        Self {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: "mid".to_string(),
+            batch_size: 8,
+            hint_level: 1,
+        }
     }
 }
 
@@ -107,6 +111,13 @@ pub struct WordMasteryResponse {
     pub prev_interval: f64,
     pub new_interval: f64,
     pub quality: i32,
+    pub stability: f64,
+    pub difficulty: f64,
+    pub retrievability: f64,
+    pub is_mastered: bool,
+    pub lapses: i32,
+    pub reps: i32,
+    pub confidence: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,11 +228,6 @@ pub struct BatchEventItem {
     pub timestamp: i64,
 }
 
-pub enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
 pub struct AMASService;
 
 impl AMASService {
@@ -257,28 +263,6 @@ impl AMASService {
             ColdStartPhase::Normal => "normal".to_string(),
         }
     }
-
-    pub async fn select_read_pool(
-        proxy: &DatabaseProxy,
-        state: DatabaseState,
-    ) -> Result<SelectedPool, String> {
-        match state {
-            DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-            DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-                Some(pool) => Ok(SelectedPool::Primary(pool)),
-                None => proxy
-                    .fallback_pool()
-                    .await
-                    .map(SelectedPool::Fallback)
-                    .ok_or_else(|| "服务不可用".to_string()),
-            },
-        }
-    }
-
 }
 
 // ========== process_event ==========
@@ -311,12 +295,17 @@ pub async fn process_event(
         session_id,
         strategy: AMASService::strategy_to_response(&result.strategy),
         explanation: ExplanationResponse {
-            factors: result.explanation.factors.iter().map(|f| FactorResponse {
-                name: f.name.clone(),
-                value: f.value,
-                impact: f.impact.clone(),
-                percentage: f.percentage,
-            }).collect(),
+            factors: result
+                .explanation
+                .factors
+                .iter()
+                .map(|f| FactorResponse {
+                    name: f.name.clone(),
+                    value: f.value,
+                    impact: f.impact.clone(),
+                    percentage: f.percentage,
+                })
+                .collect(),
             changes: result.explanation.changes.clone(),
             text: result.explanation.text.clone(),
         },
@@ -328,12 +317,21 @@ pub async fn process_event(
             prev_interval: w.prev_interval,
             new_interval: w.new_interval,
             quality: w.quality,
+            stability: w.stability,
+            difficulty: w.difficulty,
+            retrievability: w.retrievability,
+            is_mastered: w.is_mastered,
+            lapses: w.lapses,
+            reps: w.reps,
+            confidence: w.confidence,
         }),
         reward: RewardResponse {
             value: result.reward.value,
             reason: result.reward.reason.clone(),
         },
-        cold_start_phase: result.cold_start_phase.map(AMASService::cold_start_phase_to_string),
+        cold_start_phase: result
+            .cold_start_phase
+            .map(AMASService::cold_start_phase_to_string),
     })
 }
 
@@ -377,43 +375,38 @@ pub async fn batch_process(
 }
 
 // ========== get_state ==========
-pub async fn get_state(
-    engine: &crate::amas::AMASEngine,
-    user_id: &str,
-) -> Option<StateResponse> {
-    engine.get_user_state(user_id).await.map(|s| AMASService::state_to_response(&s))
+pub async fn get_state(engine: &crate::amas::AMASEngine, user_id: &str) -> Option<StateResponse> {
+    engine
+        .get_user_state(user_id)
+        .await
+        .map(|s| AMASService::state_to_response(&s))
 }
 
 // ========== get_strategy ==========
-pub async fn get_strategy(
-    engine: &crate::amas::AMASEngine,
-    user_id: &str,
-) -> StrategyResponse {
+pub async fn get_strategy(engine: &crate::amas::AMASEngine, user_id: &str) -> StrategyResponse {
     let strategy = engine.get_current_strategy(user_id).await;
     AMASService::strategy_to_response(&strategy)
 }
 
 // ========== get_delayed_rewards ==========
 pub fn get_delayed_rewards() -> DelayedRewardsResult {
-    DelayedRewardsResult { items: vec![], count: 0 }
+    DelayedRewardsResult {
+        items: vec![],
+        count: 0,
+    }
 }
 
 // ========== get_learning_curve ==========
 pub async fn get_learning_curve(
-    pool: &SelectedPool,
+    proxy: &DatabaseProxy,
     user_id: &str,
     days: i32,
 ) -> Result<LearningCurveResult, String> {
     let today = Utc::now().date_naive();
     let start_date = today - Duration::days(days as i64);
 
-    let points = match pool {
-        SelectedPool::Primary(pg) => select_learning_curve_pg(pg, user_id, start_date).await?,
-        SelectedPool::Fallback(sqlite) => {
-            let start_str = start_date.format("%Y-%m-%d").to_string();
-            select_learning_curve_sqlite(sqlite, user_id, &start_str).await?
-        }
-    };
+    let pool = proxy.pool();
+    let points = select_learning_curve_pg(&pool, user_id, start_date).await?;
 
     let mastery_values: Vec<f64> = points.iter().map(|p| p.mastery).collect();
     let trend = compute_mastery_trend(&mastery_values);
@@ -424,7 +417,12 @@ pub async fn get_learning_curve(
         points.iter().map(|p| p.attention).sum::<f64>() / points.len() as f64
     };
 
-    Ok(LearningCurveResult { points, trend, current_mastery, average_attention })
+    Ok(LearningCurveResult {
+        points,
+        trend,
+        current_mastery,
+        average_attention,
+    })
 }
 
 async fn select_learning_curve_pg(
@@ -452,98 +450,58 @@ async fn select_learning_curve_pg(
         points.push(LearningCurvePoint {
             date: format!("{}T00:00:00.000Z", date.format("%Y-%m-%d")),
             mastery: memory * 100.0,
-            attention, fatigue, motivation,
+            attention,
+            fatigue,
+            motivation,
         });
     }
     Ok(points)
-}
-
-async fn select_learning_curve_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    start_date: &str,
-) -> Result<Vec<LearningCurvePoint>, String> {
-    let rows = sqlx::query(
-        r#"SELECT "date", "attention", "fatigue", "motivation", "memory"
-           FROM "user_state_history" WHERE "userId" = ? AND "date" >= ? ORDER BY "date" ASC"#,
-    )
-    .bind(user_id)
-    .bind(start_date)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("数据库查询失败: {e}"))?;
-
-    let mut points = Vec::with_capacity(rows.len());
-    for row in rows {
-        let date: String = row.try_get("date").unwrap_or_default();
-        let attention: f64 = row.try_get("attention").unwrap_or(0.0);
-        let fatigue: f64 = row.try_get("fatigue").unwrap_or(0.0);
-        let motivation: f64 = row.try_get("motivation").unwrap_or(0.0);
-        let memory: f64 = row.try_get("memory").unwrap_or(0.0);
-        points.push(LearningCurvePoint {
-            date: normalize_history_date(&date),
-            mastery: memory * 100.0,
-            attention, fatigue, motivation,
-        });
-    }
-    Ok(points)
-}
-
-fn normalize_history_date(value: &str) -> String {
-    if value.contains('T') { return value.to_string(); }
-    if value.len() == 10 { return format!("{value}T00:00:00.000Z"); }
-    value.to_string()
 }
 
 fn compute_mastery_trend(values: &[f64]) -> String {
-    if values.len() < 2 { return "flat".to_string(); }
+    if values.len() < 2 {
+        return "flat".to_string();
+    }
     let delta = values[values.len() - 1] - values[0];
-    if delta > 5.0 { return "up".to_string(); }
-    if delta < -5.0 { return "down".to_string(); }
+    if delta > 5.0 {
+        return "up".to_string();
+    }
+    if delta < -5.0 {
+        return "down".to_string();
+    }
     "flat".to_string()
 }
 
 // ========== get_phase ==========
-pub async fn get_phase(pool: &SelectedPool, user_id: &str) -> Result<PhaseResult, String> {
-    let phase = match load_cold_start_phase(pool, user_id).await? {
+pub async fn get_phase(proxy: &DatabaseProxy, user_id: &str) -> Result<PhaseResult, String> {
+    let pool = proxy.pool();
+    let phase = match load_cold_start_phase(&pool, user_id).await? {
         Some(p) => p,
-        None => infer_phase_from_interactions(pool, user_id).await?,
+        None => infer_phase_from_interactions(&pool, user_id).await?,
     };
-    Ok(PhaseResult { description: phase_description(&phase).to_string(), phase })
+    Ok(PhaseResult {
+        description: phase_description(&phase).to_string(),
+        phase,
+    })
 }
 
-async fn load_cold_start_phase(pool: &SelectedPool, user_id: &str) -> Result<Option<String>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(r#"SELECT "coldStartState" FROM "amas_user_states" WHERE "userId" = $1"#)
-                .bind(user_id)
-                .fetch_optional(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-            let Some(row) = row else { return Ok(None) };
-            let value: Option<serde_json::Value> = row.try_get("coldStartState").ok();
-            Ok(extract_phase_from_json(value.as_ref()))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(r#"SELECT "coldStartState" FROM "amas_user_states" WHERE "userId" = ?"#)
-                .bind(user_id)
-                .fetch_optional(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-            let Some(row) = row else { return Ok(None) };
-            let raw: Option<String> = row.try_get("coldStartState").ok();
-            let Some(raw) = raw else { return Ok(None) };
-            let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw));
-            Ok(extract_phase_from_json(Some(&parsed)))
-        }
-    }
+async fn load_cold_start_phase(pool: &PgPool, user_id: &str) -> Result<Option<String>, String> {
+    let row = sqlx::query(r#"SELECT "coldStartState" FROM "amas_user_states" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
+    let Some(row) = row else { return Ok(None) };
+    let value: Option<serde_json::Value> = row.try_get("coldStartState").ok();
+    Ok(extract_phase_from_json(value.as_ref()))
 }
 
 fn extract_phase_from_json(value: Option<&serde_json::Value>) -> Option<String> {
     let value = value?;
     match value {
         serde_json::Value::String(p) => normalize_phase(p).map(|v| v.to_string()),
-        serde_json::Value::Object(m) => m.get("phase")
+        serde_json::Value::Object(m) => m
+            .get("phase")
             .and_then(|p| p.as_str())
             .and_then(normalize_phase)
             .map(|v| v.to_string()),
@@ -569,79 +527,66 @@ fn phase_description(phase: &str) -> &'static str {
     }
 }
 
-async fn infer_phase_from_interactions(pool: &SelectedPool, user_id: &str) -> Result<String, String> {
+async fn infer_phase_from_interactions(pool: &PgPool, user_id: &str) -> Result<String, String> {
     let count = count_recent_interactions(pool, user_id).await?;
-    if count < 5 { return Ok("classify".to_string()); }
-    if count < 8 { return Ok("explore".to_string()); }
+    if count < 5 {
+        return Ok("classify".to_string());
+    }
+    if count < 8 {
+        return Ok("explore".to_string());
+    }
     Ok("normal".to_string())
 }
 
-async fn count_recent_interactions(pool: &SelectedPool, user_id: &str) -> Result<i64, String> {
-    match pool {
-        SelectedPool::Primary(pg) => sqlx::query_scalar::<_, i64>(
-            r#"SELECT COUNT(1) FROM (SELECT 1 FROM "answer_records" WHERE "userId" = $1 LIMIT 8) AS t"#,
-        )
-        .bind(user_id)
-        .fetch_one(pg)
-        .await
-        .map_err(|e| format!("查询失败: {e}")),
-        SelectedPool::Fallback(sqlite) => sqlx::query_scalar::<_, i64>(
-            r#"SELECT COUNT(1) FROM (SELECT 1 FROM "answer_records" WHERE "userId" = ? LIMIT 8)"#,
-        )
-        .bind(user_id)
-        .fetch_one(sqlite)
-        .await
-        .map_err(|e| format!("查询失败: {e}")),
-    }
+async fn count_recent_interactions(pool: &PgPool, user_id: &str) -> Result<i64, String> {
+    sqlx::query_scalar::<_, i64>(
+        r#"SELECT COUNT(1) FROM (SELECT 1 FROM "answer_records" WHERE "userId" = $1 LIMIT 8) AS t"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))
 }
 
 // ========== get_trend_intervention ==========
-pub async fn get_trend_intervention(pool: &SelectedPool, user_id: &str) -> Result<InterventionResult, String> {
-    let (trend_state, consecutive_days) = load_current_trend(pool, user_id).await?;
+pub async fn get_trend_intervention(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<InterventionResult, String> {
+    let pool = proxy.pool();
+    let (trend_state, consecutive_days) = load_current_trend(&pool, user_id).await?;
     Ok(compute_intervention(&trend_state, consecutive_days))
 }
 
-async fn load_current_trend(pool: &SelectedPool, user_id: &str) -> Result<(String, i64), String> {
-    let (explicit_state, history) = match pool {
-        SelectedPool::Primary(pg) => {
-            let trend_state: Option<String> = sqlx::query_scalar(
-                r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#,
-            ).bind(user_id).fetch_optional(pg).await.map_err(|e| format!("查询失败: {e}"))?;
+async fn load_current_trend(pool: &PgPool, user_id: &str) -> Result<(String, i64), String> {
+    let trend_state: Option<String> =
+        sqlx::query_scalar(r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| format!("查询失败: {e}"))?;
 
-            let rows = sqlx::query(
-                r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
-                   WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 30"#,
-            ).bind(user_id).fetch_all(pg).await.map_err(|e| format!("查询失败: {e}"))?;
+    let rows = sqlx::query(
+        r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
+           WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 30"#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            let history: Vec<TrendHistoryPoint> = rows.iter().map(|row| TrendHistoryPoint {
-                trend_state: row.try_get("trendState").ok(),
-                motivation: row.try_get("motivation").unwrap_or(0.0),
-                memory: row.try_get("memory").unwrap_or(0.0),
-                speed: row.try_get("speed").unwrap_or(0.0),
-            }).collect();
-            (trend_state, history)
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let trend_state: Option<String> = sqlx::query_scalar(
-                r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = ?"#,
-            ).bind(user_id).fetch_optional(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
+    let history: Vec<TrendHistoryPoint> = rows
+        .iter()
+        .map(|row| TrendHistoryPoint {
+            trend_state: row.try_get("trendState").ok(),
+            motivation: row.try_get("motivation").unwrap_or(0.0),
+            memory: row.try_get("memory").unwrap_or(0.0),
+            speed: row.try_get("speed").unwrap_or(0.0),
+        })
+        .collect();
 
-            let rows = sqlx::query(
-                r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
-                   WHERE "userId" = ? ORDER BY "date" DESC LIMIT 30"#,
-            ).bind(user_id).fetch_all(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-
-            let history: Vec<TrendHistoryPoint> = rows.iter().map(|row| TrendHistoryPoint {
-                trend_state: row.try_get("trendState").ok(),
-                motivation: row.try_get("motivation").unwrap_or(0.0),
-                memory: row.try_get("memory").unwrap_or(0.0),
-                speed: row.try_get("speed").unwrap_or(0.0),
-            }).collect();
-            (trend_state, history)
-        }
-    };
-
-    let state = explicit_state.as_deref()
+    let state = trend_state
+        .as_deref()
         .and_then(normalize_trend_state)
         .map(|v| v.to_string())
         .unwrap_or_else(|| calculate_trend_from_history(&history));
@@ -650,49 +595,92 @@ async fn load_current_trend(pool: &SelectedPool, user_id: &str) -> Result<(Strin
 }
 
 fn normalize_trend_state(value: &str) -> Option<&'static str> {
-    match value { "up" => Some("up"), "flat" => Some("flat"), "stuck" => Some("stuck"), "down" => Some("down"), _ => None }
+    match value {
+        "up" => Some("up"),
+        "flat" => Some("flat"),
+        "stuck" => Some("stuck"),
+        "down" => Some("down"),
+        _ => None,
+    }
 }
 
 fn calculate_trend_from_history(history: &[TrendHistoryPoint]) -> String {
-    if history.len() < 2 { return "flat".to_string(); }
+    if history.len() < 2 {
+        return "flat".to_string();
+    }
     let recent: Vec<_> = history.iter().take(7).collect();
     let previous: Vec<_> = history.iter().skip(7).take(7).collect();
-    if previous.is_empty() { return "flat".to_string(); }
+    if previous.is_empty() {
+        return "flat".to_string();
+    }
 
     let avg = |items: &[&TrendHistoryPoint]| -> f64 {
-        items.iter().map(|i| (i.motivation + i.memory + i.speed) / 3.0).sum::<f64>() / items.len() as f64
+        items
+            .iter()
+            .map(|i| (i.motivation + i.memory + i.speed) / 3.0)
+            .sum::<f64>()
+            / items.len() as f64
     };
     let (recent_avg, previous_avg) = (avg(&recent), avg(&previous));
-    let change = (recent_avg - previous_avg) / if previous_avg == 0.0 { 1.0 } else { previous_avg };
+    let change = (recent_avg - previous_avg)
+        / if previous_avg == 0.0 {
+            1.0
+        } else {
+            previous_avg
+        };
 
-    if change > 0.1 { "up".to_string() }
-    else if change < -0.1 { "down".to_string() }
-    else if change.abs() < 0.05 { "flat".to_string() }
-    else { "stuck".to_string() }
+    if change > 0.1 {
+        "up".to_string()
+    } else if change < -0.1 {
+        "down".to_string()
+    } else if change.abs() < 0.05 {
+        "flat".to_string()
+    } else {
+        "stuck".to_string()
+    }
 }
 
 fn calculate_consecutive_days(history: &[TrendHistoryPoint], current_state: &str) -> i64 {
-    if history.is_empty() { return 1; }
+    if history.is_empty() {
+        return 1;
+    }
     let mut count = 0i64;
     for item in history {
-        if item.trend_state.as_deref() == Some(current_state) { count += 1; } else { break; }
+        if item.trend_state.as_deref() == Some(current_state) {
+            count += 1;
+        } else {
+            break;
+        }
     }
-    if count > 0 { count } else { 1 }
+    if count > 0 {
+        count
+    } else {
+        1
+    }
 }
 
 fn compute_intervention(trend_state: &str, consecutive_days: i64) -> InterventionResult {
     if matches!(trend_state, "up" | "flat") {
-        return InterventionResult { needs_intervention: false, kind: None, message: None, actions: None };
+        return InterventionResult {
+            needs_intervention: false,
+            kind: None,
+            message: None,
+            actions: None,
+        };
     }
     if trend_state == "down" {
         if consecutive_days > 3 {
             return InterventionResult {
                 needs_intervention: true,
                 kind: Some("warning".to_string()),
-                message: Some(format!("您的学习状态已连续{consecutive_days}天下降，建议调整学习计划")),
+                message: Some(format!(
+                    "您的学习状态已连续{consecutive_days}天下降，建议调整学习计划"
+                )),
                 actions: Some(vec![
-                    "减少每日学习量".into(), "选择更简单的词书".into(),
-                    "调整学习时间到黄金时段".into(), "休息一天后再继续".into(),
+                    "减少每日学习量".into(),
+                    "选择更简单的词书".into(),
+                    "调整学习时间到黄金时段".into(),
+                    "休息一天后再继续".into(),
                 ]),
             };
         }
@@ -700,23 +688,27 @@ fn compute_intervention(trend_state: &str, consecutive_days: i64) -> Interventio
             needs_intervention: true,
             kind: Some("suggestion".to_string()),
             message: Some("您的学习状态有所下降，建议适当调整".to_string()),
-            actions: Some(vec!["尝试在精力充沛时学习".into(), "减少单次学习时长".into(), "增加复习比例".into()]),
+            actions: Some(vec![
+                "尝试在精力充沛时学习".into(),
+                "减少单次学习时长".into(),
+                "增加复习比例".into(),
+            ]),
         };
     }
     InterventionResult {
         needs_intervention: true,
         kind: Some("encouragement".to_string()),
         message: Some("您的学习进入了平台期，这是正常现象".to_string()),
-        actions: Some(vec!["尝试新的学习方法".into(), "挑战更难的单词".into(), "设定小目标激励自己".into()]),
+        actions: Some(vec![
+            "尝试新的学习方法".into(),
+            "挑战更难的单词".into(),
+            "设定小目标激励自己".into(),
+        ]),
     }
 }
 
 // ========== reset_user ==========
-pub async fn reset_user(
-    proxy: &DatabaseProxy,
-    state: DatabaseState,
-    user_id: &str,
-) -> Result<(), String> {
+pub async fn reset_user(proxy: &DatabaseProxy, user_id: &str) -> Result<(), String> {
     let now = Utc::now().naive_utc();
     let now_ms = Utc::now().timestamp_millis();
     let state_id = uuid::Uuid::new_v4().to_string();
@@ -724,55 +716,7 @@ pub async fn reset_user(
     let default_cognitive = serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 });
     let default_model = serde_json::json!({});
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".into(), serde_json::Value::String(user_id.to_string()));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".into(), serde_json::Value::String(state_id.clone()));
-        create.insert("userId".into(), serde_json::Value::String(user_id.to_string()));
-        create.insert("attention".into(), serde_json::json!(0.7));
-        create.insert("fatigue".into(), serde_json::json!(0));
-        create.insert("motivation".into(), serde_json::json!(0));
-        create.insert("confidence".into(), serde_json::json!(0.5));
-        create.insert("cognitiveProfile".into(), default_cognitive.clone());
-        create.insert("habitProfile".into(), serde_json::Value::Null);
-        create.insert("trendState".into(), serde_json::Value::Null);
-        create.insert("coldStartState".into(), serde_json::Value::Null);
-        create.insert("lastUpdateTs".into(), serde_json::json!(now_ms));
-        create.insert("updatedAt".into(), serde_json::Value::String(now.to_string()));
-
-        let state_op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "amas_user_states".to_string(),
-            r#where: where_clause.clone(),
-            create: create.clone(),
-            update: create,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, state_op).await.map_err(|e| format!("写入失败: {e}"))?;
-
-        let mut model_create = serde_json::Map::new();
-        model_create.insert("id".into(), serde_json::Value::String(model_id));
-        model_create.insert("userId".into(), serde_json::Value::String(user_id.to_string()));
-        model_create.insert("modelData".into(), default_model.clone());
-        model_create.insert("updatedAt".into(), serde_json::Value::String(now.to_string()));
-
-        let model_op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "amas_user_models".to_string(),
-            r#where: where_clause,
-            create: model_create.clone(),
-            update: model_create,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, model_op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
+    let pool = proxy.pool();
     sqlx::query(
         r#"INSERT INTO "amas_user_states" ("id","userId","attention","fatigue","motivation","confidence",
            "cognitiveProfile","habitProfile","trendState","coldStartState","lastUpdateTs","updatedAt")
@@ -786,14 +730,14 @@ pub async fn reset_user(
     .bind(&default_cognitive).bind(Option::<serde_json::Value>::None)
     .bind(Option::<String>::None).bind(Option::<serde_json::Value>::None)
     .bind(now_ms).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     sqlx::query(
         r#"INSERT INTO "amas_user_models" ("id","userId","modelData","updatedAt") VALUES ($1,$2,$3,$4)
            ON CONFLICT ("userId") DO UPDATE SET "modelData"=EXCLUDED."modelData","updatedAt"=EXCLUDED."updatedAt""#,
     )
     .bind(&model_id).bind(user_id).bind(&default_model).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())
 }

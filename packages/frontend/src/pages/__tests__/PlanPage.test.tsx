@@ -267,6 +267,7 @@ describe('PlanPage', () => {
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
       (ApiClient.getLearningPlan as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getPlanProgress as any).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -277,6 +278,7 @@ describe('PlanPage', () => {
 
     it('should show retry button on error', async () => {
       (ApiClient.getLearningPlan as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getPlanProgress as any).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -289,7 +291,9 @@ describe('PlanPage', () => {
       (ApiClient.getLearningPlan as any)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockPlan);
-      (ApiClient.getPlanProgress as any).mockResolvedValue(mockProgress);
+      (ApiClient.getPlanProgress as any)
+        .mockRejectedValueOnce(new Error('加载失败'))
+        .mockResolvedValueOnce(mockProgress);
 
       renderComponent();
 

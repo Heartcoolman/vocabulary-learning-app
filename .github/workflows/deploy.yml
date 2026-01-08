@@ -72,9 +72,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm prisma:generate
-
       - name: Build Frontend
         run: pnpm --filter @danci/frontend build
         env:
@@ -209,9 +206,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm prisma:generate
-
       - name: Build all packages
         run: pnpm build
         env:
@@ -242,14 +236,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./docker/backend/Dockerfile
+          file: ./packages/backend-rust/Dockerfile
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NODE_VERSION=${{ env.NODE_VERSION }}
 
       - name: Extract metadata for Frontend Docker
         id: meta-frontend
@@ -265,14 +257,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./docker/frontend/Dockerfile
+          file: ./Dockerfile.frontend
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NODE_VERSION=${{ env.NODE_VERSION }}
 
       # 部署到服务器（使用 SSH 或其他部署方式）
       - name: Deploy to Production Server
@@ -331,27 +321,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma Client
-        run: pnpm prisma:generate
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Run database migrations
-        run: pnpm --filter @danci/backend exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "Running SQL migrations..."
+          for sql_file in packages/backend-rust/sql/*.sql; do
+            if [ -f "$sql_file" ]; then
+              echo "Executing: $(basename $sql_file)"
+              psql "$DATABASE_URL" -f "$sql_file" || true
+            fi
+          done
+          echo "Migrations completed"
 
   # ============================================
   # 部署通知

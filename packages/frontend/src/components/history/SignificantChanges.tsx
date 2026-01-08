@@ -17,8 +17,8 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
     }
 
     return (
-      <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+      <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <Target size={24} weight="duotone" color="#f59e0b" />
           显著变化
         </h2>
@@ -41,11 +41,11 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
               </div>
               <div className="flex-1">
                 <p
-                  className={`font-medium ${change.isPositive ? 'text-green-700' : 'text-red-700'}`}
+                  className={`font-medium ${change.isPositive ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}
                 >
                   {change.metricLabel}
                 </p>
-                <p className="text-sm text-gray-600">{change.description}</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">{change.description}</p>
               </div>
               <div
                 className={`text-right ${change.isPositive ? 'text-green-600' : 'text-red-600'}`}
@@ -54,7 +54,7 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
                   {change.changePercent > 0 ? '+' : ''}
                   {change.changePercent.toFixed(1)}%
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   {formatShortDate(change.startDate)} - {formatShortDate(change.endDate)}
                 </p>
               </div>

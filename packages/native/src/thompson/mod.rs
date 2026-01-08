@@ -338,7 +338,12 @@ impl ThompsonSamplingNative {
                 let contextual_sample =
                     self.sample_beta(contextual_params.alpha, contextual_params.beta);
 
-                self.blend_samples(global_sample, contextual_sample, &global_params, &contextual_params)
+                self.blend_samples(
+                    global_sample,
+                    contextual_sample,
+                    &global_params,
+                    &contextual_params,
+                )
             })
             .collect()
     }
@@ -418,8 +423,12 @@ impl ThompsonSamplingNative {
             let contextual_sample =
                 self.sample_beta(contextual_params.alpha, contextual_params.beta);
 
-            let score =
-                self.blend_samples(global_sample, contextual_sample, &global_params, &contextual_params);
+            let score = self.blend_samples(
+                global_sample,
+                contextual_sample,
+                &global_params,
+                &contextual_params,
+            );
             let confidence = self.compute_confidence(&global_params, &contextual_params);
 
             let selection = ActionSelection {
@@ -514,10 +523,7 @@ impl ThompsonSamplingNative {
 
         // Update contextual params
         {
-            let context_map = self
-                .context_params
-                .entry(action_key)
-                .or_default();
+            let context_map = self.context_params.entry(action_key).or_default();
 
             let params = context_map
                 .entry(context_key)
@@ -563,10 +569,7 @@ impl ThompsonSamplingNative {
 
         // Update contextual params
         {
-            let context_map = self
-                .context_params
-                .entry(action_key)
-                .or_default();
+            let context_map = self.context_params.entry(action_key).or_default();
 
             let params = context_map
                 .entry(context_key)
@@ -611,11 +614,7 @@ impl ThompsonSamplingNative {
 
     /// Get expected value with context
     #[cfg_attr(feature = "napi", napi)]
-    pub fn get_expected_value_with_context(
-        &self,
-        context_key: String,
-        action_key: String,
-    ) -> f64 {
+    pub fn get_expected_value_with_context(&self, context_key: String, action_key: String) -> f64 {
         self.context_params
             .get(&action_key)
             .and_then(|m| m.get(&context_key))
@@ -640,7 +639,11 @@ impl ThompsonSamplingNative {
 
     /// Get contextual parameters
     #[cfg_attr(feature = "napi", napi)]
-    pub fn get_context_params(&self, action_key: String, context_key: String) -> Option<BetaParams> {
+    pub fn get_context_params(
+        &self,
+        action_key: String,
+        context_key: String,
+    ) -> Option<BetaParams> {
         self.context_params
             .get(&action_key)
             .and_then(|m| m.get(&context_key))
@@ -663,10 +666,7 @@ impl ThompsonSamplingNative {
         alpha: f64,
         beta: f64,
     ) {
-        let context_map = self
-            .context_params
-            .entry(action_key)
-            .or_default();
+        let context_map = self.context_params.entry(action_key).or_default();
         context_map.insert(context_key, BetaParams::new(alpha, beta));
     }
 
@@ -816,7 +816,11 @@ impl ThompsonSamplingNative {
     }
 
     /// Compute confidence based on observations
-    fn compute_confidence(&self, global_params: &BetaParams, contextual_params: &BetaParams) -> f64 {
+    fn compute_confidence(
+        &self,
+        global_params: &BetaParams,
+        contextual_params: &BetaParams,
+    ) -> f64 {
         let prior_total = self.prior_alpha + self.prior_beta;
         let global_observations = (global_params.total() - prior_total).max(0.0);
         let contextual_observations = (contextual_params.total() - prior_total).max(0.0);
@@ -857,7 +861,11 @@ mod tests {
         // Test basic sampling produces values in [0, 1]
         for _ in 0..100 {
             let sample = sampler.sample_beta(1.0, 1.0);
-            assert!(sample >= 0.0 && sample <= 1.0, "Sample {} out of range", sample);
+            assert!(
+                sample >= 0.0 && sample <= 1.0,
+                "Sample {} out of range",
+                sample
+            );
         }
     }
 
@@ -871,7 +879,11 @@ mod tests {
             high_alpha_sum += sampler.sample_beta(10.0, 1.0);
         }
         let high_alpha_mean = high_alpha_sum / 100.0;
-        assert!(high_alpha_mean > 0.7, "High alpha mean {} should be > 0.7", high_alpha_mean);
+        assert!(
+            high_alpha_mean > 0.7,
+            "High alpha mean {} should be > 0.7",
+            high_alpha_mean
+        );
 
         // High beta should produce samples closer to 0
         let mut high_beta_sum = 0.0;
@@ -879,7 +891,11 @@ mod tests {
             high_beta_sum += sampler.sample_beta(1.0, 10.0);
         }
         let high_beta_mean = high_beta_sum / 100.0;
-        assert!(high_beta_mean < 0.3, "High beta mean {} should be < 0.3", high_beta_mean);
+        assert!(
+            high_beta_mean < 0.3,
+            "High beta mean {} should be < 0.3",
+            high_beta_mean
+        );
     }
 
     #[test]
@@ -902,8 +918,16 @@ mod tests {
         for &shape in &shapes {
             for _ in 0..50 {
                 let sample = sampler.sample_gamma(shape, 1.0);
-                assert!(sample >= 0.0, "Gamma({}) sample should be non-negative", shape);
-                assert!(sample.is_finite(), "Gamma({}) sample should be finite", shape);
+                assert!(
+                    sample >= 0.0,
+                    "Gamma({}) sample should be non-negative",
+                    shape
+                );
+                assert!(
+                    sample.is_finite(),
+                    "Gamma({}) sample should be finite",
+                    shape
+                );
             }
         }
     }
@@ -914,18 +938,27 @@ mod tests {
 
         // Initial expected value should be 0.5
         let initial = sampler.get_expected_value("test".to_string());
-        assert!((initial - 0.5).abs() < EPSILON, "Initial expected value should be 0.5");
+        assert!(
+            (initial - 0.5).abs() < EPSILON,
+            "Initial expected value should be 0.5"
+        );
 
         // After success, expected value should increase
         sampler.update("test".to_string(), true);
         let after_success = sampler.get_expected_value("test".to_string());
-        assert!(after_success > 0.5, "Expected value after success should be > 0.5");
+        assert!(
+            after_success > 0.5,
+            "Expected value after success should be > 0.5"
+        );
 
         // After failures, expected value should decrease
         sampler.update("test".to_string(), false);
         sampler.update("test".to_string(), false);
         let after_failures = sampler.get_expected_value("test".to_string());
-        assert!(after_failures < after_success, "Expected value should decrease after failures");
+        assert!(
+            after_failures < after_success,
+            "Expected value should decrease after failures"
+        );
     }
 
     #[test]
@@ -954,7 +987,10 @@ mod tests {
         // Soft update: reward = 0.5 -> normalized = 0.75
         sampler.update_with_reward("soft".to_string(), 0.5);
         let params = sampler.get_global_params("soft".to_string()).unwrap();
-        assert!((params.alpha - 1.75).abs() < EPSILON, "Alpha should be 1.75");
+        assert!(
+            (params.alpha - 1.75).abs() < EPSILON,
+            "Alpha should be 1.75"
+        );
         assert!((params.beta - 1.25).abs() < EPSILON, "Beta should be 1.25");
     }
 
@@ -969,7 +1005,10 @@ mod tests {
 
         assert_eq!(samples.len(), 3, "Should return 3 samples");
         for sample in &samples {
-            assert!(*sample >= 0.0 && *sample <= 1.0, "Sample should be in [0, 1]");
+            assert!(
+                *sample >= 0.0 && *sample <= 1.0,
+                "Sample should be in [0, 1]"
+            );
         }
     }
 
@@ -993,7 +1032,11 @@ mod tests {
         }
 
         // Best arm should be selected most of the time
-        assert!(best_count > 70, "Best arm should be selected most often, got {}", best_count);
+        assert!(
+            best_count > 70,
+            "Best arm should be selected most often, got {}",
+            best_count
+        );
     }
 
     #[test]
@@ -1004,12 +1047,20 @@ mod tests {
         sampler.update_with_context("ctx1".to_string(), "action1".to_string(), true);
         sampler.update_with_context("ctx1".to_string(), "action1".to_string(), true);
 
-        let expected = sampler.get_expected_value_with_context("ctx1".to_string(), "action1".to_string());
-        assert!(expected > 0.5, "Expected value with context should be > 0.5");
+        let expected =
+            sampler.get_expected_value_with_context("ctx1".to_string(), "action1".to_string());
+        assert!(
+            expected > 0.5,
+            "Expected value with context should be > 0.5"
+        );
 
         // Different context should be independent
-        let other_ctx = sampler.get_expected_value_with_context("ctx2".to_string(), "action1".to_string());
-        assert!((other_ctx - 0.5).abs() < EPSILON, "Different context should have default value");
+        let other_ctx =
+            sampler.get_expected_value_with_context("ctx2".to_string(), "action1".to_string());
+        assert!(
+            (other_ctx - 0.5).abs() < EPSILON,
+            "Different context should have default value"
+        );
     }
 
     #[test]
@@ -1052,7 +1103,10 @@ mod tests {
 
         let exp1 = sampler1.get_expected_value("action1".to_string());
         let exp2 = sampler2.get_expected_value("action1".to_string());
-        assert!((exp1 - exp2).abs() < EPSILON, "Expected values should match");
+        assert!(
+            (exp1 - exp2).abs() < EPSILON,
+            "Expected values should match"
+        );
     }
 
     #[test]
@@ -1066,10 +1120,20 @@ mod tests {
 
         sampler.reset();
 
-        assert_eq!(sampler.get_update_count(), 0, "Update count should be 0 after reset");
-        assert!(sampler.get_global_params("test".to_string()).is_none(), "Params should be cleared");
+        assert_eq!(
+            sampler.get_update_count(),
+            0,
+            "Update count should be 0 after reset"
+        );
+        assert!(
+            sampler.get_global_params("test".to_string()).is_none(),
+            "Params should be cleared"
+        );
         let expected = sampler.get_expected_value("test".to_string());
-        assert!((expected - 0.5).abs() < EPSILON, "Expected value should be default after reset");
+        assert!(
+            (expected - 0.5).abs() < EPSILON,
+            "Expected value should be default after reset"
+        );
     }
 
     #[test]
@@ -1081,7 +1145,10 @@ mod tests {
         for _ in 0..10 {
             let s1 = sampler1.sample_beta(2.0, 3.0);
             let s2 = sampler2.sample_beta(2.0, 3.0);
-            assert!((s1 - s2).abs() < EPSILON, "Same seed should produce same results");
+            assert!(
+                (s1 - s2).abs() < EPSILON,
+                "Same seed should produce same results"
+            );
         }
     }
 
@@ -1110,19 +1177,30 @@ mod tests {
 
         let exp_a = sampler.get_expected_value("a".to_string());
         let exp_b = sampler.get_expected_value("b".to_string());
-        assert!(exp_a > exp_b, "Action 'a' should have higher expected value");
+        assert!(
+            exp_a > exp_b,
+            "Action 'a' should have higher expected value"
+        );
     }
 
     #[test]
     fn test_sample_count() {
         let mut sampler = ThompsonSamplingNative::with_seed(42);
 
-        assert_eq!(sampler.get_sample_count("test".to_string()), 0.0, "Initial sample count should be 0");
+        assert_eq!(
+            sampler.get_sample_count("test".to_string()),
+            0.0,
+            "Initial sample count should be 0"
+        );
 
         sampler.update("test".to_string(), true);
         sampler.update("test".to_string(), false);
 
-        assert_eq!(sampler.get_sample_count("test".to_string()), 2.0, "Sample count should be 2");
+        assert_eq!(
+            sampler.get_sample_count("test".to_string()),
+            2.0,
+            "Sample count should be 2"
+        );
     }
 
     #[test]
@@ -1131,7 +1209,10 @@ mod tests {
 
         // Initial selection should have low confidence
         let initial_selection = sampler.select_action(vec!["test".to_string()]);
-        assert!(initial_selection.confidence < 0.1, "Initial confidence should be low");
+        assert!(
+            initial_selection.confidence < 0.1,
+            "Initial confidence should be low"
+        );
 
         // After many updates, confidence should increase
         for _ in 0..50 {
@@ -1139,7 +1220,10 @@ mod tests {
         }
 
         let final_selection = sampler.select_action(vec!["test".to_string()]);
-        assert!(final_selection.confidence > 0.5, "Confidence should increase with more data");
+        assert!(
+            final_selection.confidence > 0.5,
+            "Confidence should increase with more data"
+        );
     }
 
     #[test]
@@ -1148,14 +1232,23 @@ mod tests {
 
         // Empty action list
         let selection = sampler.select_action(vec![]);
-        assert!(selection.action_key.is_empty(), "Empty action list should return empty key");
+        assert!(
+            selection.action_key.is_empty(),
+            "Empty action list should return empty key"
+        );
 
         // Very small alpha/beta values
         let sample = sampler.sample_beta(0.001, 0.001);
-        assert!(sample >= 0.0 && sample <= 1.0, "Should handle very small parameters");
+        assert!(
+            sample >= 0.0 && sample <= 1.0,
+            "Should handle very small parameters"
+        );
 
         // Very large alpha/beta values
         let sample = sampler.sample_beta(1000.0, 1000.0);
-        assert!((sample - 0.5).abs() < 0.1, "Large equal params should give ~0.5");
+        assert!(
+            (sample - 0.5).abs() < 0.1,
+            "Large equal params should give ~0.5"
+        );
     }
 }

@@ -44,6 +44,10 @@ function WordCard({
     onPronounce();
   }, [word.id, word.spelling, onPronounce]);
 
+  // 使用 ref 存储最新的 handlePronounce，避免 useEffect 依赖变化
+  const handlePronounceRef = useRef(handlePronounce);
+  handlePronounceRef.current = handlePronounce;
+
   // 键盘快捷键支持
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -52,20 +56,20 @@ function WordCard({
       const isFormControl = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(activeTag);
       if (e.code === 'Space' && !isPronouncing && !isFormControl) {
         e.preventDefault();
-        handlePronounce();
+        handlePronounceRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isPronouncing, handlePronounce]);
+  }, [isPronouncing]);
 
   return (
     <motion.div
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm md:px-16 md:py-14"
+      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80 md:px-16 md:py-14"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
       data-testid="word-card"
@@ -95,7 +99,7 @@ function WordCard({
       {/* 单词拼写 */}
       <motion.h2
         variants={fadeInVariants}
-        className="text-6xl font-bold text-gray-900 md:text-7xl"
+        className="text-6xl font-bold text-gray-900 dark:text-white md:text-7xl"
         role="heading"
         aria-level={2}
         data-testid="word-spelling"
@@ -106,7 +110,7 @@ function WordCard({
       {/* 音标 - 圆形背景 */}
       <motion.span
         variants={fadeInVariants}
-        className="rounded-full bg-gray-100 px-5 py-2 text-2xl text-gray-600 md:text-3xl"
+        className="rounded-full bg-gray-100 px-5 py-2 text-2xl text-gray-600 dark:bg-slate-700 dark:text-gray-300 md:text-3xl"
         aria-label={`音标: ${word.phonetic}`}
       >
         /{word.phonetic}/
@@ -115,7 +119,7 @@ function WordCard({
       {/* 例句 */}
       <motion.p
         variants={fadeInVariants}
-        className="mt-5 max-w-4xl text-center text-xl text-gray-700 md:text-2xl"
+        className="mt-5 max-w-4xl text-center text-xl text-gray-700 dark:text-gray-300 md:text-2xl"
         role="region"
         aria-label="例句"
       >
@@ -126,13 +130,13 @@ function WordCard({
       {(masteryLevel !== undefined || wordScore !== undefined || nextReviewDate) && (
         <motion.div
           variants={fadeInVariants}
-          className="mt-8 rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm"
+          className="mt-8 rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80"
         >
           <div className="flex flex-wrap items-center justify-center gap-6">
             {/* 掌握程度 - 用星星表示 */}
             {masteryLevel !== undefined && (
               <div className="flex flex-col items-center">
-                <span className="mb-1 text-xs text-gray-500">掌握程度</span>
+                <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">掌握程度</span>
                 <div
                   className="flex items-center gap-1"
                   aria-label={`掌握程度: ${masteryLevel} 级`}
@@ -152,11 +156,11 @@ function WordCard({
             {/* 单词得分 */}
             {wordScore !== undefined && (
               <div className="flex flex-col items-center">
-                <span className="mb-1 text-xs text-gray-500">单词得分</span>
+                <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">单词得分</span>
                 <div className="flex items-center gap-1">
                   <Target size={18} weight="duotone" color={IconColor.target} />
                   <span
-                    className="text-lg font-bold text-gray-900"
+                    className="text-lg font-bold text-gray-900 dark:text-white"
                     aria-label={`得分: ${Math.round(wordScore)} 分`}
                   >
                     {Math.round(wordScore)}
@@ -168,11 +172,11 @@ function WordCard({
             {/* 下次复习时间 */}
             {nextReviewDate && (
               <div className="flex flex-col items-center">
-                <span className="mb-1 text-xs text-gray-500">下次复习</span>
+                <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">下次复习</span>
                 <div className="flex items-center gap-1">
                   <Clock size={18} weight="duotone" color={IconColor.time} />
                   <span
-                    className="text-sm font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900 dark:text-white"
                     aria-label={`下次复习: ${nextReviewDate}`}
                   >
                     {nextReviewDate}

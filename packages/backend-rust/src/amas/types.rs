@@ -217,6 +217,8 @@ pub struct ColdStartState {
     pub probe_index: i32,
     pub update_count: i32,
     pub settled_strategy: Option<StrategyParams>,
+    #[serde(default)]
+    pub classification_scores: [f64; 3],
 }
 
 impl Default for ColdStartState {
@@ -227,6 +229,7 @@ impl Default for ColdStartState {
             probe_index: 0,
             update_count: 0,
             settled_strategy: None,
+            classification_scores: [0.0; 3],
         }
     }
 }
@@ -425,6 +428,14 @@ pub struct WordMasteryDecision {
     pub prev_interval: f64,
     pub new_interval: f64,
     pub quality: i32,
+    // FSRS fields
+    pub stability: f64,
+    pub difficulty: f64,
+    pub retrievability: f64,
+    pub is_mastered: bool,
+    pub lapses: i32,
+    pub reps: i32,
+    pub confidence: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -437,6 +448,35 @@ pub struct ProcessResult {
     pub feature_vector: Option<FeatureVector>,
     pub word_mastery_decision: Option<WordMasteryDecision>,
     pub cold_start_phase: Option<ColdStartPhase>,
+    pub objective_evaluation: Option<ObjectiveEvaluation>,
+    pub multi_objective_adjusted: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MultiObjectiveMetrics {
+    pub short_term_score: f64,
+    pub long_term_score: f64,
+    pub efficiency_score: f64,
+    pub aggregated_score: f64,
+    pub ts: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConstraintViolation {
+    pub constraint: String,
+    pub expected: f64,
+    pub actual: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObjectiveEvaluation {
+    pub metrics: MultiObjectiveMetrics,
+    pub constraints_satisfied: bool,
+    pub constraint_violations: Vec<ConstraintViolation>,
+    pub suggested_adjustments: Option<StrategyParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -457,6 +497,18 @@ pub struct WordReviewHistory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct FSRSWordState {
+    pub stability: f64,
+    pub difficulty: f64,
+    pub elapsed_days: f64,
+    pub scheduled_days: f64,
+    pub reps: i32,
+    pub lapses: i32,
+    pub desired_retention: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessOptions {
     pub current_params: Option<StrategyParams>,
     pub interaction_count: Option<i32>,
@@ -468,6 +520,19 @@ pub struct ProcessOptions {
     pub word_review_history: Option<Vec<WordReviewHistory>>,
     pub visual_fatigue_score: Option<f64>,
     pub study_duration_minutes: Option<f64>,
+    pub word_state: Option<FSRSWordState>,
+    pub rt_cv: Option<f64>,
+    pub pace_cv: Option<f64>,
+    pub root_features: Option<RootFeatures>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RootFeatures {
+    pub root_count: i32,
+    pub known_root_ratio: f64,
+    pub avg_root_mastery: f64,
+    pub max_root_mastery: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -493,8 +558,8 @@ impl Default for BanditArm {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BanditModel {
-    pub arms: Vec<BanditArm>,
-    pub context_dim: usize,
+    pub thompson_params: Option<serde_json::Value>,
+    pub linucb_state: Option<serde_json::Value>,
     pub last_action_idx: Option<usize>,
 }
 

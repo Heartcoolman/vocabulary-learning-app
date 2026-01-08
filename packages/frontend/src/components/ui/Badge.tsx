@@ -23,36 +23,36 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<Variant | 'default', { solid: string; outline: string }> = {
   default: {
-    solid: 'bg-gray-100 text-gray-700',
-    outline: 'border-gray-300 text-gray-700',
+    solid: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200',
+    outline: 'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200',
   },
   primary: {
-    solid: 'bg-blue-100 text-blue-700',
-    outline: 'border-blue-300 text-blue-700',
+    solid: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    outline: 'border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300',
   },
   secondary: {
-    solid: 'bg-gray-100 text-gray-600',
-    outline: 'border-gray-300 text-gray-600',
+    solid: 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300',
+    outline: 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300',
   },
   ghost: {
-    solid: 'bg-transparent text-gray-600',
-    outline: 'border-transparent text-gray-600',
+    solid: 'bg-transparent text-gray-600 dark:text-gray-400',
+    outline: 'border-transparent text-gray-600 dark:text-gray-400',
   },
   danger: {
-    solid: 'bg-red-100 text-red-700',
-    outline: 'border-red-300 text-red-700',
+    solid: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    outline: 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300',
   },
   success: {
-    solid: 'bg-green-100 text-green-700',
-    outline: 'border-green-300 text-green-700',
+    solid: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+    outline: 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300',
   },
   warning: {
-    solid: 'bg-amber-100 text-amber-700',
-    outline: 'border-amber-300 text-amber-700',
+    solid: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+    outline: 'border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300',
   },
   info: {
-    solid: 'bg-blue-100 text-blue-700',
-    outline: 'border-blue-300 text-blue-700',
+    solid: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    outline: 'border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300',
   },
 };
 
@@ -129,11 +129,11 @@ export interface BadgeDotProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const dotColorStyles: Record<'default' | 'success' | 'warning' | 'danger' | 'info', string> = {
-  default: 'bg-gray-400',
-  success: 'bg-green-500',
-  warning: 'bg-amber-500',
-  danger: 'bg-red-500',
-  info: 'bg-blue-500',
+  default: 'bg-gray-400 dark:bg-gray-500',
+  success: 'bg-green-500 dark:bg-green-400',
+  warning: 'bg-amber-500 dark:bg-amber-400',
+  danger: 'bg-red-500 dark:bg-red-400',
+  info: 'bg-blue-500 dark:bg-blue-400',
 };
 
 const dotSizeStyles: Record<'sm' | 'md' | 'lg', string> = {

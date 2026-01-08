@@ -231,7 +231,8 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
       learningLogger.warn({ err: e, wordId: currentWord.id }, '生成测试选项失败，使用备用方案');
 
       // 回退方案：确保至少2个选项，使用预设干扰项
-      const correctAnswer = currentWord.meanings[0];
+      const rawMeaning = currentWord.meanings[0] || '';
+      const correctAnswer = rawMeaning.split(/[；;、]/)[0]?.trim() || rawMeaning;
       // 从干扰项中随机选择一个，确保至少有2个选项
       const randomDistractor =
         fallbackDistractors[Math.floor(Math.random() * fallbackDistractors.length)];

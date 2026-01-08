@@ -6,7 +6,6 @@ use axum::Json;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::services::mastery_learning::{
     self, AdjustWordsInput, GetNextWordsInput, RecentPerformance, SessionError, UserState,
@@ -69,24 +68,19 @@ struct SyncResponse {
     synced: bool,
 }
 
-pub async fn study_words(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn study_words(State(state): State<AppState>, req: Request<Body>) -> Response {
     study_words_inner(state, req, false).await
 }
 
-pub async fn v1_study_words(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn v1_study_words(State(state): State<AppState>, req: Request<Body>) -> Response {
     study_words_inner(state, req, true).await
 }
 
 async fn study_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let query = req.uri().query().unwrap_or("");
@@ -97,7 +91,11 @@ async fn study_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Res
         if target_count.is_none() || target_count.unwrap_or(0) <= 0 {
             return json_error(
                 StatusCode::BAD_REQUEST,
-                if v1 { "INVALID_TARGET_COUNT" } else { "BAD_REQUEST" },
+                if v1 {
+                    "INVALID_TARGET_COUNT"
+                } else {
+                    "BAD_REQUEST"
+                },
                 "targetCount 必须是正整数",
             )
             .into_response();
@@ -105,7 +103,11 @@ async fn study_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Res
         if target_count.unwrap_or(0) > 100 {
             return json_error(
                 StatusCode::BAD_REQUEST,
-                if v1 { "TARGET_COUNT_TOO_LARGE" } else { "BAD_REQUEST" },
+                if v1 {
+                    "TARGET_COUNT_TOO_LARGE"
+                } else {
+                    "BAD_REQUEST"
+                },
                 "targetCount 不能超过 100",
             )
             .into_response();
@@ -113,50 +115,63 @@ async fn study_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Res
         if raw.trim().is_empty() {
             return json_error(
                 StatusCode::BAD_REQUEST,
-                if v1 { "INVALID_TARGET_COUNT" } else { "BAD_REQUEST" },
+                if v1 {
+                    "INVALID_TARGET_COUNT"
+                } else {
+                    "BAD_REQUEST"
+                },
                 "targetCount 必须是正整数",
             )
             .into_response();
         }
     }
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match mastery_learning::get_words_for_mastery_mode(proxy.as_ref(), request_state, &auth_user.id, target_count).await {
-        Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
+    match mastery_learning::get_words_for_mastery_mode(proxy.as_ref(), &auth_user.id, target_count)
+        .await
+    {
+        Ok(result) => Json(SuccessResponse {
+            success: true,
+            data: result,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "study words failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn next_words(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn next_words(State(state): State<AppState>, req: Request<Body>) -> Response {
     next_words_inner(state, req, false).await
 }
 
-pub async fn v1_next_words(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn v1_next_words(State(state): State<AppState>, req: Request<Body>) -> Response {
     next_words_inner(state, req, true).await
 }
 
@@ -168,18 +183,30 @@ async fn next_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Resp
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: NextWordsRequest = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
-        Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
+        Err(_) => {
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response()
+        }
     };
 
     if payload.session_id.trim().is_empty() {
         return json_error(
             StatusCode::BAD_REQUEST,
-            if v1 { "INVALID_SESSION_ID" } else { "BAD_REQUEST" },
+            if v1 {
+                "INVALID_SESSION_ID"
+            } else {
+                "BAD_REQUEST"
+            },
             "sessionId 必填且必须是字符串",
         )
         .into_response();
@@ -197,20 +224,24 @@ async fn next_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Resp
         }
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -221,26 +252,29 @@ async fn next_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Resp
         count: payload.count,
     };
 
-    match mastery_learning::get_next_words(proxy.as_ref(), request_state, &auth_user.id, input).await {
-        Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
+    match mastery_learning::get_next_words(proxy.as_ref(), &auth_user.id, input).await {
+        Ok(result) => Json(SuccessResponse {
+            success: true,
+            data: result,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "next words failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn adjust_words(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn adjust_words(State(state): State<AppState>, req: Request<Body>) -> Response {
     adjust_words_inner(state, req, false).await
 }
 
-pub async fn v1_adjust_words(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn v1_adjust_words(State(state): State<AppState>, req: Request<Body>) -> Response {
     adjust_words_inner(state, req, true).await
 }
 
@@ -252,19 +286,31 @@ async fn adjust_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Re
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: AdjustWordsRequest = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
-        Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
+        Err(_) => {
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response()
+        }
     };
 
     let valid_reasons = ["fatigue", "struggling", "excelling", "periodic"];
     if !valid_reasons.iter().any(|r| r == &payload.adjust_reason) {
         return json_error(
             StatusCode::BAD_REQUEST,
-            if v1 { "INVALID_ADJUST_REASON" } else { "BAD_REQUEST" },
+            if v1 {
+                "INVALID_ADJUST_REASON"
+            } else {
+                "BAD_REQUEST"
+            },
             format!("adjustReason 必须是 {}", valid_reasons.join("/")),
         )
         .into_response();
@@ -273,26 +319,34 @@ async fn adjust_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Re
     if payload.session_id.trim().is_empty() {
         return json_error(
             StatusCode::BAD_REQUEST,
-            if v1 { "INVALID_SESSION_ID" } else { "BAD_REQUEST" },
+            if v1 {
+                "INVALID_SESSION_ID"
+            } else {
+                "BAD_REQUEST"
+            },
             "sessionId 必填且为字符串",
         )
         .into_response();
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -306,19 +360,25 @@ async fn adjust_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Re
         adjust_reason: payload.adjust_reason,
     };
 
-    match mastery_learning::adjust_words_for_user(proxy.as_ref(), request_state, input).await {
-        Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
+    match mastery_learning::adjust_words_for_user(proxy.as_ref(), input).await {
+        Ok(result) => Json(SuccessResponse {
+            success: true,
+            data: result,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "adjust words failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn create_session(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn create_session(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -326,39 +386,54 @@ pub async fn create_session(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: CreateSessionRequest = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
-        Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
+        Err(_) => {
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response()
+        }
     };
 
     if payload.target_mastery_count <= 0 || payload.target_mastery_count > 100 {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "targetMasteryCount 必须是正整数")
-            .into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "targetMasteryCount 必须是正整数",
+        )
+        .into_response();
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     match mastery_learning::ensure_learning_session(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         payload.target_mastery_count,
         payload.session_id,
@@ -371,24 +446,35 @@ pub async fn create_session(
         })
         .into_response(),
         Err(err) => match err {
-            SessionError::Forbidden => json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权").into_response(),
-            SessionError::NotFound => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "学习会话不存在").into_response(),
+            SessionError::Forbidden => {
+                json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权").into_response()
+            }
+            SessionError::NotFound => {
+                json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "学习会话不存在").into_response()
+            }
             SessionError::Sql(sql_err) => {
                 tracing::warn!(error = %sql_err, "create session failed");
-                json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response()
             }
             SessionError::Mutation(message) => {
                 tracing::warn!(error = %message, "create session mutation failed");
-                json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response()
             }
         },
     }
 }
 
-pub async fn sync_progress(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn sync_progress(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -396,42 +482,59 @@ pub async fn sync_progress(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: SyncProgressRequest = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
-        Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
+        Err(_) => {
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response()
+        }
     };
 
     if payload.session_id.trim().is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "sessionId 必填").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "sessionId 必填")
+            .into_response();
     }
 
     if payload.actual_mastery_count < 0 || payload.total_questions < 0 {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "进度数据必须是有效的非负数").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "进度数据必须是有效的非负数",
+        )
+        .into_response();
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     match mastery_learning::sync_session_progress(
         proxy.as_ref(),
-        request_state,
         &payload.session_id,
         &auth_user.id,
         payload.actual_mastery_count,
@@ -439,29 +542,45 @@ pub async fn sync_progress(
     )
     .await
     {
-        Ok(()) => Json(SuccessResponse { success: true, data: SyncResponse { synced: true } }).into_response(),
+        Ok(()) => Json(SuccessResponse {
+            success: true,
+            data: SyncResponse { synced: true },
+        })
+        .into_response(),
         Err(err) => match err {
-            SessionError::NotFound => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "学习会话不存在").into_response(),
-            SessionError::Forbidden => json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权").into_response(),
+            SessionError::NotFound => {
+                json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "学习会话不存在").into_response()
+            }
+            SessionError::Forbidden => {
+                json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权").into_response()
+            }
             SessionError::Sql(sql_err) => {
                 tracing::warn!(error = %sql_err, "sync progress failed");
-                json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response()
             }
             SessionError::Mutation(message) => {
                 tracing::warn!(error = %message, "sync progress mutation failed");
-                json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response()
             }
         },
     }
 }
 
-pub async fn session_progress(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn session_progress(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let session_id = req
@@ -472,38 +591,61 @@ pub async fn session_progress(
         .unwrap_or("")
         .to_string();
     if session_id.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求参数不合法").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求参数不合法")
+            .into_response();
     }
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match mastery_learning::get_session_progress(proxy.as_ref(), request_state, &session_id, &auth_user.id).await {
-        Ok(progress) => Json(SuccessResponse { success: true, data: progress }).into_response(),
+    match mastery_learning::get_session_progress(proxy.as_ref(), &session_id, &auth_user.id).await {
+        Ok(progress) => Json(SuccessResponse {
+            success: true,
+            data: progress,
+        })
+        .into_response(),
         Err(err) => match err {
-            SessionError::NotFound => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "学习会话不存在").into_response(),
-            SessionError::Forbidden => json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权").into_response(),
+            SessionError::NotFound => {
+                json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "学习会话不存在").into_response()
+            }
+            SessionError::Forbidden => {
+                json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权").into_response()
+            }
             SessionError::Sql(sql_err) => {
                 tracing::warn!(error = %sql_err, "session progress failed");
-                json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response()
             }
             SessionError::Mutation(message) => {
                 tracing::warn!(error = %message, "session progress mutation failed");
-                json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response()
             }
         },
     }

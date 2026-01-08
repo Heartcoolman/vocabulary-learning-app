@@ -99,7 +99,10 @@ export const Input = memo(
       return (
         <div className={cn('flex flex-col gap-1', fullWidth && 'w-full')}>
           {label && (
-            <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor={inputId}
+              className="text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
               {label}
               {required && <span className="ml-1 text-red-500">*</span>}
             </label>
@@ -108,14 +111,14 @@ export const Input = memo(
           <div
             className={cn(
               'relative flex items-center',
-              'rounded-input border bg-white',
+              'rounded-input border bg-white dark:bg-slate-800',
               'transition-all duration-g3-fast ease-g3',
               // 边框颜色
               error
                 ? 'border-red-300 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100'
-                : 'border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 hover:border-gray-300',
+                : 'border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 hover:border-gray-300 dark:border-slate-600 dark:focus-within:ring-blue-900/50 dark:hover:border-slate-500',
               // 禁用状态
-              disabled && 'cursor-not-allowed bg-gray-50 opacity-60',
+              disabled && 'cursor-not-allowed bg-gray-50 opacity-60 dark:bg-slate-900',
               fullWidth && 'w-full',
             )}
           >
@@ -140,8 +143,8 @@ export const Input = memo(
               }
               required={required}
               className={cn(
-                'flex-1 bg-transparent outline-none',
-                'placeholder:text-gray-400',
+                'flex-1 bg-transparent text-gray-900 outline-none dark:text-white',
+                'placeholder:text-gray-400 dark:placeholder:text-gray-500',
                 'disabled:cursor-not-allowed',
                 sizeStyles[size],
                 actualPrefix ? 'pl-0' : undefined,
@@ -167,7 +170,7 @@ export const Input = memo(
           )}
 
           {helperText && !error && (
-            <p id={helperId} className="text-xs text-gray-500">
+            <p id={helperId} className="text-xs text-gray-500 dark:text-gray-400">
               {helperText}
             </p>
           )}

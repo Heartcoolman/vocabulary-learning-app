@@ -23,6 +23,7 @@ const AMASExplainabilityPage = lazy(() => import('../pages/admin/AMASExplainabil
 const SystemDebugPage = lazy(() => import('../pages/admin/SystemDebugPage'));
 const WeeklyReportPage = lazy(() => import('../pages/admin/WeeklyReportPage'));
 const WordQualityPage = lazy(() => import('../pages/admin/WordQualityPage'));
+const LLMTasksPage = lazy(() => import('../pages/admin/LLMTasksPage'));
 
 /**
  * 懒加载包装组件
@@ -197,6 +198,15 @@ const adminChildren: AppRoute[] = [
     ),
     meta: { title: '词库质量', requireAuth: true, requireAdmin: true },
   },
+  {
+    path: 'llm-tasks',
+    element: (
+      <LazyWrapper>
+        <LLMTasksPage />
+      </LazyWrapper>
+    ),
+    meta: { title: 'LLM任务', requireAuth: true, requireAdmin: true },
+  },
 ];
 
 /**
@@ -207,7 +217,7 @@ export const adminRoutes: AppRoute[] = [
   {
     path: '/admin',
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute requireAdmin>
         <LazyWrapper>
           <AdminLayout />
         </LazyWrapper>

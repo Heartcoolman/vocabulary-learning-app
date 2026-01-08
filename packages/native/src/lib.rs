@@ -18,7 +18,7 @@ pub use causal::estimator::CausalInferenceNative;
 pub use causal::{CausalEstimate, CausalInferenceConfig, CausalObservation, PropensityDiagnostics};
 pub use linucb::LinUCBNative;
 pub use thompson::{
-    ActionSelection, BatchUpdateItem, BetaParams, ThompsonSamplingNative,
-    ThompsonSamplingOptions, ThompsonSamplingState,
+    ActionSelection, BatchUpdateItem, BetaParams, ThompsonSamplingNative, ThompsonSamplingOptions,
+    ThompsonSamplingState,
 };
 pub use types::*;

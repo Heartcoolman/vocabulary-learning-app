@@ -1,6 +1,7 @@
 import React from 'react';
 import { LearningCurvePoint } from '../../types/explainability';
 import { chartColors, iconColors } from '../../utils/iconColors';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface LearningCurveChartProps {
   data: LearningCurvePoint[];
@@ -27,11 +28,14 @@ const formatDate = (dateStr: string): string => {
 };
 
 const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const height = 250;
   const width = 500; // ViewBox width
   const padding = 40;
 
-  if (data.length === 0) return <div className="py-10 text-center text-gray-400">暂无数据</div>;
+  if (data.length === 0)
+    return <div className="py-10 text-center text-gray-400 dark:text-gray-500">暂无数据</div>;
 
   // 获取有效的 mastery 值（0-100 百分比）
   const getMasteryValue = (d: LearningCurvePoint): number => {
@@ -55,7 +59,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
   return (
     <div className="w-full animate-fade-in">
       <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-white">最近30天学习曲线</h3>
-      <div className="aspect-[2/1] w-full rounded-card border border-gray-100 bg-white p-2 shadow-soft dark:border-gray-700 dark:bg-gray-800">
+      <div className="aspect-[2/1] w-full rounded-card border border-gray-100 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-800">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
           <defs>
             <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
@@ -70,7 +74,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
             y1={height - padding}
             x2={width - padding}
             y2={height - padding}
-            stroke={chartColors.axis}
+            stroke={isDark ? chartColors.axisDark : chartColors.axis}
             strokeWidth="1"
           />
           <line
@@ -78,7 +82,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
             y1={padding}
             x2={padding}
             y2={height - padding}
-            stroke={chartColors.axis}
+            stroke={isDark ? chartColors.axisDark : chartColors.axis}
             strokeWidth="1"
           />
 
@@ -150,14 +154,14 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
                 y={height - 15}
                 textAnchor="middle"
                 fontSize="10"
-                fill={iconColors.gray[500]}
+                fill={isDark ? chartColors.labelDark : iconColors.gray[500]}
               >
                 {formatDate(p.date)}
               </text>
             ))}
         </svg>
       </div>
-      <p className="mt-2 text-center text-sm text-gray-500">记忆强度变化趋势</p>
+      <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">记忆强度变化趋势</p>
     </div>
   );
 });

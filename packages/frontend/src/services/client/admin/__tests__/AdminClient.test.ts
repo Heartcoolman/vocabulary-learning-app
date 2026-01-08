@@ -687,7 +687,7 @@ describe('AdminClient', () => {
 
   describe('getExperiments', () => {
     it('should fetch experiments without params', async () => {
-      mockRequest.mockResolvedValue({ experiments: [], total: 0 });
+      mockRequest.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 10 } });
 
       const result = await client.getExperiments();
 
@@ -696,7 +696,7 @@ describe('AdminClient', () => {
     });
 
     it('should fetch experiments with filters', async () => {
-      mockRequest.mockResolvedValue({ experiments: [], total: 0 });
+      mockRequest.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 10 } });
 
       await client.getExperiments({ status: 'RUNNING', page: 1, pageSize: 10 });
 

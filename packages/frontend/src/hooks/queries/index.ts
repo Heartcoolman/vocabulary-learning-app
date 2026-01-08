@@ -205,29 +205,6 @@ export * from './useNextWords';
 // ==================== LLM 顾问相关 ====================
 export * from './useLLMAdvisor';
 
-// ==================== 内容增强相关 ====================
-export {
-  // Query Keys
-  contentEnhanceKeys,
-  // 质量检查
-  useQualityCheckHistory,
-  useQualityCheckDetail,
-  useOpenIssues,
-  useQualityStats,
-  useStartQualityCheck,
-  useMarkIssueFix,
-  useIgnoreIssue,
-  useBatchApplyFixes,
-  // 内容增强
-  usePendingVariants,
-  useEnhanceTaskHistory,
-  useEnhanceWords,
-  usePreviewEnhance,
-  useApproveVariant,
-  useRejectVariant,
-  useBatchApproveVariants,
-} from './useContentEnhance';
-
 // ==================== 运维增强相关 ====================
 export {
   // Query Keys

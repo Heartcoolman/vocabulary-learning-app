@@ -17,14 +17,14 @@ const getMasteryLevelLabel = (level: number): string => {
  */
 const getMasteryLevelColor = (level: number): string => {
   const colors = [
-    'text-gray-500',
+    'text-gray-500 dark:text-gray-400',
     'text-blue-500',
     'text-green-500',
     'text-yellow-500',
     'text-orange-500',
     'text-purple-500',
   ];
-  return colors[level] || 'text-gray-500';
+  return colors[level] || 'text-gray-500 dark:text-gray-400';
 };
 
 /**
@@ -33,17 +33,22 @@ const getMasteryLevelColor = (level: number): string => {
  */
 const UserStatisticsComponent: React.FC<UserStatisticsProps> = ({ masteryDistribution }) => {
   return (
-    <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-      <h2 className="mb-6 text-xl font-bold text-gray-900">掌握程度分布</h2>
+    <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+      <h2 className="mb-6 text-xl font-bold text-gray-900 dark:text-white">掌握程度分布</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {Object.entries(masteryDistribution).map(([level, count]) => {
           const levelNum = parseInt(level.replace('level', ''));
           return (
-            <div key={level} className="rounded-button bg-gray-50 p-4 text-center">
+            <div
+              key={level}
+              className="rounded-button bg-gray-50 p-4 text-center dark:bg-slate-900"
+            >
               <div className={`mb-1 text-2xl font-bold ${getMasteryLevelColor(levelNum)}`}>
                 {count}
               </div>
-              <div className="text-sm text-gray-600">{getMasteryLevelLabel(levelNum)}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {getMasteryLevelLabel(levelNum)}
+              </div>
             </div>
           );
         })}

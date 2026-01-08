@@ -25,6 +25,7 @@ export type { StudyProgress, TodayWordsResponse } from './wordbook/WordBookClien
 
 // ==================== Learning 模块 ====================
 export { LearningClient } from './learning/LearningClient';
+export type { SessionStats, SessionAnswerRecord } from './learning/LearningClient';
 
 // ==================== AMAS 模块 ====================
 export { AmasClient } from './amas/AmasClient';
@@ -44,6 +45,8 @@ export type {
   UserLearningHeatmap,
   AnomalyFlag,
   VisualFatigueStats,
+  LLMTask,
+  WordVariant,
 } from './admin/AdminClient';
 
 // ==================== LLM Advisor 模块 ====================
@@ -66,21 +69,6 @@ export type {
 // ==================== Visual Fatigue 模块 ====================
 export { VisualFatigueClient, visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 
-// ==================== Content Enhance 模块 ====================
-export { ContentEnhanceClient, contentEnhanceClient } from './content-enhance/ContentEnhanceClient';
-export type {
-  CheckType,
-  IssueSeverity,
-  CheckStatus,
-  EnhanceType,
-  WordIssue,
-  QualityCheckResult,
-  QualityStats,
-  EnhanceResult,
-  ContentVariant,
-  BatchEnhanceResult,
-} from './content-enhance/ContentEnhanceClient';
-
 // ==================== Ops Enhance 模块 ====================
 export { OpsEnhanceClient, opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 export type {
@@ -97,6 +85,24 @@ export type {
   UserSegmentInfo,
 } from './ops-enhance/OpsEnhanceClient';
 
+// ==================== Notification 模块 ====================
+export { NotificationClient } from './notification/NotificationClient';
+export type {
+  Notification,
+  NotificationQueryParams,
+  NotificationStats,
+} from './notification/NotificationClient';
+
+// ==================== Preferences 模块 ====================
+export { PreferencesClient } from './preferences/PreferencesClient';
+export type {
+  LearningPreferences,
+  NotificationPreferences,
+  UiPreferences,
+  UserPreferences,
+  UpdatePreferencesDto,
+} from './preferences/PreferencesClient';
+
 // ==================== 单例实例 ====================
 // 创建全局共享的 Client 实例，便于直接使用
 
@@ -108,8 +114,9 @@ import { AmasClient } from './amas/AmasClient';
 import { AdminClient } from './admin/AdminClient';
 import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
 import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
-import { contentEnhanceClient } from './content-enhance/ContentEnhanceClient';
 import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
+import { NotificationClient } from './notification/NotificationClient';
+import { PreferencesClient } from './preferences/PreferencesClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -132,6 +139,12 @@ export const adminClient = new AdminClient();
 /** LLM 顾问客户端单例 */
 export const llmAdvisorClient = new LLMAdvisorClient();
 
+/** 通知客户端单例 */
+export const notificationClient = new NotificationClient();
+
+/** 偏好设置客户端单例 */
+export const preferencesClient = new PreferencesClient();
+
 // ==================== 向后兼容的 API 对象 ====================
 // 提供与旧版 ApiClient 完全兼容的单例对象
 
@@ -149,8 +162,9 @@ export const apiClient = {
   admin: adminClient,
   llmAdvisor: llmAdvisorClient,
   visualFatigue: visualFatigueClient,
-  contentEnhance: contentEnhanceClient,
   opsEnhance: opsEnhanceClient,
+  notification: notificationClient,
+  preferences: preferencesClient,
 
   // ==================== 认证相关 ====================
   register: authClient.register.bind(authClient),
@@ -158,6 +172,9 @@ export const apiClient = {
   logout: authClient.logout.bind(authClient),
   getCurrentUser: authClient.getCurrentUser.bind(authClient),
   updatePassword: authClient.updatePassword.bind(authClient),
+  updateProfile: authClient.updateProfile.bind(authClient),
+  requestPasswordReset: authClient.requestPasswordReset.bind(authClient),
+  resetPassword: authClient.resetPassword.bind(authClient),
   getUserStatistics: authClient.getUserStatistics.bind(authClient),
   setToken: authClient.setToken.bind(authClient),
   clearToken: authClient.clearToken.bind(authClient),
@@ -194,6 +211,7 @@ export const apiClient = {
   getRecords: learningClient.getRecords.bind(learningClient),
   createRecord: learningClient.createRecord.bind(learningClient),
   batchCreateRecords: learningClient.batchCreateRecords.bind(learningClient),
+  getEnhancedStatistics: learningClient.getEnhancedStatistics.bind(learningClient),
   getWordLearningState: learningClient.getWordLearningState.bind(learningClient),
   getWordLearningStates: learningClient.getWordLearningStates.bind(learningClient),
   saveWordLearningState: learningClient.saveWordLearningState.bind(learningClient),
@@ -209,6 +227,12 @@ export const apiClient = {
   createMasterySession: learningClient.createMasterySession.bind(learningClient),
   syncMasteryProgress: learningClient.syncMasteryProgress.bind(learningClient),
   adjustLearningWords: learningClient.adjustLearningWords.bind(learningClient),
+  markWordAsMastered: learningClient.markWordAsMastered.bind(learningClient),
+  markWordAsNeedsPractice: learningClient.markWordAsNeedsPractice.bind(learningClient),
+  resetWordProgress: learningClient.resetWordProgress.bind(learningClient),
+  batchUpdateWordStates: learningClient.batchUpdateWordStates.bind(learningClient),
+  listSessions: learningClient.listSessions.bind(learningClient),
+  getSessionDetail: learningClient.getSessionDetail.bind(learningClient),
 
   // ==================== AMAS 相关 ====================
   getAlgorithmConfig: amasClient.getAlgorithmConfig.bind(amasClient),
@@ -328,6 +352,31 @@ export const apiClient = {
   getVisualFatigueFusion: visualFatigueClient.getFusion.bind(visualFatigueClient),
   resetVisualFatigue: visualFatigueClient.reset.bind(visualFatigueClient),
 
+  // ==================== 通知相关 ====================
+  getNotifications: notificationClient.getNotifications.bind(notificationClient),
+  getNotification: notificationClient.getNotification.bind(notificationClient),
+  getNotificationStats: notificationClient.getStats.bind(notificationClient),
+  getUnreadCount: notificationClient.getUnreadCount.bind(notificationClient),
+  markNotificationAsRead: notificationClient.markAsRead.bind(notificationClient),
+  markAllNotificationsAsRead: notificationClient.markAllAsRead.bind(notificationClient),
+  batchMarkNotificationsAsRead: notificationClient.batchMarkAsRead.bind(notificationClient),
+  archiveNotification: notificationClient.archive.bind(notificationClient),
+  deleteNotification: notificationClient.deleteNotification.bind(notificationClient),
+  batchDeleteNotifications: notificationClient.batchDelete.bind(notificationClient),
+
+  // ==================== 偏好设置相关 ====================
+  getPreferences: preferencesClient.getPreferences.bind(preferencesClient),
+  updatePreferences: preferencesClient.updatePreferences.bind(preferencesClient),
+  getLearningPreferences: preferencesClient.getLearningPreferences.bind(preferencesClient),
+  updateLearningPreferences: preferencesClient.updateLearningPreferences.bind(preferencesClient),
+  getNotificationPreferences: preferencesClient.getNotificationPreferences.bind(preferencesClient),
+  updateNotificationPreferences:
+    preferencesClient.updateNotificationPreferences.bind(preferencesClient),
+  getUiPreferences: preferencesClient.getUiPreferences.bind(preferencesClient),
+  updateUiPreferences: preferencesClient.updateUiPreferences.bind(preferencesClient),
+  resetPreferences: preferencesClient.resetPreferences.bind(preferencesClient),
+  checkQuietHours: preferencesClient.checkQuietHours.bind(preferencesClient),
+
   // ==================== 设置 ====================
   setOnUnauthorized(callback: (() => void) | null): void {
     authClient.setOnUnauthorized(callback);
@@ -338,8 +387,9 @@ export const apiClient = {
     adminClient.setOnUnauthorized(callback);
     llmAdvisorClient.setOnUnauthorized(callback);
     visualFatigueClient.setOnUnauthorized(callback);
-    contentEnhanceClient.setOnUnauthorized(callback);
     opsEnhanceClient.setOnUnauthorized(callback);
+    notificationClient.setOnUnauthorized(callback);
+    preferencesClient.setOnUnauthorized(callback);
   },
 };
 

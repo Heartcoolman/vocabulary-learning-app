@@ -39,7 +39,7 @@ async function getPerformanceMetrics(page: Page): Promise<PerformanceMetrics> {
     const paintEntries = performance.getEntriesByType('paint');
 
     // FCP - First Contentful Paint
-    const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
+    const fcpEntry = paintEntries.find((entry) => entry.name === 'first-contentful-paint');
     const fcp = fcpEntry ? fcpEntry.startTime : 0;
 
     // LCP - Largest Contentful Paint
@@ -74,7 +74,9 @@ async function getPerformanceMetrics(page: Page): Promise<PerformanceMetrics> {
 /**
  * 测量内存使用
  */
-async function getMemoryUsage(page: Page): Promise<{ usedJSHeapSize: number; totalJSHeapSize: number; limit: number } | null> {
+async function getMemoryUsage(
+  page: Page,
+): Promise<{ usedJSHeapSize: number; totalJSHeapSize: number; limit: number } | null> {
   return await page.evaluate(() => {
     if ('memory' in performance) {
       const mem = (performance as any).memory;
@@ -138,8 +140,8 @@ test.describe('场景1: 新用户首次访问', () => {
       });
 
       // 检查关键资源是否快速加载
-      const criticalResources = resourceTimings.filter(r =>
-        r.initiatorType === 'script' || r.initiatorType === 'link'
+      const criticalResources = resourceTimings.filter(
+        (r) => r.initiatorType === 'script' || r.initiatorType === 'link',
       );
 
       console.log(`第${round}轮首次加载性能:`, {
@@ -164,7 +166,12 @@ test.describe('场景1: 新用户首次访问', () => {
 
 test.describe('场景2: 老用户重复访问', () => {
   test('5轮重复访问 - 测量缓存效果', async ({ page, context }) => {
-    const rounds: Array<{ round: number; loadTime: number; resourceCount: number; cachedCount: number }> = [];
+    const rounds: Array<{
+      round: number;
+      loadTime: number;
+      resourceCount: number;
+      cachedCount: number;
+    }> = [];
 
     for (let round = 1; round <= 5; round++) {
       const startTime = Date.now();
@@ -178,7 +185,9 @@ test.describe('场景2: 老用户重复访问', () => {
       // 获取资源加载信息
       const resourceInfo = await page.evaluate(() => {
         const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-        const cachedResources = resources.filter(r => r.transferSize === 0 || r.transferSize < r.encodedBodySize);
+        const cachedResources = resources.filter(
+          (r) => r.transferSize === 0 || r.transferSize < r.encodedBodySize,
+        );
 
         return {
           total: resources.length,
@@ -201,7 +210,7 @@ test.describe('场景2: 老用户重复访问', () => {
 
     // 验证缓存效果：后续访问应该更快
     const firstLoad = rounds[0].loadTime;
-    const subsequentLoads = rounds.slice(1).map(r => r.loadTime);
+    const subsequentLoads = rounds.slice(1).map((r) => r.loadTime);
     const avgSubsequentLoad = subsequentLoads.reduce((a, b) => a + b, 0) / subsequentLoads.length;
 
     console.log('缓存效果分析:', {
@@ -215,7 +224,7 @@ test.describe('场景2: 老用户重复访问', () => {
     expect(avgSubsequentLoad).toBeLessThan(firstLoad * 0.8);
 
     // 缓存命中率应该逐渐提高
-    const cacheHitRate = rounds.map(r => r.cachedCount / r.resourceCount);
+    const cacheHitRate = rounds.map((r) => r.cachedCount / r.resourceCount);
     expect(cacheHitRate[cacheHitRate.length - 1]).toBeGreaterThan(0.5);
   });
 });
@@ -237,7 +246,12 @@ test.describe('场景3: 快速连续操作', () => {
       return;
     }
 
-    const results: Array<{ element: string; clicks: number; errors: number; responseTime: number }> = [];
+    const results: Array<{
+      element: string;
+      clicks: number;
+      errors: number;
+      responseTime: number;
+    }> = [];
 
     // 对前3个元素进行快速连续点击测试
     for (let i = 0; i < Math.min(3, clickableElements.length); i++) {
@@ -275,13 +289,13 @@ test.describe('场景3: 快速连续操作', () => {
     console.log('快速连续操作测试结果:', results);
 
     // 验证：错误率应该低于20%
-    results.forEach(result => {
+    results.forEach((result) => {
       const errorRate = result.errors / result.clicks;
       expect(errorRate).toBeLessThan(0.2);
     });
 
     // 验证：平均响应时间应该在合理范围内（< 500ms）
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result.responseTime).toBeLessThan(500);
     });
   });
@@ -343,8 +357,8 @@ test.describe('场景4: 弱网络环境', () => {
       // 模拟 3G Fast 网络条件
       await client.send('Network.emulateNetworkConditions', {
         offline: false,
-        downloadThroughput: 1.5 * 1024 * 1024 / 8, // 1.5 Mbps
-        uploadThroughput: 750 * 1024 / 8, // 750 Kbps
+        downloadThroughput: (1.5 * 1024 * 1024) / 8, // 1.5 Mbps
+        uploadThroughput: (750 * 1024) / 8, // 750 Kbps
         latency: 100, // 100ms RTT
       });
 
@@ -354,7 +368,7 @@ test.describe('场景4: 弱网络环境', () => {
         // 导航到页面
         await page.goto('/', {
           waitUntil: 'domcontentloaded',
-          timeout: 30000 // 增加超时时间
+          timeout: 30000, // 增加超时时间
         });
 
         // 等待主要内容可见
@@ -378,7 +392,6 @@ test.describe('场景4: 弱网络环境', () => {
           return document.readyState === 'complete';
         });
         expect(isInteractive).toBe(true);
-
       } finally {
         // 恢复正常网络
         await client.send('Network.emulateNetworkConditions', {
@@ -413,7 +426,7 @@ test.describe('场景4: 弱网络环境', () => {
     }
 
     // 检查是否有离线提示或降级体验
-    const hasOfflineMessage = await page.locator('text=/离线|offline|无法连接/i').count() > 0;
+    const hasOfflineMessage = (await page.locator('text=/离线|offline|无法连接/i').count()) > 0;
 
     console.log('离线降级测试:', {
       hasOfflineMessage,
@@ -496,7 +509,11 @@ test.describe('场景5: 长时间使用', () => {
     }
 
     // 分析内存趋势
-    if (memorySnapshots.length >= 2 && initialMemory && memorySnapshots[memorySnapshots.length - 1].memory) {
+    if (
+      memorySnapshots.length >= 2 &&
+      initialMemory &&
+      memorySnapshots[memorySnapshots.length - 1].memory
+    ) {
       const finalMemory = memorySnapshots[memorySnapshots.length - 1].memory;
       const memoryGrowth = finalMemory.usedJSHeapSize - initialMemory.usedJSHeapSize;
       const growthRate = memoryGrowth / initialMemory.usedJSHeapSize;
@@ -667,9 +684,9 @@ test.describe('场景7: 边缘场景和错误处理', () => {
     const buttons = await page.locator('button').all();
 
     if (buttons.length >= 3) {
-      const promises = buttons.slice(0, 3).map(btn =>
-        btn.click({ timeout: 5000 }).catch(() => {})
-      );
+      const promises = buttons
+        .slice(0, 3)
+        .map((btn) => btn.click({ timeout: 5000 }).catch(() => {}));
 
       await Promise.all(promises);
       await page.waitForTimeout(2000);

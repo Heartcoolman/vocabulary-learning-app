@@ -173,7 +173,10 @@ export const Textarea = memo(
       return (
         <div className={cn('flex flex-col gap-1', fullWidth && 'w-full')}>
           {label && (
-            <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor={inputId}
+              className="text-sm font-medium text-gray-700 dark:text-slate-300"
+            >
               {label}
               {required && <span className="ml-1 text-red-500">*</span>}
             </label>
@@ -192,16 +195,16 @@ export const Textarea = memo(
               maxLength={maxLength}
               rows={autoResize ? undefined : minRows}
               className={cn(
-                'w-full rounded-input border bg-white',
+                'w-full rounded-input border bg-white dark:bg-slate-800 dark:text-white',
                 'transition-all duration-g3-fast ease-g3',
-                'placeholder:text-gray-400',
+                'placeholder:text-gray-400 dark:placeholder:text-slate-500',
                 'focus:outline-none',
                 // 边框颜色
                 error
-                  ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100'
-                  : 'border-gray-200 hover:border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100',
+                  ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100 dark:border-red-500/50 dark:focus:ring-red-900/30'
+                  : 'border-gray-200 hover:border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:hover:border-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-900/30',
                 // 禁用状态
-                disabled && 'cursor-not-allowed bg-gray-50 opacity-60',
+                disabled && 'cursor-not-allowed bg-gray-50 opacity-60 dark:bg-slate-700',
                 // 尺寸
                 padding,
                 fontSize,
@@ -224,7 +227,7 @@ export const Textarea = memo(
               )}
 
               {helperText && !error && (
-                <p id={helperId} className="text-xs text-gray-500">
+                <p id={helperId} className="text-xs text-gray-500 dark:text-slate-400">
                   {helperText}
                 </p>
               )}
@@ -234,7 +237,7 @@ export const Textarea = memo(
               <p
                 id={countId}
                 className={cn(
-                  'flex-shrink-0 text-xs text-gray-400',
+                  'flex-shrink-0 text-xs text-gray-400 dark:text-slate-500',
                   !!maxLength && charCount >= maxLength && 'text-red-500',
                 )}
               >

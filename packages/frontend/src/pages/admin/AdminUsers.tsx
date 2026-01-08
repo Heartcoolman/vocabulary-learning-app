@@ -116,7 +116,7 @@ export default function AdminUsers() {
   return (
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">用户管理</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">用户管理</h1>
       </div>
 
       {/* 搜索栏 */}
@@ -126,12 +126,12 @@ export default function AdminUsers() {
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="搜索用户名或邮箱..."
-          className="w-full max-w-md rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+          className="w-full max-w-md rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
         />
       </div>
 
       {error && (
-        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600">
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">
           {error instanceof Error ? error.message : '加载失败'}
         </div>
       )}
@@ -144,71 +144,81 @@ export default function AdminUsers() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">正在加载...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在加载...</p>
         </div>
       ) : users.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">没有找到用户</div>
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">没有找到用户</div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-card border border-gray-200/60 bg-white/80 backdrop-blur-sm">
+          <div className="overflow-hidden rounded-card border border-gray-200/60 bg-white/80 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-900">
                 <tr>
                   <th
-                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
                     onClick={() => handleSort('username')}
                   >
                     用户名 {sortBy === 'username' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
                   <th
-                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
                     onClick={() => handleSort('email')}
                   >
                     邮箱 {sortBy === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">角色</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    角色
+                  </th>
                   <th
-                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
                     onClick={() => handleSort('totalWordsLearned')}
                   >
                     学习单词数 {sortBy === 'totalWordsLearned' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
                   <th
-                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
                     onClick={() => handleSort('averageScore')}
                   >
                     平均分 {sortBy === 'averageScore' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
                   <th
-                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
                     onClick={() => handleSort('createdAt')}
                   >
                     注册时间 {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">操作</th>
+                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                    操作
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white dark:divide-slate-700 dark:bg-slate-800">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{user.username}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-slate-700">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                      {user.username}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {user.email}
+                    </td>
                     <td className="px-6 py-4 text-sm">
                       <span
                         className={`rounded px-2 py-1 text-xs ${
                           user.role === 'ADMIN'
-                            ? 'bg-purple-100 text-purple-600'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+                            : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400'
                         }`}
                       >
                         {user.role === 'ADMIN' ? '管理员' : '普通用户'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{user.totalWordsLearned}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {user.totalWordsLearned}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                       {user.averageScore.toFixed(1)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                       {new Date(user.createdAt).toLocaleDateString('zh-CN')}
                     </td>
                     <td className="px-6 py-4 text-right text-sm">
@@ -244,21 +254,21 @@ export default function AdminUsers() {
           {/* 分页 */}
           {pagination && pagination.totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 共 {pagination.total} 个用户，第 {pagination.page} / {pagination.totalPages} 页
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="rounded-button border border-gray-300 px-4 py-2 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   上一页
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={page === pagination.totalPages}
-                  className="rounded-button border border-gray-300 px-4 py-2 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   下一页
                 </button>

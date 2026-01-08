@@ -130,7 +130,7 @@ export class WordClient extends BaseClient {
   }
 
   /**
-   * 批量导入单词到词书
+   * 批量导入单词到词书（管理员接口）
    */
   async batchImportWords(
     wordBookId: string,
@@ -154,7 +154,7 @@ export class WordClient extends BaseClient {
 
     try {
       return await this.request<{ imported: number; failed: number; errors?: string[] }>(
-        `/api/wordbooks/${wordBookId}/words/batch`,
+        `/api/admin/wordbooks/${wordBookId}/words/batch`,
         {
           method: 'POST',
           body: JSON.stringify({ words }),
@@ -164,6 +164,38 @@ export class WordClient extends BaseClient {
       apiLogger.error({ err: error }, '批量导入单词失败');
       throw error;
     }
+  }
+
+  /**
+   * 批量导入单词到用户词书
+   */
+  async batchImportWordsToUserWordbook(
+    wordBookId: string,
+    words: Array<{
+      spelling: string;
+      phonetic?: string;
+      meanings: string[];
+      examples?: string[];
+      audioUrl?: string;
+    }>,
+  ): Promise<{ imported: number; failed: number; errors?: string[] }> {
+    if (!wordBookId || typeof wordBookId !== 'string' || wordBookId.trim().length === 0) {
+      throw new Error('wordBookId 必须是非空字符串');
+    }
+    if (!Array.isArray(words) || words.length === 0) {
+      throw new Error('words 必须是非空数组');
+    }
+    if (words.length > 1000) {
+      throw new Error('单次导入不能超过1000个单词');
+    }
+
+    return this.request<{ imported: number; failed: number; errors?: string[] }>(
+      `/api/wordbooks/${wordBookId}/words/batch`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ words }),
+      },
+    );
   }
 
   /**

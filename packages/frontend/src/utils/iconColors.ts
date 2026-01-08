@@ -134,39 +134,39 @@ export const IconColor = {
  */
 export const badgeCategoryColors = {
   bronze: {
-    bg: 'bg-amber-100',
-    border: 'border-amber-400',
-    text: 'text-amber-900',
+    bg: 'bg-amber-100 dark:bg-amber-900/30',
+    border: 'border-amber-400 dark:border-amber-600',
+    text: 'text-amber-900 dark:text-amber-400',
     icon: '#d97706', // amber-600
   },
   silver: {
-    bg: 'bg-gray-100',
-    border: 'border-gray-400',
-    text: 'text-gray-900',
+    bg: 'bg-gray-100 dark:bg-slate-700',
+    border: 'border-gray-400 dark:border-slate-500',
+    text: 'text-gray-900 dark:text-gray-300',
     icon: '#6b7280', // gray-500
   },
   gold: {
-    bg: 'bg-yellow-100',
-    border: 'border-yellow-400',
-    text: 'text-yellow-900',
+    bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+    border: 'border-yellow-400 dark:border-yellow-600',
+    text: 'text-yellow-900 dark:text-yellow-400',
     icon: '#ca8a04', // yellow-600
   },
   platinum: {
-    bg: 'bg-cyan-100',
-    border: 'border-cyan-400',
-    text: 'text-cyan-900',
+    bg: 'bg-cyan-100 dark:bg-cyan-900/30',
+    border: 'border-cyan-400 dark:border-cyan-600',
+    text: 'text-cyan-900 dark:text-cyan-400',
     icon: '#0891b2', // cyan-600
   },
   diamond: {
-    bg: 'bg-purple-100',
-    border: 'border-purple-400',
-    text: 'text-purple-900',
+    bg: 'bg-purple-100 dark:bg-purple-900/30',
+    border: 'border-purple-400 dark:border-purple-600',
+    text: 'text-purple-900 dark:text-purple-400',
     icon: '#9333ea', // purple-600
   },
   master: {
-    bg: 'bg-blue-100',
-    border: 'border-blue-400',
-    text: 'text-blue-900',
+    bg: 'bg-blue-100 dark:bg-blue-900/30',
+    border: 'border-blue-400 dark:border-blue-600',
+    text: 'text-blue-900 dark:text-blue-400',
     icon: '#3b82f6', // blue-500
   },
 } as const;
@@ -195,11 +195,18 @@ export const chartColors = {
   warning: iconColors.warning.default,
   info: iconColors.cyan.default,
 
-  // 图表轴线、网格
+  // 图表轴线、网格 (light mode)
   axis: '#e5e7eb', // gray-200
   grid: '#e5e7eb', // gray-200
   label: '#9ca3af', // gray-400
   text: '#1f2937', // gray-800
+
+  // Dark mode variants
+  axisDark: '#334155', // slate-700
+  gridDark: '#334155', // slate-700
+  labelDark: '#64748b', // slate-500
+  textDark: '#e2e8f0', // slate-200
+  backgroundDark: '#1e293b', // slate-800
 
   // 用户状态指标
   attention: iconColors.blue[500],

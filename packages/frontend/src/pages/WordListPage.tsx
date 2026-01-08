@@ -266,7 +266,7 @@ export default function WordListPage() {
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-          <p className="text-gray-600">正在加载单词列表...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在加载单词列表...</p>
         </div>
       </div>
     );
@@ -277,8 +277,8 @@ export default function WordListPage() {
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="max-w-md px-4 text-center">
           <WarningCircle size={64} weight="fill" className="mx-auto mb-4 text-red-500" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={() => navigate('/learning')}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -291,27 +291,27 @@ export default function WordListPage() {
   }
 
   return (
-    <div className="min-h-screen animate-g3-fade-in bg-gray-50 px-4 py-8">
+    <div className="min-h-screen animate-g3-fade-in bg-gray-50 px-4 py-8 dark:bg-slate-900">
       <div className="mx-auto max-w-6xl">
         {/* 页面标题 */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
               aria-label="返回"
             >
               <ArrowLeft size={20} weight="bold" />
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">单词列表</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">单词列表</h1>
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             共 {filteredWords.length} / {words.length} 个单词
           </div>
         </div>
 
         {/* 筛选和搜索 */}
-        <div className="mb-6 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+        <div className="mb-6 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* 搜索框 */}
             <div className="relative">
@@ -325,7 +325,7 @@ export default function WordListPage() {
                 placeholder="搜索单词..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-button border border-gray-300 py-2 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 py-2 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
 
@@ -335,7 +335,7 @@ export default function WordListPage() {
               onChange={(e) =>
                 setFilterMasteryLevel(e.target.value === 'all' ? null : Number(e.target.value))
               }
-              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             >
               <option value="all">所有掌握程度</option>
               {[0, 1, 2, 3, 4, 5].map((level) => (
@@ -349,7 +349,7 @@ export default function WordListPage() {
             <select
               value={filterScoreRange}
               onChange={(e) => setFilterScoreRange(e.target.value)}
-              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             >
               <option value="all">所有得分</option>
               <option value="low">低分 (0-40)</option>
@@ -365,7 +365,7 @@ export default function WordListPage() {
                 setSortField(field);
                 setSortOrder(order);
               }}
-              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             >
               <option value="score-desc">得分 (高到低)</option>
               <option value="score-asc">得分 (低到高)</option>
@@ -384,7 +384,7 @@ export default function WordListPage() {
           {filteredWords.length === 0 ? (
             <div className="py-12 text-center">
               <MagnifyingGlass size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
-              <p className="text-lg text-gray-500">没有找到符合条件的单词</p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">没有找到符合条件的单词</p>
             </div>
           ) : (
             <VirtualWordList
@@ -398,11 +398,14 @@ export default function WordListPage() {
         {/* 确认对话框 */}
         {showConfirmDialog && selectedWord && (
           <div className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black bg-opacity-50 p-6">
-            <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating">
-              <h3 className="mb-4 text-2xl font-bold text-gray-900">确认操作</h3>
-              <p className="mb-6 text-gray-600">
+            <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating dark:bg-slate-800">
+              <h3 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">确认操作</h3>
+              <p className="mb-6 text-gray-600 dark:text-gray-400">
                 确定要对单词{' '}
-                <span className="font-bold text-gray-900">"{selectedWord.spelling}"</span> 执行
+                <span className="font-bold text-gray-900 dark:text-white">
+                  "{selectedWord.spelling}"
+                </span>{' '}
+                执行
                 <span className="font-bold text-blue-600"> {getActionText()} </span>
                 操作吗？
               </p>
@@ -410,7 +413,7 @@ export default function WordListPage() {
                 <button
                   onClick={cancelAdjustment}
                   disabled={isAdjusting}
-                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-gray-100 dark:hover:bg-slate-600"
                 >
                   取消
                 </button>

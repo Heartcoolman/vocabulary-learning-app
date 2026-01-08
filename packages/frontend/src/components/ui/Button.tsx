@@ -43,19 +43,19 @@ const variantStyles: Record<ButtonVariant, string> = {
     shadow-button-rest hover:shadow-button-hover active:shadow-button-active
   `,
   secondary: `
-    bg-white border border-gray-200 text-gray-700
-    hover:bg-gray-50 hover:border-gray-300
+    bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200
+    hover:bg-gray-50 dark:hover:bg-slate-600 hover:border-gray-300 dark:hover:border-slate-500
     focus-visible:ring-gray-400
     shadow-soft hover:shadow-elevated
   `,
   outline: `
-    bg-transparent border-2 border-blue-500 text-blue-600
-    hover:bg-blue-50 hover:border-blue-600 hover:text-blue-700
+    bg-transparent border-2 border-blue-500 text-blue-600 dark:text-blue-400
+    hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-600 hover:text-blue-700 dark:hover:text-blue-300
     focus-visible:ring-blue-500
   `,
   ghost: `
-    bg-transparent text-gray-600
-    hover:bg-gray-100 hover:text-gray-900
+    bg-transparent text-gray-600 dark:text-gray-300
+    hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white
     focus-visible:ring-gray-400
   `,
   danger: `

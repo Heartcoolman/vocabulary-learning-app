@@ -96,7 +96,7 @@ export default function LearningTimePage() {
     if (isGolden) return 'bg-yellow-400';
     if (score >= 0.7) return 'bg-green-500';
     if (score >= 0.4) return 'bg-blue-500';
-    return 'bg-gray-300';
+    return 'bg-gray-300 dark:bg-slate-600';
   };
 
   if (isLoading) {
@@ -109,7 +109,7 @@ export default function LearningTimePage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">正在分析学习时间偏好...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在分析学习时间偏好...</p>
         </div>
       </div>
     );
@@ -120,8 +120,8 @@ export default function LearningTimePage() {
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">出错了</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={loadData}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -134,15 +134,15 @@ export default function LearningTimePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mx-auto max-w-6xl animate-g3-fade-in px-4 py-8">
         {/* 页面标题 */}
         <header className="mb-8">
-          <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900">
+          <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
             <Clock size={32} weight="duotone" color="#3b82f6" />
             学习时间分析
           </h1>
-          <p className="text-gray-600">了解你的最佳学习时段，提高学习效率</p>
+          <p className="text-gray-600 dark:text-gray-400">了解你的最佳学习时段，提高学习效率</p>
         </header>
 
         {/* 黄金学习时间徽章 */}
@@ -150,14 +150,16 @@ export default function LearningTimePage() {
           <div
             className={`mb-8 rounded-card border-2 p-6 transition-all duration-g3-normal ${
               goldenTime.isGolden
-                ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-elevated'
-                : 'border-gray-200 bg-white/80 backdrop-blur-sm'
+                ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-elevated dark:border-yellow-600 dark:from-yellow-900/30 dark:to-orange-900/30'
+                : 'border-gray-200 bg-white/80 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80'
             } `}
           >
             <div className="flex items-center gap-4">
               <div
                 className={`flex h-16 w-16 items-center justify-center rounded-full ${
-                  goldenTime.isGolden ? 'animate-pulse bg-yellow-400' : 'bg-gray-100'
+                  goldenTime.isGolden
+                    ? 'animate-pulse bg-yellow-400'
+                    : 'bg-gray-100 dark:bg-slate-700'
                 } `}
               >
                 {goldenTime.isGolden ? (
@@ -168,7 +170,7 @@ export default function LearningTimePage() {
               </div>
               <div className="flex-1">
                 <h2
-                  className={`text-xl font-bold ${goldenTime.isGolden ? 'text-yellow-700' : 'text-gray-700'} flex items-center gap-1`}
+                  className={`text-xl font-bold ${goldenTime.isGolden ? 'text-yellow-700 dark:text-yellow-400' : 'text-gray-700 dark:text-gray-300'} flex items-center gap-1`}
                 >
                   {goldenTime.isGolden ? (
                     <>
@@ -178,17 +180,23 @@ export default function LearningTimePage() {
                     '当前时间'
                   )}
                 </h2>
-                <p className={goldenTime.isGolden ? 'text-yellow-600' : 'text-gray-500'}>
+                <p
+                  className={
+                    goldenTime.isGolden
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }
+                >
                   {goldenTime.message}
                 </p>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   当前时间: {formatHour(goldenTime.currentHour)}
                 </p>
               </div>
               {goldenTime.isGolden && goldenTime.matchedSlot && (
                 <div className="text-right">
-                  <p className="text-sm text-yellow-600">学习效率</p>
-                  <p className="text-2xl font-bold text-yellow-700">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400">学习效率</p>
+                  <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
                     {Math.round(goldenTime.matchedSlot.score * 100)}%
                   </p>
                 </div>
@@ -199,14 +207,14 @@ export default function LearningTimePage() {
 
         {/* 数据不足提示 */}
         {insufficientData && (
-          <div className="mb-8 rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
+          <div className="mb-8 rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/20">
             <ChartBar size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
-            <h2 className="mb-2 text-xl font-bold text-blue-800">数据收集中</h2>
-            <p className="mb-4 text-blue-600">
+            <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-300">数据收集中</h2>
+            <p className="mb-4 text-blue-600 dark:text-blue-300">
               需要至少 <span className="font-bold">{insufficientData.minRequired}</span>{' '}
               次学习会话才能分析时间偏好
             </p>
-            <div className="mx-auto mb-2 h-4 w-full max-w-xs rounded-full bg-blue-200">
+            <div className="mx-auto mb-2 h-4 w-full max-w-xs rounded-full bg-blue-200 dark:bg-blue-800">
               <div
                 className="h-4 rounded-full bg-blue-500 transition-all duration-g3-slow"
                 style={{
@@ -214,7 +222,7 @@ export default function LearningTimePage() {
                 }}
               />
             </div>
-            <p className="text-sm text-blue-500">
+            <p className="text-sm text-blue-500 dark:text-blue-400">
               当前进度: {insufficientData.currentCount} / {insufficientData.minRequired}
             </p>
             <button
@@ -230,8 +238,8 @@ export default function LearningTimePage() {
         {timePreference && (
           <>
             {/* 推荐时间段 */}
-            <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-              <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+            <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <Sparkle size={24} weight="duotone" color="#a855f7" />
                 推荐学习时段
               </h2>
@@ -243,13 +251,13 @@ export default function LearningTimePage() {
                       key={slot.hour}
                       className={`rounded-card border-2 p-4 transition-all duration-g3-fast hover:scale-105 ${
                         index === 0
-                          ? 'border-yellow-300 bg-gradient-to-br from-yellow-50 to-orange-50'
-                          : 'border-gray-200 bg-gray-50'
+                          ? 'border-yellow-300 bg-gradient-to-br from-yellow-50 to-orange-50 dark:border-yellow-600 dark:from-yellow-900/30 dark:to-orange-900/30'
+                          : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800'
                       } `}
                     >
                       <div className="mb-2 flex items-center gap-3">
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-full ${index === 0 ? 'bg-yellow-400' : 'bg-gray-200'} `}
+                          className={`flex h-10 w-10 items-center justify-center rounded-full ${index === 0 ? 'bg-yellow-400' : 'bg-gray-200 dark:bg-slate-700'} `}
                         >
                           <TimeIcon
                             size={20}
@@ -258,8 +266,12 @@ export default function LearningTimePage() {
                           />
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900">{formatHour(slot.hour)}</p>
-                          <p className="text-sm text-gray-500">{getTimePeriod(slot.hour)}</p>
+                          <p className="font-bold text-gray-900 dark:text-white">
+                            {formatHour(slot.hour)}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {getTimePeriod(slot.hour)}
+                          </p>
                         </div>
                         {index === 0 && (
                           <span className="ml-auto rounded-full bg-yellow-400 px-2 py-1 text-xs font-bold text-yellow-900">
@@ -268,20 +280,20 @@ export default function LearningTimePage() {
                         )}
                       </div>
                       <div className="mt-3 flex items-center justify-between">
-                        <span className="text-sm text-gray-600">学习效率</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">学习效率</span>
                         <span
-                          className={`font-bold ${index === 0 ? 'text-yellow-700' : 'text-gray-700'}`}
+                          className={`font-bold ${index === 0 ? 'text-yellow-700' : 'text-gray-700 dark:text-gray-300'}`}
                         >
                           {Math.round(slot.score * 100)}%
                         </span>
                       </div>
-                      <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
+                      <div className="mt-2 h-2 w-full rounded-full bg-gray-200 dark:bg-slate-700">
                         <div
                           className={`h-2 rounded-full transition-all duration-g3-slow ${index === 0 ? 'bg-yellow-400' : 'bg-blue-500'}`}
                           style={{ width: `${slot.score * 100}%` }}
                         />
                       </div>
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                         置信度: {Math.round(slot.confidence * 100)}%
                       </p>
                     </div>
@@ -291,13 +303,13 @@ export default function LearningTimePage() {
             </div>
 
             {/* 24小时分布图 */}
-            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <div className="mb-6 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                   <ChartBar size={24} weight="duotone" color="#3b82f6" />
                   24小时学习效率分布
                 </h2>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   基于 {timePreference.sampleCount} 次学习记录
                 </div>
               </div>
@@ -312,7 +324,7 @@ export default function LearningTimePage() {
                       <div key={hour} className="group relative flex flex-1 flex-col items-center">
                         {/* 悬停提示 */}
                         <div className="absolute bottom-full z-10 mb-2 opacity-0 transition-opacity duration-g3-fast group-hover:opacity-100">
-                          <div className="whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white">
+                          <div className="whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white dark:bg-slate-700">
                             {formatHour(hour)}: {Math.round(score * 100)}%
                           </div>
                         </div>
@@ -327,7 +339,7 @@ export default function LearningTimePage() {
                 </div>
 
                 {/* X轴标签 */}
-                <div className="flex justify-between text-xs text-gray-500">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                   {[0, 6, 12, 18, 23].map((hour) => (
                     <span key={hour}>{formatHour(hour)}</span>
                   ))}
@@ -335,28 +347,28 @@ export default function LearningTimePage() {
               </div>
 
               {/* 图例 */}
-              <div className="mt-6 flex items-center justify-center gap-6 border-t border-gray-200 pt-4">
+              <div className="mt-6 flex items-center justify-center gap-6 border-t border-gray-200 pt-4 dark:border-slate-700">
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 rounded bg-yellow-400" />
-                  <span className="text-sm text-gray-600">推荐时段</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">推荐时段</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 rounded bg-green-500" />
-                  <span className="text-sm text-gray-600">高效时段</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">高效时段</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 rounded bg-blue-500" />
-                  <span className="text-sm text-gray-600">一般时段</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">一般时段</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 rounded bg-gray-300" />
-                  <span className="text-sm text-gray-600">低效时段</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">低效时段</span>
                 </div>
               </div>
 
               {/* 置信度说明 */}
-              <div className="mt-4 rounded-card bg-gray-50 p-4">
-                <p className="text-sm text-gray-600">
+              <div className="mt-4 rounded-card bg-gray-50 p-4 dark:bg-slate-900">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   <span className="font-medium">分析置信度:</span>{' '}
                   {Math.round(timePreference.confidence * 100)}%
                   {timePreference.confidence < 0.7 && (

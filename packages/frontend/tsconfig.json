@@ -18,8 +18,5 @@
   },
   "include": ["src/**/*", "vite-env.d.ts"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../shared" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "references": [{ "path": "../shared" }, { "path": "./tsconfig.node.json" }]
 }

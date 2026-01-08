@@ -257,7 +257,8 @@ class StorageService {
         allRecords = allRecords.concat(result.records);
 
         // 检查是否还有更多数据
-        const totalPages = result.pagination?.totalPages ?? 1;
+        const rawTotalPages = result.pagination?.totalPages ?? 1;
+        const totalPages = Number.isFinite(rawTotalPages) && rawTotalPages > 0 ? rawTotalPages : 1;
         hasMoreData = page < totalPages;
         page++;
 

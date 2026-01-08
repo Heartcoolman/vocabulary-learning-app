@@ -60,7 +60,7 @@ export const MasteryStatsCard: React.FC<MasteryStatsCardProps> = ({
   const colors = getColorClasses();
 
   return (
-    <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated">
+    <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800">
       <div
         className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl ${colors.bg}`}
       />
@@ -73,7 +73,7 @@ export const MasteryStatsCard: React.FC<MasteryStatsCardProps> = ({
         </div>
 
         <div className="space-y-1">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{label}</p>
           <p className={`text-3xl font-black ${colors.text}`}>{value}</p>
         </div>
       </div>

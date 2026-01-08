@@ -1,10 +1,10 @@
+use crate::matrix::*;
+use crate::sanitize::*;
+use crate::types::*;
 #[cfg(feature = "napi")]
 use napi::bindgen_prelude::*;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
-use crate::matrix::*;
-use crate::sanitize::*;
-use crate::types::*;
 
 /// LinUCB 原生实现
 #[cfg_attr(feature = "napi", napi)]
@@ -507,35 +507,35 @@ impl LinUCBNative {
     pub fn update_count(&self) -> u32 {
         self.update_count
     }
+}
 
-    /// 计算冷启动 alpha
-    #[cfg_attr(feature = "napi", napi)]
-    pub fn get_cold_start_alpha(interaction_count: u32, recent_accuracy: f64, fatigue: f64) -> f64 {
-        let base_alpha = 0.3;
+/// 计算冷启动 alpha (独立函数)
+#[cfg_attr(feature = "napi", napi)]
+pub fn get_cold_start_alpha(interaction_count: u32, recent_accuracy: f64, fatigue: f64) -> f64 {
+    let base_alpha = 0.3;
 
-        // 交互越少，探索越多
-        let interaction_factor = if interaction_count < 10 {
-            2.0
-        } else if interaction_count < 50 {
-            1.5
-        } else if interaction_count < 200 {
-            1.2
-        } else {
-            1.0
-        };
+    // 交互越少，探索越多
+    let interaction_factor = if interaction_count < 10 {
+        2.0
+    } else if interaction_count < 50 {
+        1.5
+    } else if interaction_count < 200 {
+        1.2
+    } else {
+        1.0
+    };
 
-        // 准确率不稳定时增加探索
-        let accuracy_factor = if !(0.3..=0.9).contains(&recent_accuracy) {
-            1.3
-        } else {
-            1.0
-        };
+    // 准确率不稳定时增加探索
+    let accuracy_factor = if !(0.3..=0.9).contains(&recent_accuracy) {
+        1.3
+    } else {
+        1.0
+    };
 
-        // 疲劳时减少探索（更保守）
-        let fatigue_factor = 1.0 - fatigue * 0.3;
+    // 疲劳时减少探索（更保守）
+    let fatigue_factor = 1.0 - fatigue * 0.3;
 
-        base_alpha * interaction_factor * accuracy_factor * fatigue_factor
-    }
+    base_alpha * interaction_factor * accuracy_factor * fatigue_factor
 }
 
 #[cfg(test)]

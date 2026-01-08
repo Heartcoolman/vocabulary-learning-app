@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::debug;
 
 const CHANNEL_CAPACITY: usize = 1024;
 

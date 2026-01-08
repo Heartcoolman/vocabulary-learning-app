@@ -1,5 +1,6 @@
 use crate::amas::config::CognitiveParams;
 use crate::amas::types::CognitiveProfile;
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct CognitiveInput {
@@ -21,7 +22,7 @@ impl Default for CognitiveInput {
 pub struct CognitiveProfiler {
     params: CognitiveParams,
     profile: CognitiveProfile,
-    accuracy_history: Vec<f64>,
+    accuracy_history: VecDeque<f64>,
 }
 
 impl CognitiveProfiler {
@@ -29,7 +30,7 @@ impl CognitiveProfiler {
         Self {
             params,
             profile: CognitiveProfile::default(),
-            accuracy_history: Vec::with_capacity(100),
+            accuracy_history: VecDeque::with_capacity(100),
         }
     }
 
@@ -37,12 +38,13 @@ impl CognitiveProfiler {
         let alpha = self.params.memory_alpha;
         self.profile.mem = alpha * input.accuracy + (1.0 - alpha) * self.profile.mem;
 
-        let normalized_speed = 1.0 - (input.avg_response_time as f64 / self.params.speed_baseline_ms / 3.0).min(1.0);
+        let normalized_speed =
+            1.0 - (input.avg_response_time as f64 / self.params.speed_baseline_ms / 3.0).min(1.0);
         self.profile.speed = alpha * normalized_speed + (1.0 - alpha) * self.profile.speed;
 
-        self.accuracy_history.push(input.accuracy);
+        self.accuracy_history.push_back(input.accuracy);
         if self.accuracy_history.len() > self.params.stability_window {
-            self.accuracy_history.remove(0);
+            self.accuracy_history.pop_front();
         }
 
         let stability = if self.accuracy_history.len() >= 3 {
@@ -76,7 +78,7 @@ impl Default for CognitiveProfiler {
     }
 }
 
-fn compute_variance(values: &[f64]) -> f64 {
+fn compute_variance(values: &VecDeque<f64>) -> f64 {
     if values.is_empty() {
         return 0.0;
     }

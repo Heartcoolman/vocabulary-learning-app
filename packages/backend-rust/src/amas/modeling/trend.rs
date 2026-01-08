@@ -1,9 +1,10 @@
 use crate::amas::config::TrendParams;
 use crate::amas::types::TrendState;
+use std::collections::VecDeque;
 
 pub struct TrendAnalyzer {
     params: TrendParams,
-    history: Vec<f64>,
+    history: VecDeque<f64>,
     current_trend: TrendState,
 }
 
@@ -11,16 +12,16 @@ impl TrendAnalyzer {
     pub fn new(params: TrendParams) -> Self {
         Self {
             params,
-            history: Vec::with_capacity(100),
+            history: VecDeque::with_capacity(100),
             current_trend: TrendState::Flat,
         }
     }
 
     pub fn update(&mut self, mastery_score: f64) -> TrendState {
-        self.history.push(mastery_score);
+        self.history.push_back(mastery_score);
 
         if self.history.len() > self.params.window_size {
-            self.history.remove(0);
+            self.history.pop_front();
         }
 
         if self.history.len() < 5 {
@@ -61,7 +62,12 @@ impl TrendAnalyzer {
         let n = self.history.len() as f64;
         let sum_x: f64 = (0..self.history.len()).map(|i| i as f64).sum();
         let sum_y: f64 = self.history.iter().sum();
-        let sum_xy: f64 = self.history.iter().enumerate().map(|(i, y)| i as f64 * y).sum();
+        let sum_xy: f64 = self
+            .history
+            .iter()
+            .enumerate()
+            .map(|(i, y)| i as f64 * y)
+            .sum();
         let sum_xx: f64 = (0..self.history.len()).map(|i| (i as f64).powi(2)).sum();
 
         let denominator = n * sum_xx - sum_x.powi(2);

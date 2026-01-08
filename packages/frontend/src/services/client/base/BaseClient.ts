@@ -275,13 +275,21 @@ export abstract class BaseClient {
       }
 
       if (!response.ok) {
-        throw new Error(`请求失败: ${response.status}`);
+        const errorMessage = await this.extractErrorMessage(
+          response,
+          `请求失败: ${response.status}`,
+        );
+        throw new ApiError(errorMessage, response.status);
       }
 
       const body = await response.json();
 
       if (!body.success) {
-        throw new Error(body.error || '请求失败');
+        throw new ApiError(
+          body.error?.message || body.error || '请求失败',
+          response.status,
+          body.error?.code,
+        );
       }
 
       return body as T;

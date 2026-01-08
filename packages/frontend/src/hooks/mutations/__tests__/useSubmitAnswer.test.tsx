@@ -70,7 +70,7 @@ describe('useSubmitAnswer', () => {
           confidence: 0.85,
           timestamp: Date.now(),
         },
-        explanation: '学习状态良好',
+        explanation: { factors: [], changes: [], text: '学习状态良好' },
         shouldBreak: false,
       };
 
@@ -145,7 +145,7 @@ describe('useSubmitAnswer', () => {
           speed: 0.7,
           stability: 0.8,
         },
-        explanation: '学习状态良好',
+        explanation: { factors: [], changes: [], text: '学习状态良好' },
       };
 
       vi.mocked(masteryModule.processLearningEvent).mockResolvedValue(mockAmasResult);
@@ -183,8 +183,8 @@ describe('useSubmitAnswer', () => {
           pauseCount: 0,
           switchCount: 0,
           retryCount: 0,
-          focusLossDuration: 0,
-          interactionDensity: 1,
+          focusLossDuration: expect.any(Number),
+          interactionDensity: expect.any(Number),
           timestamp: expect.any(Number),
         }),
       );
@@ -210,7 +210,7 @@ describe('useSubmitAnswer', () => {
           speed: 0.7,
           stability: 0.8,
         },
-        explanation: '学习状态良好',
+        explanation: { factors: [], changes: [], text: '学习状态良好' },
       };
 
       // Mock 延迟响应
@@ -280,7 +280,7 @@ describe('useSubmitAnswer', () => {
           speed: 0.7,
           stability: 0.8,
         },
-        explanation: '学习状态良好',
+        explanation: { factors: [], changes: [], text: '学习状态良好' },
       };
 
       vi.mocked(masteryModule.processLearningEvent).mockResolvedValue(mockAmasResult);
@@ -367,7 +367,7 @@ describe('useSubmitAnswer', () => {
           speed: 0.6,
           stability: 0.7,
         },
-        explanation: '之前的状态',
+        explanation: { factors: [], changes: [], text: '之前的状态' },
       };
 
       queryClient.setQueryData(['amas', 'session-123'], previousAmasResult);
@@ -420,7 +420,7 @@ describe('useSubmitAnswer', () => {
           speed: 0.7,
           stability: 0.8,
         },
-        explanation: '学习状态良好',
+        explanation: { factors: [], changes: [], text: '学习状态良好' },
       };
 
       vi.mocked(masteryModule.processLearningEvent).mockImplementation(() => {
@@ -519,7 +519,7 @@ describe('useSubmitAnswer', () => {
             speed: 0.7,
             stability: 0.8,
           },
-          explanation: '学习状态良好',
+          explanation: { factors: [], changes: [], text: '学习状态良好' },
         };
 
         const extracted = extractAmasState(result);
@@ -556,7 +556,7 @@ describe('useSubmitAnswer', () => {
             speed: 0.7,
             stability: 0.8,
           },
-          explanation: '建议休息',
+          explanation: { factors: [], changes: [], text: '建议休息' },
           shouldBreak: true,
         };
 
@@ -581,7 +581,7 @@ describe('useSubmitAnswer', () => {
             speed: 0.7,
             stability: 0.8,
           },
-          explanation: '疲劳',
+          explanation: { factors: [], changes: [], text: '疲劳' },
         };
 
         expect(shouldTakeBreak(result)).toBe(true);
@@ -605,7 +605,7 @@ describe('useSubmitAnswer', () => {
             speed: 0.7,
             stability: 0.8,
           },
-          explanation: '注意力低',
+          explanation: { factors: [], changes: [], text: '注意力低' },
         };
 
         expect(shouldTakeBreak(result)).toBe(true);
@@ -629,7 +629,7 @@ describe('useSubmitAnswer', () => {
             speed: 0.7,
             stability: 0.8,
           },
-          explanation: '状态良好',
+          explanation: { factors: [], changes: [], text: '状态良好' },
         };
 
         expect(shouldTakeBreak(result)).toBe(false);

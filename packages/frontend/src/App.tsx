@@ -2,6 +2,7 @@ import { useRoutes, BrowserRouter, useLocation, RouteObject } from 'react-router
 import { useEffect, useRef } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui';
 import Navigation from './components/Navigation';
 import SyncIndicator from './components/SyncIndicator';
@@ -41,7 +42,7 @@ function AppContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
         {!isAboutRoute && <Navigation />}
         <main role="main" className={isAboutRoute ? '' : 'pt-[72px]'}>
           <AppRoutes />
@@ -57,13 +58,15 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <AppContent />
-          </ToastProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -93,7 +93,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
       return (
         <div className="flex flex-col items-center justify-center py-32">
           <CircleNotch size={48} className="animate-spin text-blue-500" weight="bold" />
-          <p className="mt-4 font-medium text-gray-400">加载数据中...</p>
+          <p className="mt-4 font-medium text-gray-400 dark:text-slate-500">加载数据中...</p>
         </div>
       );
     }
@@ -102,11 +102,15 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
       return (
         <div className="flex flex-col items-center justify-center py-24">
           <Warning size={64} className="mb-6 text-red-400" weight="thin" />
-          <p className="mb-2 text-xl font-medium text-gray-800">无法加载单词信息</p>
-          <p className="mb-8 text-gray-500">{error || '请检查网络连接后重试'}</p>
+          <p className="mb-2 text-xl font-medium text-gray-800 dark:text-slate-100">
+            无法加载单词信息
+          </p>
+          <p className="mb-8 text-gray-500 dark:text-slate-400">
+            {error || '请检查网络连接后重试'}
+          </p>
           <button
             onClick={reload}
-            className="rounded-card bg-gray-900 px-8 py-3 font-medium text-white shadow-elevated transition-all hover:scale-105 active:scale-95"
+            className="rounded-card bg-gray-900 px-8 py-3 font-medium text-white shadow-elevated transition-all hover:scale-105 active:scale-95 dark:bg-slate-700 dark:hover:bg-slate-600"
           >
             重试
           </button>
@@ -127,7 +131,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
         {/* === Header Section (Immersive, Minimalist) === */}
         <div className="relative pb-12 pt-8 text-center">
           <div className="mb-6 flex items-center justify-center gap-6">
-            <h2 className="text-6xl font-bold tracking-tight text-gray-900 md:text-8xl">
+            <h2 className="text-6xl font-bold tracking-tight text-gray-900 dark:text-white md:text-8xl">
               {data.spelling}
             </h2>
             <button
@@ -140,13 +144,18 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
           </div>
 
           {phonetic ? (
-            <p className="mb-8 font-sans text-3xl font-normal text-gray-400">/{phonetic}/</p>
+            <p className="mb-8 font-sans text-3xl font-normal text-gray-400 dark:text-slate-500">
+              /{phonetic}/
+            </p>
           ) : null}
 
           {/* Meanings */}
           <div className="mx-auto flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 px-6">
             {data.meanings.map((meaning, idx) => (
-              <span key={idx} className="text-xl font-medium text-gray-700 opacity-90">
+              <span
+                key={idx}
+                className="text-xl font-medium text-gray-700 opacity-90 dark:text-slate-300"
+              >
                 {meaning}
               </span>
             ))}
@@ -154,7 +163,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="mb-12 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+        <div className="mb-12 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent dark:via-slate-700" />
 
         {/* === Data Scroll Section (Card-based Layout) === */}
         <div className="space-y-8 px-8">
@@ -162,12 +171,18 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
           {data.mastery && (
             <motion.div
               variants={staggerItemVariants}
-              className="rounded-3xl border border-slate-100 bg-slate-50 p-8"
+              className="rounded-3xl border border-slate-100 bg-slate-50 p-8 dark:border-slate-700 dark:bg-slate-800"
             >
               <div className="mb-8 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <ChartLine size={28} className="text-slate-700" weight="duotone" />
-                  <h3 className="text-2xl font-bold text-slate-800">掌握度评估</h3>
+                  <ChartLine
+                    size={28}
+                    className="text-slate-700 dark:text-slate-300"
+                    weight="duotone"
+                  />
+                  <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                    掌握度评估
+                  </h3>
                 </div>
                 <div
                   className={`rounded-full border px-4 py-1.5 ${level.borderColor} bg-gradient-to-r ${level.bgGradient} flex items-center gap-2`}
@@ -179,29 +194,31 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
 
               <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
                 <div>
-                  <p className="mb-1 text-sm text-slate-500">综合得分</p>
-                  <p className="text-3xl font-bold text-slate-900">
+                  <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">综合得分</p>
+                  <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                     {Math.round(data.mastery.score * 100)}
                   </p>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                     <div
-                      className="h-full rounded-full bg-slate-800"
+                      className="h-full rounded-full bg-slate-800 dark:bg-slate-300"
                       style={{ width: `${data.mastery.score * 100}%` }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <p className="mb-1 text-sm text-slate-500">置信度</p>
+                  <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">置信度</p>
                   <div className="flex items-end gap-2">
-                    <p className="text-3xl font-bold text-slate-900">
+                    <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                       {Math.round(data.mastery.confidence * 100)}%
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="mb-1 text-sm text-slate-500">记忆强度 (Recall)</p>
+                  <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">
+                    记忆强度 (Recall)
+                  </p>
                   <div className="flex items-center gap-2">
                     <Target size={20} className="text-emerald-500" weight="fill" />
                     <p className="text-2xl font-bold text-emerald-600">
@@ -211,7 +228,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                 </div>
 
                 <div>
-                  <p className="mb-1 text-sm text-slate-500">近期准确率</p>
+                  <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">近期准确率</p>
                   <div className="flex items-center gap-2">
                     <TrendUp size={20} className="text-blue-500" weight="fill" />
                     <p className="text-2xl font-bold text-blue-600">
@@ -220,6 +237,22 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {data.mastery.suggestion && (
+                <div className="mt-6 rounded-xl bg-blue-50 p-4 dark:bg-blue-900/30">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    {data.mastery.suggestion}
+                  </p>
+                </div>
+              )}
+
+              {data.mastery.fatigueWarning && (
+                <div className="mt-4 rounded-xl bg-amber-50 p-4 dark:bg-amber-900/30">
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    {data.mastery.fatigueWarning}
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -227,11 +260,11 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
           {data.trace.length > 0 && (
             <motion.div
               variants={staggerItemVariants}
-              className="rounded-3xl border border-gray-100 bg-white p-8 shadow-soft"
+              className="rounded-3xl border border-gray-100 bg-white p-8 shadow-soft dark:border-slate-700 dark:bg-slate-800"
             >
               <div className="mb-6 flex items-center gap-3">
                 <Fire size={28} className="text-orange-500" weight="duotone" />
-                <h3 className="text-2xl font-bold text-gray-900">学习轨迹</h3>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">学习轨迹</h3>
               </div>
               <div className="h-64 w-full">
                 <MemoryTraceChart trace={data.trace} />
@@ -306,14 +339,14 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-label="单词掌握度详情"
-            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
           >
             {/* Close Button */}
             <button
               type="button"
               onClick={onClose}
               aria-label="关闭"
-              className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900"
+              className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
             >
               <X size={24} weight="bold" />
             </button>

@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 // 导入需要基准测试的函数
 // 注意：需要在 lib.rs 中添加 pub mod matrix 或使用正确的路径
@@ -65,5 +65,10 @@ fn bench_rank1_update(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_cholesky_decompose, bench_dot_product, bench_rank1_update);
+criterion_group!(
+    benches,
+    bench_cholesky_decompose,
+    bench_dot_product,
+    bench_rank1_update
+);
 criterion_main!(benches);

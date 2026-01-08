@@ -84,7 +84,14 @@ async fn get_active_alerts(State(_state): State<AppState>) -> Response {
         alerts: entries,
         count,
     };
-    (StatusCode::OK, Json(AlertsResponse { success: true, data })).into_response()
+    (
+        StatusCode::OK,
+        Json(AlertsResponse {
+            success: true,
+            data,
+        }),
+    )
+        .into_response()
 }
 
 async fn get_alert_history(
@@ -117,5 +124,12 @@ async fn get_alert_history(
         alerts: entries,
         total,
     };
-    (StatusCode::OK, Json(AlertsResponse { success: true, data })).into_response()
+    (
+        StatusCode::OK,
+        Json(AlertsResponse {
+            success: true,
+            data,
+        }),
+    )
+        .into_response()
 }

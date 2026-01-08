@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { UserOverview, User as UserDetail } from '../../services/client';
+import apiClient, { UserOverview } from '../../services/client';
+import type { User as UserDetail } from '../../services/client/admin/AdminClient';
 import {
   UsersThree,
   MagnifyingGlass,
@@ -85,19 +86,21 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
         ) : userDetail ? (
           <div className="space-y-6">
             {/* 用户基本信息 */}
-            <div className="flex items-center gap-4 border-b border-gray-200 pb-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                <User size={32} weight="bold" className="text-blue-600" />
+            <div className="flex items-center gap-4 border-b border-gray-200 pb-6 dark:border-slate-700">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                <User size={32} weight="bold" className="text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900">{userDetail.username}</h3>
-                <p className="text-sm text-gray-600">{userDetail.email}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {userDetail.username}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{userDetail.email}</p>
               </div>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-medium ${
                   userDetail.role === 'ADMIN'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-blue-100 text-blue-700'
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                 }`}
               >
                 {userDetail.role === 'ADMIN' ? '管理员' : '用户'}
@@ -106,15 +109,15 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
 
             {/* 账户信息 */}
             <div>
-              <h4 className="mb-3 text-sm font-semibold text-gray-900">账户信息</h4>
+              <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">账户信息</h4>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">用户 ID</span>
-                  <span className="font-mono text-gray-900">{userDetail.id}</span>
+                  <span className="text-gray-600 dark:text-gray-400">用户 ID</span>
+                  <span className="font-mono text-gray-900 dark:text-white">{userDetail.id}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">注册时间</span>
-                  <span className="text-gray-900">
+                  <span className="text-gray-600 dark:text-gray-400">注册时间</span>
+                  <span className="text-gray-900 dark:text-white">
                     {new Date(userDetail.createdAt).toLocaleDateString('zh-CN')}
                   </span>
                 </div>
@@ -131,7 +134,7 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
               </button>
               <button
                 onClick={onClose}
-                className="rounded-button bg-gray-100 px-4 py-2 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200"
+                className="rounded-button bg-gray-100 px-4 py-2 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
               >
                 关闭
               </button>
@@ -237,7 +240,9 @@ export default function UserManagementPage() {
   };
 
   const getRoleBadgeColor = (role: string) => {
-    return role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+    return role === 'ADMIN'
+      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
   };
 
   if (isLoading && users.length === 0) {
@@ -251,7 +256,7 @@ export default function UserManagementPage() {
               weight="bold"
               color="#3b82f6"
             />
-            <p className="text-gray-600" role="status" aria-live="polite">
+            <p className="text-gray-600 dark:text-gray-300" role="status" aria-live="polite">
               正在加载...
             </p>
           </div>
@@ -266,9 +271,9 @@ export default function UserManagementPage() {
       <div className="mb-8">
         <div className="mb-2 flex items-center gap-3">
           <UsersThree size={32} weight="duotone" className="text-blue-500" />
-          <h1 className="text-3xl font-bold text-gray-900">用户管理</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">用户管理</h1>
         </div>
-        <p className="text-gray-600">查看和管理所有用户的学习数据</p>
+        <p className="text-gray-600 dark:text-gray-400">查看和管理所有用户的学习数据</p>
       </div>
 
       {/* 搜索栏 */}
@@ -285,7 +290,7 @@ export default function UserManagementPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyPress={handleSearchKeyPress}
-              className="w-full rounded-button border border-gray-300 py-3 pl-12 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-button border border-gray-300 bg-white py-3 pl-12 pr-4 text-gray-900 placeholder-gray-400 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-gray-500"
             />
           </div>
           <button
@@ -299,69 +304,77 @@ export default function UserManagementPage() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4">
-          <p className="text-red-600">{error}</p>
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
+          <p className="text-red-600 dark:text-red-400">{error}</p>
         </div>
       )}
 
       {/* 用户列表 */}
       {users.length === 0 ? (
         <div className="py-12 text-center">
-          <User size={64} weight="thin" className="mx-auto mb-4 text-gray-300" />
-          <p className="text-lg text-gray-500">
+          <User size={64} weight="thin" className="mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+          <p className="text-lg text-gray-500 dark:text-gray-400">
             {searchQuery ? '未找到匹配的用户' : '暂无用户数据'}
           </p>
         </div>
       ) : (
         <>
           {/* 统计信息 */}
-          <div className="mb-6 rounded-button border border-blue-200 bg-blue-50 p-4">
-            <p className="text-blue-900">
+          <div className="mb-6 rounded-button border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-900/20">
+            <p className="text-blue-900 dark:text-blue-300">
               共找到 <span className="font-bold">{pagination.total}</span> 个用户
             </p>
           </div>
 
           {/* 用户表格 */}
-          <div className="overflow-hidden rounded-button border border-gray-200 bg-white shadow-soft">
+          <div className="overflow-hidden rounded-button border border-gray-200 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-gray-200 bg-gray-50">
+                <thead className="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-900">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                       用户信息
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                       角色
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                       学习单词数
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                       平均得分
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                       正确率
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                       最后学习
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {users.map((user) => (
                     <tr
                       key={user.id}
                       onClick={() => handleUserClick(user.id)}
-                      className="cursor-pointer transition-colors hover:bg-gray-50"
+                      className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-700/50"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                            <User size={20} weight="bold" className="text-blue-600" />
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                            <User
+                              size={20}
+                              weight="bold"
+                              className="text-blue-600 dark:text-blue-400"
+                            />
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">{user.username}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {user.username}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {user.email}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -376,16 +389,24 @@ export default function UserManagementPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <ChartBar size={16} weight="bold" className="text-gray-400" />
-                          <span className="font-medium text-gray-900">
+                          <ChartBar
+                            size={16}
+                            weight="bold"
+                            className="text-gray-400 dark:text-gray-500"
+                          />
+                          <span className="font-medium text-gray-900 dark:text-white">
                             {user.totalWordsLearned}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <Target size={16} weight="bold" className="text-gray-400" />
-                          <span className="font-medium text-gray-900">
+                          <Target
+                            size={16}
+                            weight="bold"
+                            className="text-gray-400 dark:text-gray-500"
+                          />
+                          <span className="font-medium text-gray-900 dark:text-white">
                             {(user.averageScore ?? 0).toFixed(1)}
                           </span>
                         </div>
@@ -395,10 +416,10 @@ export default function UserManagementPage() {
                           <div
                             className={`font-medium ${
                               (user.accuracy ?? 0) >= 80
-                                ? 'text-green-600'
+                                ? 'text-green-600 dark:text-green-400'
                                 : (user.accuracy ?? 0) >= 60
-                                  ? 'text-yellow-600'
-                                  : 'text-red-600'
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-red-600 dark:text-red-400'
                             }`}
                           >
                             {(user.accuracy ?? 0).toFixed(1)}%
@@ -407,8 +428,12 @@ export default function UserManagementPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <Clock size={16} weight="bold" className="text-gray-400" />
-                          <span className="text-sm text-gray-600">
+                          <Clock
+                            size={16}
+                            weight="bold"
+                            className="text-gray-400 dark:text-gray-500"
+                          />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
                             {formatDate(user.lastLearningTime)}
                           </span>
                         </div>
@@ -423,7 +448,7 @@ export default function UserManagementPage() {
           {/* 分页 */}
           {pagination.totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 显示第 {(pagination.page - 1) * pagination.pageSize + 1} -{' '}
                 {Math.min(pagination.page * pagination.pageSize, pagination.total)} 条，共{' '}
                 {pagination.total} 条
@@ -432,7 +457,7 @@ export default function UserManagementPage() {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   <CaretLeft size={16} weight="bold" />
                 </button>
@@ -450,7 +475,10 @@ export default function UserManagementPage() {
                       // 添加省略号
                       if (index > 0 && page - array[index - 1] > 1) {
                         return (
-                          <span key={`ellipsis-${page}`} className="px-2 text-gray-400">
+                          <span
+                            key={`ellipsis-${page}`}
+                            className="px-2 text-gray-400 dark:text-gray-500"
+                          >
                             ...
                           </span>
                         );
@@ -462,7 +490,7 @@ export default function UserManagementPage() {
                           className={`rounded-button px-4 py-2 transition-all ${
                             page === pagination.page
                               ? 'bg-blue-500 text-white'
-                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700'
                           }`}
                         >
                           {page}
@@ -473,7 +501,7 @@ export default function UserManagementPage() {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   <CaretRight size={16} weight="bold" />
                 </button>

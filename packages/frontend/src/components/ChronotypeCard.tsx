@@ -38,8 +38,8 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
         return {
           label: '早起鸟 (Morning Lark)',
           icon: SunHorizon,
-          color: 'text-amber-600',
-          bg: 'bg-amber-100',
+          color: 'text-amber-600 dark:text-amber-400',
+          bg: 'bg-amber-100 dark:bg-amber-900/30',
           gradient: 'from-amber-500 to-orange-400',
           desc: '你的大脑在清晨最活跃，适合处理高难度任务。',
         };
@@ -47,8 +47,8 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
         return {
           label: '夜猫子 (Night Owl)',
           icon: Moon,
-          color: 'text-indigo-600',
-          bg: 'bg-indigo-100',
+          color: 'text-indigo-600 dark:text-indigo-400',
+          bg: 'bg-indigo-100 dark:bg-indigo-900/30',
           gradient: 'from-indigo-500 to-purple-500',
           desc: '你在夜晚思维更敏捷,适合进行深度学习。',
         };
@@ -58,8 +58,8 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
         return {
           label: '随时适应 (Intermediate)',
           icon: Sun,
-          color: 'text-blue-600',
-          bg: 'bg-blue-100',
+          color: 'text-blue-600 dark:text-blue-400',
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
           gradient: 'from-blue-500 to-cyan-400',
           desc: '你的精力分布较均衡，可灵活安排学习时间。',
         };
@@ -73,21 +73,21 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <div className="animate-g3-fade-in overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm">
+    <div className="animate-g3-fade-in overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-gray-50 p-6">
+      <div className="flex items-start justify-between border-b border-gray-50 p-6 dark:border-slate-700">
         <div className="flex items-center gap-3">
           <div className={`rounded-card p-3 ${config.bg} ${config.color}`}>
             <Icon size={24} weight="duotone" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">{config.label}</h3>
-            <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h3>
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <TrendUp size={14} weight="bold" />
               <span>置信度: {(profile.confidence * 100).toFixed(0)}%</span>
 
               {/* Confidence Bar */}
-              <div className="ml-1 h-1.5 w-16 overflow-hidden rounded-full bg-gray-200">
+              <div className="ml-1 h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                 <div
                   style={{ width: `${profile.confidence * 100}%` }}
                   className={`h-full bg-gradient-to-r transition-all duration-g3-slower ease-g3 ${config.gradient}`}
@@ -100,11 +100,13 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
 
       {/* Body */}
       <div className="p-6">
-        <p className="mb-6 text-sm leading-relaxed text-gray-600">{config.desc}</p>
+        <p className="mb-6 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+          {config.desc}
+        </p>
 
         {/* 24H Timeline Visualization */}
         <div className="space-y-2">
-          <div className="flex justify-between px-1 text-xs text-gray-400">
+          <div className="flex justify-between px-1 text-xs text-gray-400 dark:text-gray-500">
             <span>00:00</span>
             <span>06:00</span>
             <span>12:00</span>
@@ -112,7 +114,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
             <span>23:59</span>
           </div>
 
-          <div className="relative flex h-12 items-end gap-[2px] overflow-hidden rounded-button border border-gray-100 bg-gray-50 p-1">
+          <div className="relative flex h-12 items-end gap-[2px] overflow-hidden rounded-button border border-gray-100 bg-gray-50 p-1 dark:border-slate-700 dark:bg-slate-900">
             {hours.map((hour) => {
               const isPeak = profile.peakHours.includes(hour);
               return (
@@ -143,7 +145,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
             })}
           </div>
 
-          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500">
+          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <div className={`h-3 w-3 rounded bg-gradient-to-r ${config.gradient}`}></div>
             <span>黄金学习时段</span>
           </div>

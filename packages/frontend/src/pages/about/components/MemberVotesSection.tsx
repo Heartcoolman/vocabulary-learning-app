@@ -25,7 +25,7 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
 
   return (
     <div>
-      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
+      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-gray-400">
         成员投票详情
       </h3>
       <div className="grid grid-cols-2 gap-3">
@@ -39,7 +39,7 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
           return (
             <div
               key={member}
-              className="rounded-button border border-slate-200 bg-white/60 p-3 backdrop-blur-sm"
+              className="rounded-button border border-slate-200 bg-white/60 p-3 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60"
             >
               <div className="mb-3 flex items-center gap-2">
                 <div
@@ -54,10 +54,12 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
               </div>
 
               {vote && vote.action && (
-                <div className="mb-2 rounded border border-slate-200 bg-slate-50 px-2 py-1">
-                  <div className="mb-0.5 text-[9px] text-slate-400">决策动作</div>
+                <div className="mb-2 rounded border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="mb-0.5 text-[9px] text-slate-400 dark:text-gray-400">
+                    决策动作
+                  </div>
                   <div
-                    className="truncate font-mono text-[10px] text-slate-700"
+                    className="truncate font-mono text-[10px] text-slate-700 dark:text-gray-300"
                     title={vote.action}
                   >
                     {vote.action}
@@ -67,12 +69,12 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
 
               <div className="space-y-2">
                 <div className="flex justify-between text-[10px]">
-                  <span className="text-slate-500">贡献度</span>
+                  <span className="text-slate-500 dark:text-gray-400">贡献度</span>
                   <span className="font-mono font-medium">
                     {((vote?.contribution || 0) * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                   <div
                     className="h-full rounded-full transition-all duration-g3-slow ease-g3"
                     style={{
@@ -83,7 +85,7 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
                 </div>
               </div>
 
-              <div className="mt-3 flex justify-between text-[10px] text-slate-500">
+              <div className="mt-3 flex justify-between text-[10px] text-slate-500 dark:text-gray-400">
                 <span>权重: {(weight * 100).toFixed(0)}%</span>
                 <span>置信: {((vote?.confidence || 0) * 100).toFixed(0)}%</span>
               </div>

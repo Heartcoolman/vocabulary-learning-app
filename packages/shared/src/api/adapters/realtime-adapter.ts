@@ -117,7 +117,16 @@ export class RealtimeAdapter {
     if (!this.eventSource) return;
 
     // 监听所有可能的事件类型
-    const eventTypes = ['feedback', 'alert', 'flow-update', 'next-suggestion', 'ping', 'error'];
+    const eventTypes = [
+      'feedback',
+      'alert',
+      'flow-update',
+      'next-suggestion',
+      'forgetting-alert',
+      'quality-task-progress',
+      'ping',
+      'error',
+    ];
 
     for (const eventType of eventTypes) {
       this.eventSource.addEventListener(eventType, (event: MessageEvent) => {

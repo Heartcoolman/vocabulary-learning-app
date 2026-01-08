@@ -1,15 +1,16 @@
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
-use tokio::sync::RwLock;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
 
+use danci_backend_rust::cache::RedisCache;
 use danci_backend_rust::config::Config;
-use danci_backend_rust::db::{self, state_machine::{DatabaseState, DatabaseStateMachine}};
+use danci_backend_rust::db;
+use danci_backend_rust::routes;
+use danci_backend_rust::services::quality_service;
 use danci_backend_rust::state::AppState;
 use danci_backend_rust::workers::WorkerManager;
-use danci_backend_rust::routes;
 
 #[tokio::main]
 async fn main() {
@@ -22,17 +23,36 @@ async fn main() {
         )
         .init();
 
-    let db_state = Arc::new(RwLock::new(DatabaseStateMachine::new(DatabaseState::Normal)));
-    let db_proxy = match db::DatabaseProxy::from_env(Arc::clone(&db_state)).await {
-        Ok(proxy) => Some(Arc::new(proxy)),
+    let db_proxy = match db::DatabaseProxy::from_env().await {
+        Ok(proxy) => Some(proxy),
         Err(err) => {
             tracing::warn!(error = %err, "database proxy not initialized");
             None
         }
     };
 
+    if let Some(ref proxy) = db_proxy {
+        quality_service::cleanup_stale_tasks(proxy).await;
+    }
+
+    let cache = match std::env::var("REDIS_URL") {
+        Ok(redis_url) => match RedisCache::connect(&redis_url).await {
+            Ok(c) => {
+                tracing::info!("Redis cache connected");
+                Some(Arc::new(c))
+            }
+            Err(err) => {
+                tracing::warn!(error = %err, "Redis cache not initialized");
+                None
+            }
+        },
+        Err(_) => None,
+    };
+
+    let amas_engine = AppState::create_amas_engine(db_proxy.clone());
+
     let worker_manager = if let Some(ref proxy) = db_proxy {
-        match WorkerManager::new(Arc::clone(proxy)).await {
+        match WorkerManager::new(Arc::clone(proxy), Arc::clone(&amas_engine)).await {
             Ok(manager) => {
                 if let Err(e) = manager.start().await {
                     tracing::error!(error = %e, "failed to start workers");
@@ -48,7 +68,7 @@ async fn main() {
         None
     };
 
-    let state = AppState::new(db_state, db_proxy.map(|p| Arc::try_unwrap(p).unwrap_or_else(|arc| (*arc).clone())));
+    let state = AppState::new(db_proxy, amas_engine, cache);
 
     let app = routes::router(state)
         .layer(TraceLayer::new_for_http())
@@ -61,8 +81,11 @@ async fn main() {
         .await
         .expect("bind listener failed");
 
-    let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(shutdown_signal());
+    let server = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal());
 
     if let Err(e) = server.await {
         tracing::error!(error = %e, "server error");
@@ -87,7 +110,8 @@ async fn shutdown_signal() {
     #[cfg(unix)]
     let terminate = async {
         use tokio::signal::unix::{signal, SignalKind};
-        let mut sigterm = signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
         sigterm.recv().await;
     };
 

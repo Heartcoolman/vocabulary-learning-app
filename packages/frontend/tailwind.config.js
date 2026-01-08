@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       /* ========================================
@@ -38,6 +39,11 @@ export default {
         'button-rest': '0 2px 6px rgba(0, 0, 0, 0.06)',
         'button-hover': '0 4px 12px rgba(0, 0, 0, 0.1)',
         'button-active': '0 1px 3px rgba(0, 0, 0, 0.08)',
+        'glow-success': 'var(--g3-glow-success)',
+        'glow-warning': 'var(--g3-glow-warning)',
+        'glow-error': 'var(--g3-glow-error)',
+        'glow-info': 'var(--g3-glow-info)',
+        'glow-cyan': 'var(--g3-glow-cyan)',
       },
 
       /* ========================================

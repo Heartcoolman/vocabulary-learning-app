@@ -88,9 +88,9 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
         max="100"
         value={value * 100}
         onChange={(e) => setOverrides((prev) => ({ ...prev, [key]: Number(e.target.value) / 100 }))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-indigo-500"
+        className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-indigo-500 dark:bg-slate-700"
       />
-      <p className="text-xs text-gray-500">{description}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );
 
@@ -134,18 +134,18 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
       </div>
 
       {error && (
-        <div className="rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="border-t border-gray-200 pt-6 dark:border-gray-700">
+        <div className="border-t border-gray-200 pt-6 dark:border-slate-700">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="text-2xl font-bold text-gray-400">vs</div>
+              <div className="text-2xl font-bold text-gray-400 dark:text-gray-500">vs</div>
               <div>
-                <div className="text-sm text-gray-500">预估正确率变化</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">预估正确率变化</div>
                 <div
                   className={`text-xl font-bold ${result.prediction.estimatedAccuracyChange >= 0 ? 'text-green-500' : 'text-red-500'}`}
                 >
@@ -157,8 +157,8 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
             <div
               className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${
                 result.prediction.wouldTriggerAdjustment
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-green-100 text-green-700'
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
               }`}
             >
               {result.prediction.wouldTriggerAdjustment ? <WarningCircle /> : <CheckCircle />}

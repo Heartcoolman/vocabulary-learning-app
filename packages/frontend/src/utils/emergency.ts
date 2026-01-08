@@ -502,8 +502,9 @@ class EmergencyManager {
 
       const data = await response.json();
 
-      if (data.success && data.config) {
-        const { degradationLevel, featureFlags, notifications } = data.config;
+      const config = data.data || data.config;
+      if (data.success && config) {
+        const { degradationLevel, featureFlags, notifications } = config;
 
         if (degradationLevel) {
           this.setDegradationLevel(degradationLevel);

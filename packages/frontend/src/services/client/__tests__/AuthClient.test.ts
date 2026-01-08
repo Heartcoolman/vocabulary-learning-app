@@ -47,7 +47,9 @@ describe('AuthClient', () => {
         email: 'test@example.com',
         username: 'testuser',
         role: 'USER',
+        rewardProfile: 'default',
         createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -104,7 +106,9 @@ describe('AuthClient', () => {
         email: 'test@example.com',
         username: 'testuser',
         role: 'USER',
+        rewardProfile: 'default',
         createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -172,7 +176,9 @@ describe('AuthClient', () => {
         email: 'test@example.com',
         username: 'testuser',
         role: 'USER',
+        rewardProfile: 'default',
         createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       };
 
       mockFetch.mockResolvedValueOnce({

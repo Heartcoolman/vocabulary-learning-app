@@ -54,9 +54,13 @@ function AMASControlsComponent({ className }: AMASControlsProps) {
   ];
 
   return (
-    <div className={`rounded-card border border-purple-200 bg-purple-50 p-6 ${className || ''}`}>
-      <h3 className="mb-3 text-lg font-semibold text-purple-900">AMAS 可解释性说明</h3>
-      <ul className="space-y-2 text-sm text-purple-800">
+    <div
+      className={`rounded-card border border-purple-200 bg-purple-50 p-6 dark:border-purple-800 dark:bg-purple-900/30 ${className || ''}`}
+    >
+      <h3 className="mb-3 text-lg font-semibold text-purple-900 dark:text-purple-200">
+        AMAS 可解释性说明
+      </h3>
+      <ul className="space-y-2 text-sm text-purple-800 dark:text-purple-300">
         {infoItems.map((item, index) => (
           <InfoItem key={index} title={item.title} description={item.description} />
         ))}

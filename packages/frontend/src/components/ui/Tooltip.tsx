@@ -9,6 +9,7 @@ import React, {
   useState,
   useRef,
   useCallback,
+  useEffect,
   ReactNode,
   HTMLAttributes,
 } from 'react';
@@ -35,22 +36,22 @@ const placementStyles: Record<Placement, { tooltip: string; arrow: string }> = {
   top: {
     tooltip: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
     arrow:
-      'top-full left-1/2 -translate-x-1/2 border-t-gray-900 border-x-transparent border-b-transparent',
+      'top-full left-1/2 -translate-x-1/2 border-t-gray-900 dark:border-t-slate-200 border-x-transparent border-b-transparent',
   },
   bottom: {
     tooltip: 'top-full left-1/2 -translate-x-1/2 mt-2',
     arrow:
-      'bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-x-transparent border-t-transparent',
+      'bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 dark:border-b-slate-200 border-x-transparent border-t-transparent',
   },
   left: {
     tooltip: 'right-full top-1/2 -translate-y-1/2 mr-2',
     arrow:
-      'left-full top-1/2 -translate-y-1/2 border-l-gray-900 border-y-transparent border-r-transparent',
+      'left-full top-1/2 -translate-y-1/2 border-l-gray-900 dark:border-l-slate-200 border-y-transparent border-r-transparent',
   },
   right: {
     tooltip: 'left-full top-1/2 -translate-y-1/2 ml-2',
     arrow:
-      'right-full top-1/2 -translate-y-1/2 border-r-gray-900 border-y-transparent border-l-transparent',
+      'right-full top-1/2 -translate-y-1/2 border-r-gray-900 dark:border-r-slate-200 border-y-transparent border-l-transparent',
   },
 };
 
@@ -85,6 +86,8 @@ export const Tooltip = memo(
           hideTimeoutRef.current = undefined;
         }
       }, []);
+
+      useEffect(() => clearTimeouts, [clearTimeouts]);
 
       const handleShow = useCallback(() => {
         if (disabled) return;
@@ -123,7 +126,7 @@ export const Tooltip = memo(
               role="tooltip"
               className={cn(
                 'absolute z-50 px-2.5 py-1.5',
-                'rounded-badge bg-gray-900 text-white',
+                'rounded-badge bg-gray-900 text-white dark:bg-slate-200 dark:text-slate-900',
                 'text-xs font-medium',
                 'shadow-elevated',
                 'animate-g3-fade-in',

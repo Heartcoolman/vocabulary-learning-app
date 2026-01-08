@@ -5,7 +5,6 @@ use serde::Serialize;
 use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 const MAX_BATCH_SIZE: usize = 500;
@@ -55,68 +54,34 @@ pub enum WordScoreError {
 
 pub async fn get_word_score(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<Option<WordScoreRecord>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
+    let row = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId",
+          "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
+          "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
+          "createdAt","updatedAt"
+        FROM "word_scores"
+        WHERE "userId" = $1
+          AND "wordId" = $2
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?;
 
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "wordId" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        Ok(row.map(|row| map_sqlite_row(&row)))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = $1
-              AND "wordId" = $2
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        Ok(row.map(|row| map_pg_row(&row)))
-    }
+    Ok(row.map(|row| map_pg_row(&row)))
 }
 
 pub async fn batch_get_word_scores(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
 ) -> Result<HashMap<String, WordScoreRecord>, WordScoreError> {
@@ -124,486 +89,263 @@ pub async fn batch_get_word_scores(
         return Ok(HashMap::new());
     }
     if word_ids.len() > MAX_BATCH_SIZE {
-        return Err(WordScoreError::Validation("wordIds数组最多允许500个元素".to_string()));
+        return Err(WordScoreError::Validation(
+            "wordIds数组最多允许500个元素".to_string(),
+        ));
     }
     if !word_ids.iter().all(|id| !id.trim().is_empty()) {
-        return Err(WordScoreError::Validation("wordIds数组元素必须是非空字符串".to_string()));
+        return Err(WordScoreError::Validation(
+            "wordIds数组元素必须是非空字符串".to_string(),
+        ));
     }
 
-    let unique_ids: Vec<String> = word_ids.iter().map(|id| id.trim().to_string()).collect::<HashSet<_>>().into_iter().collect();
+    let unique_ids: Vec<String> = word_ids
+        .iter()
+        .map(|id| id.trim().to_string())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(HashMap::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "wordId" IN (
-            "#,
-        );
-        qb.push_bind(user_id);
-        {
-            let mut sep = qb.separated(", ");
-            for id in &unique_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT
+          "id","userId","wordId",
+          "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
+          "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
+          "createdAt","updatedAt"
+        FROM "word_scores"
+        WHERE "userId" = $1
+          AND "wordId" IN (
+        "#,
+    );
+    qb.push_bind(user_id);
+    {
+        let mut sep = qb.separated(", ");
+        for id in &unique_ids {
+            sep.push_bind(id);
         }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = HashMap::with_capacity(rows.len());
-        for row in &rows {
-            let record = map_sqlite_row(row);
-            out.insert(record.word_id.clone(), record);
-        }
-        Ok(out)
-    } else {
-        let Some(pool) = primary else {
-            return Ok(HashMap::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = $1
-              AND "wordId" IN (
-            "#,
-        );
-        qb.push_bind(user_id);
-        {
-            let mut sep = qb.separated(", ");
-            for id in &unique_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = HashMap::with_capacity(rows.len());
-        for row in &rows {
-            let record = map_pg_row(row);
-            out.insert(record.word_id.clone(), record);
-        }
-        Ok(out)
+        sep.push_unseparated(")");
     }
+
+    let rows = qb.build().fetch_all(pool).await?;
+    let mut out = HashMap::with_capacity(rows.len());
+    for row in &rows {
+        let record = map_pg_row(row);
+        out.insert(record.word_id.clone(), record);
+    }
+    Ok(out)
 }
 
 pub async fn list_scores_in_range(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     min_score: f64,
     max_score: f64,
 ) -> Result<Vec<WordScoreRecord>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "totalScore" >= ?
-              AND "totalScore" <= ?
-            ORDER BY "totalScore" DESC
-            "#,
-        )
-        .bind(user_id)
-        .bind(min_score)
-        .bind(max_score)
-        .fetch_all(&pool)
-        .await?;
+    let rows = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId",
+          "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
+          "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
+          "createdAt","updatedAt"
+        FROM "word_scores"
+        WHERE "userId" = $1
+          AND "totalScore" >= $2
+          AND "totalScore" <= $3
+        ORDER BY "totalScore" DESC
+        "#,
+    )
+    .bind(user_id)
+    .bind(min_score)
+    .bind(max_score)
+    .fetch_all(pool)
+    .await?;
 
-        Ok(rows.iter().map(map_sqlite_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = $1
-              AND "totalScore" >= $2
-              AND "totalScore" <= $3
-            ORDER BY "totalScore" DESC
-            "#,
-        )
-        .bind(user_id)
-        .bind(min_score)
-        .bind(max_score)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_pg_row).collect())
-    }
+    Ok(rows.iter().map(map_pg_row).collect())
 }
 
 pub async fn list_low_scores(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     threshold: i64,
 ) -> Result<Vec<WordScoreRecord>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "totalScore" < ?
-            ORDER BY "totalScore" ASC
-            "#,
-        )
-        .bind(user_id)
-        .bind(threshold as f64)
-        .fetch_all(&pool)
-        .await?;
+    let rows = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId",
+          "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
+          "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
+          "createdAt","updatedAt"
+        FROM "word_scores"
+        WHERE "userId" = $1
+          AND "totalScore" < $2
+        ORDER BY "totalScore" ASC
+        "#,
+    )
+    .bind(user_id)
+    .bind(threshold as f64)
+    .fetch_all(pool)
+    .await?;
 
-        Ok(rows.iter().map(map_sqlite_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = $1
-              AND "totalScore" < $2
-            ORDER BY "totalScore" ASC
-            "#,
-        )
-        .bind(user_id)
-        .bind(threshold as f64)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_pg_row).collect())
-    }
+    Ok(rows.iter().map(map_pg_row).collect())
 }
 
 pub async fn list_high_scores(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     threshold: i64,
 ) -> Result<Vec<WordScoreRecord>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "totalScore" > ?
-            ORDER BY "totalScore" DESC
-            "#,
-        )
-        .bind(user_id)
-        .bind(threshold as f64)
-        .fetch_all(&pool)
-        .await?;
+    let rows = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId",
+          "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
+          "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
+          "createdAt","updatedAt"
+        FROM "word_scores"
+        WHERE "userId" = $1
+          AND "totalScore" > $2
+        ORDER BY "totalScore" DESC
+        "#,
+    )
+    .bind(user_id)
+    .bind(threshold as f64)
+    .fetch_all(pool)
+    .await?;
 
-        Ok(rows.iter().map(map_sqlite_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId",
-              "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-              "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-              "createdAt","updatedAt"
-            FROM "word_scores"
-            WHERE "userId" = $1
-              AND "totalScore" > $2
-            ORDER BY "totalScore" DESC
-            "#,
-        )
-        .bind(user_id)
-        .bind(threshold as f64)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_pg_row).collect())
-    }
+    Ok(rows.iter().map(map_pg_row).collect())
 }
 
 pub async fn get_user_score_stats(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<ScoreStats, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(ScoreStats {
-                average_score: 0.0,
-                high_score_count: 0,
-                medium_score_count: 0,
-                low_score_count: 0,
-            });
-        };
+    let row = sqlx::query(
+        r#"
+        SELECT
+          COUNT(*)::bigint as "total",
+          AVG("totalScore") as "avg",
+          SUM(CASE WHEN "totalScore" > 80 THEN 1 ELSE 0 END)::bigint as "high",
+          SUM(CASE WHEN "totalScore" >= 40 AND "totalScore" <= 80 THEN 1 ELSE 0 END)::bigint as "medium",
+          SUM(CASE WHEN "totalScore" < 40 THEN 1 ELSE 0 END)::bigint as "low"
+        FROM "word_scores"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
 
-        let row = sqlx::query(
-            r#"
-            SELECT
-              COUNT(*) as "total",
-              AVG("totalScore") as "avg",
-              SUM(CASE WHEN "totalScore" > 80 THEN 1 ELSE 0 END) as "high",
-              SUM(CASE WHEN "totalScore" >= 40 AND "totalScore" <= 80 THEN 1 ELSE 0 END) as "medium",
-              SUM(CASE WHEN "totalScore" < 40 THEN 1 ELSE 0 END) as "low"
-            FROM "word_scores"
-            WHERE "userId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await?;
-
-        Ok(ScoreStats {
-            average_score: row
-                .try_get::<Option<f64>, _>("avg")
-                .unwrap_or(None)
-                .unwrap_or(0.0),
-            high_score_count: row
-                .try_get::<Option<i64>, _>("high")
-                .unwrap_or(None)
-                .unwrap_or(0),
-            medium_score_count: row
-                .try_get::<Option<i64>, _>("medium")
-                .unwrap_or(None)
-                .unwrap_or(0),
-            low_score_count: row
-                .try_get::<Option<i64>, _>("low")
-                .unwrap_or(None)
-                .unwrap_or(0),
-        })
-    } else {
-        let Some(pool) = primary else {
-            return Ok(ScoreStats {
-                average_score: 0.0,
-                high_score_count: 0,
-                medium_score_count: 0,
-                low_score_count: 0,
-            });
-        };
-
-        let row = sqlx::query(
-            r#"
-            SELECT
-              COUNT(*)::bigint as "total",
-              AVG("totalScore") as "avg",
-              SUM(CASE WHEN "totalScore" > 80 THEN 1 ELSE 0 END)::bigint as "high",
-              SUM(CASE WHEN "totalScore" >= 40 AND "totalScore" <= 80 THEN 1 ELSE 0 END)::bigint as "medium",
-              SUM(CASE WHEN "totalScore" < 40 THEN 1 ELSE 0 END)::bigint as "low"
-            FROM "word_scores"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await?;
-
-        Ok(ScoreStats {
-            average_score: row
-                .try_get::<Option<f64>, _>("avg")
-                .unwrap_or(None)
-                .unwrap_or(0.0),
-            high_score_count: row
-                .try_get::<Option<i64>, _>("high")
-                .unwrap_or(None)
-                .unwrap_or(0),
-            medium_score_count: row
-                .try_get::<Option<i64>, _>("medium")
-                .unwrap_or(None)
-                .unwrap_or(0),
-            low_score_count: row
-                .try_get::<Option<i64>, _>("low")
-                .unwrap_or(None)
-                .unwrap_or(0),
-        })
-    }
+    Ok(ScoreStats {
+        average_score: row
+            .try_get::<Option<f64>, _>("avg")
+            .unwrap_or(None)
+            .unwrap_or(0.0),
+        high_score_count: row
+            .try_get::<Option<i64>, _>("high")
+            .unwrap_or(None)
+            .unwrap_or(0),
+        medium_score_count: row
+            .try_get::<Option<i64>, _>("medium")
+            .unwrap_or(None)
+            .unwrap_or(0),
+        low_score_count: row
+            .try_get::<Option<i64>, _>("low")
+            .unwrap_or(None)
+            .unwrap_or(0),
+    })
 }
 
 pub async fn upsert_word_score(
     proxy: &DatabaseProxy,
-    request_state: DatabaseState,
     user_id: &str,
     word_id: &str,
     raw_update: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<WordScoreRecord, WordScoreError> {
-    ensure_word_access(proxy, request_state, user_id, word_id).await?;
+    ensure_word_access(proxy, user_id, word_id).await?;
 
     let safe_update = sanitize_word_score_update(raw_update)?;
 
-    if proxy.sqlite_enabled() {
-        let mut create = serde_json::Map::new();
-        create.insert("id".to_string(), serde_json::Value::String(Uuid::new_v4().to_string()));
-        create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        create.insert("wordId".to_string(), serde_json::Value::String(word_id.to_string()));
-        create.extend(safe_update.clone());
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
 
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert(
-            "userId".to_string(),
-            serde_json::Value::String(user_id.to_string()),
-        );
-        where_clause.insert(
-            "wordId".to_string(),
-            serde_json::Value::String(word_id.to_string()),
-        );
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        INSERT INTO "word_scores"
+          ("id","userId","wordId","updatedAt"
+        "#,
+    );
 
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "word_scores".to_string(),
-            r#where: where_clause,
-            create,
-            update: safe_update,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
+    let mut insert_keys: Vec<String> = safe_update.keys().cloned().collect();
+    insert_keys.sort();
 
-        proxy
-            .write_operation(request_state, op)
-            .await
-            .map_err(|err| WordScoreError::Mutation(err.to_string()))?;
-    } else {
-        let Some(pool) = proxy.primary_pool().await else {
-            return Err(WordScoreError::Sql(sqlx::Error::PoolClosed));
-        };
-
-        let now = Utc::now().naive_utc();
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            INSERT INTO "word_scores"
-              ("id","userId","wordId","updatedAt"
-            "#,
-        );
-
-        let mut insert_keys: Vec<String> = safe_update.keys().cloned().collect();
-        insert_keys.sort();
-
-        for key in &insert_keys {
-            qb.push(", \"");
-            qb.push(key);
-            qb.push("\"");
-        }
-
-        qb.push(") VALUES (");
-        qb.push_bind(Uuid::new_v4().to_string());
-        qb.push(", ");
-        qb.push_bind(user_id);
-        qb.push(", ");
-        qb.push_bind(word_id);
-        qb.push(", ");
-        qb.push_bind(now);
-
-        for key in &insert_keys {
-            qb.push(", ");
-            let value = safe_update.get(key).cloned().unwrap_or(serde_json::Value::Null);
-            match key.as_str() {
-                "totalScore"
-                | "accuracyScore"
-                | "speedScore"
-                | "stabilityScore"
-                | "proficiencyScore"
-                | "averageResponseTime"
-                | "averageDwellTime"
-                | "recentAccuracy" => qb.push_bind(value.as_f64()),
-                "totalAttempts" | "correctAttempts" => qb.push_bind(value.as_i64().map(|v| v as i32)),
-                _ => qb.push_bind(value.to_string()),
-            };
-        }
-
-        qb.push(") ON CONFLICT (\"userId\",\"wordId\") DO UPDATE SET \"updatedAt\" = EXCLUDED.\"updatedAt\"");
-        for key in &insert_keys {
-            qb.push(", \"");
-            qb.push(key);
-            qb.push("\" = EXCLUDED.\"");
-            qb.push(key);
-            qb.push("\"");
-        }
-
-        qb.push(" RETURNING ");
-        qb.push(
-            r#"
-            "id","userId","wordId",
-            "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
-            "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
-            "createdAt","updatedAt"
-            "#,
-        );
-
-        let row = qb.build().fetch_one(&pool).await?;
-        return Ok(map_pg_row(&row));
+    for key in &insert_keys {
+        qb.push(", \"");
+        qb.push(key);
+        qb.push("\"");
     }
 
-    get_word_score(proxy, request_state, user_id, word_id)
-        .await?
-        .ok_or_else(|| WordScoreError::NotFound("得分不存在".to_string()))
+    qb.push(") VALUES (");
+    qb.push_bind(Uuid::new_v4().to_string());
+    qb.push(", ");
+    qb.push_bind(user_id);
+    qb.push(", ");
+    qb.push_bind(word_id);
+    qb.push(", ");
+    qb.push_bind(now);
+
+    for key in &insert_keys {
+        qb.push(", ");
+        let value = safe_update
+            .get(key)
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
+        match key.as_str() {
+            "totalScore"
+            | "accuracyScore"
+            | "speedScore"
+            | "stabilityScore"
+            | "proficiencyScore"
+            | "averageResponseTime"
+            | "averageDwellTime"
+            | "recentAccuracy" => qb.push_bind(value.as_f64()),
+            "totalAttempts" | "correctAttempts" => qb.push_bind(value.as_i64().map(|v| v as i32)),
+            _ => qb.push_bind(value.to_string()),
+        };
+    }
+
+    qb.push(") ON CONFLICT (\"userId\",\"wordId\") DO UPDATE SET \"updatedAt\" = EXCLUDED.\"updatedAt\"");
+    for key in &insert_keys {
+        qb.push(", \"");
+        qb.push(key);
+        qb.push("\" = EXCLUDED.\"");
+        qb.push(key);
+        qb.push("\"");
+    }
+
+    qb.push(" RETURNING ");
+    qb.push(
+        r#"
+        "id","userId","wordId",
+        "totalScore","accuracyScore","speedScore","stabilityScore","proficiencyScore",
+        "totalAttempts","correctAttempts","averageResponseTime","averageDwellTime","recentAccuracy",
+        "createdAt","updatedAt"
+        "#,
+    );
+
+    let row = qb.build().fetch_one(pool).await?;
+    Ok(map_pg_row(&row))
 }
 
 fn sanitize_word_score_update(
@@ -611,7 +353,10 @@ fn sanitize_word_score_update(
 ) -> Result<serde_json::Map<String, serde_json::Value>, WordScoreError> {
     let mut out = serde_json::Map::new();
     for (key, value) in raw {
-        if matches!(key.as_str(), "userId" | "wordId" | "id" | "createdAt" | "updatedAt") {
+        if matches!(
+            key.as_str(),
+            "userId" | "wordId" | "id" | "createdAt" | "updatedAt"
+        ) {
             continue;
         }
         if value.is_null() {
@@ -653,100 +398,43 @@ fn sanitize_word_score_update(
 
 async fn ensure_word_access(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<(), WordScoreError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(WordScoreError::NotFound("单词不存在".to_string()));
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT wb."type" as "type", wb."userId" as "owner"
-            FROM "words" w
-            JOIN "word_books" wb ON wb."id" = w."wordBookId"
-            WHERE w."id" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
+    let row = sqlx::query(
+        r#"
+        SELECT wb."type"::text as "type", wb."userId" as "owner"
+        FROM "words" w
+        JOIN "word_books" wb ON wb."id" = w."wordBookId"
+        WHERE w."id" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?;
 
-        let Some(row) = row else {
-            return Err(WordScoreError::NotFound("单词不存在".to_string()));
-        };
+    let Some(row) = row else {
+        return Err(WordScoreError::NotFound("单词不存在".to_string()));
+    };
 
-        let wb_type: String = row.try_get("type").unwrap_or_default();
-        let owner: Option<String> = row.try_get("owner").ok();
-        if wb_type == "USER" && owner.as_deref() != Some(user_id) {
-            return Err(WordScoreError::Unauthorized("无权访问该单词".to_string()));
-        }
-        Ok(())
-    } else {
-        let Some(pool) = primary else {
-            return Err(WordScoreError::NotFound("单词不存在".to_string()));
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT wb."type"::text as "type", wb."userId" as "owner"
-            FROM "words" w
-            JOIN "word_books" wb ON wb."id" = w."wordBookId"
-            WHERE w."id" = $1
-            LIMIT 1
-            "#,
-        )
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        let Some(row) = row else {
-            return Err(WordScoreError::NotFound("单词不存在".to_string()));
-        };
-
-        let wb_type: String = row.try_get("type").unwrap_or_default();
-        let owner: Option<String> = row.try_get("owner").ok();
-        if wb_type == "USER" && owner.as_deref() != Some(user_id) {
-            return Err(WordScoreError::Unauthorized("无权访问该单词".to_string()));
-        }
-        Ok(())
+    let wb_type: String = row.try_get("type").unwrap_or_default();
+    let owner: Option<String> = row.try_get("owner").ok();
+    if wb_type == "USER" && owner.as_deref() != Some(user_id) {
+        return Err(WordScoreError::Unauthorized("无权访问该单词".to_string()));
     }
-}
-
-fn map_sqlite_row(row: &sqlx::sqlite::SqliteRow) -> WordScoreRecord {
-    let id: String = row.try_get("id").unwrap_or_default();
-    let user_id: String = row.try_get("userId").unwrap_or_default();
-    let word_id: String = row.try_get("wordId").unwrap_or_default();
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-
-    WordScoreRecord {
-        id,
-        user_id,
-        word_id,
-        total_score: row.try_get::<f64, _>("totalScore").unwrap_or(0.0),
-        accuracy_score: row.try_get::<f64, _>("accuracyScore").unwrap_or(0.0),
-        speed_score: row.try_get::<f64, _>("speedScore").unwrap_or(0.0),
-        stability_score: row.try_get::<f64, _>("stabilityScore").unwrap_or(0.0),
-        proficiency_score: row.try_get::<f64, _>("proficiencyScore").unwrap_or(0.0),
-        total_attempts: row.try_get::<i64, _>("totalAttempts").unwrap_or(0),
-        correct_attempts: row.try_get::<i64, _>("correctAttempts").unwrap_or(0),
-        average_response_time: row.try_get::<f64, _>("averageResponseTime").unwrap_or(0.0),
-        average_dwell_time: row.try_get::<f64, _>("averageDwellTime").unwrap_or(0.0),
-        recent_accuracy: row.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0),
-        created_at: normalize_datetime_output(&created_raw).unwrap_or(created_raw),
-        updated_at: normalize_datetime_output(&updated_raw).unwrap_or(updated_raw),
-    }
+    Ok(())
 }
 
 fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordScoreRecord {
-    let created_dt: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_dt: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_dt: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_dt: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     WordScoreRecord {
         id: row.try_get::<String, _>("id").unwrap_or_default(),
@@ -757,22 +445,20 @@ fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordScoreRecord {
         speed_score: row.try_get::<f64, _>("speedScore").unwrap_or(0.0),
         stability_score: row.try_get::<f64, _>("stabilityScore").unwrap_or(0.0),
         proficiency_score: row.try_get::<f64, _>("proficiencyScore").unwrap_or(0.0),
-        total_attempts: row.try_get::<i32, _>("totalAttempts").map(|v| v as i64).unwrap_or(0),
-        correct_attempts: row.try_get::<i32, _>("correctAttempts").map(|v| v as i64).unwrap_or(0),
+        total_attempts: row
+            .try_get::<i32, _>("totalAttempts")
+            .map(|v| v as i64)
+            .unwrap_or(0),
+        correct_attempts: row
+            .try_get::<i32, _>("correctAttempts")
+            .map(|v| v as i64)
+            .unwrap_or(0),
         average_response_time: row.try_get::<f64, _>("averageResponseTime").unwrap_or(0.0),
         average_dwell_time: row.try_get::<f64, _>("averageDwellTime").unwrap_or(0.0),
         recent_accuracy: row.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0),
-        created_at: naive_to_iso(created_dt),
-        updated_at: naive_to_iso(updated_dt),
+        created_at: DateTime::<Utc>::from_naive_utc_and_offset(created_dt, Utc)
+            .to_rfc3339_opts(SecondsFormat::Millis, true),
+        updated_at: DateTime::<Utc>::from_naive_utc_and_offset(updated_dt, Utc)
+            .to_rfc3339_opts(SecondsFormat::Millis, true),
     }
-}
-
-fn normalize_datetime_output(value: &str) -> Option<String> {
-    let ms = crate::auth::parse_sqlite_datetime_ms(value)?;
-    crate::auth::format_timestamp_ms_iso_millis(ms)
-}
-
-fn naive_to_iso(value: NaiveDateTime) -> String {
-    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
-        .to_rfc3339_opts(SecondsFormat::Millis, true)
 }

@@ -8,7 +8,6 @@ use chrono::{NaiveDateTime, Utc};
 use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -139,60 +138,73 @@ struct ObjectiveHistoryItem {
     after_mode: String,
 }
 
-pub async fn get_objectives(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn get_objectives(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
-
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
-    match select_user_objectives(proxy.as_ref(), request_state, &auth_user.id).await {
+    match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => Json(SuccessResponse {
             success: true,
             data: row.to_api(),
             message: None,
         })
         .into_response(),
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(ErrorMessageResponse {
-                success: false,
-                message: "用户学习目标未配置".to_string(),
-            }),
-        )
-            .into_response(),
+        Ok(None) => {
+            let default_preset = preset_mode("daily");
+            Json(SuccessResponse {
+                success: true,
+                data: LearningObjectivesData {
+                    user_id: auth_user.id,
+                    mode: default_preset.mode,
+                    primary_objective: default_preset.primary_objective,
+                    min_accuracy: default_preset.min_accuracy,
+                    max_daily_time: default_preset.max_daily_time,
+                    target_retention: default_preset.target_retention,
+                    weight_short_term: default_preset.weight_short_term,
+                    weight_long_term: default_preset.weight_long_term,
+                    weight_efficiency: default_preset.weight_efficiency,
+                },
+                message: Some("使用默认学习目标".to_string()),
+            })
+            .into_response()
+        }
         Err(err) => {
             tracing::warn!(error = %err, "get learning objectives failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn upsert_objectives(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn upsert_objectives(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -200,13 +212,19 @@ pub async fn upsert_objectives(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: UpdateObjectivesPayload = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
@@ -294,64 +312,81 @@ pub async fn upsert_objectives(
         }
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
-
-    let existing = match select_user_objectives(proxy.as_ref(), request_state, &auth_user.id).await {
-        Ok(value) => value,
-        Err(err) => {
-            tracing::warn!(error = %err, "select learning objectives failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    let (default_mode, default_primary, default_short, default_long, default_eff) = match existing.as_ref() {
+    let existing = match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
+        Ok(value) => value,
+        Err(err) => {
+            tracing::warn!(error = %err, "select learning objectives failed");
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
+        }
+    };
+
+    let (
+        default_mode,
+        default_primary,
+        default_short,
+        default_long,
+        default_eff,
+        default_min_accuracy,
+        default_max_daily_time,
+        default_target_retention,
+    ) = match existing.as_ref() {
         Some(row) => (
-            row.mode.as_str(),
-            row.primary_objective.as_str(),
+            row.mode.clone(),
+            row.primary_objective.clone(),
             row.weight_short_term,
             row.weight_long_term,
             row.weight_efficiency,
+            row.min_accuracy,
+            row.max_daily_time,
+            row.target_retention,
         ),
-        None => ("daily", "accuracy", 0.4, 0.4, 0.2),
+        None => {
+            let preset = preset_mode("daily");
+            (
+                preset.mode,
+                preset.primary_objective,
+                preset.weight_short_term,
+                preset.weight_long_term,
+                preset.weight_efficiency,
+                preset.min_accuracy,
+                preset.max_daily_time,
+                preset.target_retention,
+            )
+        }
     };
 
-    let min_accuracy = if payload.min_accuracy.is_some() {
-        payload.min_accuracy
-    } else {
-        existing.as_ref().and_then(|row| row.min_accuracy)
-    };
-    let max_daily_time = if payload.max_daily_time.is_some() {
-        payload.max_daily_time
-    } else {
-        existing.as_ref().and_then(|row| row.max_daily_time)
-    };
-    let target_retention = if payload.target_retention.is_some() {
-        payload.target_retention
-    } else {
-        existing.as_ref().and_then(|row| row.target_retention)
-    };
+    let min_accuracy = payload.min_accuracy.or(default_min_accuracy);
+    let max_daily_time = payload.max_daily_time.or(default_max_daily_time);
+    let target_retention = payload.target_retention.or(default_target_retention);
 
-    let mode = payload.mode.unwrap_or_else(|| default_mode.to_string());
-    let primary_objective = payload
-        .primary_objective
-        .unwrap_or_else(|| default_primary.to_string());
+    let mode = payload.mode.unwrap_or(default_mode);
+    let primary_objective = payload.primary_objective.unwrap_or(default_primary);
 
     let weight_short_term = payload.weight_short_term.unwrap_or(default_short);
     let weight_long_term = payload.weight_long_term.unwrap_or(default_long);
@@ -362,7 +397,6 @@ pub async fn upsert_objectives(
     let now_iso = now_iso_millis();
     if let Err(err) = upsert_objectives_row(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         existing.as_ref().map(|row| row.id.as_str()),
         &mode,
@@ -378,7 +412,12 @@ pub async fn upsert_objectives(
     .await
     {
         tracing::warn!(error = %err, "upsert learning objectives failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     Json(SuccessResponse {
@@ -399,10 +438,7 @@ pub async fn upsert_objectives(
     .into_response()
 }
 
-pub async fn switch_mode(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn switch_mode(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -410,13 +446,19 @@ pub async fn switch_mode(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: SwitchModePayload = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
@@ -438,30 +480,37 @@ pub async fn switch_mode(
         .unwrap_or("manual")
         .to_string();
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
-    let current = match select_user_objectives(proxy.as_ref(), request_state, &auth_user.id).await {
+    let current = match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "select learning objectives failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -479,7 +528,6 @@ pub async fn switch_mode(
     let now_iso = now_iso_millis();
     if let Err(err) = upsert_objectives_row(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         current.as_ref().map(|row| row.id.as_str()),
         &preset.mode,
@@ -495,13 +543,17 @@ pub async fn switch_mode(
     .await
     {
         tracing::warn!(error = %err, "switch mode upsert failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     if let Some(before) = current.as_ref() {
         if let Err(err) = insert_objective_history(
             proxy.as_ref(),
-            request_state,
             &auth_user.id,
             &before.id,
             &reason,
@@ -535,39 +587,44 @@ pub async fn switch_mode(
     .into_response()
 }
 
-pub async fn suggestions(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn suggestions(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
-
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
-    let current = match select_user_objectives(proxy.as_ref(), request_state, &auth_user.id).await {
+    let current = match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "select learning objectives failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -592,13 +649,11 @@ pub async fn suggestions(
     .into_response()
 }
 
-pub async fn history(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn history(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let query_string = req.uri().query().unwrap_or("");
@@ -607,30 +662,37 @@ pub async fn history(
         .unwrap_or(10)
         .clamp(1, 100);
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
-    let history = match select_objective_history(proxy.as_ref(), request_state, &auth_user.id, limit).await {
+    let history = match select_objective_history(proxy.as_ref(), &auth_user.id, limit).await {
         Ok(items) => items,
         Err(err) => {
             tracing::warn!(error = %err, "select objective history failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -642,37 +704,42 @@ pub async fn history(
     .into_response()
 }
 
-pub async fn delete_objectives(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn delete_objectives(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
-
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
-    if let Err(err) = delete_objectives_row(proxy.as_ref(), request_state, &auth_user.id).await {
+    if let Err(err) = delete_objectives_row(proxy.as_ref(), &auth_user.id).await {
         tracing::warn!(error = %err, "delete learning objectives failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     Json(SuccessMessageResponse {
@@ -779,102 +846,51 @@ fn is_valid_primary_objective(value: &str) -> bool {
 
 async fn select_user_objectives(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<Option<ObjectivesRow>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
+    let row = sqlx::query(
+        r#"
+        SELECT
+          "id",
+          "userId",
+          "mode",
+          "primaryObjective",
+          "minAccuracy",
+          "maxDailyTime",
+          "targetRetention",
+          "weightShortTerm",
+          "weightLongTerm",
+          "weightEfficiency"
+        FROM "user_learning_objectives"
+        WHERE "userId" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
 
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id",
-              "userId",
-              "mode",
-              "primaryObjective",
-              "minAccuracy",
-              "maxDailyTime",
-              "targetRetention",
-              "weightShortTerm",
-              "weightLongTerm",
-              "weightEfficiency"
-            FROM "user_learning_objectives"
-            WHERE "userId" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        let Some(row) = row else { return Ok(None) };
-        Ok(Some(ObjectivesRow {
-            id: row.try_get("id")?,
-            user_id: row.try_get("userId")?,
-            mode: row.try_get("mode")?,
-            primary_objective: row.try_get("primaryObjective")?,
-            min_accuracy: row.try_get("minAccuracy")?,
-            max_daily_time: row.try_get("maxDailyTime")?,
-            target_retention: row.try_get("targetRetention")?,
-            weight_short_term: row.try_get("weightShortTerm")?,
-            weight_long_term: row.try_get("weightLongTerm")?,
-            weight_efficiency: row.try_get("weightEfficiency")?,
-        }))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id",
-              "userId",
-              "mode",
-              "primaryObjective",
-              "minAccuracy",
-              "maxDailyTime",
-              "targetRetention",
-              "weightShortTerm",
-              "weightLongTerm",
-              "weightEfficiency"
-            FROM "user_learning_objectives"
-            WHERE "userId" = $1
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        let Some(row) = row else { return Ok(None) };
-        Ok(Some(ObjectivesRow {
-            id: row.try_get("id")?,
-            user_id: row.try_get("userId")?,
-            mode: row.try_get("mode")?,
-            primary_objective: row.try_get("primaryObjective")?,
-            min_accuracy: row.try_get("minAccuracy")?,
-            max_daily_time: row.try_get::<Option<i32>, _>("maxDailyTime")?.map(|v| v as i64),
-            target_retention: row.try_get("targetRetention")?,
-            weight_short_term: row.try_get("weightShortTerm")?,
-            weight_long_term: row.try_get("weightLongTerm")?,
-            weight_efficiency: row.try_get("weightEfficiency")?,
-        }))
-    }
+    let Some(row) = row else { return Ok(None) };
+    Ok(Some(ObjectivesRow {
+        id: row.try_get("id")?,
+        user_id: row.try_get("userId")?,
+        mode: row.try_get("mode")?,
+        primary_objective: row.try_get("primaryObjective")?,
+        min_accuracy: row.try_get("minAccuracy")?,
+        max_daily_time: row
+            .try_get::<Option<i32>, _>("maxDailyTime")?
+            .map(|v| v as i64),
+        target_retention: row.try_get("targetRetention")?,
+        weight_short_term: row.try_get("weightShortTerm")?,
+        weight_long_term: row.try_get("weightLongTerm")?,
+        weight_efficiency: row.try_get("weightEfficiency")?,
+    }))
 }
 
 async fn upsert_objectives_row(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     existing_id: Option<&str>,
     mode: &str,
@@ -891,211 +907,70 @@ async fn upsert_objectives_row(
         .map(|value| value.to_string())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
+    let pool = proxy.pool();
+    let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
 
-        let mut create = serde_json::Map::new();
-        create.insert(
-            "id".to_string(),
-            serde_json::Value::String(record_id.clone()),
-        );
-        create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        create.insert("mode".to_string(), serde_json::Value::String(mode.to_string()));
-        create.insert(
-            "primaryObjective".to_string(),
-            serde_json::Value::String(primary_objective.to_string()),
-        );
-        create.insert(
-            "minAccuracy".to_string(),
-            min_accuracy
-                .and_then(serde_json::Number::from_f64)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        create.insert(
-            "maxDailyTime".to_string(),
-            max_daily_time
-                .map(|v| serde_json::Value::Number(v.into()))
-                .unwrap_or(serde_json::Value::Null),
-        );
-        create.insert(
-            "targetRetention".to_string(),
-            target_retention
-                .and_then(serde_json::Number::from_f64)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        create.insert(
-            "weightShortTerm".to_string(),
-            serde_json::Number::from_f64(weight_short_term)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        create.insert(
-            "weightLongTerm".to_string(),
-            serde_json::Number::from_f64(weight_long_term)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        create.insert(
-            "weightEfficiency".to_string(),
-            serde_json::Number::from_f64(weight_efficiency)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        create.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let mut update = serde_json::Map::new();
-        update.insert("mode".to_string(), serde_json::Value::String(mode.to_string()));
-        update.insert(
-            "primaryObjective".to_string(),
-            serde_json::Value::String(primary_objective.to_string()),
-        );
-        update.insert(
-            "minAccuracy".to_string(),
-            min_accuracy
-                .and_then(serde_json::Number::from_f64)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        update.insert(
-            "maxDailyTime".to_string(),
-            max_daily_time
-                .map(|v| serde_json::Value::Number(v.into()))
-                .unwrap_or(serde_json::Value::Null),
-        );
-        update.insert(
-            "targetRetention".to_string(),
-            target_retention
-                .and_then(serde_json::Number::from_f64)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        update.insert(
-            "weightShortTerm".to_string(),
-            serde_json::Number::from_f64(weight_short_term)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        update.insert(
-            "weightLongTerm".to_string(),
-            serde_json::Number::from_f64(weight_long_term)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        update.insert(
-            "weightEfficiency".to_string(),
-            serde_json::Number::from_f64(weight_efficiency)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-        update.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "user_learning_objectives".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
-
-        let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
-        sqlx::query(
-            r#"
-            INSERT INTO "user_learning_objectives" (
-              "id",
-              "userId",
-              "mode",
-              "primaryObjective",
-              "minAccuracy",
-              "maxDailyTime",
-              "targetRetention",
-              "weightShortTerm",
-              "weightLongTerm",
-              "weightEfficiency",
-              "updatedAt"
-            ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
-            )
-            ON CONFLICT ("userId") DO UPDATE SET
-              "mode" = EXCLUDED."mode",
-              "primaryObjective" = EXCLUDED."primaryObjective",
-              "minAccuracy" = EXCLUDED."minAccuracy",
-              "maxDailyTime" = EXCLUDED."maxDailyTime",
-              "targetRetention" = EXCLUDED."targetRetention",
-              "weightShortTerm" = EXCLUDED."weightShortTerm",
-              "weightLongTerm" = EXCLUDED."weightLongTerm",
-              "weightEfficiency" = EXCLUDED."weightEfficiency",
-              "updatedAt" = EXCLUDED."updatedAt"
-            "#,
+    sqlx::query(
+        r#"
+        INSERT INTO "user_learning_objectives" (
+          "id",
+          "userId",
+          "mode",
+          "primaryObjective",
+          "minAccuracy",
+          "maxDailyTime",
+          "targetRetention",
+          "weightShortTerm",
+          "weightLongTerm",
+          "weightEfficiency",
+          "updatedAt"
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
         )
-        .bind(record_id)
-        .bind(user_id)
-        .bind(mode)
-        .bind(primary_objective)
-        .bind(min_accuracy)
-        .bind(max_daily_time.map(|v| v as i32))
-        .bind(target_retention)
-        .bind(weight_short_term)
-        .bind(weight_long_term)
-        .bind(weight_efficiency)
-        .bind(now)
-        .execute(&primary)
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
-    }
+        ON CONFLICT ("userId") DO UPDATE SET
+          "mode" = EXCLUDED."mode",
+          "primaryObjective" = EXCLUDED."primaryObjective",
+          "minAccuracy" = EXCLUDED."minAccuracy",
+          "maxDailyTime" = EXCLUDED."maxDailyTime",
+          "targetRetention" = EXCLUDED."targetRetention",
+          "weightShortTerm" = EXCLUDED."weightShortTerm",
+          "weightLongTerm" = EXCLUDED."weightLongTerm",
+          "weightEfficiency" = EXCLUDED."weightEfficiency",
+          "updatedAt" = EXCLUDED."updatedAt"
+        "#,
+    )
+    .bind(record_id)
+    .bind(user_id)
+    .bind(mode)
+    .bind(primary_objective)
+    .bind(min_accuracy)
+    .bind(max_daily_time.map(|v| v as i32))
+    .bind(target_retention)
+    .bind(weight_short_term)
+    .bind(weight_long_term)
+    .bind(weight_efficiency)
+    .bind(now)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|err| err.to_string())
 }
 
 async fn delete_objectives_row(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<(), String> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "user_learning_objectives".to_string(),
-            r#where: where_clause,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
-        sqlx::query(r#"DELETE FROM "user_learning_objectives" WHERE "userId" = $1"#)
-            .bind(user_id)
-            .execute(&primary)
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    }
+    let pool = proxy.pool();
+    sqlx::query(r#"DELETE FROM "user_learning_objectives" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map(|_| ())
+        .map_err(|err| err.to_string())
 }
 
 async fn insert_objective_history(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     objective_id: &str,
     reason: &str,
@@ -1123,144 +998,72 @@ async fn insert_objective_history(
         }
     });
 
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".to_string(), serde_json::Value::String(Uuid::new_v4().to_string()));
-        data.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        data.insert(
-            "objectiveId".to_string(),
-            serde_json::Value::String(objective_id.to_string()),
-        );
-        data.insert("reason".to_string(), serde_json::Value::String(reason.to_string()));
-        data.insert("beforeMetrics".to_string(), before_metrics);
-        data.insert("afterMetrics".to_string(), after_metrics);
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "objective_history".to_string(),
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
-
-        sqlx::query(
-            r#"
-            INSERT INTO "objective_history" (
-              "id",
-              "userId",
-              "objectiveId",
-              "reason",
-              "beforeMetrics",
-              "afterMetrics"
-            ) VALUES ($1,$2,$3,$4,$5,$6)
-            "#,
-        )
-        .bind(Uuid::new_v4().to_string())
-        .bind(user_id)
-        .bind(objective_id)
-        .bind(reason)
-        .bind(before_metrics)
-        .bind(after_metrics)
-        .execute(&primary)
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
-    }
+    let pool = proxy.pool();
+    sqlx::query(
+        r#"
+        INSERT INTO "objective_history" (
+          "id",
+          "userId",
+          "objectiveId",
+          "reason",
+          "beforeMetrics",
+          "afterMetrics"
+        ) VALUES ($1,$2,$3,$4,$5,$6)
+        "#,
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(user_id)
+    .bind(objective_id)
+    .bind(reason)
+    .bind(before_metrics)
+    .bind(after_metrics)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|err| err.to_string())
 }
 
 async fn select_objective_history(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     limit: i64,
 ) -> Result<Vec<ObjectiveHistoryItem>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "timestamp", "reason", "beforeMetrics", "afterMetrics"
+        FROM "objective_history"
+        WHERE "userId" =
+        "#,
+    );
+    qb.push_bind(user_id);
+    qb.push(r#" ORDER BY "timestamp" DESC LIMIT "#);
+    qb.push_bind(limit);
 
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "timestamp", "reason", "beforeMetrics", "afterMetrics"
-            FROM "objective_history"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(r#" ORDER BY datetime("timestamp") DESC LIMIT "#);
-        qb.push_bind(limit);
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            let timestamp_raw: String = row.try_get("timestamp")?;
-            let reason: String = row.try_get("reason")?;
-            let before_raw: String = row.try_get("beforeMetrics")?;
-            let after_raw: String = row.try_get("afterMetrics")?;
-            out.push(ObjectiveHistoryItem {
-                timestamp: format_sqlite_datetime(&timestamp_raw),
-                reason,
-                before_mode: extract_mode_from_json(&before_raw),
-                after_mode: extract_mode_from_json(&after_raw),
-            });
-        }
-        Ok(out)
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "timestamp", "reason", "beforeMetrics", "afterMetrics"
-            FROM "objective_history"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(r#" ORDER BY "timestamp" DESC LIMIT "#);
-        qb.push_bind(limit);
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            let timestamp: NaiveDateTime = row.try_get("timestamp")?;
-            let reason: String = row.try_get("reason")?;
-            let before: serde_json::Value = row.try_get("beforeMetrics")?;
-            let after: serde_json::Value = row.try_get("afterMetrics")?;
-            out.push(ObjectiveHistoryItem {
-                timestamp: crate::auth::format_naive_datetime_iso_millis(timestamp),
-                reason,
-                before_mode: before.get("mode").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                after_mode: after.get("mode").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            });
-        }
-        Ok(out)
+    let rows = qb.build().fetch_all(pool).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let timestamp: NaiveDateTime = row.try_get("timestamp")?;
+        let reason: String = row.try_get("reason")?;
+        let before: serde_json::Value = row.try_get("beforeMetrics")?;
+        let after: serde_json::Value = row.try_get("afterMetrics")?;
+        out.push(ObjectiveHistoryItem {
+            timestamp: crate::auth::format_naive_datetime_iso_millis(timestamp),
+            reason,
+            before_mode: before
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            after_mode: after
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+        });
     }
-}
-
-fn extract_mode_from_json(raw: &str) -> String {
-    serde_json::from_str::<serde_json::Value>(raw)
-        .ok()
-        .and_then(|v| v.get("mode").and_then(|v| v.as_str()).map(|s| s.to_string()))
-        .unwrap_or_default()
+    Ok(out)
 }
 
 fn now_iso_millis() -> String {
@@ -1268,12 +1071,9 @@ fn now_iso_millis() -> String {
 }
 
 fn parse_naive_datetime(value: &str) -> Option<NaiveDateTime> {
-    chrono::DateTime::parse_from_rfc3339(value).ok().map(|dt| dt.naive_utc())
-}
-
-fn format_sqlite_datetime(raw: &str) -> String {
-    let ms = crate::auth::parse_sqlite_datetime_ms(raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-    crate::auth::format_timestamp_ms_iso_millis(ms).unwrap_or_else(|| now_iso_millis())
+    chrono::DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|dt| dt.naive_utc())
 }
 
 fn get_query_param(query: &str, key: &str) -> Option<String> {
@@ -1335,7 +1135,9 @@ async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, B
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response());
+            return Err(
+                json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response(),
+            );
         }
     };
     Ok((parts, body_bytes))

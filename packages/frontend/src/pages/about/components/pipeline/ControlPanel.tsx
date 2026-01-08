@@ -99,7 +99,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               className="border-t border-slate-700"
             >
               <div className="space-y-2 p-3">
-                <p className="mb-3 text-xs text-slate-500">选择故障类型，观察系统如何响应</p>
+                <p className="mb-3 text-xs text-slate-500 dark:text-gray-400">
+                  选择故障类型，观察系统如何响应
+                </p>
 
                 {FAULT_OPTIONS.map((option) => (
                   <button
@@ -125,8 +127,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                       )}
                     </div>
                     <div className="flex-1 text-left">
-                      <div className="text-sm font-medium text-slate-200">{option.label}</div>
-                      <div className="text-xs text-slate-500">{option.description}</div>
+                      <div className="text-sm font-medium text-slate-200 dark:text-gray-300">
+                        {option.label}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-gray-400">
+                        {option.description}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -134,7 +140,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 {/* 最近注入结果 */}
                 {lastInjection && (
                   <div className="mt-3 rounded-button border border-slate-700 bg-slate-800/50 p-2.5">
-                    <div className="mb-1 text-xs text-slate-400">最近注入结果</div>
+                    <div className="mb-1 text-xs text-slate-400 dark:text-gray-400">
+                      最近注入结果
+                    </div>
                     <div className="text-sm text-amber-400">{lastInjection.expectedOutcome}</div>
                     {lastInjection.guardRailTriggers.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">

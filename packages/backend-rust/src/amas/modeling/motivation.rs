@@ -39,7 +39,8 @@ impl MotivationTracker {
         } else if event.is_correct {
             self.streak += 1;
             let streak_bonus = (self.streak as f64 / 10.0).min(0.5) * self.params.kappa;
-            self.current_value = self.params.rho * self.current_value + self.params.kappa + streak_bonus;
+            self.current_value =
+                self.params.rho * self.current_value + self.params.kappa + streak_bonus;
         } else {
             self.streak = 0;
             self.current_value = self.params.rho * self.current_value - self.params.lambda;

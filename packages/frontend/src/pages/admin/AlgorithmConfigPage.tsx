@@ -134,7 +134,7 @@ export default function AlgorithmConfigPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600" role="status" aria-live="polite">
+          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             加载配置中...
           </p>
         </div>
@@ -148,19 +148,21 @@ export default function AlgorithmConfigPage() {
       <div className="mb-8">
         <div className="mb-2 flex items-center gap-3">
           <Gear size={32} weight="duotone" className="text-blue-500" />
-          <h1 className="text-3xl font-bold text-gray-900">算法配置</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">算法配置</h1>
         </div>
-        <p className="text-gray-600">配置学习算法的各项参数，影响单词学习和复习的调度策略</p>
+        <p className="text-gray-600 dark:text-gray-400">
+          配置学习算法的各项参数，影响单词学习和复习的调度策略
+        </p>
       </div>
 
       {/* 验证错误提示 */}
       {validationErrors.length > 0 && (
-        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4">
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30">
           <div className="flex items-start gap-2">
             <Warning size={20} weight="bold" className="mt-0.5 flex-shrink-0 text-red-500" />
             <div className="flex-1">
-              <h3 className="mb-2 font-semibold text-red-900">配置验证失败</h3>
-              <ul className="list-inside list-disc space-y-1 text-sm text-red-700">
+              <h3 className="mb-2 font-semibold text-red-900 dark:text-red-300">配置验证失败</h3>
+              <ul className="list-inside list-disc space-y-1 text-sm text-red-700 dark:text-red-400">
                 {validationErrors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
@@ -172,10 +174,10 @@ export default function AlgorithmConfigPage() {
 
       {/* 保存成功提示 */}
       {saveSuccess && (
-        <div className="mb-6 rounded-button border border-green-200 bg-green-50 p-4">
+        <div className="mb-6 rounded-button border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/30">
           <div className="flex items-center gap-2">
             <CheckCircle size={20} weight="bold" className="text-green-500" />
-            <span className="font-medium text-green-900">配置已成功保存</span>
+            <span className="font-medium text-green-900 dark:text-green-300">配置已成功保存</span>
           </div>
         </div>
       )}
@@ -230,11 +232,11 @@ export default function AlgorithmConfigPage() {
       </div>
 
       {/* 操作按钮 */}
-      <div className="sticky bottom-4 mt-8 flex items-center justify-between rounded-card border border-gray-200 bg-white p-6 shadow-elevated">
+      <div className="sticky bottom-4 mt-8 flex items-center justify-between rounded-card border border-gray-200 bg-white p-6 shadow-elevated dark:border-slate-700 dark:bg-slate-800">
         <button
           onClick={() => setShowResetConfirm(true)}
           disabled={isSaving}
-          className="flex items-center gap-2 rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
         >
           <ArrowCounterClockwise size={18} weight="bold" />
           恢复默认值
@@ -253,17 +255,19 @@ export default function AlgorithmConfigPage() {
       {/* 重置确认对话框 */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-          <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating">
+          <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800">
             <div className="mb-6 text-center">
               <Warning size={64} weight="duotone" className="mx-auto mb-4 text-yellow-500" />
-              <h3 className="mb-2 text-2xl font-bold text-gray-900">确认重置</h3>
-              <p className="text-gray-600">确定要将所有配置恢复为默认值吗？此操作不可撤销。</p>
+              <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">确认重置</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                确定要将所有配置恢复为默认值吗？此操作不可撤销。
+              </p>
             </div>
 
             <div className="flex gap-4">
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200"
+                className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
               >
                 取消
               </button>

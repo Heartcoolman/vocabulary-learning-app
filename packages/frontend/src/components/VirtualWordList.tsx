@@ -58,20 +58,22 @@ const WordItem = memo<{
         paddingBottom: ITEM_GAP,
       }}
     >
-      <div className="h-full rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.01] hover:shadow-elevated">
+      <div className="h-full rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.01] hover:shadow-elevated dark:border-slate-700/60 dark:bg-slate-800/80">
         <div className="flex h-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* 单词信息 */}
           <div className="flex-1">
-            <h3 className="mb-1 text-2xl font-bold text-gray-900">{word.spelling}</h3>
-            <p className="mb-2 text-gray-600">/{word.phonetic}/</p>
-            <p className="line-clamp-2 text-gray-700">{word.meanings[0]}</p>
+            <h3 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">
+              {word.spelling}
+            </h3>
+            <p className="mb-2 text-gray-600 dark:text-gray-400">/{word.phonetic}/</p>
+            <p className="line-clamp-2 text-gray-700 dark:text-gray-300">{word.meanings[0]}</p>
           </div>
 
           {/* 学习状态 */}
           <div className="flex flex-wrap gap-6">
             {/* 掌握程度 */}
             <div className="flex flex-col items-center">
-              <span className="mb-1 text-xs text-gray-500">掌握程度</span>
+              <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">掌握程度</span>
               <div className="flex items-center gap-1">
                 {[...Array(5)].map((_, index) => (
                   <Star
@@ -86,19 +88,23 @@ const WordItem = memo<{
 
             {/* 单词得分 */}
             <div className="flex flex-col items-center">
-              <span className="mb-1 text-xs text-gray-500">得分</span>
+              <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">得分</span>
               <div className="flex items-center gap-1">
                 <Target size={16} weight="duotone" color={IconColor.target} />
-                <span className="text-lg font-bold text-gray-900">{Math.round(word.score)}</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                  {Math.round(word.score)}
+                </span>
               </div>
             </div>
 
             {/* 下次复习 */}
             <div className="flex flex-col items-center">
-              <span className="mb-1 text-xs text-gray-500">下次复习</span>
+              <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">下次复习</span>
               <div className="flex items-center gap-1">
                 <Clock size={16} weight="duotone" color={IconColor.time} />
-                <span className="text-sm font-medium text-gray-900">{word.nextReviewDate}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {word.nextReviewDate}
+                </span>
               </div>
             </div>
 
@@ -106,7 +112,7 @@ const WordItem = memo<{
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => onAdjustWord(word, 'mastered')}
-                className="flex items-center gap-1 rounded-button bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 transition-all duration-g3-fast hover:scale-105 hover:bg-green-200 active:scale-95"
+                className="flex items-center gap-1 rounded-button bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 transition-all duration-g3-fast hover:scale-105 hover:bg-green-200 active:scale-95 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
                 title="标记为已掌握"
               >
                 <CheckCircle size={14} weight="bold" />
@@ -114,7 +120,7 @@ const WordItem = memo<{
               </button>
               <button
                 onClick={() => onAdjustWord(word, 'needsPractice')}
-                className="flex items-center gap-1 rounded-button bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-all duration-g3-fast hover:scale-105 hover:bg-yellow-200 active:scale-95"
+                className="flex items-center gap-1 rounded-button bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-all duration-g3-fast hover:scale-105 hover:bg-yellow-200 active:scale-95 dark:bg-yellow-900/30 dark:text-yellow-300 dark:hover:bg-yellow-900/50"
                 title="标记为需要重点学习"
               >
                 <Warning size={14} weight="bold" />
@@ -122,7 +128,7 @@ const WordItem = memo<{
               </button>
               <button
                 onClick={() => onAdjustWord(word, 'reset')}
-                className="flex items-center gap-1 rounded-button bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95"
+                className="flex items-center gap-1 rounded-button bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
                 title="重置学习进度"
               >
                 <ArrowClockwise size={14} weight="bold" />
@@ -205,7 +211,7 @@ export default function VirtualWordList({
           rowComponent={Row}
           rowProps={{}}
           overscanCount={3} // 预渲染3行，提升滚动平滑度
-          className="scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-300"
+          className="scrollbar-thin scrollbar-track-gray-100 dark:scrollbar-track-slate-800 scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600"
           style={{ width: '100%', height: calculatedHeight }}
         />
       </div>

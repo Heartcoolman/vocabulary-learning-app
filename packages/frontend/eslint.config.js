@@ -112,6 +112,35 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  // Web Worker 文件豁免（需要 console 进行调试）
+  {
+    files: ['**/workers/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  // 视觉疲劳检测服务豁免（需要 console 进行调试）
+  {
+    files: [
+      '**/services/visual-fatigue/**/*.{ts,tsx}',
+      '**/components/visual-fatigue/**/*.{ts,tsx}',
+      '**/hooks/useVisualFatigue.ts',
+    ],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  // 调试页面豁免
+  {
+    files: [
+      '**/pages/admin/SystemDebugPage.tsx',
+      '**/pages/admin/WordQualityPage.tsx',
+      '**/pages/admin/word-quality/**/*.ts',
+    ],
+    rules: {
+      'no-console': 'off',
+    },
+  },
   // 忽略文件
   {
     ignores: [

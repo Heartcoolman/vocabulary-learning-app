@@ -7,7 +7,11 @@ pub struct HeuristicLearner {
 }
 
 impl HeuristicLearner {
-    pub fn new(fatigue_threshold: f64, attention_threshold: f64, motivation_threshold: f64) -> Self {
+    pub fn new(
+        fatigue_threshold: f64,
+        attention_threshold: f64,
+        motivation_threshold: f64,
+    ) -> Self {
         Self {
             fatigue_threshold,
             attention_threshold,
@@ -59,9 +63,21 @@ impl HeuristicLearner {
     }
 
     pub fn confidence(&self, state: &UserState) -> f64 {
-        let fatigue_factor: f64 = if state.fatigue > self.fatigue_threshold { 0.8 } else { 1.0 };
-        let attention_factor: f64 = if state.attention < self.attention_threshold { 0.8 } else { 1.0 };
-        let motivation_factor: f64 = if state.motivation < self.motivation_threshold { 0.8 } else { 1.0 };
+        let fatigue_factor: f64 = if state.fatigue > self.fatigue_threshold {
+            0.8
+        } else {
+            1.0
+        };
+        let attention_factor: f64 = if state.attention < self.attention_threshold {
+            0.8
+        } else {
+            1.0
+        };
+        let motivation_factor: f64 = if state.motivation < self.motivation_threshold {
+            0.8
+        } else {
+            1.0
+        };
 
         (fatigue_factor * attention_factor * motivation_factor).max(0.3)
     }

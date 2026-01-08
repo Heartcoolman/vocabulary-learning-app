@@ -71,18 +71,18 @@ export const MilestoneCard = ({ milestone }: MilestoneCardProps) => {
         )}
       </div>
 
-      <h3 className="mb-1 text-base font-bold text-gray-900">{milestone.title}</h3>
-      <p className="mb-3 text-xs text-gray-600">{milestone.description}</p>
+      <h3 className="mb-1 text-base font-bold text-gray-900 dark:text-white">{milestone.title}</h3>
+      <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">{milestone.description}</p>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">进度</span>
+          <span className="text-gray-600 dark:text-gray-400">进度</span>
           <span className={`font-semibold ${colors.text}`}>
             {milestone.current} / {milestone.target}
           </span>
         </div>
 
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
           <div
             className={`${colors.progress} h-2 rounded-full transition-all duration-g3-slow`}
             style={{ width: `${percentage}%` }}

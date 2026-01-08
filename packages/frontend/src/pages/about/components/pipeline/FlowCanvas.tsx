@@ -198,7 +198,9 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 >
                   {stageInfo?.name}
                 </div>
-                <div className="mt-0.5 text-[10px] text-slate-600">{stageInfo?.description}</div>
+                <div className="mt-0.5 text-[10px] text-slate-600 dark:text-gray-400">
+                  {stageInfo?.description}
+                </div>
               </div>
 
               {/* 节点列表 */}
@@ -268,7 +270,9 @@ const MetricCard: React.FC<{ label: string; value: string; color: string }> = ({
   color,
 }) => (
   <div className="rounded-button border border-slate-700 bg-slate-900/90 px-3 py-2 backdrop-blur-md">
-    <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+    <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400">
+      {label}
+    </div>
     <div className="font-mono text-lg font-bold" style={{ color }}>
       {value}
     </div>

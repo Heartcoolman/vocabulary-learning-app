@@ -15,7 +15,7 @@ export default function TodayWordsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-center">
           <CircleNotch
             className="mx-auto mb-4 animate-spin"
@@ -23,7 +23,7 @@ export default function TodayWordsPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">正在加载今日学习计划...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在加载今日学习计划...</p>
         </div>
       </div>
     );
@@ -31,11 +31,13 @@ export default function TodayWordsPage() {
 
   if (error || !plan) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md rounded-card border border-gray-100 bg-white p-8 text-center shadow-soft">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-slate-900">
+        <div className="max-w-md rounded-card border border-gray-100 bg-white p-8 text-center shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <Books size={64} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
-          <h2 className="mb-2 text-xl font-bold text-gray-800">无法加载学习计划</h2>
-          <p className="mb-6 text-gray-600">{error || '无法生成今日学习计划'}</p>
+          <h2 className="mb-2 text-xl font-bold text-gray-800 dark:text-gray-200">
+            无法加载学习计划
+          </h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error || '无法生成今日学习计划'}</p>
           <button
             onClick={() => refresh()}
             className="rounded-button bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
@@ -50,13 +52,13 @@ export default function TodayWordsPage() {
   const estimatedTime = Math.ceil(plan.words.length * 0.5);
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-slate-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             欢迎回来，{user?.username || '学习者'}！
           </h1>
-          <p className="mt-2 text-gray-600">你的每日词汇学习旅程已准备就绪</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">你的每日词汇学习旅程已准备就绪</p>
         </header>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -71,22 +73,28 @@ export default function TodayWordsPage() {
             />
 
             {plan.words.length > 0 && (
-              <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-                <h3 className="mb-4 text-lg font-bold text-gray-800">今日单词预览</h3>
+              <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+                <h3 className="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
+                  今日单词预览
+                </h3>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                   {plan.words.slice(0, 6).map((word, index) => (
                     <div
                       key={word.id}
-                      className="rounded-button border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-3 transition-colors hover:border-blue-300"
+                      className="rounded-button border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-3 transition-colors hover:border-blue-300 dark:border-slate-600 dark:from-slate-800 dark:to-slate-700 dark:hover:border-blue-600"
                     >
                       <div className="text-sm font-bold text-blue-600">#{index + 1}</div>
-                      <div className="mt-1 font-bold text-gray-900">{word.spelling}</div>
-                      <div className="mt-1 truncate text-xs text-gray-500">{word.meanings[0]}</div>
+                      <div className="mt-1 font-bold text-gray-900 dark:text-white">
+                        {word.spelling}
+                      </div>
+                      <div className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                        {word.meanings[0]}
+                      </div>
                     </div>
                   ))}
                 </div>
                 {plan.words.length > 6 && (
-                  <p className="mt-4 text-center text-sm text-gray-500">
+                  <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     还有 {plan.words.length - 6} 个单词等待学习...
                   </p>
                 )}
@@ -95,19 +103,19 @@ export default function TodayWordsPage() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-              <h3 className="mb-4 font-bold text-gray-800">学习统计</h3>
+            <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="mb-4 font-bold text-gray-800 dark:text-gray-200">学习统计</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">累计学习</span>
+                  <span className="text-gray-600 dark:text-gray-400">累计学习</span>
                   <span className="text-xl font-bold text-blue-600">{plan.totalStudied}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">正确率</span>
+                  <span className="text-gray-600 dark:text-gray-400">正确率</span>
                   <span className="text-xl font-bold text-green-600">{plan.correctRate}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">今日目标</span>
+                  <span className="text-gray-600 dark:text-gray-400">今日目标</span>
                   <span className="text-xl font-bold text-purple-600">{plan.todayTarget}</span>
                 </div>
               </div>

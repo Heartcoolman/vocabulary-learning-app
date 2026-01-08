@@ -19,6 +19,7 @@ import { useVisualFatigueStore } from '../../stores/visualFatigueStore';
 import { useVisualFatigue } from '../../hooks/useVisualFatigue';
 import { videoElementManager } from '../../services/visual-fatigue';
 import { g3SpringStandard, g3SpringSnappy } from '../../utils/animations';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface FloatingEyeIndicatorProps {
   /** 自定义类名 */
@@ -115,9 +116,9 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, className = '' }: MetricCardProps) {
   return (
-    <div className={`rounded-button bg-gray-50 px-3 py-2 ${className}`}>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="font-mono text-sm font-medium text-gray-700">{value}</div>
+    <div className={`rounded-button bg-gray-50 px-3 py-2 dark:bg-slate-700 ${className}`}>
+      <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
+      <div className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300">{value}</div>
     </div>
   );
 }
@@ -148,6 +149,8 @@ function FloatingEyeIndicatorComponent({
   embedded = false,
   size = 'lg',
 }: FloatingEyeIndicatorProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [isExpanded, setIsExpanded] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -296,6 +299,13 @@ function FloatingEyeIndicatorComponent({
   const ringRadius = sizeConfig.ring.radius;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringProgress = fatigueScore * ringCircumference;
+  const ringBgColor = isDark ? '#374151' : '#e5e7eb';
+  const panelBgGradient = isDark
+    ? 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.92) 100%)'
+    : 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,0.9) 100%)';
+  const panelExpandedBg = isDark
+    ? 'linear-gradient(135deg, rgba(30,41,59,0.92) 0%, rgba(15,23,42,0.88) 100%)'
+    : 'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,250,251,0.88) 100%)';
 
   return (
     <div
@@ -313,10 +323,10 @@ function FloatingEyeIndicatorComponent({
               exit={{ opacity: 0, x: 8 }}
               transition={g3SpringSnappy}
             >
-              <div className="relative whitespace-nowrap rounded-button bg-gray-800 px-3 py-1.5 text-sm text-white shadow-elevated">
+              <div className="relative whitespace-nowrap rounded-button bg-gray-800 px-3 py-1.5 text-sm text-white shadow-elevated dark:bg-slate-700">
                 {getHoverTip()}
                 {/* 右侧小三角 */}
-                <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 border-4 border-transparent border-l-gray-800" />
+                <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 border-4 border-transparent border-l-gray-800 dark:border-l-slate-700" />
               </div>
             </motion.div>
           )}
@@ -329,14 +339,15 @@ function FloatingEyeIndicatorComponent({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           disabled={isLoading}
-          className={`group relative flex ${sizeConfig.button} items-center justify-center rounded-full border border-white/40 shadow-elevated backdrop-blur-xl transition-colors duration-g3-fast ${
-            enabled ? (hasError ? 'bg-red-50/90' : 'bg-white/90') : 'bg-gray-100/90'
+          className={`group relative flex ${sizeConfig.button} items-center justify-center rounded-full border border-white/40 shadow-elevated backdrop-blur-xl transition-colors duration-g3-fast dark:border-slate-600/40 ${
+            enabled
+              ? hasError
+                ? 'bg-red-50/90 dark:bg-red-900/30'
+                : 'bg-white/90 dark:bg-slate-800/90'
+              : 'bg-gray-100/90 dark:bg-slate-700/90'
           } ${isLoading ? 'cursor-wait' : 'cursor-pointer'} `}
           style={{
-            background:
-              enabled && !hasError
-                ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,0.9) 100%)'
-                : undefined,
+            background: enabled && !hasError ? panelBgGradient : undefined,
           }}
           whileHover={{ scale: 1.05, y: -2 }}
           whileTap={{ scale: 0.95 }}
@@ -374,7 +385,7 @@ function FloatingEyeIndicatorComponent({
           {/* 加载提示气泡 */}
           {isLoading && (
             <motion.div
-              className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-button bg-gray-800 px-2.5 py-1 text-xs text-white shadow-elevated"
+              className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-button bg-gray-800 px-2.5 py-1 text-xs text-white shadow-elevated dark:bg-slate-700"
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={g3SpringSnappy}
@@ -418,7 +429,7 @@ function FloatingEyeIndicatorComponent({
                 cy={sizeConfig.ring.size / 2}
                 r={ringRadius}
                 fill="none"
-                stroke="#e5e7eb"
+                stroke={ringBgColor}
                 strokeWidth={sizeConfig.ring.stroke}
               />
               {/* 进度环 - 使用渐变 */}
@@ -462,10 +473,9 @@ function FloatingEyeIndicatorComponent({
         <AnimatePresence>
           {isExpanded && enabled && (
             <motion.div
-              className={`w-80 overflow-hidden rounded-card border border-white/40 p-4 shadow-floating backdrop-blur-xl ${embedded ? 'absolute right-0 top-full z-50 mt-2' : 'mt-2'} `}
+              className={`w-80 overflow-hidden rounded-card border border-white/40 p-4 shadow-floating backdrop-blur-xl dark:border-slate-600/40 ${embedded ? 'absolute right-0 top-full z-50 mt-2' : 'mt-2'} `}
               style={{
-                background:
-                  'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,250,251,0.88) 100%)',
+                background: panelExpandedBg,
               }}
               initial={{ opacity: 0, scale: 0.95, y: -8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -477,7 +487,14 @@ function FloatingEyeIndicatorComponent({
                 {/* 大号疲劳评分圆环 */}
                 <div className="relative h-16 w-16 flex-shrink-0">
                   <svg className="h-full w-full -rotate-90" viewBox="0 0 64 64">
-                    <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="4" />
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r="28"
+                      fill="none"
+                      stroke={ringBgColor}
+                      strokeWidth="4"
+                    />
                     <circle
                       cx="32"
                       cy="32"
@@ -500,7 +517,7 @@ function FloatingEyeIndicatorComponent({
                 {/* 状态文字和建议 */}
                 <div className="flex-1 pt-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-base font-semibold text-gray-800">
+                    <span className="text-base font-semibold text-gray-800 dark:text-white">
                       {levelConfig.label}疲劳
                     </span>
                     <span
@@ -509,19 +526,21 @@ function FloatingEyeIndicatorComponent({
                       {levelConfig.label}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-gray-500">{levelConfig.advice}</p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {levelConfig.advice}
+                  </p>
                 </div>
               </div>
 
               {/* 错误显示 */}
               {hasError && (
-                <div className="mt-3 rounded-button bg-red-50 p-2.5 text-xs text-red-600">
+                <div className="mt-3 rounded-button bg-red-50 p-2.5 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
                   {errorMessage}
                 </div>
               )}
 
               {/* 分隔线 */}
-              <div className="my-3 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+              <div className="my-3 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent dark:via-slate-600" />
 
               {/* ========== 第二层：关键指标 ========== */}
               <div className="grid grid-cols-3 gap-2">
@@ -534,7 +553,7 @@ function FloatingEyeIndicatorComponent({
               <div className="mt-3">
                 <button
                   onClick={() => setShowDetails(!showDetails)}
-                  className="flex w-full items-center justify-center gap-1 rounded-button py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                  className="flex w-full items-center justify-center gap-1 rounded-button py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-slate-700 dark:hover:text-gray-300"
                 >
                   {showDetails ? '收起详情' : '展开详情'}
                   <motion.span
@@ -557,45 +576,49 @@ function FloatingEyeIndicatorComponent({
                       <div className="mt-2 space-y-2">
                         {/* EAR */}
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">EAR (眼睛开合度)</span>
-                          <span className="font-mono text-gray-700">
+                          <span className="text-gray-500 dark:text-gray-400">EAR (眼睛开合度)</span>
+                          <span className="font-mono text-gray-700 dark:text-gray-300">
                             {formatValue(metrics.ear, 3)}
                           </span>
                         </div>
 
                         {/* 眨眼时长 */}
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">眨眼时长</span>
-                          <span className="font-mono text-gray-700">
+                          <span className="text-gray-500 dark:text-gray-400">眨眼时长</span>
+                          <span className="font-mono text-gray-700 dark:text-gray-300">
                             {formatValue(metrics.avgBlinkDuration, 0)} ms
                           </span>
                         </div>
 
                         {/* 打哈欠 */}
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">哈欠次数</span>
-                          <span className="font-mono text-gray-700">{metrics.yawnCount}</span>
+                          <span className="text-gray-500 dark:text-gray-400">哈欠次数</span>
+                          <span className="font-mono text-gray-700 dark:text-gray-300">
+                            {metrics.yawnCount}
+                          </span>
                         </div>
 
                         {/* 头部姿态 */}
-                        <div className="rounded-button bg-gray-50 p-2">
-                          <div className="mb-1 text-xs text-gray-500">头部姿态</div>
+                        <div className="rounded-button bg-gray-50 p-2 dark:bg-slate-700">
+                          <div className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+                            头部姿态
+                          </div>
                           <div className="grid grid-cols-3 gap-2 text-center">
                             <div>
                               <div className="text-xs text-gray-400">Pitch</div>
-                              <div className="font-mono text-sm text-gray-700">
+                              <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
                                 {formatValue(metrics.headPose.pitch * 45, 1)}°
                               </div>
                             </div>
                             <div>
                               <div className="text-xs text-gray-400">Yaw</div>
-                              <div className="font-mono text-sm text-gray-700">
+                              <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
                                 {formatValue(metrics.headPose.yaw * 45, 1)}°
                               </div>
                             </div>
                             <div>
                               <div className="text-xs text-gray-400">Roll</div>
-                              <div className="font-mono text-sm text-gray-700">
+                              <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
                                 {formatValue(metrics.headPose.roll * 45, 1)}°
                               </div>
                             </div>
@@ -604,8 +627,8 @@ function FloatingEyeIndicatorComponent({
 
                         {/* 置信度 */}
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">检测置信度</span>
-                          <span className="font-mono text-gray-700">
+                          <span className="text-gray-500 dark:text-gray-400">检测置信度</span>
+                          <span className="font-mono text-gray-700 dark:text-gray-300">
                             {formatValue(metrics.confidence * 100, 0)}%
                           </span>
                         </div>
@@ -616,7 +639,7 @@ function FloatingEyeIndicatorComponent({
               </div>
 
               {/* 操作提示 */}
-              <div className="mt-3 border-t border-gray-100 pt-2 text-center text-xs text-gray-400">
+              <div className="mt-3 border-t border-gray-100 pt-2 text-center text-xs text-gray-400 dark:border-slate-700">
                 右键单击眼睛图标关闭检测
               </div>
             </motion.div>

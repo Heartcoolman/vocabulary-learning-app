@@ -182,11 +182,13 @@ export const LearningObjectivesPage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">学习目标配置</h1>
+      <h1 className="mb-8 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
+        学习目标配置
+      </h1>
 
       {/* 错误提示 */}
       {error && (
-        <div className="mb-4 flex items-center gap-3 rounded-button border border-red-200 bg-red-50 p-4 text-red-700">
+        <div className="mb-4 flex items-center gap-3 rounded-button border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
           <Warning size={20} weight="bold" className="flex-shrink-0" />
           <p className="font-medium">{error}</p>
         </div>
@@ -194,15 +196,15 @@ export const LearningObjectivesPage: React.FC = () => {
 
       {/* 成功提示 */}
       {successMessage && (
-        <div className="mb-4 flex items-center gap-3 rounded-button border border-green-200 bg-green-50 p-4 text-green-700">
+        <div className="mb-4 flex items-center gap-3 rounded-button border border-green-200 bg-green-50 p-4 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-400">
           <CheckCircle size={20} weight="bold" className="flex-shrink-0" />
           <p className="font-medium">{successMessage}</p>
         </div>
       )}
 
       {/* 学习模式选择 */}
-      <section className="mb-8 rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">学习模式</h2>
+      <section className="mb-8 rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">学习模式</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {(Object.keys(MODE_CONFIGS) as LearningObjectiveMode[]).map((mode) => (
             <ModeCard
@@ -221,8 +223,8 @@ export const LearningObjectivesPage: React.FC = () => {
 
       {/* 自定义权重配置 */}
       {objectives.mode === 'custom' && (
-        <section className="mb-8 rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-          <h2 className="mb-6 text-xl font-bold text-gray-900">权重配置</h2>
+        <section className="mb-8 rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="mb-6 text-xl font-bold text-gray-900 dark:text-white">权重配置</h2>
 
           <WeightSlider
             label="短期记忆"

@@ -5,8 +5,6 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -82,11 +80,21 @@ struct WordHistoryQuery {
     limit: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportQuery {
+    format: Option<String>,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_users))
         .route("/:id", get(get_user).delete(delete_user))
         .route("/:id/role", put(update_user_role))
+        .route(
+            "/:id/reset-password-token",
+            axum::routing::post(create_password_reset_token),
+        )
         .route("/:id/learning-data", get(get_learning_data))
         .route("/:id/statistics", get(get_statistics))
         .route("/:id/words", get(get_user_words))
@@ -96,22 +104,28 @@ pub fn router() -> Router<AppState> {
         .route("/:userId/heatmap", get(get_user_heatmap))
         .route("/:userId/words/:wordId", get(get_user_word_detail))
         .route("/:userId/words/:wordId/history", get(get_word_history))
-        .route("/:userId/words/:wordId/score-history", get(get_word_score_history))
-        .route("/:userId/words/:wordId/flag", axum::routing::post(flag_anomaly))
+        .route(
+            "/:userId/words/:wordId/score-history",
+            get(get_word_score_history),
+        )
+        .route(
+            "/:userId/words/:wordId/flag",
+            axum::routing::post(flag_anomaly),
+        )
         .route("/:userId/words/:wordId/flags", get(get_anomaly_flags))
 }
 
 async fn list_users(
     State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
     Query(query): Query<ListUsersQuery>,
 ) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let page = query.page.unwrap_or(1).max(1);
@@ -123,126 +137,208 @@ async fn list_users(
         search: query.search,
     };
 
-    match crate::services::admin::list_users(proxy.as_ref(), db_state, params).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::list_users(proxy.as_ref(), params).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
-async fn get_user(
-    State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
-    Path(id): Path<String>,
-) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
+async fn get_user(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
-    match crate::services::admin::get_user_by_id(proxy.as_ref(), db_state, &id).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::get_user_by_id(proxy.as_ref(), &id).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
 async fn update_user_role(
     State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
     Path(id): Path<String>,
     Json(payload): Json<UpdateUserRoleRequest>,
 ) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let role = payload.role.trim().to_ascii_uppercase();
-    match crate::services::admin::update_user_role(proxy.as_ref(), db_state, &id, &role).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::update_user_role(proxy.as_ref(), &id, &role).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
-async fn delete_user(
-    State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
-    Path(id): Path<String>,
-) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
+async fn delete_user(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
-    match crate::services::admin::delete_user(proxy.as_ref(), db_state, &id).await {
+    match crate::services::admin::delete_user(proxy.as_ref(), &id).await {
         Ok(()) => Json(MessageResponse {
             success: true,
             message: "用户删除成功",
-        }).into_response(),
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PasswordResetTokenResponse {
+    token: String,
+    expires_at: String,
+    reset_url: String,
+}
+
+async fn create_password_reset_token(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match crate::services::admin::get_user_by_id(proxy.as_ref(), &id).await {
+        Ok(_) => {}
+        Err(crate::services::admin::AdminError::NotFound(_)) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户不存在").into_response();
+        }
+        Err(err) => return admin_error_response(err),
+    }
+
+    let token = uuid::Uuid::new_v4().to_string().replace("-", "");
+    let expires_at = chrono::Utc::now().naive_utc() + chrono::Duration::hours(24);
+
+    match crate::db::operations::user::create_password_reset_token(
+        proxy.as_ref(),
+        &id,
+        &token,
+        expires_at,
+    )
+    .await
+    {
+        Ok(_) => {
+            let base_url = std::env::var("FRONTEND_URL")
+                .unwrap_or_else(|_| "http://localhost:5173".to_string());
+            let reset_url = format!("{}/reset-password?token={}", base_url, token);
+            let expires_at_str =
+                chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(expires_at, chrono::Utc)
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+            Json(SuccessResponse {
+                success: true,
+                data: PasswordResetTokenResponse {
+                    token,
+                    expires_at: expires_at_str,
+                    reset_url,
+                },
+            })
+            .into_response()
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "create password reset token failed");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
+        }
     }
 }
 
 async fn get_learning_data(
     State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
     Path(id): Path<String>,
     Query(query): Query<LearningDataQuery>,
 ) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let limit = query.limit.unwrap_or(50).max(1).min(100);
-    match crate::services::admin::get_user_learning_data(proxy.as_ref(), db_state, &id, limit).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::get_user_learning_data(proxy.as_ref(), &id, limit).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
-async fn get_statistics(
-    State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
-    Path(id): Path<String>,
-) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
+async fn get_statistics(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
-    match crate::services::admin::get_user_detailed_statistics(proxy.as_ref(), db_state, &id).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::get_user_detailed_statistics(proxy.as_ref(), &id).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
 async fn get_user_words(
     State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
     Path(id): Path<String>,
     Query(query): Query<UserWordsQuery>,
 ) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let params = crate::services::admin::UserWordsParams {
@@ -257,28 +353,79 @@ async fn get_user_words(
         min_accuracy: query.min_accuracy,
     };
 
-    match crate::services::admin::get_user_words(proxy.as_ref(), db_state, &id, params).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::get_user_words(proxy.as_ref(), &id, params).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
-async fn export_user_words(Path(_id): Path<String>) -> Response {
-    not_implemented()
+async fn export_user_words(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<ExportQuery>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match crate::services::admin::export_user_words(proxy.as_ref(), &id).await {
+        Ok(data) => {
+            let format = query.format.as_deref().unwrap_or("json");
+            if format == "csv" {
+                let mut csv = String::from("wordId,spelling,phonetic,state,score,masteryLevel,reviewCount,accuracy,lastReviewDate\n");
+                for item in &data {
+                    csv.push_str(&format!(
+                        "{},{},{},{},{},{},{},{},{}\n",
+                        item.word_id,
+                        item.spelling,
+                        item.phonetic.as_deref().unwrap_or(""),
+                        item.state,
+                        item.score,
+                        item.mastery_level,
+                        item.review_count,
+                        item.accuracy,
+                        item.last_review_date.as_deref().unwrap_or("")
+                    ));
+                }
+                (
+                    StatusCode::OK,
+                    [(axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8")],
+                    csv,
+                )
+                    .into_response()
+            } else {
+                Json(SuccessResponse {
+                    success: true,
+                    data,
+                })
+                .into_response()
+            }
+        }
+        Err(err) => admin_error_response(err),
+    }
 }
 
 async fn get_user_decisions(
     State(state): State<AppState>,
-    request_state: Option<axum::extract::Extension<RequestDbState>>,
     Path(id): Path<String>,
     Query(query): Query<DecisionsQuery>,
 ) -> Response {
-    let db_state = request_state
-        .map(|axum::extract::Extension(v)| v.0)
-        .unwrap_or(DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let params = crate::services::admin::UserDecisionsParams {
@@ -292,48 +439,199 @@ async fn get_user_decisions(
         sort_order: crate::services::admin::SortOrder::from_query(query.sort_order.as_deref()),
     };
 
-    match crate::services::admin::get_user_decisions(proxy.as_ref(), db_state, &id, params).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+    match crate::services::admin::get_user_decisions(proxy.as_ref(), &id, params).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(err) => admin_error_response(err),
     }
 }
 
 async fn get_decision_detail(Path((_id, _decision_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+    json_error(
+        StatusCode::NOT_IMPLEMENTED,
+        "NOT_IMPLEMENTED",
+        "AMAS 决策详情功能开发中",
+    )
+    .into_response()
 }
 
 async fn get_user_heatmap(
-    Path(_user_id): Path<String>,
-    Query(_query): Query<HeatmapQuery>,
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+    Query(query): Query<HeatmapQuery>,
 ) -> Response {
-    not_implemented()
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match crate::services::admin::get_user_heatmap(
+        proxy.as_ref(),
+        &user_id,
+        query.start_date.as_deref(),
+        query.end_date.as_deref(),
+    )
+    .await
+    {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
-async fn get_user_word_detail(Path((_user_id, _word_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+async fn get_user_word_detail(
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match crate::services::admin::get_user_word_detail(proxy.as_ref(), &user_id, &word_id).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
 async fn get_word_history(
-    Path((_user_id, _word_id)): Path<(String, String)>,
-    Query(_query): Query<WordHistoryQuery>,
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+    Query(query): Query<WordHistoryQuery>,
 ) -> Response {
-    not_implemented()
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    let limit = query.limit.unwrap_or(50);
+    match crate::services::admin::get_word_history(proxy.as_ref(), &user_id, &word_id, limit).await
+    {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
-async fn get_word_score_history(Path((_user_id, _word_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+async fn get_word_score_history(
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match crate::services::admin::get_word_score_history(proxy.as_ref(), &user_id, &word_id).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
-async fn flag_anomaly(Path((_user_id, _word_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+async fn flag_anomaly(
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<crate::services::admin::FlagAnomalyRequest>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    let flagged_by = match crate::auth::extract_token(&headers) {
+        Some(token) => match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+            Ok(user) => user.id,
+            Err(_) => "system".to_string(),
+        },
+        None => "system".to_string(),
+    };
+
+    match crate::services::admin::create_anomaly_flag(
+        proxy.as_ref(),
+        &user_id,
+        &word_id,
+        &flagged_by,
+        payload,
+    )
+    .await
+    {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
-async fn get_anomaly_flags(Path((_user_id, _word_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+async fn get_anomaly_flags(
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match crate::services::admin::get_anomaly_flags(proxy.as_ref(), &user_id, &word_id).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
 fn not_implemented() -> Response {
-    json_error(StatusCode::NOT_IMPLEMENTED, "NOT_IMPLEMENTED", "功能尚未实现").into_response()
+    json_error(
+        StatusCode::NOT_IMPLEMENTED,
+        "NOT_IMPLEMENTED",
+        "功能尚未实现",
+    )
+    .into_response()
 }
 
 fn admin_error_response(err: crate::services::admin::AdminError) -> Response {
@@ -350,20 +648,38 @@ fn admin_error_response(err: crate::services::admin::AdminError) -> Response {
         crate::services::admin::AdminError::Unauthorized(message) => {
             json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", message).into_response()
         }
-        crate::services::admin::AdminError::Unavailable => {
-            json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response()
-        }
+        crate::services::admin::AdminError::Unavailable => json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response(),
         crate::services::admin::AdminError::Sql(err) => {
             tracing::warn!(error = %err, "admin query failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
         crate::services::admin::AdminError::Mutation(message) => {
             tracing::warn!(error = %message, "admin mutation failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
         crate::services::admin::AdminError::Record(err) => {
             tracing::warn!(error = %err, "admin record query failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }

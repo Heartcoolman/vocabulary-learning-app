@@ -66,13 +66,20 @@ export interface WeeklyReportSummary {
 
 export interface WeeklyReportDetail extends WeeklyReportSummary {
   keyMetrics: {
-    totalUsers: number;
-    activeUsers: number;
-    newUsers: number;
-    learningRecords: number;
-    wordsLearned: number;
-    avgAccuracy: number;
-    avgSessionDuration: number;
+    users: {
+      total: number;
+      active: number;
+      new: number;
+    };
+    learning: {
+      totalAnswers: number;
+      avgAccuracy: number;
+      avgResponseTime: number;
+      totalWordsLearned: number;
+    };
+    system: {
+      uptimePercent: number;
+    };
   };
   highlights: Array<{
     title: string;
@@ -87,10 +94,9 @@ export interface WeeklyReportDetail extends WeeklyReportSummary {
     suggestedAction?: string;
   }>;
   recommendations: Array<{
-    title: string;
-    description: string;
+    action: string;
+    reason: string;
     priority: 'high' | 'medium' | 'low';
-    category: string;
   }>;
   userMetrics: Record<string, unknown>;
   learningMetrics: Record<string, unknown>;
@@ -181,13 +187,11 @@ export class OpsEnhanceClient extends BaseClient {
     if (options?.offset) params.append('offset', String(options.offset));
     const queryStr = params.toString();
 
-    // 使用 requestFull 获取完整响应（包含 data 和 total）
-    const response = await this.requestFull<{
-      success: boolean;
-      data: AlertAnalysisResult[];
+    const response = await this.request<{
+      analyses: AlertAnalysisResult[];
       total: number;
     }>(`/api/admin/ops/alerts/analyses${queryStr ? `?${queryStr}` : ''}`);
-    return { items: response.data, total: response.total };
+    return { items: response.analyses, total: response.total };
   }
 
   /**
@@ -244,13 +248,11 @@ export class OpsEnhanceClient extends BaseClient {
     if (options?.offset) params.append('offset', String(options.offset));
     const queryStr = params.toString();
 
-    // 使用 requestFull 获取完整响应（包含 data 和 total）
-    const response = await this.requestFull<{
-      success: boolean;
-      data: WeeklyReportSummary[];
+    const response = await this.request<{
+      reports: WeeklyReportSummary[];
       total: number;
     }>(`/api/admin/ops/reports/weekly${queryStr ? `?${queryStr}` : ''}`);
-    return { items: response.data, total: response.total };
+    return { items: response.reports, total: response.total };
   }
 
   /**
@@ -308,13 +310,11 @@ export class OpsEnhanceClient extends BaseClient {
     if (options?.offset) params.append('offset', String(options.offset));
     const queryStr = params.toString();
 
-    // 使用 requestFull 获取完整响应（包含 data 和 total）
-    const response = await this.requestFull<{
-      success: boolean;
-      data: UserBehaviorInsight[];
+    const response = await this.request<{
+      insights: UserBehaviorInsight[];
       total: number;
     }>(`/api/admin/ops/insights${queryStr ? `?${queryStr}` : ''}`);
-    return { items: response.data, total: response.total };
+    return { items: response.insights, total: response.total };
   }
 
   /**

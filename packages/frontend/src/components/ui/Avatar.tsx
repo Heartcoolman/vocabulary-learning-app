@@ -95,7 +95,7 @@ export const Avatar = memo(
             'overflow-hidden',
             container,
             shape === 'circle' ? 'rounded-full' : 'rounded-button',
-            !showImage && (name ? getColorFromName(name) : 'bg-gray-200'),
+            !showImage && (name ? getColorFromName(name) : 'bg-gray-200 dark:bg-slate-600'),
             className,
           )}
           {...props}
@@ -117,7 +117,12 @@ export const Avatar = memo(
 
           {showIcon &&
             (icon || (
-              <User size={iconSize} weight="bold" className="text-gray-400" aria-hidden="true" />
+              <User
+                size={iconSize}
+                weight="bold"
+                className="text-gray-400 dark:text-gray-500"
+                aria-hidden="true"
+              />
             ))}
 
           {/* 无障碍：屏幕阅读器文本 */}
@@ -128,7 +133,7 @@ export const Avatar = memo(
             <span
               className={cn(
                 'absolute bottom-0 right-0',
-                'rounded-full border-white',
+                'rounded-full border-white dark:border-slate-800',
                 statusSize,
                 statusColors[status],
               )}
@@ -168,7 +173,7 @@ export const AvatarGroup = memo(
           {visibleChildren.map((child, index) => (
             <div
               key={index}
-              className="relative rounded-full ring-2 ring-white"
+              className="relative rounded-full ring-2 ring-white dark:ring-slate-800"
               style={{ zIndex: visibleChildren.length - index }}
             >
               {React.isValidElement(child)
@@ -181,8 +186,8 @@ export const AvatarGroup = memo(
             <div
               className={cn(
                 'relative flex items-center justify-center',
-                'bg-gray-100 font-medium text-gray-600',
-                'rounded-full ring-2 ring-white',
+                'bg-gray-100 font-medium text-gray-600 dark:bg-slate-700 dark:text-gray-300',
+                'rounded-full ring-2 ring-white dark:ring-slate-800',
                 container,
                 text,
               )}

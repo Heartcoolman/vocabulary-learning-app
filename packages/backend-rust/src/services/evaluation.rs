@@ -1,11 +1,8 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
-
-// ========== Types ==========
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -84,69 +81,13 @@ impl Default for EvaluatorConfig {
     }
 }
 
-pub enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
-// ========== Pool Selection ==========
-
-pub async fn select_pool(proxy: &DatabaseProxy, state: DatabaseState) -> Result<SelectedPool, String> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool().await
-            .map(SelectedPool::Fallback)
-            .ok_or_else(|| "服务不可用".to_string()),
-        _ => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedPool::Primary(pool)),
-            None => proxy.fallback_pool().await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-        },
-    }
-}
-
-// ========== Causal Observation Operations ==========
-
 pub async fn add_observation(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     input: CausalObservationInput,
 ) -> Result<CausalObservationRecord, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let timestamp = Utc::now().timestamp_millis();
-
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".into(), serde_json::json!(id));
-        if let Some(ref uid) = input.user_id {
-            data.insert("userId".into(), serde_json::json!(uid));
-        }
-        data.insert("features".into(), serde_json::json!(input.features));
-        data.insert("treatment".into(), serde_json::json!(input.treatment));
-        data.insert("outcome".into(), serde_json::json!(input.outcome));
-        data.insert("timestamp".into(), serde_json::json!(timestamp));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "causal_observations".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-
-        return Ok(CausalObservationRecord {
-            id,
-            user_id: input.user_id,
-            features: input.features,
-            treatment: input.treatment,
-            outcome: input.outcome,
-            timestamp,
-        });
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
+    let pool = proxy.pool();
 
     sqlx::query(
         r#"INSERT INTO "causal_observations" ("id","userId","features","treatment","outcome","timestamp")
@@ -158,7 +99,7 @@ pub async fn add_observation(
     .bind(input.treatment)
     .bind(input.outcome)
     .bind(timestamp)
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|e| format!("写入失败: {e}"))?;
 
@@ -173,65 +114,40 @@ pub async fn add_observation(
 }
 
 pub async fn get_observations(
-    pool: &SelectedPool,
+    pool: &PgPool,
     limit: i32,
 ) -> Result<Vec<CausalObservationRecord>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "features", "treatment", "outcome", "timestamp"
-                   FROM "causal_observations" ORDER BY "timestamp" DESC LIMIT $1"#,
-            )
-            .bind(limit)
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+    let rows = sqlx::query(
+        r#"SELECT "id", "userId", "features", "treatment", "outcome", "timestamp"
+           FROM "causal_observations" ORDER BY "timestamp" DESC LIMIT $1"#,
+    )
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            Ok(rows.iter().map(|row| CausalObservationRecord {
-                id: row.try_get("id").unwrap_or_default(),
-                user_id: row.try_get("userId").ok(),
-                features: row.try_get::<Vec<f64>, _>("features").unwrap_or_default(),
-                treatment: row.try_get("treatment").unwrap_or(0),
-                outcome: row.try_get("outcome").unwrap_or(0.0),
-                timestamp: row.try_get("timestamp").unwrap_or(0),
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT "id", "userId", "features", "treatment", "outcome", "timestamp"
-                   FROM "causal_observations" ORDER BY "timestamp" DESC LIMIT ?"#,
-            )
-            .bind(limit)
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(rows.iter().map(|row| {
-                let features_raw: String = row.try_get("features").unwrap_or_default();
-                let features: Vec<f64> = serde_json::from_str(&features_raw).unwrap_or_default();
-                CausalObservationRecord {
-                    id: row.try_get("id").unwrap_or_default(),
-                    user_id: row.try_get("userId").ok(),
-                    features,
-                    treatment: row.try_get("treatment").unwrap_or(0),
-                    outcome: row.try_get("outcome").unwrap_or(0.0),
-                    timestamp: row.try_get("timestamp").unwrap_or(0),
-                }
-            }).collect())
-        }
-    }
+    Ok(rows
+        .iter()
+        .map(|row| CausalObservationRecord {
+            id: row.try_get("id").unwrap_or_default(),
+            user_id: row.try_get("userId").ok(),
+            features: row.try_get::<Vec<f64>, _>("features").unwrap_or_default(),
+            treatment: row.try_get("treatment").unwrap_or(0),
+            outcome: row.try_get("outcome").unwrap_or(0.0),
+            timestamp: row.try_get("timestamp").unwrap_or(0),
+        })
+        .collect())
 }
 
-pub async fn estimate_strategy_effect(pool: &SelectedPool) -> Result<Option<CausalEstimate>, String> {
+pub async fn estimate_strategy_effect(pool: &PgPool) -> Result<Option<CausalEstimate>, String> {
     let observations = get_observations(pool, 1000).await?;
 
     if observations.len() < 10 {
         return Ok(None);
     }
 
-    let (treatment_records, control_records): (Vec<_>, Vec<_>) = observations
-        .iter()
-        .partition(|o| o.treatment == 1);
+    let (treatment_records, control_records): (Vec<_>, Vec<_>) =
+        observations.iter().partition(|o| o.treatment == 1);
 
     let treatment_outcomes: Vec<f64> = treatment_records.iter().map(|o| o.outcome).collect();
     let control_outcomes: Vec<f64> = control_records.iter().map(|o| o.outcome).collect();
@@ -246,7 +162,9 @@ pub async fn estimate_strategy_effect(pool: &SelectedPool) -> Result<Option<Caus
 
     let treatment_var = variance(&treatment_outcomes);
     let control_var = variance(&control_outcomes);
-    let ate_se = ((treatment_var / treatment_outcomes.len() as f64) + (control_var / control_outcomes.len() as f64)).sqrt();
+    let ate_se = ((treatment_var / treatment_outcomes.len() as f64)
+        + (control_var / control_outcomes.len() as f64))
+        .sqrt();
 
     let z = 1.96;
     let ci_low = ate - z * ate_se;
@@ -265,95 +183,66 @@ pub async fn estimate_strategy_effect(pool: &SelectedPool) -> Result<Option<Caus
     }))
 }
 
-// ========== Word Mastery Evaluation ==========
-
 pub async fn evaluate_word_mastery(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
     word_id: &str,
     user_fatigue: Option<f64>,
     config: &EvaluatorConfig,
 ) -> Result<MasteryEvaluation, String> {
-    let (mastery_level, ease_factor, review_count, score, correct_count, incorrect_count, trace_count) = match pool {
-        SelectedPool::Primary(pg) => {
-            let state_row = sqlx::query(
-                r#"SELECT "masteryLevel", "easeFactor", "reviewCount" FROM "word_learning_states"
-                   WHERE "userId" = $1 AND "wordId" = $2"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_optional(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+    let state_row = sqlx::query(
+        r#"SELECT "masteryLevel", "easeFactor", "reviewCount" FROM "word_learning_states"
+           WHERE "userId" = $1 AND "wordId" = $2"#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            let score_row = sqlx::query(
-                r#"SELECT "score", "correctCount", "incorrectCount" FROM "word_scores"
-                   WHERE "userId" = $1 AND "wordId" = $2"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_optional(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+    let score_row = sqlx::query(
+        r#"SELECT "score", "correctCount", "incorrectCount" FROM "word_scores"
+           WHERE "userId" = $1 AND "wordId" = $2"#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            let trace_count: i64 = sqlx::query_scalar(
-                r#"SELECT COUNT(*) FROM "word_review_traces" WHERE "userId" = $1 AND "wordId" = $2"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_one(pg)
-            .await
-            .unwrap_or(0);
+    let trace_count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "word_review_traces" WHERE "userId" = $1 AND "wordId" = $2"#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
 
-            let mastery_level: i32 = state_row.as_ref().and_then(|r| r.try_get("masteryLevel").ok()).unwrap_or(0);
-            let ease_factor: f64 = state_row.as_ref().and_then(|r| r.try_get("easeFactor").ok()).unwrap_or(2.5);
-            let review_count: i32 = state_row.as_ref().and_then(|r| r.try_get("reviewCount").ok()).unwrap_or(0);
-            let score: f64 = score_row.as_ref().and_then(|r| r.try_get("score").ok()).unwrap_or(50.0);
-            let correct_count: i32 = score_row.as_ref().and_then(|r| r.try_get("correctCount").ok()).unwrap_or(0);
-            let incorrect_count: i32 = score_row.as_ref().and_then(|r| r.try_get("incorrectCount").ok()).unwrap_or(0);
-
-            (mastery_level, ease_factor, review_count, score, correct_count, incorrect_count, trace_count)
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let state_row = sqlx::query(
-                r#"SELECT "masteryLevel", "easeFactor", "reviewCount" FROM "word_learning_states"
-                   WHERE "userId" = ? AND "wordId" = ?"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_optional(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            let score_row = sqlx::query(
-                r#"SELECT "score", "correctCount", "incorrectCount" FROM "word_scores"
-                   WHERE "userId" = ? AND "wordId" = ?"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_optional(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            let trace_count: i64 = sqlx::query_scalar(
-                r#"SELECT COUNT(*) FROM "word_review_traces" WHERE "userId" = ? AND "wordId" = ?"#,
-            )
-            .bind(user_id)
-            .bind(word_id)
-            .fetch_one(sqlite)
-            .await
-            .unwrap_or(0);
-
-            let mastery_level: i32 = state_row.as_ref().and_then(|r| r.try_get("masteryLevel").ok()).unwrap_or(0);
-            let ease_factor: f64 = state_row.as_ref().and_then(|r| r.try_get("easeFactor").ok()).unwrap_or(2.5);
-            let review_count: i32 = state_row.as_ref().and_then(|r| r.try_get("reviewCount").ok()).unwrap_or(0);
-            let score: f64 = score_row.as_ref().and_then(|r| r.try_get("score").ok()).unwrap_or(50.0);
-            let correct_count: i32 = score_row.as_ref().and_then(|r| r.try_get("correctCount").ok()).unwrap_or(0);
-            let incorrect_count: i32 = score_row.as_ref().and_then(|r| r.try_get("incorrectCount").ok()).unwrap_or(0);
-
-            (mastery_level, ease_factor, review_count, score, correct_count, incorrect_count, trace_count)
-        }
-    };
+    let mastery_level: i32 = state_row
+        .as_ref()
+        .and_then(|r| r.try_get("masteryLevel").ok())
+        .unwrap_or(0);
+    let ease_factor: f64 = state_row
+        .as_ref()
+        .and_then(|r| r.try_get("easeFactor").ok())
+        .unwrap_or(2.5);
+    let review_count: i32 = state_row
+        .as_ref()
+        .and_then(|r| r.try_get("reviewCount").ok())
+        .unwrap_or(0);
+    let score: f64 = score_row
+        .as_ref()
+        .and_then(|r| r.try_get("score").ok())
+        .unwrap_or(50.0);
+    let correct_count: i32 = score_row
+        .as_ref()
+        .and_then(|r| r.try_get("correctCount").ok())
+        .unwrap_or(0);
+    let incorrect_count: i32 = score_row
+        .as_ref()
+        .and_then(|r| r.try_get("incorrectCount").ok())
+        .unwrap_or(0);
 
     let _ = score;
     let total_attempts = correct_count + incorrect_count;
@@ -396,7 +285,7 @@ pub async fn evaluate_word_mastery(
 }
 
 pub async fn batch_evaluate_word_mastery(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
     word_ids: &[String],
     user_fatigue: Option<f64>,
@@ -410,10 +299,10 @@ pub async fn batch_evaluate_word_mastery(
     Ok(results)
 }
 
-// ========== Helper Functions ==========
-
 fn variance(values: &[f64]) -> f64 {
-    if values.is_empty() { return 0.0; }
+    if values.is_empty() {
+        return 0.0;
+    }
     let mean = values.iter().sum::<f64>() / values.len() as f64;
     values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64
 }

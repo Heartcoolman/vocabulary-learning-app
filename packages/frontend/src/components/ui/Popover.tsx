@@ -53,22 +53,22 @@ const placementStyles: Record<Placement, { popover: string; arrow: string }> = {
   top: {
     popover: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
     arrow:
-      'top-full left-1/2 -translate-x-1/2 border-t-white border-x-transparent border-b-transparent',
+      'top-full left-1/2 -translate-x-1/2 border-t-white dark:border-t-slate-800 border-x-transparent border-b-transparent',
   },
   bottom: {
     popover: 'top-full left-1/2 -translate-x-1/2 mt-2',
     arrow:
-      'bottom-full left-1/2 -translate-x-1/2 border-b-white border-x-transparent border-t-transparent',
+      'bottom-full left-1/2 -translate-x-1/2 border-b-white dark:border-b-slate-800 border-x-transparent border-t-transparent',
   },
   left: {
     popover: 'right-full top-1/2 -translate-y-1/2 mr-2',
     arrow:
-      'left-full top-1/2 -translate-y-1/2 border-l-white border-y-transparent border-r-transparent',
+      'left-full top-1/2 -translate-y-1/2 border-l-white dark:border-l-slate-800 border-y-transparent border-r-transparent',
   },
   right: {
     popover: 'left-full top-1/2 -translate-y-1/2 ml-2',
     arrow:
-      'right-full top-1/2 -translate-y-1/2 border-r-white border-y-transparent border-l-transparent',
+      'right-full top-1/2 -translate-y-1/2 border-r-white dark:border-r-slate-800 border-y-transparent border-l-transparent',
   },
 };
 
@@ -236,10 +236,10 @@ export const Popover = memo(
               aria-modal="false"
               className={cn(
                 'absolute z-50',
-                'rounded-card bg-white',
+                'rounded-card bg-white dark:bg-slate-800',
                 'shadow-elevated',
                 'animate-g3-scale-in',
-                'border border-gray-100',
+                'border border-gray-100 dark:border-slate-700',
                 popoverPosition,
               )}
               style={{ maxWidth }}
@@ -252,19 +252,21 @@ export const Popover = memo(
                 <div
                   className={cn(
                     'flex items-center justify-between gap-2 px-4 pt-3',
-                    title ? 'border-b border-gray-100 pb-2' : undefined,
+                    title ? 'border-b border-gray-100 pb-2 dark:border-slate-700' : undefined,
                   )}
                 >
-                  {title && <h4 className="font-semibold text-gray-900">{title}</h4>}
+                  {title && (
+                    <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
+                  )}
                   {closable && (
                     <button
                       type="button"
                       onClick={() => setOpen(false)}
                       className={cn(
                         'rounded-badge p-1',
-                        'text-gray-400 hover:text-gray-600',
+                        'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300',
                         'transition-colors duration-g3-fast',
-                        'hover:bg-gray-100',
+                        'hover:bg-gray-100 dark:hover:bg-slate-700',
                         'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
                       )}
                       aria-label="关闭"
@@ -276,7 +278,9 @@ export const Popover = memo(
               )}
 
               {/* Content */}
-              <div className={cn('px-4 py-3', 'text-sm text-gray-600')}>{content}</div>
+              <div className={cn('px-4 py-3', 'text-sm text-gray-600 dark:text-gray-300')}>
+                {content}
+              </div>
 
               {/* Arrow */}
               {showArrow && (

@@ -232,9 +232,9 @@ const shadowStyles: Record<string, string> = {
 };
 
 const bgStyles: Record<string, string> = {
-  white: 'bg-white',
-  'gray-50': 'bg-gray-50',
-  'gray-100': 'bg-gray-100',
+  white: 'bg-white dark:bg-slate-800',
+  'gray-50': 'bg-gray-50 dark:bg-slate-900',
+  'gray-100': 'bg-gray-100 dark:bg-slate-700',
   transparent: 'bg-transparent',
 };
 
@@ -293,7 +293,7 @@ export const Box = memo(
             rounded && roundedStyles[rounded],
             shadow && shadowStyles[shadow],
             bg && bgStyles[bg],
-            border && 'border border-gray-200',
+            border && 'border border-gray-200 dark:border-slate-700',
             width && widthStyles[width],
             height && heightStyles[height],
             className,
@@ -326,8 +326,8 @@ export interface SectionProps extends HTMLAttributes<HTMLElement> {
 }
 
 const sectionBgStyles: Record<string, string> = {
-  white: 'bg-white',
-  gray: 'bg-gray-50',
+  white: 'bg-white dark:bg-slate-800',
+  gray: 'bg-gray-50 dark:bg-slate-900',
   transparent: '',
 };
 

@@ -13,21 +13,21 @@ const mockTrace: ReviewTraceRecord[] = [
     id: 'record-1',
     timestamp: '2024-01-01T10:00:00Z',
     isCorrect: true,
-    responseTime: 2.5,
+    responseTime: 2500, // 2.5 seconds in milliseconds
     secondsAgo: 86400,
   },
   {
     id: 'record-2',
     timestamp: '2024-01-02T10:00:00Z',
     isCorrect: false,
-    responseTime: 5.0,
+    responseTime: 5000, // 5.0 seconds in milliseconds
     secondsAgo: 0,
   },
   {
     id: 'record-3',
     timestamp: '2024-01-03T10:00:00Z',
     isCorrect: true,
-    responseTime: 1.8,
+    responseTime: 1800, // 1.8 seconds in milliseconds
     secondsAgo: 172800,
   },
 ];

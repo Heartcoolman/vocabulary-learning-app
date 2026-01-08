@@ -32,12 +32,30 @@ pub struct PerceptionConfig {
 impl Default for PerceptionConfig {
     fn default() -> Self {
         Self {
-            rt: NormalizationStat { mean: 3000.0, std_dev: 1500.0 },
-            pause: NormalizationStat { mean: 2.0, std_dev: 2.0 },
-            focus_loss: NormalizationStat { mean: 5000.0, std_dev: 3000.0 },
-            switches: NormalizationStat { mean: 1.0, std_dev: 1.0 },
-            dwell: NormalizationStat { mean: 8000.0, std_dev: 4000.0 },
-            interaction_density: NormalizationStat { mean: 0.5, std_dev: 0.2 },
+            rt: NormalizationStat {
+                mean: 3000.0,
+                std_dev: 1500.0,
+            },
+            pause: NormalizationStat {
+                mean: 2.0,
+                std_dev: 2.0,
+            },
+            focus_loss: NormalizationStat {
+                mean: 5000.0,
+                std_dev: 3000.0,
+            },
+            switches: NormalizationStat {
+                mean: 1.0,
+                std_dev: 1.0,
+            },
+            dwell: NormalizationStat {
+                mean: 8000.0,
+                std_dev: 4000.0,
+            },
+            interaction_density: NormalizationStat {
+                mean: 0.5,
+                std_dev: 0.2,
+            },
             max_response_time: 30000,
             max_pause_count: 10,
             max_switch_count: 5,
@@ -178,7 +196,7 @@ impl Default for BanditConfig {
     fn default() -> Self {
         Self {
             alpha: 0.1,
-            context_dim: 8,
+            context_dim: 5,
             action_count: 48,
             exploration_bonus: 1.0,
         }
@@ -208,6 +226,7 @@ impl Default for RewardConfig {
 pub struct FeatureFlags {
     pub ensemble_enabled: bool,
     pub thompson_enabled: bool,
+    pub linucb_enabled: bool,
     pub heuristic_enabled: bool,
     pub causal_inference_enabled: bool,
     pub bayesian_optimizer_enabled: bool,
@@ -219,6 +238,7 @@ impl Default for FeatureFlags {
         Self {
             ensemble_enabled: true,
             thompson_enabled: true,
+            linucb_enabled: true,
             heuristic_enabled: true,
             causal_inference_enabled: false,
             bayesian_optimizer_enabled: false,
@@ -273,6 +293,9 @@ impl AMASConfig {
         }
         if let Ok(val) = std::env::var("AMAS_THOMPSON_ENABLED") {
             config.feature_flags.thompson_enabled = val.parse().unwrap_or(true);
+        }
+        if let Ok(val) = std::env::var("AMAS_LINUCB_ENABLED") {
+            config.feature_flags.linucb_enabled = val.parse().unwrap_or(true);
         }
         if let Ok(val) = std::env::var("AMAS_CAUSAL_ENABLED") {
             config.feature_flags.causal_inference_enabled = val.parse().unwrap_or(false);

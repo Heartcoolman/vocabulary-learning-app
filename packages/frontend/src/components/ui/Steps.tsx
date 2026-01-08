@@ -172,12 +172,12 @@ const sizeStyles: Record<
 
 const statusStyles: Record<StepStatus, { icon: string; connector: string }> = {
   wait: {
-    icon: 'bg-gray-100 text-gray-400 border-gray-200',
-    connector: 'bg-gray-200',
+    icon: 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-slate-600',
+    connector: 'bg-gray-200 dark:bg-slate-700',
   },
   process: {
     icon: 'bg-blue-500 text-white border-blue-500',
-    connector: 'bg-gray-200',
+    connector: 'bg-gray-200 dark:bg-slate-700',
   },
   finish: {
     icon: 'bg-blue-500 text-white border-blue-500',
@@ -185,7 +185,7 @@ const statusStyles: Record<StepStatus, { icon: string; connector: string }> = {
   },
   error: {
     icon: 'bg-red-500 text-white border-red-500',
-    connector: 'bg-gray-200',
+    connector: 'bg-gray-200 dark:bg-slate-700',
   },
 };
 
@@ -270,7 +270,8 @@ export const Step = memo(
                 className={cn(
                   'rounded-full border-2',
                   styles.dot,
-                  stepStatus === 'wait' && 'border-gray-300 bg-white',
+                  stepStatus === 'wait' &&
+                    'border-gray-300 bg-white dark:border-slate-600 dark:bg-slate-800',
                   stepStatus === 'process' && 'border-blue-500 bg-blue-500',
                   stepStatus === 'finish' && 'border-blue-500 bg-blue-500',
                   stepStatus === 'error' && 'border-red-500 bg-red-500',
@@ -294,7 +295,7 @@ export const Step = memo(
               <div
                 className={cn(
                   'mx-3 h-0.5 min-w-[24px] flex-1',
-                  stepStatus === 'finish' ? 'bg-blue-500' : 'bg-gray-200',
+                  stepStatus === 'finish' ? 'bg-blue-500' : 'bg-gray-200 dark:bg-slate-700',
                 )}
               />
             )}
@@ -306,16 +307,18 @@ export const Step = memo(
               className={cn(
                 'font-medium',
                 styles.title,
-                stepStatus === 'wait' && 'text-gray-500',
-                stepStatus === 'process' && 'text-gray-900',
-                stepStatus === 'finish' && 'text-gray-900',
-                stepStatus === 'error' && 'text-red-600',
+                stepStatus === 'wait' && 'text-gray-500 dark:text-gray-400',
+                stepStatus === 'process' && 'text-gray-900 dark:text-white',
+                stepStatus === 'finish' && 'text-gray-900 dark:text-white',
+                stepStatus === 'error' && 'text-red-600 dark:text-red-400',
               )}
             >
               {title}
             </div>
             {description && (
-              <div className={cn('mt-0.5 text-gray-500', styles.desc)}>{description}</div>
+              <div className={cn('mt-0.5 text-gray-500 dark:text-gray-400', styles.desc)}>
+                {description}
+              </div>
             )}
 
             {/* 垂直方向连接线 */}
@@ -323,7 +326,7 @@ export const Step = memo(
               <div
                 className={cn(
                   'absolute bottom-0 left-4 top-10 w-0.5 -translate-x-1/2',
-                  stepStatus === 'finish' ? 'bg-blue-500' : 'bg-gray-200',
+                  stepStatus === 'finish' ? 'bg-blue-500' : 'bg-gray-200 dark:bg-slate-700',
                 )}
               />
             )}

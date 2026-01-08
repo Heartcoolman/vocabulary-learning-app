@@ -12,16 +12,18 @@ interface CognitiveGrowthPanelProps {
 const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
   ({ cognitiveGrowth }) => {
     return (
-      <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+      <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <Brain size={24} weight="duotone" color="#a855f7" />
           认知成长对比（{cognitiveGrowth.period} 天）
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* 记忆力 */}
-          <div className="rounded-card bg-purple-50 p-4">
+          <div className="rounded-card bg-purple-50 p-4 dark:bg-purple-900/20">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-purple-700">记忆力</span>
+              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                记忆力
+              </span>
               <div
                 className={`flex items-center gap-1 ${
                   cognitiveGrowth.changes.memory.direction === 'up'
@@ -40,20 +42,20 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-slate-400">
                 {(cognitiveGrowth.past.memory * 100).toFixed(0)}%
               </span>
-              <span className="text-gray-400">→</span>
-              <span className="font-bold text-purple-700">
+              <span className="text-gray-400 dark:text-slate-500">→</span>
+              <span className="font-bold text-purple-700 dark:text-purple-300">
                 {(cognitiveGrowth.current.memory * 100).toFixed(0)}%
               </span>
             </div>
           </div>
 
           {/* 速度 */}
-          <div className="rounded-card bg-blue-50 p-4">
+          <div className="rounded-card bg-blue-50 p-4 dark:bg-blue-900/20">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-blue-700">速度</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">速度</span>
               <div
                 className={`flex items-center gap-1 ${
                   cognitiveGrowth.changes.speed.direction === 'up'
@@ -72,20 +74,20 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-slate-400">
                 {(cognitiveGrowth.past.speed * 100).toFixed(0)}%
               </span>
-              <span className="text-gray-400">→</span>
-              <span className="font-bold text-blue-700">
+              <span className="text-gray-400 dark:text-slate-500">→</span>
+              <span className="font-bold text-blue-700 dark:text-blue-300">
                 {(cognitiveGrowth.current.speed * 100).toFixed(0)}%
               </span>
             </div>
           </div>
 
           {/* 稳定性 */}
-          <div className="rounded-card bg-green-50 p-4">
+          <div className="rounded-card bg-green-50 p-4 dark:bg-green-900/20">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-green-700">稳定性</span>
+              <span className="text-sm font-medium text-green-700 dark:text-green-300">稳定性</span>
               <div
                 className={`flex items-center gap-1 ${
                   cognitiveGrowth.changes.stability.direction === 'up'
@@ -104,11 +106,11 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-slate-400">
                 {(cognitiveGrowth.past.stability * 100).toFixed(0)}%
               </span>
-              <span className="text-gray-400">→</span>
-              <span className="font-bold text-green-700">
+              <span className="text-gray-400 dark:text-slate-500">→</span>
+              <span className="font-bold text-green-700 dark:text-green-300">
                 {(cognitiveGrowth.current.stability * 100).toFixed(0)}%
               </span>
             </div>

@@ -11,11 +11,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import {
-  loginAsAdmin,
-  loginAsUser,
-  waitForPageReady,
-} from './utils/test-helpers';
+import { loginAsAdmin, loginAsUser, waitForPageReady } from './utils/test-helpers';
 
 // Increase timeout for algorithm config tests
 test.setTimeout(60000);
@@ -284,7 +280,9 @@ test.describe('Algorithm Config - Admin Access', () => {
         } else {
           // If not disabled, clicking should show error
           await saveButton.click();
-          await expect(page.locator('[role="alert"], .text-red-600')).toBeVisible({ timeout: 5000 });
+          await expect(page.locator('[role="alert"], .text-red-600')).toBeVisible({
+            timeout: 5000,
+          });
         }
       }
     });
@@ -431,7 +429,7 @@ test.describe('Algorithm Config - Loading States', () => {
 
   test('should handle API error gracefully', async ({ page }) => {
     // Block API requests
-    await page.route('**/api/admin/algorithm-config**', route => route.abort());
+    await page.route('**/api/admin/algorithm-config**', (route) => route.abort());
 
     await page.goto('/admin/algorithm-config');
     await page.waitForTimeout(3000);

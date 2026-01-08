@@ -9,7 +9,9 @@ export interface User {
   email: string;
   username: string;
   role: 'USER' | 'ADMIN';
+  rewardProfile?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /**
@@ -243,6 +245,42 @@ export interface VisualFatigueStats {
     start: string;
     end: string;
   };
+}
+
+/**
+ * LLM 分析任务
+ */
+export interface LLMTask {
+  id: string;
+  taskType: string;
+  status: string;
+  priority: number;
+  input: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  tokensUsed?: number;
+  error?: string;
+  retryCount: number;
+  createdBy?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+/**
+ * 单词内容变体
+ */
+export interface WordVariant {
+  id: string;
+  wordId: string;
+  field: string;
+  originalValue?: unknown;
+  generatedValue: unknown;
+  confidence: number;
+  taskId?: string;
+  status: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  createdAt: string;
 }
 
 /**
@@ -670,7 +708,25 @@ export class AdminClient extends BaseClient {
       timestamp: string;
     }>
   > {
-    return this.request('/api/optimization/history');
+    const response = await this.request<{
+      observations: Array<{
+        params: Record<string, number>;
+        value: number;
+        timestamp: number;
+      }>;
+      bestParams: Record<string, number> | null;
+      bestValue: number | null;
+      evaluationCount: number;
+    }>('/api/optimization/history');
+
+    return (response.observations || []).map((obs) => ({
+      params: obs.params,
+      value: obs.value,
+      timestamp:
+        typeof obs.timestamp === 'number'
+          ? new Date(obs.timestamp).toISOString()
+          : String(obs.timestamp),
+    }));
   }
 
   /**
@@ -855,7 +911,30 @@ export class AdminClient extends BaseClient {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
     const query = queryParams.toString();
-    return this.request(`/api/experiments${query ? `?${query}` : ''}`);
+
+    const response = await this.request<{
+      data: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        status: 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'ABORTED';
+        trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+        minSampleSize: number;
+        significanceLevel: number;
+        startedAt: string | null;
+        endedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
+        variantCount: number;
+        totalSamples: number;
+      }>;
+      pagination: { total: number; page: number; pageSize: number };
+    }>(`/api/experiments${query ? `?${query}` : ''}`);
+
+    return {
+      experiments: response.data,
+      total: response.pagination.total,
+    };
   }
 
   /**
@@ -951,5 +1030,138 @@ export class AdminClient extends BaseClient {
    */
   async getVisualFatigueStats(): Promise<VisualFatigueStats> {
     return this.request<VisualFatigueStats>('/api/admin/visual-fatigue/stats');
+  }
+
+  // ==================== LLM 任务管理 API ====================
+
+  /**
+   * 获取 LLM 任务列表
+   */
+  async getLLMTasks(params?: {
+    status?: string;
+    taskType?: string;
+    limit?: number;
+  }): Promise<LLMTask[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.taskType) queryParams.append('taskType', params.taskType);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const query = queryParams.toString();
+    const response = await this.request<{ success: boolean; data: LLMTask[] }>(
+      `/api/admin/llm/tasks${query ? `?${query}` : ''}`,
+    );
+    return response.data;
+  }
+
+  /**
+   * 创建 LLM 任务
+   */
+  async createLLMTask(data: {
+    taskType: string;
+    priority?: number;
+    input: Record<string, unknown>;
+  }): Promise<{ id: string }> {
+    const response = await this.request<{ success: boolean; data: { id: string } }>(
+      '/api/admin/llm/tasks',
+      { method: 'POST', body: JSON.stringify(data) },
+    );
+    return response.data;
+  }
+
+  /**
+   * 启动 LLM 任务
+   */
+  async startLLMTask(taskId: string): Promise<void> {
+    await this.request(`/api/admin/llm/tasks/${taskId}/start`, { method: 'PUT' });
+  }
+
+  /**
+   * 完成 LLM 任务
+   */
+  async completeLLMTask(
+    taskId: string,
+    output: Record<string, unknown>,
+    tokensUsed?: number,
+  ): Promise<void> {
+    await this.request(`/api/admin/llm/tasks/${taskId}/complete`, {
+      method: 'PUT',
+      body: JSON.stringify({ output, tokensUsed }),
+    });
+  }
+
+  /**
+   * 标记 LLM 任务失败
+   */
+  async failLLMTask(taskId: string, error: string): Promise<void> {
+    await this.request(`/api/admin/llm/tasks/${taskId}/fail`, {
+      method: 'PUT',
+      body: JSON.stringify({ error }),
+    });
+  }
+
+  // ==================== 单词内容变体 API ====================
+
+  /**
+   * 获取单词内容变体列表
+   */
+  async getWordVariants(params?: {
+    status?: string;
+    wordId?: string;
+    limit?: number;
+  }): Promise<WordVariant[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.wordId) queryParams.append('wordId', params.wordId);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const query = queryParams.toString();
+    const response = await this.request<{ success: boolean; data: WordVariant[] }>(
+      `/api/admin/llm/word-variants${query ? `?${query}` : ''}`,
+    );
+    return response.data;
+  }
+
+  /**
+   * 创建单词内容变体
+   */
+  async createWordVariant(data: {
+    wordId: string;
+    field: string;
+    originalValue?: unknown;
+    generatedValue: unknown;
+    confidence: number;
+    taskId?: string;
+  }): Promise<{ id: string }> {
+    const response = await this.request<{ success: boolean; data: { id: string } }>(
+      '/api/admin/llm/word-variants',
+      { method: 'POST', body: JSON.stringify(data) },
+    );
+    return response.data;
+  }
+
+  /**
+   * 更新单词变体状态
+   */
+  async updateWordVariantStatus(variantId: string, status: string): Promise<void> {
+    await this.request(`/api/admin/llm/word-variants/${variantId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  /**
+   * 评估建议效果
+   */
+  async evaluateSuggestionEffect(
+    suggestionId: string,
+    data: {
+      metricsAfterApply: Record<string, unknown>;
+      effectScore: number;
+      effectAnalysis: string;
+    },
+  ): Promise<void> {
+    await this.request(`/api/admin/llm/suggestion-effects/${suggestionId}/evaluate`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 }

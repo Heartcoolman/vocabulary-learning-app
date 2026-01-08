@@ -6,7 +6,6 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, error, info, warn};
 
 use crate::db::DatabaseProxy;
-use crate::db::state_machine::DatabaseState;
 
 const BATCH_SIZE: i64 = 50;
 const MAX_RETRY: i32 = 3;
@@ -26,20 +25,7 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
     let start = Instant::now();
     debug!("Starting delayed reward processing cycle");
 
-    // Check database state first before any operations
-    let state = db.state_machine().read().await.state();
-    if state == DatabaseState::Degraded || state == DatabaseState::Unavailable {
-        debug!("Database degraded, skipping delayed reward processing");
-        return Ok(());
-    }
-
-    let pool = match db.primary_pool().await {
-        Some(p) => p,
-        None => {
-            debug!("Primary pool not available, skipping delayed reward processing");
-            return Ok(());
-        }
-    };
+    let pool = db.pool();
 
     recover_stuck_tasks(&pool).await?;
 
@@ -95,7 +81,10 @@ async fn recover_stuck_tasks(pool: &PgPool) -> Result<(), super::WorkerError> {
     .await?;
 
     if result.rows_affected() > 0 {
-        warn!(recovered = result.rows_affected(), "Recovered stuck processing tasks");
+        warn!(
+            recovered = result.rows_affected(),
+            "Recovered stuck processing tasks"
+        );
     }
 
     Ok(())
@@ -154,7 +143,10 @@ async fn claim_pending_tasks(pool: &PgPool) -> Result<Vec<RewardTask>, super::Wo
     Ok(tasks)
 }
 
-async fn process_single_task_atomic(pool: &PgPool, task: &RewardTask) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn process_single_task_atomic(
+    pool: &PgPool,
+    task: &RewardTask,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     debug!(task_id = %task.id, user_id = %task.user_id, reward = task.reward, "Applying delayed reward");
 
     // Use transaction to ensure atomicity of reward application + task completion
@@ -164,7 +156,7 @@ async fn process_single_task_atomic(pool: &PgPool, task: &RewardTask) -> Result<
         let record = sqlx::query(
             r#"
             SELECT ar.id, ar."wordId", ar."isCorrect"
-            FROM "answer_record" ar
+            FROM "answer_records" ar
             WHERE ar.id = $1 AND ar."userId" = $2
             "#,
         )
@@ -182,7 +174,7 @@ async fn process_single_task_atomic(pool: &PgPool, task: &RewardTask) -> Result<
             let now = Utc::now();
             sqlx::query(
                 r#"
-                UPDATE "word_learning_state"
+                UPDATE "word_learning_states"
                 SET "lastRewardApplied" = $1, "cumulativeReward" = COALESCE("cumulativeReward", 0) + $2, "updatedAt" = $3
                 WHERE "userId" = $4 AND "wordId" = $5
                 "#,
@@ -212,12 +204,21 @@ async fn process_single_task_atomic(pool: &PgPool, task: &RewardTask) -> Result<
     Ok(())
 }
 
-async fn handle_task_failure(pool: &PgPool, task: &RewardTask, retry_count: i32, error_msg: &str) -> Result<(), super::WorkerError> {
+async fn handle_task_failure(
+    pool: &PgPool,
+    task: &RewardTask,
+    retry_count: i32,
+    error_msg: &str,
+) -> Result<(), super::WorkerError> {
     let next_retry = retry_count + 1;
     let is_failed = next_retry >= MAX_RETRY;
     let next_status = if is_failed { "FAILED" } else { "PENDING" };
     let backoff_minutes = std::cmp::min(5, next_retry as i64);
-    let next_due = if is_failed { task.due_ts } else { Utc::now() + chrono::Duration::minutes(backoff_minutes) };
+    let next_due = if is_failed {
+        task.due_ts
+    } else {
+        Utc::now() + chrono::Duration::minutes(backoff_minutes)
+    };
     let full_error = format!("Retry {}/{}: {}", next_retry, MAX_RETRY, error_msg);
 
     sqlx::query(r#"UPDATE "reward_queue" SET status = $1, "dueTs" = $2, "lastError" = $3, "updatedAt" = NOW() WHERE id = $4"#)
@@ -240,6 +241,10 @@ async fn handle_task_failure(pool: &PgPool, task: &RewardTask, retry_count: i32,
 fn parse_retry_count(last_error: &Option<String>) -> i32 {
     last_error
         .as_ref()
-        .and_then(|e| e.strip_prefix("Retry ").and_then(|s| s.split('/').next()).and_then(|n| n.parse().ok()))
+        .and_then(|e| {
+            e.strip_prefix("Retry ")
+                .and_then(|s| s.split('/').next())
+                .and_then(|n| n.parse().ok())
+        })
         .unwrap_or(0)
 }

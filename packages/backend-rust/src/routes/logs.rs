@@ -8,7 +8,6 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -68,14 +67,12 @@ pub async fn ingest(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
 ) -> Response {
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
-    let user = if let (Some(token), Some(proxy)) = (crate::auth::extract_token(req.headers()), state.db_proxy()) {
-        crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await.ok()
+    let user = if let (Some(token), Some(proxy)) =
+        (crate::auth::extract_token(req.headers()), state.db_proxy())
+    {
+        crate::auth::verify_request_token(proxy.as_ref(), &token)
+            .await
+            .ok()
     } else {
         None
     };
@@ -159,28 +156,63 @@ pub async fn ingest(
 
     let client_ip = addr.ip().to_string();
     let user_id = user.as_ref().map(|u| u.id.as_str()).unwrap_or("anonymous");
-    let username = user.as_ref().map(|u| u.username.as_str()).unwrap_or("anonymous");
+    let username = user
+        .as_ref()
+        .map(|u| u.username.as_str())
+        .unwrap_or("anonymous");
 
     for entry in payload.logs {
         let mut ctx = serde_json::Map::new();
-        ctx.insert("clientIp".to_string(), serde_json::Value::String(client_ip.clone()));
-        ctx.insert("userAgent".to_string(), serde_json::Value::String(user_agent.to_string()));
-        ctx.insert("originalTime".to_string(), serde_json::Value::String(entry.time.clone()));
-        ctx.insert("frontendApp".to_string(), serde_json::Value::String(entry.app.clone()));
-        ctx.insert("frontendEnv".to_string(), serde_json::Value::String(entry.env.clone()));
+        ctx.insert(
+            "clientIp".to_string(),
+            serde_json::Value::String(client_ip.clone()),
+        );
+        ctx.insert(
+            "userAgent".to_string(),
+            serde_json::Value::String(user_agent.to_string()),
+        );
+        ctx.insert(
+            "originalTime".to_string(),
+            serde_json::Value::String(entry.time.clone()),
+        );
+        ctx.insert(
+            "frontendApp".to_string(),
+            serde_json::Value::String(entry.app.clone()),
+        );
+        ctx.insert(
+            "frontendEnv".to_string(),
+            serde_json::Value::String(entry.env.clone()),
+        );
         if let Some(module) = entry.module.clone() {
-            ctx.insert("frontendModule".to_string(), serde_json::Value::String(module));
+            ctx.insert(
+                "frontendModule".to_string(),
+                serde_json::Value::String(module),
+            );
         }
-        ctx.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        ctx.insert("username".to_string(), serde_json::Value::String(username.to_string()));
+        ctx.insert(
+            "userId".to_string(),
+            serde_json::Value::String(user_id.to_string()),
+        );
+        ctx.insert(
+            "username".to_string(),
+            serde_json::Value::String(username.to_string()),
+        );
 
-        if let Some(extra) = entry.context {
+        if let Some(extra) = entry.context.clone() {
             for (key, value) in extra {
                 ctx.insert(key, value);
             }
         }
 
-        if let Some(err) = entry.err {
+        let error_json = entry.err.as_ref().map(|err| {
+            serde_json::json!({
+                "message": err.message,
+                "stack": err.stack,
+                "name": err.name,
+            })
+        });
+
+        if let Some(ref err) = entry.err {
             ctx.insert(
                 "frontendError".to_string(),
                 serde_json::json!({
@@ -191,13 +223,55 @@ pub async fn ingest(
             );
         }
 
-        let ctx_str = serde_json::Value::Object(ctx).to_string();
+        let ctx_str = serde_json::Value::Object(ctx.clone()).to_string();
         match entry.level {
             LogLevel::Trace => tracing::trace!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Debug => tracing::debug!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Info => tracing::info!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Warn => tracing::warn!(context = %ctx_str, "{}", entry.msg),
-            LogLevel::Error | LogLevel::Fatal => tracing::error!(context = %ctx_str, "{}", entry.msg),
+            LogLevel::Error | LogLevel::Fatal => {
+                tracing::error!(context = %ctx_str, "{}", entry.msg)
+            }
+        }
+
+        // Write to database
+        if let Some(ref proxy) = state.db_proxy() {
+            let pool = proxy.pool();
+            let log_id = uuid::Uuid::new_v4().to_string();
+            let level_str = match entry.level {
+                LogLevel::Trace => "TRACE",
+                LogLevel::Debug => "DEBUG",
+                LogLevel::Info => "INFO",
+                LogLevel::Warn => "WARN",
+                LogLevel::Error => "ERROR",
+                LogLevel::Fatal => "FATAL",
+            };
+            let context_json = serde_json::Value::Object(ctx);
+            let timestamp = chrono::DateTime::parse_from_rfc3339(&entry.time)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| chrono::Utc::now());
+
+            if let Err(e) = sqlx::query(
+                r#"INSERT INTO "system_logs" ("id", "level", "message", "module", "source", "context", "error", "userId", "clientIp", "userAgent", "app", "env", "timestamp")
+                   VALUES ($1, $2::"LogLevel", $3, $4, 'FRONTEND'::"LogSource", $5, $6, $7, $8, $9, $10, $11, $12)"#
+            )
+            .bind(&log_id)
+            .bind(level_str)
+            .bind(&entry.msg)
+            .bind(&entry.module)
+            .bind(&context_json)
+            .bind(&error_json)
+            .bind(if user_id == "anonymous" { None } else { Some(user_id) })
+            .bind(&client_ip)
+            .bind(user_agent)
+            .bind(&entry.app)
+            .bind(&entry.env)
+            .bind(timestamp)
+            .execute(pool)
+            .await
+            {
+                tracing::error!("Failed to write log to database: {}", e);
+            }
         }
     }
 

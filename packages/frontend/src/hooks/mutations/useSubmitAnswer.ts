@@ -14,6 +14,7 @@ import { useCallback, useRef } from 'react';
 import { processLearningEvent } from '../mastery';
 import type { LearningEventInput, AmasProcessResult } from '../../types/amas';
 import { learningLogger } from '../../utils/logger';
+import { trackingService } from '../../services/TrackingService';
 
 // ==================== 类型定义 ====================
 
@@ -165,6 +166,7 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
    */
   const buildLearningEvent = useCallback((params: SubmitAnswerParams): LearningEventInput => {
     const now = Date.now();
+    const stats = trackingService.getStats();
 
     return {
       wordId: params.wordId,
@@ -172,13 +174,13 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
       responseTime: params.responseTime,
       sessionId: params.sessionId,
       pausedTimeMs: params.pausedTimeMs,
-      // 提供默认值以满足后端要求
-      dwellTime: params.responseTime, // 停留时长默认等于响应时间
-      pauseCount: 0,
-      switchCount: 0,
+      dwellTime: params.responseTime,
+      pauseCount: stats.pauseCount,
+      switchCount: stats.pageSwitchCount + stats.taskSwitchCount,
       retryCount: 0,
-      focusLossDuration: 0,
-      interactionDensity: 1,
+      focusLossDuration: stats.sessionDuration > 0 ? Math.max(0, now - stats.lastActivityTime) : 0,
+      interactionDensity:
+        stats.sessionDuration > 0 ? stats.totalInteractions / (stats.sessionDuration / 1000) : 1,
       timestamp: now,
     };
   }, []);

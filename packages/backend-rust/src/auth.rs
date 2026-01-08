@@ -5,18 +5,19 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, TimeZone, Utc};
 use hmac::{Hmac, Mac};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{PgPool, SqlitePool};
+use sqlx::PgPool;
 use sqlx::Row;
 use thiserror::Error;
 
-use crate::db::state_machine::DatabaseState;
+use crate::cache::keys::{session_key, SESSION_TTL};
+use crate::cache::RedisCache;
 use crate::db::DatabaseProxy;
 
 const AUTH_COOKIE_NAME: &str = "auth_token";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthUser {
     pub id: String,
@@ -71,19 +72,36 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
 
 pub async fn verify_request_token(
     proxy: &DatabaseProxy,
-    request_state: DatabaseState,
     token: &str,
+) -> Result<AuthUser, AuthError> {
+    verify_request_token_cached(proxy, token, None).await
+}
+
+pub async fn verify_request_token_cached(
+    proxy: &DatabaseProxy,
+    token: &str,
+    cache: Option<&RedisCache>,
 ) -> Result<AuthUser, AuthError> {
     let secret = std::env::var("JWT_SECRET").map_err(|_| AuthError::MissingSecret)?;
     let claims = verify_jwt_hs256(token, &secret)?;
 
     let token_hash = hash_token(token);
+    let cache_key = session_key(&token_hash);
 
-    match select_pool(proxy, request_state).await {
-        SelectedPool::Primary(pool) => verify_with_postgres(&pool, &claims.user_id, &token_hash).await,
-        SelectedPool::Fallback(pool) => verify_with_sqlite(&pool, &claims.user_id, &token_hash).await,
-        SelectedPool::None => Err(AuthError::DatabaseUnavailable),
+    if let Some(cache) = cache {
+        if let Some(user) = cache.get::<AuthUser>(&cache_key).await {
+            return Ok(user);
+        }
     }
+
+    let pool = proxy.pool();
+    let user = verify_with_postgres(&pool, &claims.user_id, &token_hash).await?;
+
+    if let Some(cache) = cache {
+        cache.set(&cache_key, &user, SESSION_TTL).await;
+    }
+
+    Ok(user)
 }
 
 #[derive(Debug, Clone)]
@@ -121,7 +139,8 @@ fn verify_jwt_hs256(token: &str, secret: &str) -> Result<JwtClaims, AuthError> {
     }
 
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
     mac.update(format!("{header_b64}.{payload_b64}").as_bytes());
     mac.verify_slice(&sig_bytes)
         .map_err(|_| AuthError::InvalidToken)?;
@@ -191,12 +210,15 @@ pub fn sign_jwt_for_user(user_id: &str) -> Result<(String, NaiveDateTime), AuthE
         "exp": exp.timestamp(),
     });
 
-    let header_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&header_json).map_err(|_| AuthError::InvalidToken)?);
-    let payload_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload_json).map_err(|_| AuthError::InvalidToken)?);
+    let header_b64 = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(&header_json).map_err(|_| AuthError::InvalidToken)?);
+    let payload_b64 = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(&payload_json).map_err(|_| AuthError::InvalidToken)?);
     let signing_input = format!("{header_b64}.{payload_b64}");
 
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
     mac.update(signing_input.as_bytes());
     let signature = mac.finalize().into_bytes();
     let sig_b64 = URL_SAFE_NO_PAD.encode(signature);
@@ -207,15 +229,13 @@ pub fn sign_jwt_for_user(user_id: &str) -> Result<(String, NaiveDateTime), AuthE
     Ok((token, expires_at))
 }
 
-fn parse_expires_in_ms(value: &str) -> Result<i64, AuthError> {
+pub fn parse_expires_in_ms(value: &str) -> Result<i64, AuthError> {
     let trimmed = value.trim();
     if trimmed.is_empty() || trimmed.len() < 2 {
         return Err(AuthError::InvalidExpiresIn);
     }
 
-    let (digits, unit) = value
-        .trim()
-        .split_at(trimmed.len() - 1);
+    let (digits, unit) = value.trim().split_at(trimmed.len() - 1);
 
     let amount: i64 = digits.parse().map_err(|_| AuthError::InvalidExpiresIn)?;
     if amount <= 0 {
@@ -234,35 +254,6 @@ fn parse_expires_in_ms(value: &str) -> Result<i64, AuthError> {
 pub fn format_naive_datetime_iso_millis(value: NaiveDateTime) -> String {
     DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
         .to_rfc3339_opts(SecondsFormat::Millis, true)
-}
-
-enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-    None,
-}
-
-async fn select_pool(proxy: &DatabaseProxy, state: DatabaseState) -> SelectedPool {
-    match state {
-        DatabaseState::Degraded => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedPool::Fallback)
-            .unwrap_or(SelectedPool::None),
-        DatabaseState::Unavailable => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedPool::Fallback)
-            .unwrap_or(SelectedPool::None),
-        DatabaseState::Syncing | DatabaseState::Normal => match proxy.primary_pool().await {
-            Some(pool) => SelectedPool::Primary(pool),
-            None => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedPool::Fallback)
-                .unwrap_or(SelectedPool::None),
-        },
-    }
 }
 
 async fn verify_with_postgres(
@@ -350,96 +341,6 @@ async fn verify_with_postgres(
         role,
         created_at: naive_datetime_to_ms(created_at),
         updated_at: naive_datetime_to_ms(updated_at),
-    })
-}
-
-async fn verify_with_sqlite(
-    pool: &SqlitePool,
-    expected_user_id: &str,
-    token_hash: &str,
-) -> Result<AuthUser, AuthError> {
-    let session_row = sqlx::query(
-        r#"
-        SELECT "userId", "expiresAt"
-        FROM "sessions"
-        WHERE "token" = ?
-        "#,
-    )
-    .bind(token_hash)
-    .fetch_optional(pool)
-    .await
-    .map_err(|err| AuthError::Database(err.to_string()))?;
-
-    let Some(session_row) = session_row else {
-        return Err(AuthError::InvalidToken);
-    };
-
-    let session_user_id: String = session_row
-        .try_get("userId")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-    let session_expires_at: String = session_row
-        .try_get("expiresAt")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-
-    if session_user_id != expected_user_id {
-        return Err(AuthError::InvalidToken);
-    }
-
-    if parse_sqlite_datetime_ms(&session_expires_at)
-        .map(|expires| expires < Utc::now().timestamp_millis())
-        .unwrap_or(true)
-    {
-        return Err(AuthError::InvalidToken);
-    }
-
-    let user_row = sqlx::query(
-        r#"
-        SELECT
-          "id",
-          "email",
-          "username",
-          "role",
-          "createdAt",
-          "updatedAt"
-        FROM "users"
-        WHERE "id" = ?
-        "#,
-    )
-    .bind(expected_user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|err| AuthError::Database(err.to_string()))?;
-
-    let Some(user_row) = user_row else {
-        return Err(AuthError::InvalidToken);
-    };
-
-    let id: String = user_row
-        .try_get("id")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-    let email: String = user_row
-        .try_get("email")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-    let username: String = user_row
-        .try_get("username")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-    let role: String = user_row
-        .try_get("role")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-    let created_at: String = user_row
-        .try_get("createdAt")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-    let updated_at: String = user_row
-        .try_get("updatedAt")
-        .map_err(|err| AuthError::Database(err.to_string()))?;
-
-    Ok(AuthUser {
-        id,
-        email,
-        username,
-        role,
-        created_at: parse_sqlite_datetime_ms(&created_at).ok_or(AuthError::InvalidToken)?,
-        updated_at: parse_sqlite_datetime_ms(&updated_at).ok_or(AuthError::InvalidToken)?,
     })
 }
 

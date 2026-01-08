@@ -123,7 +123,7 @@ const HabitProfileTab: React.FC = () => {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-gray-600 dark:text-slate-300">加载中...</p>
         </div>
       </div>
     );
@@ -155,16 +155,16 @@ const HabitProfileTab: React.FC = () => {
     <div className="space-y-6">
       {/* Row 1: Core Statistics */}
       <div className="grid animate-g3-fade-in grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-button bg-blue-100 p-2">
-              <Clock className="text-blue-600" size={24} weight="bold" />
+            <div className="rounded-button bg-blue-100 p-2 dark:bg-blue-900/30">
+              <Clock className="text-blue-600 dark:text-blue-400" size={24} weight="bold" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-800">学习时长</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">学习时长</h3>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">平均每次</span>
+              <span className="text-sm text-gray-600 dark:text-slate-300">平均每次</span>
               <span className="text-lg font-bold text-blue-600">
                 {profile.rhythmPref.sessionMedianMinutes.toFixed(0)} 分钟
               </span>
@@ -172,16 +172,16 @@ const HabitProfileTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-button bg-green-100 p-2">
-              <TrendUp className="text-green-600" size={24} weight="bold" />
+            <div className="rounded-button bg-green-100 p-2 dark:bg-green-900/30">
+              <TrendUp className="text-green-600 dark:text-green-400" size={24} weight="bold" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-800">学习节奏</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">学习节奏</h3>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">平均批次</span>
+              <span className="text-sm text-gray-600 dark:text-slate-300">平均批次</span>
               <span className="text-lg font-bold text-green-600">
                 {profile.rhythmPref.batchMedian.toFixed(0)} 个/次
               </span>
@@ -189,25 +189,31 @@ const HabitProfileTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-button bg-purple-100 p-2">
-              <Calendar className="text-purple-600" size={24} weight="bold" />
+            <div className="rounded-button bg-purple-100 p-2 dark:bg-purple-900/30">
+              <Calendar className="text-purple-600 dark:text-purple-400" size={24} weight="bold" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-800">数据样本</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">数据样本</h3>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">学习会话</span>
-              <span className="font-semibold text-gray-900">{profile.samples.sessions}</span>
+              <span className="text-gray-600 dark:text-slate-300">学习会话</span>
+              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                {profile.samples.sessions}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">时间事件</span>
-              <span className="font-semibold text-gray-900">{profile.samples.timeEvents}</span>
+              <span className="text-gray-600 dark:text-slate-300">时间事件</span>
+              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                {profile.samples.timeEvents}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">批次记录</span>
-              <span className="font-semibold text-gray-900">{profile.samples.batches}</span>
+              <span className="text-gray-600 dark:text-slate-300">批次记录</span>
+              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                {profile.samples.batches}
+              </span>
             </div>
           </div>
         </div>
@@ -224,9 +230,11 @@ const HabitProfileTab: React.FC = () => {
             <LearningStyleCard data={cognitiveProfile.learningStyle} />
           </>
         ) : (
-          <div className="col-span-2 rounded-card border border-gray-200 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-600">认知画像数据加载中或数据不足...</p>
-            <p className="mt-2 text-xs text-gray-500">
+          <div className="col-span-2 rounded-card border border-gray-200 bg-gray-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800">
+            <p className="text-sm text-gray-600 dark:text-slate-300">
+              认知画像数据加载中或数据不足...
+            </p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
               需要至少20条学习记录才能生成Chronotype，50条记录才能生成Learning Style
             </p>
           </div>
@@ -234,35 +242,37 @@ const HabitProfileTab: React.FC = () => {
       </div>
 
       {profile.preferredTimeSlots.length > 0 && (
-        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-          <h3 className="mb-3 text-lg font-semibold text-gray-800">偏好时段</h3>
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="mb-3 text-lg font-semibold text-gray-800 dark:text-slate-100">偏好时段</h3>
           <div className="flex flex-wrap gap-2">
             {profile.preferredTimeSlots.map((hour: number) => (
               <span
                 key={hour}
-                className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700"
+                className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
               >
                 {hour}:00 - {hour}:59
               </span>
             ))}
           </div>
-          <p className="mt-3 text-sm text-gray-500">你最常在 {preferredTimeSlotsLabels} 进行学习</p>
+          <p className="mt-3 text-sm text-gray-500 dark:text-slate-400">
+            你最常在 {preferredTimeSlotsLabels} 进行学习
+          </p>
         </div>
       )}
 
-      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
         <HabitHeatmap timePref={profile.timePref} />
       </div>
 
-      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-        <h3 className="mb-4 text-lg font-semibold text-gray-800">数据管理</h3>
+      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-100">数据管理</h3>
 
         {actionMessage && (
           <div
             className={`mb-4 rounded-button p-3 text-sm ${
               actionMessage.type === 'success'
-                ? 'border border-green-200 bg-green-50 text-green-700'
-                : 'border border-red-200 bg-red-50 text-red-700'
+                ? 'border border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300'
+                : 'border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300'
             }`}
           >
             {actionMessage.text}
@@ -286,7 +296,7 @@ const HabitProfileTab: React.FC = () => {
           <button
             onClick={handleInitProfile}
             disabled={actionLoading !== null}
-            className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
           >
             {actionLoading === 'init' ? (
               <ArrowClockwise size={16} weight="bold" className="animate-spin" />
@@ -297,16 +307,17 @@ const HabitProfileTab: React.FC = () => {
           </button>
         </div>
 
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-500 dark:text-slate-400">
           习惯画像会在每次学习会话结束时自动更新。你也可以手动保存或从历史记录重新初始化。
         </p>
       </div>
 
-      <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
-        <h4 className="mb-2 flex items-center gap-1 text-sm font-semibold text-blue-900">
-          <Lightbulb size={16} weight="fill" className="text-blue-600" /> 关于习惯画像
+      <div className="rounded-button border border-blue-100 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30">
+        <h4 className="mb-2 flex items-center gap-1 text-sm font-semibold text-blue-900 dark:text-blue-200">
+          <Lightbulb size={16} weight="fill" className="text-blue-600 dark:text-blue-400" />{' '}
+          关于习惯画像
         </h4>
-        <p className="text-sm text-blue-700">
+        <p className="text-sm text-blue-700 dark:text-blue-300">
           系统会自动分析你的学习习惯，包括偏好的学习时段、每次学习时长和学习节奏。 这些数据将帮助
           AMAS 为你提供更个性化的学习建议。
         </p>

@@ -167,13 +167,10 @@ pub struct BatchComputeResult {
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionState {
     /// Attention level [0, 1]
-    #[cfg_attr(feature = "napi", napi(js_name = "A"))]
     pub attention: f64,
     /// Fatigue level [0, 1]
-    #[cfg_attr(feature = "napi", napi(js_name = "F"))]
     pub fatigue: f64,
     /// Motivation level [-1, 1]
-    #[cfg_attr(feature = "napi", napi(js_name = "M"))]
     pub motivation: f64,
     /// Confidence level [0, 1]
     pub conf: f64,
@@ -192,13 +189,10 @@ pub struct ACTRSelectionState {
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionContext {
     /// Current time (timestamp)
-    #[cfg_attr(feature = "napi", napi(js_name = "currentTime"))]
     pub current_time: f64,
     /// Session duration in milliseconds
-    #[cfg_attr(feature = "napi", napi(js_name = "sessionDuration"))]
     pub session_duration: f64,
     /// Number of words reviewed in session
-    #[cfg_attr(feature = "napi", napi(js_name = "wordsReviewed"))]
     pub words_reviewed: u32,
 }
 
@@ -222,7 +216,6 @@ pub struct ACTRActionParams {
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionResult {
     /// Selected action index
-    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
     pub selected_index: u32,
     /// Selection score
     pub score: f64,
@@ -251,11 +244,7 @@ pub struct ACTRMemoryNative {
 impl ACTRMemoryNative {
     /// Create a new ACT-R memory model instance
     #[cfg_attr(feature = "napi", napi(constructor))]
-    pub fn new(
-        decay: Option<f64>,
-        threshold: Option<f64>,
-        noise_scale: Option<f64>,
-    ) -> Self {
+    pub fn new(decay: Option<f64>, threshold: Option<f64>, noise_scale: Option<f64>) -> Self {
         Self {
             state: ACTRState {
                 decay: decay.unwrap_or(DEFAULT_DECAY),
@@ -608,7 +597,8 @@ impl ACTRMemoryNative {
         }
 
         // Use noise-free activation for stable prediction
-        let activation = self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay);
+        let activation =
+            self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay);
         let recall_probability = self.compute_recall_probability_internal(
             activation,
             self.state.threshold,
@@ -619,7 +609,10 @@ impl ACTRMemoryNative {
         let review_count = traces.len() as f64;
         let time_span = if traces.len() > 1 {
             let max_time = traces.iter().map(|t| t.timestamp).fold(0.0_f64, f64::max);
-            let min_time = traces.iter().map(|t| t.timestamp).fold(f64::INFINITY, f64::min);
+            let min_time = traces
+                .iter()
+                .map(|t| t.timestamp)
+                .fold(f64::INFINITY, f64::min);
             max_time - min_time
         } else {
             0.0
@@ -686,7 +679,10 @@ impl ACTRMemoryNative {
     /// # Returns
     /// Vector of batch computation results
     #[cfg_attr(feature = "napi", napi)]
-    pub fn batch_compute_activations(&self, inputs: Vec<BatchComputeInput>) -> Vec<BatchComputeResult> {
+    pub fn batch_compute_activations(
+        &self,
+        inputs: Vec<BatchComputeInput>,
+    ) -> Vec<BatchComputeResult> {
         let decay = self.state.decay;
         let threshold = self.state.threshold;
         let noise_scale = self.state.noise_scale;
@@ -694,11 +690,8 @@ impl ACTRMemoryNative {
         inputs
             .par_iter()
             .map(|input| {
-                let activation = compute_activation_internal_static(
-                    &input.traces,
-                    input.current_time,
-                    decay,
-                );
+                let activation =
+                    compute_activation_internal_static(&input.traces, input.current_time, decay);
                 let recall_probability =
                     compute_recall_probability_static(activation, threshold, noise_scale);
 
@@ -822,7 +815,8 @@ impl ACTRMemoryNative {
     /// Compute memory strength (normalized activation)
     #[cfg_attr(feature = "napi", napi)]
     pub fn compute_memory_strength(&self, traces: Vec<MemoryTrace>) -> f64 {
-        let activation = self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay);
+        let activation =
+            self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay);
         if !activation.is_finite() {
             return 0.0;
         }
@@ -894,7 +888,8 @@ impl ACTRMemoryNative {
 
         // Calculate confidence based on score spread
         let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
-        let variance = scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>() / scores.len() as f64;
+        let variance =
+            scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>() / scores.len() as f64;
         let confidence = if variance > 0.0 {
             // Higher variance = more confident in selection
             (variance.sqrt() * 2.0).min(1.0)
@@ -908,7 +903,11 @@ impl ACTRMemoryNative {
             confidence,
             metadata: Some(format!(
                 "{{\"scores\":[{}],\"mean_score\":{:.4}}}",
-                scores.iter().map(|s| format!("{:.4}", s)).collect::<Vec<_>>().join(","),
+                scores
+                    .iter()
+                    .map(|s| format!("{:.4}", s))
+                    .collect::<Vec<_>>()
+                    .join(","),
                 mean_score
             )),
         }
@@ -1090,7 +1089,8 @@ fn compute_optimal_interval_static(
         return 0.0;
     }
 
-    let current_prob = compute_recall_probability_static(current_activation, threshold, noise_scale);
+    let current_prob =
+        compute_recall_probability_static(current_activation, threshold, noise_scale);
     if current_prob <= target {
         return 0.0;
     }
@@ -1110,7 +1110,8 @@ fn compute_optimal_interval_static(
             .collect();
 
         let future_activation = compute_activation_from_seconds_ago_static(&future_traces, decay);
-        let future_prob = compute_recall_probability_static(future_activation, threshold, noise_scale);
+        let future_prob =
+            compute_recall_probability_static(future_activation, threshold, noise_scale);
 
         if (future_prob - target).abs() < tolerance {
             return mid;
@@ -1747,12 +1748,10 @@ mod tests {
     fn test_memory_strength_range() {
         let model = create_default_model();
 
-        let traces = vec![
-            MemoryTrace {
-                timestamp: 3600.0,
-                is_correct: true,
-            },
-        ];
+        let traces = vec![MemoryTrace {
+            timestamp: 3600.0,
+            is_correct: true,
+        }];
 
         let strength = model.compute_memory_strength(traces);
 

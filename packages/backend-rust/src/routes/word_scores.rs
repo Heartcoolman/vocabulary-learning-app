@@ -6,7 +6,6 @@ use axum::Json;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::services::word_scores::{self, ScoreStats, WordScoreError, WordScoreRecord};
 use crate::state::AppState;
@@ -23,55 +22,70 @@ struct BatchRequest {
     word_ids: Vec<String>,
 }
 
-pub async fn range(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn range(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let query = req.uri().query().unwrap_or("");
-    let min_score = get_query_param(query, "minScore").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
-    let max_score = get_query_param(query, "maxScore").and_then(|v| v.parse::<f64>().ok()).unwrap_or(100.0);
+    let min_score = get_query_param(query, "minScore")
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let max_score = get_query_param(query, "maxScore")
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(100.0);
     if min_score < 0.0 || max_score > 100.0 || min_score > max_score {
         return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "得分范围无效").into_response();
     }
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match word_scores::list_scores_in_range(proxy.as_ref(), request_state, &auth_user.id, min_score, max_score).await {
-        Ok(scores) => Json(SuccessResponse { success: true, data: scores }).into_response(),
+    match word_scores::list_scores_in_range(proxy.as_ref(), &auth_user.id, min_score, max_score)
+        .await
+    {
+        Ok(scores) => Json(SuccessResponse {
+            success: true,
+            data: scores,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "word scores range failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn low_list(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn low_list(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let query = req.uri().query().unwrap_or("");
@@ -79,42 +93,58 @@ pub async fn low_list(
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(40);
     if threshold < 0 || threshold > 100 {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "threshold必须在0-100之间").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "threshold必须在0-100之间",
+        )
+        .into_response();
     }
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match word_scores::list_low_scores(proxy.as_ref(), request_state, &auth_user.id, threshold).await {
-        Ok(scores) => Json(SuccessResponse { success: true, data: scores }).into_response(),
+    match word_scores::list_low_scores(proxy.as_ref(), &auth_user.id, threshold).await {
+        Ok(scores) => Json(SuccessResponse {
+            success: true,
+            data: scores,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "word scores low list failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn high_list(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn high_list(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let query = req.uri().query().unwrap_or("");
@@ -122,114 +152,159 @@ pub async fn high_list(
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(80);
     if threshold < 0 || threshold > 100 {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "threshold必须在0-100之间").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "threshold必须在0-100之间",
+        )
+        .into_response();
     }
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match word_scores::list_high_scores(proxy.as_ref(), request_state, &auth_user.id, threshold).await {
-        Ok(scores) => Json(SuccessResponse { success: true, data: scores }).into_response(),
+    match word_scores::list_high_scores(proxy.as_ref(), &auth_user.id, threshold).await {
+        Ok(scores) => Json(SuccessResponse {
+            success: true,
+            data: scores,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "word scores high list failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn stats_overview(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn stats_overview(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
-
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match word_scores::get_user_score_stats(proxy.as_ref(), request_state, &auth_user.id).await {
-        Ok(stats) => Json(SuccessResponse::<ScoreStats> { success: true, data: stats }).into_response(),
+    match word_scores::get_user_score_stats(proxy.as_ref(), &auth_user.id).await {
+        Ok(stats) => Json(SuccessResponse::<ScoreStats> {
+            success: true,
+            data: stats,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "word scores stats failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn get_one(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn get_one(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
-    let word_id = req.uri().path().rsplit('/').next().unwrap_or("").trim().to_string();
+    let word_id = req
+        .uri()
+        .path()
+        .rsplit('/')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if word_id.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId is required").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId is required")
+            .into_response();
     }
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    match word_scores::get_word_score(proxy.as_ref(), request_state, &auth_user.id, &word_id).await {
-        Ok(score) => Json(SuccessResponse::<Option<WordScoreRecord>> { success: true, data: score }).into_response(),
+    match word_scores::get_word_score(proxy.as_ref(), &auth_user.id, &word_id).await {
+        Ok(score) => Json(SuccessResponse::<Option<WordScoreRecord>> {
+            success: true,
+            data: score,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "word score get failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn batch_get(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn batch_get(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -237,53 +312,79 @@ pub async fn batch_get(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: BatchRequest = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
-        Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
+        Err(_) => {
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response()
+        }
     };
 
     if payload.word_ids.len() > 500 {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordIds数组最多允许500个元素").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "wordIds数组最多允许500个元素",
+        )
+        .into_response();
     }
     if !payload.word_ids.iter().all(|id| !id.trim().is_empty()) {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordIds数组元素必须是非空字符串").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "wordIds数组元素必须是非空字符串",
+        )
+        .into_response();
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
-    let map = match word_scores::batch_get_word_scores(proxy.as_ref(), request_state, &auth_user.id, &payload.word_ids).await {
-        Ok(value) => value,
-        Err(err) => {
-            return handle_service_error(err);
-        }
-    };
+    let map =
+        match word_scores::batch_get_word_scores(proxy.as_ref(), &auth_user.id, &payload.word_ids)
+            .await
+        {
+            Ok(value) => value,
+            Err(err) => {
+                return handle_service_error(err);
+            }
+        };
 
     let scores: Vec<WordScoreRecord> = map.into_values().collect();
-    Json(SuccessResponse { success: true, data: scores }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: scores,
+    })
+    .into_response()
 }
 
-pub async fn upsert_one(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn upsert_one(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -291,38 +392,63 @@ pub async fn upsert_one(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
-    let word_id = parts.uri.path().rsplit('/').next().unwrap_or("").trim().to_string();
+    let word_id = parts
+        .uri
+        .path()
+        .rsplit('/')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if word_id.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId is required").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId is required")
+            .into_response();
     }
 
-    let raw: serde_json::Map<String, serde_json::Value> = match serde_json::from_slice(&body_bytes) {
+    let raw: serde_json::Map<String, serde_json::Value> = match serde_json::from_slice(&body_bytes)
+    {
         Ok(value) => value,
-        Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
-    };
-
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
-    let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
-    };
-
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
-        Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response()
         }
     };
 
-    match word_scores::upsert_word_score(proxy.as_ref(), request_state, &auth_user.id, &word_id, &raw).await {
-        Ok(record) => Json(SuccessResponse::<WordScoreRecord> { success: true, data: record }).into_response(),
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
+    };
+
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
+
+    match word_scores::upsert_word_score(proxy.as_ref(), &auth_user.id, &word_id, &raw).await {
+        Ok(record) => Json(SuccessResponse::<WordScoreRecord> {
+            success: true,
+            data: record,
+        })
+        .into_response(),
         Err(err) => handle_service_error(err),
     }
 }
@@ -342,16 +468,32 @@ async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, B
 
 fn handle_service_error(err: WordScoreError) -> Response {
     match err {
-        WordScoreError::Validation(msg) => json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", msg).into_response(),
-        WordScoreError::Unauthorized(msg) => json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", msg).into_response(),
-        WordScoreError::NotFound(msg) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", msg).into_response(),
+        WordScoreError::Validation(msg) => {
+            json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", msg).into_response()
+        }
+        WordScoreError::Unauthorized(msg) => {
+            json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", msg).into_response()
+        }
+        WordScoreError::NotFound(msg) => {
+            json_error(StatusCode::NOT_FOUND, "NOT_FOUND", msg).into_response()
+        }
         WordScoreError::Sql(sql_err) => {
             tracing::warn!(error = %sql_err, "word score sql failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
         WordScoreError::Mutation(message) => {
             tracing::warn!(error = %message, "word score mutation failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }

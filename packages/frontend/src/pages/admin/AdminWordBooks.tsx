@@ -131,7 +131,7 @@ export default function AdminWordBooks() {
   return (
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">系统词库管理</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">系统词库管理</h1>
         <button
           onClick={() => setShowCreateDialog(true)}
           className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
@@ -141,7 +141,7 @@ export default function AdminWordBooks() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600">
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">
           {error}
         </div>
       )}
@@ -154,12 +154,12 @@ export default function AdminWordBooks() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">正在加载...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在加载...</p>
         </div>
       ) : wordBooks.length === 0 ? (
         <div className="py-16 text-center">
           <Books size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
-          <p className="mb-4 text-gray-500">还没有创建系统词库</p>
+          <p className="mb-4 text-gray-500 dark:text-gray-400">还没有创建系统词库</p>
           <button
             onClick={() => setShowCreateDialog(true)}
             className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
@@ -172,18 +172,22 @@ export default function AdminWordBooks() {
           {wordBooks.map((book) => (
             <div
               key={book.id}
-              className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-elevated"
+              className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
             >
               <div className="mb-3 flex items-start justify-between">
-                <h3 className="text-xl font-bold text-gray-900">{book.name}</h3>
-                <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-600">系统</span>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{book.name}</h3>
+                <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                  系统
+                </span>
               </div>
 
               {book.description && (
-                <p className="mb-4 line-clamp-2 text-sm text-gray-600">{book.description}</p>
+                <p className="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
+                  {book.description}
+                </p>
               )}
 
-              <div className="mb-4 flex items-center gap-1 text-sm text-gray-500">
+              <div className="mb-4 flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
                 <Books size={16} weight="bold" />
                 {book.wordCount} 个单词
               </div>
@@ -198,7 +202,7 @@ export default function AdminWordBooks() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEditClick(book)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-button bg-indigo-50 px-3 py-2 text-indigo-600 transition-all duration-g3-fast hover:scale-105 hover:bg-indigo-100 active:scale-95"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-button bg-indigo-50 px-3 py-2 text-indigo-600 transition-all duration-g3-fast hover:scale-105 hover:bg-indigo-100 active:scale-95 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
                     title="编辑词库"
                   >
                     <NotePencil size={16} weight="bold" />
@@ -208,7 +212,7 @@ export default function AdminWordBooks() {
                     onClick={() =>
                       setImportModal({ isOpen: true, wordBookId: book.id, wordBookName: book.name })
                     }
-                    className="flex flex-1 items-center justify-center gap-1 rounded-button bg-green-50 px-3 py-2 text-green-600 transition-all duration-g3-fast hover:scale-105 hover:bg-green-100 active:scale-95"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-button bg-green-50 px-3 py-2 text-green-600 transition-all duration-g3-fast hover:scale-105 hover:bg-green-100 active:scale-95 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                     title="批量导入单词"
                   >
                     <UploadSimple size={16} weight="bold" />
@@ -216,7 +220,7 @@ export default function AdminWordBooks() {
                   </button>
                   <button
                     onClick={() => openDeleteConfirm(book.id, book.name)}
-                    className="flex-1 rounded-button bg-red-50 px-3 py-2 text-red-600 transition-all duration-g3-fast hover:scale-105 hover:bg-red-100 active:scale-95"
+                    className="flex-1 rounded-button bg-red-50 px-3 py-2 text-red-600 transition-all duration-g3-fast hover:scale-105 hover:bg-red-100 active:scale-95 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                   >
                     删除
                   </button>
@@ -237,22 +241,26 @@ export default function AdminWordBooks() {
         title="创建系统词库"
       >
         <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium text-gray-700">词库名称 *</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            词库名称 *
+          </label>
           <input
             type="text"
             value={newBook.name}
             onChange={(e) => setNewBook({ ...newBook, name: e.target.value })}
-            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
             placeholder="例如：TOEFL 核心词汇"
           />
         </div>
 
         <div className="mb-6">
-          <label className="mb-2 block text-sm font-medium text-gray-700">描述</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            描述
+          </label>
           <textarea
             value={newBook.description}
             onChange={(e) => setNewBook({ ...newBook, description: e.target.value })}
-            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
             rows={3}
             placeholder="简单描述这个词库..."
           />
@@ -270,7 +278,7 @@ export default function AdminWordBooks() {
               setShowCreateDialog(false);
               setNewBook({ name: '', description: '' });
             }}
-            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
+            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
           >
             取消
           </button>
@@ -288,22 +296,26 @@ export default function AdminWordBooks() {
         title="编辑词库信息"
       >
         <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium text-gray-700">词库名称 *</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            词库名称 *
+          </label>
           <input
             type="text"
             value={editBook.name}
             onChange={(e) => setEditBook({ ...editBook, name: e.target.value })}
-            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
             placeholder="例如：TOEFL 核心词汇"
           />
         </div>
 
         <div className="mb-6">
-          <label className="mb-2 block text-sm font-medium text-gray-700">描述</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            描述
+          </label>
           <textarea
             value={editBook.description}
             onChange={(e) => setEditBook({ ...editBook, description: e.target.value })}
-            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
             rows={3}
             placeholder="简单描述这个词库..."
           />
@@ -322,7 +334,7 @@ export default function AdminWordBooks() {
               setEditingBook(null);
               setEditBook({ name: '', description: '' });
             }}
-            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
+            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
           >
             取消
           </button>

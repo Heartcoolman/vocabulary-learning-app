@@ -191,8 +191,15 @@ describe('AmasClient', () => {
         responseTime: 2000,
       };
       const mockResult = {
-        strategy: { nextAction: 'continue' },
-        stateUpdate: { fatigue: 0.3 },
+        sessionId: 'session-123',
+        strategy: {
+          interval_scale: 1.0,
+          new_ratio: 0.3,
+          difficulty: 'mid',
+          batch_size: 10,
+          hint_level: 1,
+        },
+        state: { A: 0.8, F: 0.2, M: 0.9, C: { mem: 0.5, speed: 0.5, stability: 0.5 } },
       };
       mockRequest.mockResolvedValue(mockResult);
 
@@ -202,17 +209,17 @@ describe('AmasClient', () => {
         method: 'POST',
         body: JSON.stringify(eventData),
       });
-      // @ts-expect-error - Test expects property that may not exist in type
-      expect(result.strategy.nextAction).toBe('continue');
+      expect(result.strategy.interval_scale).toBe(1.0);
     });
   });
 
   describe('getAmasState', () => {
     it('should fetch AMAS state', async () => {
       const mockState = {
-        attention: 0.8,
-        fatigue: 0.2,
-        motivation: 0.9,
+        A: 0.8,
+        F: 0.2,
+        M: 0.9,
+        C: { mem: 0.5, speed: 0.5, stability: 0.5 },
       };
       mockRequest.mockResolvedValue(mockState);
 
@@ -1084,57 +1091,69 @@ describe('AmasClient', () => {
 
   describe('getStateHistory', () => {
     it('should fetch state history with default range', async () => {
-      const mockHistory = {
-        history: [],
-        summary: { recordCount: 100, averages: {} },
-        range: 30,
-        totalRecords: 100,
-      };
-      mockRequest.mockResolvedValue(mockHistory);
+      const mockRawHistory = [
+        {
+          date: '2024-01-01',
+          attention: 0.8,
+          fatigue: 0.2,
+          motivation: 0.5,
+          memory: 0.7,
+          speed: 0.6,
+          stability: 0.8,
+        },
+      ];
+      mockRequest.mockResolvedValue(mockRawHistory);
 
       const result = await client.getStateHistory();
 
       expect(mockRequest).toHaveBeenCalledWith('/api/amas/history?range=30');
       expect(result.range).toBe(30);
+      expect(result.history).toEqual(mockRawHistory);
+      expect(result.summary.recordCount).toBe(1);
     });
   });
 
   describe('getCognitiveGrowth', () => {
     it('should fetch cognitive growth comparison', async () => {
-      const mockGrowth = {
+      const mockRawGrowth = {
         current: { memory: 0.8, speed: 0.7, stability: 0.85 },
-        past: { memory: 0.7, speed: 0.6, stability: 0.75 },
-        changes: {
-          memory: { value: 0.1, percent: 14, direction: 'up' },
-          speed: { value: 0.1, percent: 16, direction: 'up' },
-          stability: { value: 0.1, percent: 13, direction: 'up' },
-        },
-        period: 30,
-        periodLabel: '30 days',
+        previous: { memory: 0.7, speed: 0.6, stability: 0.75 },
+        memoryChange: 14,
+        speedChange: 16,
+        stabilityChange: 13,
+        days: 30,
       };
-      mockRequest.mockResolvedValue(mockGrowth);
+      mockRequest.mockResolvedValue(mockRawGrowth);
 
       const result = await client.getCognitiveGrowth();
 
       expect(mockRequest).toHaveBeenCalledWith('/api/amas/growth?range=30');
       expect(result.changes.memory.direction).toBe('up');
+      expect(result.past).toEqual(mockRawGrowth.previous);
+      expect(result.period).toBe(30);
     });
   });
 
   describe('getSignificantChanges', () => {
     it('should fetch significant changes', async () => {
-      const mockChanges = {
-        changes: [{ type: 'accuracy_improved', description: 'Accuracy improved by 10%' }],
-        range: 30,
-        hasSignificantChanges: true,
-        summary: 'Great progress this month!',
-      };
-      mockRequest.mockResolvedValue(mockChanges);
+      const mockRawChanges = [
+        {
+          metric: 'memory',
+          metricLabel: '记忆力',
+          changePercent: 10,
+          direction: 'up',
+          isPositive: true,
+          startDate: '2024-01-01',
+          endDate: '2024-01-31',
+        },
+      ];
+      mockRequest.mockResolvedValue(mockRawChanges);
 
       const result = await client.getSignificantChanges();
 
       expect(mockRequest).toHaveBeenCalledWith('/api/amas/changes?range=30');
       expect(result.hasSignificantChanges).toBe(true);
+      expect(result.changes[0].description).toContain('记忆力');
     });
   });
 });

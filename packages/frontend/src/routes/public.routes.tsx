@@ -6,6 +6,15 @@ import { PageLoader } from './components';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 
+// 懒加载页面
+const ForbiddenPage = lazy(() => import('../pages/ForbiddenPage'));
+const ForgotPasswordPage = lazy(() => import('../pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage'));
+
+const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
+);
+
 /**
  * 公开路由配置
  * 无需登录即可访问的页面
@@ -20,5 +29,32 @@ export const publicRoutes: AppRoute[] = [
     path: '/register',
     element: <RegisterPage />,
     meta: { title: '注册', requireAuth: false },
+  },
+  {
+    path: '/forgot-password',
+    element: (
+      <LazyWrapper>
+        <ForgotPasswordPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '忘记密码', requireAuth: false },
+  },
+  {
+    path: '/reset-password',
+    element: (
+      <LazyWrapper>
+        <ResetPasswordPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '重置密码', requireAuth: false },
+  },
+  {
+    path: '/403',
+    element: (
+      <LazyWrapper>
+        <ForbiddenPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '访问被拒绝', requireAuth: false },
   },
 ];

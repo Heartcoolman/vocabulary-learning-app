@@ -39,7 +39,7 @@ const getTrendIcon = (trend: string): React.ReactNode => {
     case 'down':
       return <TrendDown size={20} weight="bold" className="text-red-500" />;
     default:
-      return <Minus size={20} weight="bold" className="text-gray-500" />;
+      return <Minus size={20} weight="bold" className="text-gray-500 dark:text-gray-400" />;
   }
 };
 
@@ -73,7 +73,7 @@ const StatSummaryCard = memo(function StatSummaryCard({
 }) {
   return (
     <div className={`rounded-button ${colorClass} p-4`}>
-      <p className="mb-1 text-sm text-gray-600">{label}</p>
+      <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">{label}</p>
       <p
         className={`text-3xl font-bold ${colorClass.includes('blue') ? 'text-blue-600' : colorClass.includes('green') ? 'text-green-600' : 'text-purple-600'}`}
       >
@@ -88,9 +88,9 @@ const StatSummaryCard = memo(function StatSummaryCard({
  */
 const TrendCard = memo(function TrendCard({ trend }: { trend: string }) {
   return (
-    <div className="flex items-center justify-between rounded-button bg-purple-50 p-4">
+    <div className="flex items-center justify-between rounded-button bg-purple-50 p-4 dark:bg-purple-900/30">
       <div>
-        <p className="mb-1 text-sm text-gray-600">趋势</p>
+        <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">趋势</p>
         <p className="text-lg font-bold text-purple-600">{getTrendLabel(trend)}</p>
       </div>
       {getTrendIcon(trend)}
@@ -110,18 +110,18 @@ const MasteryProgressBar = memo(function MasteryProgressBar({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-20 shrink-0 text-xs text-gray-500">
+      <span className="w-20 shrink-0 text-xs text-gray-500 dark:text-gray-400">
         {new Date(date).toLocaleDateString('zh-CN', {
           month: 'short',
           day: 'numeric',
         })}
       </span>
-      <div className="relative h-6 flex-1 overflow-hidden rounded-full bg-gray-100">
+      <div className="relative h-6 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
         <div
           className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-g3-normal"
           style={{ width: `${mastery * 100}%` }}
         />
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-700">
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-700 dark:text-gray-300">
           {(mastery * 100).toFixed(0)}%
         </span>
       </div>
@@ -142,8 +142,8 @@ const MiniTrendChart = memo(function MiniTrendChart({
   colorClass: string;
 }) {
   return (
-    <div className="rounded-button bg-gray-50 p-3">
-      <p className="mb-2 text-xs text-gray-600">{label}</p>
+    <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-900">
+      <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">{label}</p>
       <div className="flex h-16 items-end gap-1">
         {data.map((value, idx) => (
           <div
@@ -172,7 +172,7 @@ const DaysSelector = memo(function DaysSelector({
     <select
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="rounded-button border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="rounded-button border border-gray-300 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-300"
     >
       <option value={7}>最近 7 天</option>
       <option value={14}>最近 14 天</option>
@@ -197,10 +197,10 @@ function AMASMetricsComponent({
   onDaysChange,
 }: AMASMetricsProps) {
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <ChartLine size={24} weight="duotone" className="text-blue-500" />
           学习曲线
         </h2>
@@ -209,7 +209,7 @@ function AMASMetricsComponent({
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+            className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
             title="刷新"
           >
             <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
@@ -224,7 +224,7 @@ function AMASMetricsComponent({
         </div>
       ) : error ? (
         /* 错误状态 */
-        <div className="py-8 text-center text-gray-500">
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">
           <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
           <p>{error}</p>
         </div>
@@ -236,19 +236,21 @@ function AMASMetricsComponent({
             <StatSummaryCard
               label="当前掌握度"
               value={`${(data.currentMastery * 100).toFixed(1)}%`}
-              colorClass="bg-blue-50"
+              colorClass="bg-blue-50 dark:bg-blue-900/30"
             />
             <StatSummaryCard
               label="平均注意力"
               value={`${(data.averageAttention * 100).toFixed(1)}%`}
-              colorClass="bg-green-50"
+              colorClass="bg-green-50 dark:bg-green-900/30"
             />
             <TrendCard trend={data.trend} />
           </div>
 
           {/* 掌握度变化图表 */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">掌握度变化</h3>
+            <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              掌握度变化
+            </h3>
             <div className="max-h-64 space-y-2 overflow-y-auto">
               {data.points.map((point, idx) => (
                 <MasteryProgressBar
@@ -263,7 +265,9 @@ function AMASMetricsComponent({
           {/* 状态趋势 */}
           {data.points.length > 0 && data.points[0].attention !== undefined && (
             <div>
-              <h3 className="mb-3 text-sm font-semibold text-gray-700">状态趋势</h3>
+              <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                状态趋势
+              </h3>
               <div className="grid gap-4 md:grid-cols-3">
                 <MiniTrendChart
                   label="注意力趋势"
@@ -286,7 +290,7 @@ function AMASMetricsComponent({
         </div>
       ) : (
         /* 空状态 */
-        <div className="py-8 text-center text-gray-500">暂无学习曲线数据</div>
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">暂无学习曲线数据</div>
       )}
     </div>
   );

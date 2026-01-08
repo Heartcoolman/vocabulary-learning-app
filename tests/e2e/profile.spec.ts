@@ -10,12 +10,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import {
-  loginAsUser,
-  logout,
-  waitForPageReady,
-  expectErrorAlert,
-} from './utils/test-helpers';
+import { loginAsUser, logout, waitForPageReady, expectErrorAlert } from './utils/test-helpers';
 
 // Increase timeout for profile tests
 test.setTimeout(45000);
@@ -57,7 +52,7 @@ test.describe('Profile', () => {
   test.describe('Tab Navigation', () => {
     test('should switch to password tab', async ({ page }) => {
       await page.click('button:has-text("修改密码")');
-      
+
       // Should show password form
       await expect(page.locator('#oldPassword')).toBeVisible();
       await expect(page.locator('#newPassword')).toBeVisible();
@@ -66,7 +61,7 @@ test.describe('Profile', () => {
 
     test('should switch to cache management tab', async ({ page }) => {
       await page.click('button:has-text("数据管理")');
-      
+
       // Should show cache management buttons
       await expect(page.getByRole('button', { name: '刷新缓存' })).toBeVisible();
       await expect(page.getByRole('button', { name: '清除本地缓存' })).toBeVisible();
@@ -74,7 +69,7 @@ test.describe('Profile', () => {
 
     test('should switch to habit tab', async ({ page }) => {
       await page.click('button:has-text("学习习惯")');
-      
+
       // Should show habit analysis section
       await expect(page.getByText('学习习惯分析')).toBeVisible();
       await expect(page.getByRole('button', { name: /查看完整分析/ })).toBeVisible();
@@ -84,10 +79,10 @@ test.describe('Profile', () => {
   test.describe('Password Change', () => {
     test('should show error for empty fields', async ({ page }) => {
       await page.click('button:has-text("修改密码")');
-      
+
       // Submit empty form
       await page.click('button[type="submit"]:has-text("修改密码")');
-      
+
       // Should show error
       await expect(page.locator('[role="alert"]')).toBeVisible();
       await expect(page.locator('[role="alert"]')).toContainText('填写');
@@ -95,13 +90,13 @@ test.describe('Profile', () => {
 
     test('should show error for short password', async ({ page }) => {
       await page.click('button:has-text("修改密码")');
-      
+
       await page.fill('#oldPassword', 'password123');
       await page.fill('#newPassword', 'short');
       await page.fill('#confirmPassword', 'short');
-      
+
       await page.click('button[type="submit"]:has-text("修改密码")');
-      
+
       // Should show error
       await expect(page.locator('[role="alert"]')).toBeVisible();
       await expect(page.locator('[role="alert"]')).toContainText('8');
@@ -109,13 +104,13 @@ test.describe('Profile', () => {
 
     test('should show error for password mismatch', async ({ page }) => {
       await page.click('button:has-text("修改密码")');
-      
+
       await page.fill('#oldPassword', 'password123');
       await page.fill('#newPassword', 'NewPassword123!');
       await page.fill('#confirmPassword', 'Different123!');
-      
+
       await page.click('button[type="submit"]:has-text("修改密码")');
-      
+
       // Should show error
       await expect(page.locator('[role="alert"]')).toBeVisible();
       await expect(page.locator('[role="alert"]')).toContainText('不一致');
@@ -227,7 +222,7 @@ test.describe('Profile - Edge Cases', () => {
   });
 
   test('should handle network error on profile load', async ({ page }) => {
-    await page.route('**/api/user/profile**', route => route.abort());
+    await page.route('**/api/user/profile**', (route) => route.abort());
 
     await page.goto('/profile');
     await page.waitForTimeout(2000);

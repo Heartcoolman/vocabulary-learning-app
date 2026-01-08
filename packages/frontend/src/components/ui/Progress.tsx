@@ -5,6 +5,8 @@
  */
 import React, { forwardRef, memo, HTMLAttributes } from 'react';
 import { cn } from './utils';
+import { useTheme } from '../../contexts/ThemeContext';
+import { IconColor, chartColors } from '../../utils/iconColors';
 
 export interface ProgressProps extends HTMLAttributes<HTMLDivElement> {
   /** 进度值 (0-100) */
@@ -43,11 +45,11 @@ const variantStyles = {
 };
 
 const variantBgStyles = {
-  primary: 'bg-blue-100',
-  success: 'bg-green-100',
-  warning: 'bg-amber-100',
-  danger: 'bg-red-100',
-  info: 'bg-cyan-100',
+  primary: 'bg-blue-100 dark:bg-blue-900/30',
+  success: 'bg-green-100 dark:bg-green-900/30',
+  warning: 'bg-amber-100 dark:bg-amber-900/30',
+  danger: 'bg-red-100 dark:bg-red-900/30',
+  info: 'bg-cyan-100 dark:bg-cyan-900/30',
 };
 
 export const Progress = memo(
@@ -75,8 +77,8 @@ export const Progress = memo(
         <div ref={ref} className={cn('w-full', className)} {...props}>
           {showLabel && !indeterminate && (
             <div className="mb-1 flex justify-between">
-              <span className="text-sm text-gray-600">进度</span>
-              <span className="text-sm font-medium text-gray-900">{label}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">进度</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{label}</span>
             </div>
           )}
 
@@ -147,10 +149,10 @@ const circularTextSizes = {
 };
 
 const circularColors = {
-  primary: '#3b82f6',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  danger: '#ef4444',
+  primary: IconColor.primary,
+  success: IconColor.success,
+  warning: IconColor.warning,
+  danger: IconColor.danger,
 };
 
 export const CircularProgress = memo(
@@ -168,6 +170,10 @@ export const CircularProgress = memo(
       },
       ref,
     ) => {
+      const { theme } = useTheme();
+      const isDark = theme === 'dark';
+      const ringBgColor = isDark ? chartColors.gridDark : chartColors.grid;
+
       const dimension = circularSizes[size];
       const radius = (dimension - strokeWidth) / 2;
       const circumference = 2 * Math.PI * radius;
@@ -192,7 +198,7 @@ export const CircularProgress = memo(
               cy={dimension / 2}
               r={radius}
               fill="none"
-              stroke="#e5e7eb"
+              stroke={ringBgColor}
               strokeWidth={strokeWidth}
             />
             {/* 进度圆环 */}
@@ -212,7 +218,12 @@ export const CircularProgress = memo(
           </svg>
 
           {showLabel && !indeterminate && (
-            <span className={cn('absolute font-semibold text-gray-900', circularTextSizes[size])}>
+            <span
+              className={cn(
+                'absolute font-semibold text-gray-900 dark:text-white',
+                circularTextSizes[size],
+              )}
+            >
               {Math.round(percentage)}%
             </span>
           )}

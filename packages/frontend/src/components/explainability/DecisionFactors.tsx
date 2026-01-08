@@ -35,7 +35,7 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors })
         {factors.map((factor, index) => (
           <div
             key={index}
-            className="rounded-card border border-gray-100 bg-white p-4 shadow-soft transition-shadow hover:shadow-elevated dark:border-gray-700 dark:bg-gray-800"
+            className="rounded-card border border-gray-100 bg-white p-4 shadow-soft transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800"
           >
             <div className="flex items-start gap-4">
               <div className="rounded-button bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">

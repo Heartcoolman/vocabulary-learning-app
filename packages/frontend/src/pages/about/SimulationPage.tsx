@@ -84,11 +84,11 @@ function ControlSlider({
   return (
     <div className="mb-5">
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-          <Icon size={16} className="text-gray-400" />
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+          <Icon size={16} className="text-gray-400 dark:text-gray-400" />
           {label}
         </div>
-        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-600">
+        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-600 dark:bg-slate-700 dark:text-gray-400">
           {value.toFixed(2)}
         </span>
       </div>
@@ -99,7 +99,7 @@ function ControlSlider({
         step={0.05}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-indigo-500 transition-all hover:accent-indigo-400"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-indigo-500 transition-all hover:accent-indigo-400 dark:bg-slate-700"
       />
     </div>
   );
@@ -159,11 +159,11 @@ function ConsensusVisualizer({
     : 0.5;
 
   return (
-    <div className="relative min-h-[240px] overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+    <div className="relative min-h-[240px] overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 opacity-20" />
 
       <div className="mb-8 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
           <Target className="text-rose-500" />
           决策共识 (The Neural Tug-of-War)
         </h3>
@@ -188,21 +188,25 @@ function ConsensusVisualizer({
       </div>
 
       {loading ? (
-        <div className="flex h-32 items-center justify-center gap-2 text-gray-400">
+        <div className="flex h-32 items-center justify-center gap-2 text-gray-400 dark:text-gray-400">
           <Gear className="animate-spin" size={24} /> 计算神经网络权重...
         </div>
       ) : !result ? (
-        <div className="flex h-32 items-center justify-center text-sm italic text-gray-400">
+        <div className="flex h-32 items-center justify-center text-sm italic text-gray-400 dark:text-gray-400">
           等待输入参数...
         </div>
       ) : (
         <div className="relative px-4 pb-12 pt-8">
-          <div className="relative mb-2 h-2 w-full rounded-full bg-gray-100">
-            <div className="absolute -bottom-6 left-0 text-xs text-gray-400">简单</div>
-            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-400">
+          <div className="relative mb-2 h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+            <div className="absolute -bottom-6 left-0 text-xs text-gray-400 dark:text-gray-400">
+              简单
+            </div>
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-400 dark:text-gray-400">
               中等
             </div>
-            <div className="absolute -bottom-6 right-0 text-xs text-gray-400">困难</div>
+            <div className="absolute -bottom-6 right-0 text-xs text-gray-400 dark:text-gray-400">
+              困难
+            </div>
           </div>
 
           <AnimatePresence>
@@ -257,16 +261,16 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="relative overflow-hidden rounded-card border-2 border-gray-200/60 bg-white/80 p-0 shadow-soft backdrop-blur-sm"
+      className="relative overflow-hidden rounded-card border-2 border-gray-200/60 bg-white/80 p-0 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80"
     >
       <div className="absolute left-0 top-0 h-2 w-full bg-gradient-to-r from-amber-500 to-rose-500 opacity-10" />
 
-      <div className="border-b border-dashed border-gray-100 p-6">
+      <div className="border-b border-dashed border-gray-100 p-6 dark:border-slate-700">
         <div className="mb-4 text-center">
-          <h4 className="mb-1 text-xs uppercase tracking-widest text-gray-400">
+          <h4 className="mb-1 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-400">
             决策凭证 (Decision Receipt)
           </h4>
-          <div className="font-mono text-3xl font-bold text-gray-800">
+          <div className="font-mono text-3xl font-bold text-gray-800 dark:text-white">
             {result.outputStrategy.difficulty === 'easy'
               ? '简单'
               : result.outputStrategy.difficulty === 'mid'
@@ -279,21 +283,21 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
         </div>
 
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>主导算法</span>
             <span className={`font-bold ${ALGO_COLORS[winner[0]] || 'text-gray-500'}`}>
               {winner[0].toUpperCase()}
             </span>
           </div>
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>置信度</span>
             <span>{(winner[1] * 100).toFixed(0)}%</span>
           </div>
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>生词比例</span>
             <span>{(result.outputStrategy.new_ratio * 100).toFixed(0)}%</span>
           </div>
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>学习模式</span>
             <span className="font-medium text-emerald-600">
               {result.outputStrategy.difficulty === 'easy'
@@ -306,7 +310,7 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
         </div>
       </div>
 
-      <div className="bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-500">
+      <div className="bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-500 dark:bg-slate-900 dark:text-gray-400">
         ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
         <br />
         TS: {new Date().toISOString()}
@@ -411,7 +415,7 @@ export default function SimulationPage() {
   }, [params, injectNoise, selectedScenario]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors md:p-8">
+    <div className="min-h-screen bg-gray-50 p-6 font-sans transition-colors dark:bg-slate-900 md:p-8">
       <div className="mx-auto max-w-6xl">
         <motion.header
           initial={{ opacity: 0, y: -20 }}
@@ -419,23 +423,25 @@ export default function SimulationPage() {
           className="mb-8 flex items-center justify-between"
         >
           <div>
-            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
+            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
               <Flask className="text-indigo-500" weight="duotone" />
               The Decision Lab
             </h1>
-            <p className="mt-1 text-gray-500">Interactive Neural Ensemble Simulator</p>
+            <p className="mt-1 text-gray-500 dark:text-gray-400">
+              Interactive Neural Ensemble Simulator
+            </p>
           </div>
 
-          <div className="hidden items-center gap-2 rounded-full border border-gray-200/60 bg-white/80 px-4 py-2 shadow-soft backdrop-blur-sm md:flex">
+          <div className="hidden items-center gap-2 rounded-full border border-gray-200/60 bg-white/80 px-4 py-2 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80 md:flex">
             <Robot
               size={20}
               className={
                 result?.decisionProcess.decisionSource === 'ensemble'
                   ? 'text-emerald-500'
-                  : 'text-gray-400'
+                  : 'text-gray-400 dark:text-gray-400'
               }
             />
-            <span className="text-sm font-medium text-gray-600">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Active Core:{' '}
               {result?.decisionProcess.decisionSource === 'ensemble'
                 ? 'Ensemble Council'
@@ -451,8 +457,8 @@ export default function SimulationPage() {
             animate="visible"
             className="space-y-6 lg:col-span-4"
           >
-            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-400">
                 <Shuffle /> 模拟场景
               </h2>
               <div className="grid grid-cols-2 gap-3">
@@ -462,24 +468,28 @@ export default function SimulationPage() {
                     onClick={() => handleScenarioChange(s.id)}
                     className={`rounded-card border p-3 text-left transition-all ${
                       selectedScenario === s.id
-                        ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
-                        : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                        ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500 dark:bg-indigo-900/30'
+                        : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
                     }`}
                   >
                     <div
-                      className={`mb-2 ${selectedScenario === s.id ? 'text-indigo-600' : 'text-gray-500'}`}
+                      className={`mb-2 ${selectedScenario === s.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}
                     >
                       <s.icon size={24} weight={selectedScenario === s.id ? 'fill' : 'regular'} />
                     </div>
-                    <div className="text-sm font-bold text-gray-700">{s.name}</div>
-                    <div className="mt-1 text-[10px] text-gray-400">{s.desc}</div>
+                    <div className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                      {s.name}
+                    </div>
+                    <div className="mt-1 text-[10px] text-gray-400 dark:text-gray-400">
+                      {s.desc}
+                    </div>
                   </button>
                 ))}
               </div>
 
               {/* 学习模式选择 */}
-              <div className="mt-6 border-t border-gray-100 pt-4">
-                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+              <div className="mt-6 border-t border-gray-100 pt-4 dark:border-slate-700">
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-400">
                   学习模式
                 </h3>
                 <div className="grid grid-cols-3 gap-2">
@@ -489,23 +499,25 @@ export default function SimulationPage() {
                       onClick={() => setSelectedMode(m.id)}
                       className={`rounded-button border p-2 text-center transition-all ${
                         selectedMode === m.id
-                          ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
-                          : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                          ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500 dark:bg-emerald-900/30'
+                          : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
                       }`}
                     >
                       <div
-                        className={`mb-1 flex justify-center ${selectedMode === m.id ? 'text-emerald-600' : 'text-gray-500'}`}
+                        className={`mb-1 flex justify-center ${selectedMode === m.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}
                       >
                         <m.icon size={18} weight={selectedMode === m.id ? 'fill' : 'regular'} />
                       </div>
-                      <div className="text-xs font-medium text-gray-700">{m.name}</div>
+                      <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        {m.name}
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
-                <span className="flex items-center gap-2 text-sm font-medium text-gray-600">
+              <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4 dark:border-slate-700">
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
                   <Warning className="text-amber-500" />
                   注入随机噪声
                 </span>
@@ -520,8 +532,8 @@ export default function SimulationPage() {
               </div>
             </div>
 
-            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-              <h2 className="mb-6 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <h2 className="mb-6 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-400">
                 <Sliders /> 用户状态向量
               </h2>
 
@@ -546,7 +558,7 @@ export default function SimulationPage() {
                 max={1}
               />
 
-              <div className="my-6 h-px bg-gray-100" />
+              <div className="my-6 h-px bg-gray-100 dark:bg-slate-700" />
 
               <ControlSlider
                 label="记忆强度"
@@ -569,7 +581,7 @@ export default function SimulationPage() {
             <button
               onClick={runSimulation}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-card bg-indigo-600 py-4 font-bold text-white shadow-elevated shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:bg-gray-400"
+              className="flex w-full items-center justify-center gap-2 rounded-card bg-indigo-600 py-4 font-bold text-white shadow-elevated shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:bg-gray-400 dark:disabled:bg-slate-600"
             >
               {loading ? (
                 <Gear className="animate-spin" size={20} />
@@ -586,23 +598,23 @@ export default function SimulationPage() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <motion.div
                 variants={fadeInVariants}
-                className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm md:col-span-2"
+                className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80 md:col-span-2"
               >
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
-                  <Brain className="text-gray-400" /> Neural Logic Trace
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
+                  <Brain className="text-gray-400 dark:text-gray-400" /> Neural Logic Trace
                 </h3>
                 {result ? (
-                  <div className="prose prose-sm">
-                    <p className="mb-4 leading-relaxed text-gray-600">
+                  <div className="prose prose-sm dark:prose-invert">
+                    <p className="mb-4 leading-relaxed text-gray-600 dark:text-gray-400">
                       {result.explanation.summary}
                     </p>
                     <div className="space-y-2">
                       {result.explanation.factors.slice(0, 3).map((f, i) => (
                         <div
                           key={i}
-                          className="flex items-center justify-between rounded border border-gray-100 bg-gray-50 p-2"
+                          className="flex items-center justify-between rounded border border-gray-100 bg-gray-50 p-2 dark:border-slate-700 dark:bg-slate-700"
                         >
-                          <span className="text-gray-600">{f.name}</span>
+                          <span className="text-gray-600 dark:text-gray-400">{f.name}</span>
                           <span
                             className={`font-mono font-bold ${f.impact === 'positive' ? 'text-emerald-500' : 'text-rose-500'}`}
                           >
@@ -614,7 +626,9 @@ export default function SimulationPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="italic text-gray-400">Run simulation to see logic trace...</div>
+                  <div className="italic text-gray-400 dark:text-gray-400">
+                    Run simulation to see logic trace...
+                  </div>
                 )}
               </motion.div>
 

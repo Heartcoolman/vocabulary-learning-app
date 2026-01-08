@@ -13,6 +13,7 @@ vi.mock('@/services/client', () => {
     getRecords: vi.fn(),
     getStudyProgress: vi.fn(),
     getUserStatistics: vi.fn(),
+    getEnhancedStatistics: vi.fn(),
     createRecord: vi.fn(),
     batchCreateRecords: vi.fn(),
   };
@@ -45,21 +46,18 @@ describe('useStatistics', () => {
   describe('useStatistics', () => {
     it('should fetch statistics successfully', async () => {
       const mockUser = { id: 'user1', email: 'test@example.com', username: 'test' };
-      const mockWords = [
-        { id: 'word1', spelling: 'hello', meanings: ['你好'], phonetic: '/həˈloʊ/', examples: [] },
-      ];
-      const mockWordStates = [{ masteryLevel: 1 }];
-      const mockStudyStats = { correctRate: 0.85 };
-      const mockRecords = {
-        records: [{ timestamp: new Date().toISOString(), isCorrect: true }],
-        pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+      const mockStats = {
+        totalWords: 100,
+        masteryDistribution: { 0: 10, 1: 20, 2: 30, 3: 25, 4: 10, 5: 5 },
+        correctRate: 0.85,
+        studyDays: 30,
+        consecutiveDays: 7,
+        dailyAccuracy: [0.8, 0.85, 0.9],
+        weekdayHeat: { 0: 10, 1: 15, 2: 20, 3: 18, 4: 22, 5: 12, 6: 8 },
       };
 
       vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as any);
-      vi.spyOn(StorageService, 'getWords').mockResolvedValue(mockWords as any);
-      vi.spyOn(StorageService, 'getWordLearningStates').mockResolvedValue(mockWordStates as any);
-      vi.spyOn(StorageService, 'getStudyStatistics').mockResolvedValue(mockStudyStats as any);
-      vi.mocked(apiClient.getRecords).mockResolvedValue(mockRecords as any);
+      vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats as any);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -68,7 +66,7 @@ describe('useStatistics', () => {
       });
 
       expect(result.current.data).toBeDefined();
-      expect(result.current.data?.totalWords).toBe(1);
+      expect(result.current.data?.totalWords).toBe(100);
       expect(result.current.data?.overallAccuracy).toBe(0.85);
     });
 
@@ -77,25 +75,25 @@ describe('useStatistics', () => {
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
+      // When user is null, the query is disabled, so it should be in idle/pending state
       await waitFor(() => {
-        expect(result.current.isError).toBe(true);
+        expect(result.current.isPending).toBe(true);
       });
-
-      expect(result.current.error?.message).toContain('请先登录');
     });
 
     it('should auto-refresh every minute', async () => {
       const mockUser = { id: 'user1', email: 'test@example.com', username: 'test' };
-      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as any);
-      vi.spyOn(StorageService, 'getWords').mockResolvedValue([]);
-      vi.spyOn(StorageService, 'getWordLearningStates').mockResolvedValue([]);
-      vi.spyOn(StorageService, 'getStudyStatistics').mockResolvedValue({
+      const mockStats = {
         totalWords: 0,
-        studiedWords: 0,
+        masteryDistribution: {},
         correctRate: 0,
-        wordStats: new Map(),
-      });
-      vi.mocked(apiClient.getRecords).mockResolvedValue({ records: [], pagination: {} } as any);
+        studyDays: 0,
+        consecutiveDays: 0,
+        dailyAccuracy: [],
+        weekdayHeat: {},
+      };
+      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as any);
+      vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats as any);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -146,6 +144,7 @@ describe('useStatistics', () => {
         totalWords: 100,
         totalRecords: 500,
         correctRate: 0.85,
+        recentRecords: [],
       };
 
       vi.mocked(apiClient.getUserStatistics).mockResolvedValue(mockStats);

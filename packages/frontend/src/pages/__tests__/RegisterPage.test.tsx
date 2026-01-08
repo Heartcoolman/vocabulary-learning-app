@@ -62,7 +62,7 @@ describe('RegisterPage', () => {
 
     it('should render password hint', () => {
       render(<RegisterPage />);
-      expect(screen.getByText('密码长度至少为8个字符')).toBeInTheDocument();
+      expect(screen.getByText(/密码长度至少10个字符/)).toBeInTheDocument();
     });
   });
 
@@ -91,12 +91,12 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'short');
-      await user.type(screen.getByLabelText('确认密码'), 'short');
+      await user.type(screen.getByLabelText('密码'), 'Ab1!');
+      await user.type(screen.getByLabelText('确认密码'), 'Ab1!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toHaveTextContent('密码长度至少为8个字符');
+        expect(screen.getByRole('alert')).toHaveTextContent('密码长度至少为10个字符');
       });
     });
 
@@ -106,8 +106,8 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'different123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Different123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -121,8 +121,8 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'a');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'password123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -139,12 +139,12 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'password123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
-        expect(mockRegister).toHaveBeenCalledWith('test@example.com', 'password123', 'testuser');
+        expect(mockRegister).toHaveBeenCalledWith('test@example.com', 'Password123!', 'testuser');
       });
     });
 
@@ -155,8 +155,8 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'password123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -171,8 +171,8 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'existing@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'password123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -189,8 +189,8 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'password123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -205,8 +205,8 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('用户名'), 'testuser');
       await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
-      await user.type(screen.getByLabelText('确认密码'), 'password123');
+      await user.type(screen.getByLabelText('密码'), 'Password123!');
+      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {

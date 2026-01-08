@@ -5,7 +5,6 @@ use serde::Serialize;
 use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 const MAX_BATCH_SIZE: usize = 500;
@@ -62,7 +61,6 @@ pub enum WordStateError {
 
 pub async fn batch_get_word_states(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
 ) -> Result<HashMap<String, WordLearningStateRecord>, WordStateError> {
@@ -75,294 +73,146 @@ pub async fn batch_get_word_states(
         )));
     }
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(HashMap::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT
-              "id","userId","wordId","state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-              AND "wordId" IN (
-            "#,
-        );
-        qb.push_bind(user_id);
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"SELECT "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
+          "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
+          "halfLife","version","createdAt","updatedAt"
+        FROM "word_learning_states"
+        WHERE "userId" = "#,
+    );
+    qb.push_bind(user_id);
+    qb.push(r#" AND "wordId" IN ("#);
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_ids {
+            sep.push_bind(id);
         }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = HashMap::with_capacity(rows.len());
-        for row in &rows {
-            let record = map_sqlite_row(row);
-            out.insert(record.word_id.clone(), record);
-        }
-        Ok(out)
-    } else {
-        let Some(pool) = primary else {
-            return Ok(HashMap::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT
-              "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-              AND "wordId" IN (
-            "#,
-        );
-        qb.push_bind(user_id);
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = HashMap::with_capacity(rows.len());
-        for row in &rows {
-            let record = map_pg_row(row);
-            out.insert(record.word_id.clone(), record);
-        }
-        Ok(out)
     }
+    qb.push(")");
+
+    let rows = qb.build().fetch_all(pool).await?;
+    let mut out = HashMap::with_capacity(rows.len());
+    for row in &rows {
+        let record = map_pg_row(row);
+        out.insert(record.word_id.clone(), record);
+    }
+    Ok(out)
 }
 
 pub async fn get_word_state(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<Option<WordLearningStateRecord>, WordStateError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId","state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-              AND "wordId" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
-        Ok(row.map(|row| map_sqlite_row(&row)))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-              AND "wordId" = $2
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
-        Ok(row.map(|row| map_pg_row(&row)))
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
+          "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
+          "halfLife","version","createdAt","updatedAt"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+          AND "wordId" = $2
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|row| map_pg_row(&row)))
 }
 
 pub async fn upsert_word_state(
     proxy: &DatabaseProxy,
-    request_state: DatabaseState,
     user_id: &str,
     word_id: &str,
     update: WordStateUpdate,
 ) -> Result<WordLearningStateRecord, WordStateError> {
-    ensure_word_access(proxy, request_state, user_id, word_id).await?;
+    ensure_word_access(proxy, user_id, word_id).await?;
 
-    if proxy.sqlite_enabled() {
-        let mut create = serde_json::Map::new();
-        create.insert("id".to_string(), serde_json::Value::String(Uuid::new_v4().to_string()));
-        create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        create.insert("wordId".to_string(), serde_json::Value::String(word_id.to_string()));
-        apply_update_fields(&mut create, &update)?;
+    let pool = proxy.pool();
 
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert(
-            "userId".to_string(),
-            serde_json::Value::String(user_id.to_string()),
-        );
-        where_clause.insert(
-            "wordId".to_string(),
-            serde_json::Value::String(word_id.to_string()),
-        );
+    let now = Utc::now().naive_utc();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        INSERT INTO "word_learning_states"
+          ("id","userId","wordId","updatedAt"
+        "#,
+    );
 
-        let mut update_map = serde_json::Map::new();
-        apply_update_fields(&mut update_map, &update)?;
+    let mut insert_values: Vec<(&'static str, serde_json::Value)> = Vec::new();
+    collect_update_pairs(&mut insert_values, &update)?;
 
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "word_learning_states".to_string(),
-            r#where: where_clause,
-            create,
-            update: update_map,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(request_state, op)
-            .await
-            .map_err(|err| WordStateError::Mutation(err.to_string()))?;
-    } else {
-        let Some(pool) = proxy.primary_pool().await else {
-            return Err(WordStateError::Sql(sqlx::Error::PoolClosed));
-        };
-
-        let now = Utc::now().naive_utc();
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            INSERT INTO "word_learning_states"
-              ("id","userId","wordId","updatedAt"
-            "#,
-        );
-
-        let mut insert_values: Vec<(&'static str, serde_json::Value)> = Vec::new();
-        collect_update_pairs(&mut insert_values, &update)?;
-
-        for (key, _) in &insert_values {
-            qb.push(", \"");
-            qb.push(*key);
-            qb.push("\"");
-        }
-
-        qb.push(") VALUES (");
-        qb.push_bind(Uuid::new_v4().to_string());
-        qb.push(", ");
-        qb.push_bind(user_id);
-        qb.push(", ");
-        qb.push_bind(word_id);
-        qb.push(", ");
-        qb.push_bind(now);
-
-        for (key, value) in &insert_values {
-            qb.push(", ");
-            match *key {
-                "state" => {
-                    qb.push_bind(value.as_str().unwrap_or("NEW"));
-                }
-                "masteryLevel"
-                | "reviewCount"
-                | "currentInterval"
-                | "consecutiveCorrect"
-                | "consecutiveWrong"
-                | "version" => {
-                    qb.push_bind(value.as_i64().map(|v| v as i32));
-                }
-                "easeFactor" | "halfLife" => {
-                    qb.push_bind(value.as_f64());
-                }
-                "lastReviewDate" | "nextReviewDate" => {
-                    qb.push_bind(value.as_str());
-                }
-                _ => {
-                    qb.push_bind(value.to_string());
-                }
-            };
-        }
-        qb.push(") ON CONFLICT (\"userId\",\"wordId\") DO UPDATE SET \"updatedAt\" = EXCLUDED.\"updatedAt\"");
-
-        for (key, _value) in &insert_values {
-            qb.push(", \"");
-            qb.push(*key);
-            qb.push("\" = EXCLUDED.\"");
-            qb.push(*key);
-            qb.push("\"");
-        }
-
-        qb.push(" RETURNING ");
-        qb.push(
-            r#"
-            "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
-            "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-            "halfLife","version","createdAt","updatedAt"
-            "#,
-        );
-
-        let row = qb.build().fetch_one(&pool).await?;
-        return Ok(map_pg_row(&row));
+    for (key, _) in &insert_values {
+        qb.push(", \"");
+        qb.push(*key);
+        qb.push("\"");
     }
 
-    get_word_state(proxy, request_state, user_id, word_id)
-        .await?
-        .ok_or_else(|| WordStateError::NotFound("学习状态不存在".to_string()))
+    qb.push(") VALUES (");
+    qb.push_bind(Uuid::new_v4().to_string());
+    qb.push(", ");
+    qb.push_bind(user_id);
+    qb.push(", ");
+    qb.push_bind(word_id);
+    qb.push(", ");
+    qb.push_bind(now);
+
+    for (key, value) in &insert_values {
+        qb.push(", ");
+        match *key {
+            "state" => {
+                qb.push_bind(value.as_str().unwrap_or("NEW"));
+                qb.push(r#"::"WordState""#);
+            }
+            "masteryLevel" | "reviewCount" | "currentInterval" | "consecutiveCorrect"
+            | "consecutiveWrong" | "version" => {
+                qb.push_bind(value.as_i64().map(|v| v as i32));
+            }
+            "easeFactor" | "halfLife" => {
+                qb.push_bind(value.as_f64());
+            }
+            "lastReviewDate" | "nextReviewDate" => {
+                qb.push_bind(value.as_str());
+            }
+            _ => {
+                qb.push_bind(value.to_string());
+            }
+        };
+    }
+    qb.push(") ON CONFLICT (\"userId\",\"wordId\") DO UPDATE SET \"updatedAt\" = EXCLUDED.\"updatedAt\"");
+
+    for (key, _value) in &insert_values {
+        qb.push(", \"");
+        qb.push(*key);
+        qb.push("\" = EXCLUDED.\"");
+        qb.push(*key);
+        qb.push("\"");
+    }
+
+    qb.push(" RETURNING ");
+    qb.push(
+        r#"
+        "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
+        "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
+        "halfLife","version","createdAt","updatedAt"
+        "#,
+    );
+
+    let row = qb.build().fetch_one(pool).await?;
+    Ok(map_pg_row(&row))
 }
 
 pub async fn delete_word_state(
     proxy: &DatabaseProxy,
-    request_state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<(), WordStateError> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert(
-            "userId".to_string(),
-            serde_json::Value::String(user_id.to_string()),
-        );
-        where_clause.insert(
-            "wordId".to_string(),
-            serde_json::Value::String(word_id.to_string()),
-        );
-
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "word_learning_states".to_string(),
-            r#where: where_clause,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(request_state, op)
-            .await
-            .map_err(|err| WordStateError::Mutation(err.to_string()))?;
-        return Ok(());
-    }
-
-    let Some(pool) = proxy.primary_pool().await else {
-        return Err(WordStateError::Sql(sqlx::Error::PoolClosed));
-    };
+    let pool = proxy.pool();
 
     let result = sqlx::query(
         r#"
@@ -373,7 +223,7 @@ pub async fn delete_word_state(
     )
     .bind(user_id)
     .bind(word_id)
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
     if result.rows_affected() == 0 {
@@ -385,141 +235,65 @@ pub async fn delete_word_state(
 
 pub async fn list_due_words(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Vec<WordLearningStateRecord>, sqlx::Error> {
-    let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let pool = proxy.pool();
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let now_dt = Utc::now().naive_utc();
+    let rows = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
+          "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
+          "halfLife","version","createdAt","updatedAt"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+          AND (
+            (
+              "nextReviewDate" <= $2
+              AND "state"::text IN ('LEARNING','REVIEWING')
+            )
+            OR (
+              "state"::text = 'NEW'
+              AND ("nextReviewDate" IS NULL OR "nextReviewDate" <= $2)
+            )
+          )
+        ORDER BY "nextReviewDate" ASC NULLS FIRST
+        "#,
+    )
+    .bind(user_id)
+    .bind(now_dt)
+    .fetch_all(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId","state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-              AND (
-                (
-                  "nextReviewDate" <= ?
-                  AND "state" IN ('LEARNING','REVIEWING')
-                )
-                OR (
-                  "state" = 'NEW'
-                  AND ("nextReviewDate" IS NULL OR "nextReviewDate" <= ?)
-                )
-              )
-            ORDER BY "nextReviewDate" ASC
-            "#,
-        )
-        .bind(user_id)
-        .bind(&now_iso)
-        .bind(&now_iso)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_sqlite_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let now_dt = Utc::now().naive_utc();
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-              AND (
-                (
-                  "nextReviewDate" <= $2
-                  AND "state"::text IN ('LEARNING','REVIEWING')
-                )
-                OR (
-                  "state"::text = 'NEW'
-                  AND ("nextReviewDate" IS NULL OR "nextReviewDate" <= $2)
-                )
-              )
-            ORDER BY "nextReviewDate" ASC NULLS FIRST
-            "#,
-        )
-        .bind(user_id)
-        .bind(now_dt)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_pg_row).collect())
-    }
+    Ok(rows.iter().map(map_pg_row).collect())
 }
 
 pub async fn list_words_by_state(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     state_value: &str,
 ) -> Result<Vec<WordLearningStateRecord>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
+    let rows = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
+          "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
+          "halfLife","version","createdAt","updatedAt"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+          AND "state"::text = $2
+        ORDER BY "updatedAt" DESC
+        "#,
+    )
+    .bind(user_id)
+    .bind(state_value)
+    .fetch_all(pool)
+    .await?;
 
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId","state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-              AND "state" = ?
-            ORDER BY "updatedAt" DESC
-            "#,
-        )
-        .bind(user_id)
-        .bind(state_value)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_sqlite_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let rows = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","wordId","state"::text as "state","masteryLevel","easeFactor","reviewCount",
-              "lastReviewDate","nextReviewDate","currentInterval","consecutiveCorrect","consecutiveWrong",
-              "halfLife","version","createdAt","updatedAt"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-              AND "state"::text = $2
-            ORDER BY "updatedAt" DESC
-            "#,
-        )
-        .bind(user_id)
-        .bind(state_value)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows.iter().map(map_pg_row).collect())
-    }
+    Ok(rows.iter().map(map_pg_row).collect())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -534,106 +308,33 @@ pub struct WordStateStats {
 
 pub async fn get_state_stats(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<WordStateStats, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(WordStateStats {
-                total_words: 0,
-                new_words: 0,
-                learning_words: 0,
-                reviewing_words: 0,
-                mastered_words: 0,
-            });
-        };
+    let row = sqlx::query(
+        r#"
+        SELECT
+          COUNT(*)::bigint as "total",
+          SUM(CASE WHEN "state"::text = 'NEW' THEN 1 ELSE 0 END)::bigint as "new",
+          SUM(CASE WHEN "state"::text = 'LEARNING' THEN 1 ELSE 0 END)::bigint as "learning",
+          SUM(CASE WHEN "state"::text = 'REVIEWING' THEN 1 ELSE 0 END)::bigint as "reviewing",
+          SUM(CASE WHEN "state"::text = 'MASTERED' THEN 1 ELSE 0 END)::bigint as "mastered"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
 
-        let total: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = ?"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-
-        let new_words: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = ? AND "state" = 'NEW'"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-
-        let learning_words: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = ? AND "state" = 'LEARNING'"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-
-        let reviewing_words: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = ? AND "state" = 'REVIEWING'"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-
-        let mastered_words: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = ? AND "state" = 'MASTERED'"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-
-        Ok(WordStateStats {
-            total_words: total.max(0),
-            new_words: new_words.max(0),
-            learning_words: learning_words.max(0),
-            reviewing_words: reviewing_words.max(0),
-            mastered_words: mastered_words.max(0),
-        })
-    } else {
-        let Some(pool) = primary else {
-            return Ok(WordStateStats {
-                total_words: 0,
-                new_words: 0,
-                learning_words: 0,
-                reviewing_words: 0,
-                mastered_words: 0,
-            });
-        };
-
-        let row = sqlx::query(
-            r#"
-            SELECT
-              COUNT(*)::bigint as "total",
-              SUM(CASE WHEN "state"::text = 'NEW' THEN 1 ELSE 0 END)::bigint as "new",
-              SUM(CASE WHEN "state"::text = 'LEARNING' THEN 1 ELSE 0 END)::bigint as "learning",
-              SUM(CASE WHEN "state"::text = 'REVIEWING' THEN 1 ELSE 0 END)::bigint as "reviewing",
-              SUM(CASE WHEN "state"::text = 'MASTERED' THEN 1 ELSE 0 END)::bigint as "mastered"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await?;
-
-        Ok(WordStateStats {
-            total_words: row.try_get::<i64, _>("total").unwrap_or(0),
-            new_words: row.try_get::<i64, _>("new").unwrap_or(0),
-            learning_words: row.try_get::<i64, _>("learning").unwrap_or(0),
-            reviewing_words: row.try_get::<i64, _>("reviewing").unwrap_or(0),
-            mastered_words: row.try_get::<i64, _>("mastered").unwrap_or(0),
-        })
-    }
+    Ok(WordStateStats {
+        total_words: row.try_get::<i64, _>("total").unwrap_or(0),
+        new_words: row.try_get::<i64, _>("new").unwrap_or(0),
+        learning_words: row.try_get::<i64, _>("learning").unwrap_or(0),
+        reviewing_words: row.try_get::<i64, _>("reviewing").unwrap_or(0),
+        mastered_words: row.try_get::<i64, _>("mastered").unwrap_or(0),
+    })
 }
 
 fn apply_update_fields(
@@ -641,10 +342,16 @@ fn apply_update_fields(
     update: &WordStateUpdate,
 ) -> Result<(), WordStateError> {
     if let Some(value) = update.state.as_deref() {
-        target.insert("state".to_string(), serde_json::Value::String(value.to_string()));
+        target.insert(
+            "state".to_string(),
+            serde_json::Value::String(value.to_string()),
+        );
     }
     if let Some(value) = update.mastery_level {
-        target.insert("masteryLevel".to_string(), serde_json::Value::Number(value.into()));
+        target.insert(
+            "masteryLevel".to_string(),
+            serde_json::Value::Number(value.into()),
+        );
     }
     if let Some(value) = update.ease_factor {
         let num = serde_json::Number::from_f64(value)
@@ -652,22 +359,34 @@ fn apply_update_fields(
         target.insert("easeFactor".to_string(), serde_json::Value::Number(num));
     }
     if let Some(value) = update.review_count {
-        target.insert("reviewCount".to_string(), serde_json::Value::Number(value.into()));
+        target.insert(
+            "reviewCount".to_string(),
+            serde_json::Value::Number(value.into()),
+        );
     }
     if let Some(value) = &update.last_review_date {
         match value {
-            Some(iso) => target.insert("lastReviewDate".to_string(), serde_json::Value::String(iso.clone())),
+            Some(iso) => target.insert(
+                "lastReviewDate".to_string(),
+                serde_json::Value::String(iso.clone()),
+            ),
             None => target.insert("lastReviewDate".to_string(), serde_json::Value::Null),
         };
     }
     if let Some(value) = &update.next_review_date {
         match value {
-            Some(iso) => target.insert("nextReviewDate".to_string(), serde_json::Value::String(iso.clone())),
+            Some(iso) => target.insert(
+                "nextReviewDate".to_string(),
+                serde_json::Value::String(iso.clone()),
+            ),
             None => target.insert("nextReviewDate".to_string(), serde_json::Value::Null),
         };
     }
     if let Some(value) = update.current_interval {
-        target.insert("currentInterval".to_string(), serde_json::Value::Number(value.into()));
+        target.insert(
+            "currentInterval".to_string(),
+            serde_json::Value::Number(value.into()),
+        );
     }
     if let Some(value) = update.consecutive_correct {
         target.insert(
@@ -718,7 +437,10 @@ fn collect_update_pairs(
         out.push(("currentInterval", serde_json::Value::Number(value.into())));
     }
     if let Some(value) = update.consecutive_correct {
-        out.push(("consecutiveCorrect", serde_json::Value::Number(value.into())));
+        out.push((
+            "consecutiveCorrect",
+            serde_json::Value::Number(value.into()),
+        ));
     }
     if let Some(value) = update.consecutive_wrong {
         out.push(("consecutiveWrong", serde_json::Value::Number(value.into())));
@@ -728,69 +450,33 @@ fn collect_update_pairs(
 
 async fn ensure_word_access(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<(), WordStateError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT wb."type"::text as "type", wb."userId" as "owner"
+        FROM "words" w
+        JOIN "word_books" wb ON wb."id" = w."wordBookId"
+        WHERE w."id" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(WordStateError::NotFound("单词不存在".to_string()));
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT wb."type" as "type", wb."userId" as "owner"
-            FROM "words" w
-            JOIN "word_books" wb ON wb."id" = w."wordBookId"
-            WHERE w."id" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
+    let Some(row) = row else {
+        return Err(WordStateError::NotFound("单词不存在".to_string()));
+    };
 
-        let Some(row) = row else {
-            return Err(WordStateError::NotFound("单词不存在".to_string()));
-        };
-
-        let wb_type: String = row.try_get("type").unwrap_or_default();
-        let owner: Option<String> = row.try_get("owner").ok();
-        if wb_type == "USER" && owner.as_deref() != Some(user_id) {
-            return Err(WordStateError::Unauthorized("无权访问该单词".to_string()));
-        }
-        Ok(())
-    } else {
-        let Some(pool) = primary else {
-            return Err(WordStateError::NotFound("单词不存在".to_string()));
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT wb."type"::text as "type", wb."userId" as "owner"
-            FROM "words" w
-            JOIN "word_books" wb ON wb."id" = w."wordBookId"
-            WHERE w."id" = $1
-            LIMIT 1
-            "#,
-        )
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        let Some(row) = row else {
-            return Err(WordStateError::NotFound("单词不存在".to_string()));
-        };
-
-        let wb_type: String = row.try_get("type").unwrap_or_default();
-        let owner: Option<String> = row.try_get("owner").ok();
-        if wb_type == "USER" && owner.as_deref() != Some(user_id) {
-            return Err(WordStateError::Unauthorized("无权访问该单词".to_string()));
-        }
-        Ok(())
+    let wb_type: String = row.try_get("type").unwrap_or_default();
+    let owner: Option<String> = row.try_get("owner").ok();
+    if wb_type == "USER" && owner.as_deref() != Some(user_id) {
+        return Err(WordStateError::Unauthorized("无权访问该单词".to_string()));
     }
+    Ok(())
 }
 
 pub fn normalize_state_param(input: &str) -> Option<&'static str> {
@@ -810,16 +496,22 @@ pub fn validate_timestamp_ms(value: i64) -> Result<Option<String>, WordStateErro
 
     let now = Utc::now().timestamp_millis();
     if value > now + TIMESTAMP_FUTURE_LIMIT_MS {
-        return Err(WordStateError::Validation("时间戳不能超过当前时间1小时".to_string()));
+        return Err(WordStateError::Validation(
+            "时间戳不能超过当前时间1小时".to_string(),
+        ));
     }
     if value < now - TIMESTAMP_PAST_LIMIT_MS {
-        return Err(WordStateError::Validation("时间戳不能早于1年前".to_string()));
+        return Err(WordStateError::Validation(
+            "时间戳不能早于1年前".to_string(),
+        ));
     }
 
     Ok(crate::auth::format_timestamp_ms_iso_millis(value))
 }
 
-pub fn parse_datetime_input(value: &serde_json::Value) -> Result<Option<Option<String>>, WordStateError> {
+pub fn parse_datetime_input(
+    value: &serde_json::Value,
+) -> Result<Option<Option<String>>, WordStateError> {
     if value.is_null() {
         return Ok(Some(None));
     }
@@ -845,55 +537,26 @@ pub fn parse_datetime_input(value: &serde_json::Value) -> Result<Option<Option<S
     Err(WordStateError::Validation("无效的时间戳格式".to_string()))
 }
 
-fn map_sqlite_row(row: &sqlx::sqlite::SqliteRow) -> WordLearningStateRecord {
-    let id: String = row.try_get("id").unwrap_or_default();
-    let user_id: String = row.try_get("userId").unwrap_or_default();
-    let word_id: String = row.try_get("wordId").unwrap_or_default();
-    let state: String = row.try_get("state").unwrap_or_else(|_| "NEW".to_string());
-    let mastery_level: i64 = row.try_get::<i64, _>("masteryLevel").unwrap_or(0);
-    let ease_factor: f64 = row.try_get::<f64, _>("easeFactor").unwrap_or(2.5);
-    let review_count: i64 = row.try_get::<i64, _>("reviewCount").unwrap_or(0);
-    let last_raw: Option<String> = row.try_get("lastReviewDate").ok();
-    let next_raw: Option<String> = row.try_get("nextReviewDate").ok();
-    let current_interval: i64 = row.try_get::<i64, _>("currentInterval").unwrap_or(1);
-    let consecutive_correct: i64 = row.try_get::<i64, _>("consecutiveCorrect").unwrap_or(0);
-    let consecutive_wrong: i64 = row.try_get::<i64, _>("consecutiveWrong").unwrap_or(0);
-    let half_life: f64 = row.try_get::<f64, _>("halfLife").unwrap_or(1.0);
-    let version: i64 = row.try_get::<i64, _>("version").unwrap_or(0);
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-
-    WordLearningStateRecord {
-        id,
-        user_id,
-        word_id,
-        state,
-        mastery_level,
-        ease_factor,
-        review_count,
-        last_review_date: last_raw.and_then(|v| normalize_datetime_output(&v)),
-        next_review_date: next_raw.and_then(|v| normalize_datetime_output(&v)),
-        current_interval,
-        consecutive_correct,
-        consecutive_wrong,
-        half_life,
-        version,
-        created_at: normalize_datetime_output(&created_raw).unwrap_or(created_raw),
-        updated_at: normalize_datetime_output(&updated_raw).unwrap_or(updated_raw),
-    }
-}
-
 fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordLearningStateRecord {
     let id: String = row.try_get("id").unwrap_or_default();
     let user_id: String = row.try_get("userId").unwrap_or_default();
     let word_id: String = row.try_get("wordId").unwrap_or_default();
     let state: String = row.try_get("state").unwrap_or_else(|_| "NEW".to_string());
-    let mastery_level: i64 = row.try_get::<i32, _>("masteryLevel").map(|v| v as i64).unwrap_or(0);
+    let mastery_level: i64 = row
+        .try_get::<i32, _>("masteryLevel")
+        .map(|v| v as i64)
+        .unwrap_or(0);
     let ease_factor: f64 = row.try_get::<f64, _>("easeFactor").unwrap_or(2.5);
-    let review_count: i64 = row.try_get::<i32, _>("reviewCount").map(|v| v as i64).unwrap_or(0);
+    let review_count: i64 = row
+        .try_get::<i32, _>("reviewCount")
+        .map(|v| v as i64)
+        .unwrap_or(0);
     let last_dt: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
     let next_dt: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
-    let current_interval: i64 = row.try_get::<i32, _>("currentInterval").map(|v| v as i64).unwrap_or(1);
+    let current_interval: i64 = row
+        .try_get::<i32, _>("currentInterval")
+        .map(|v| v as i64)
+        .unwrap_or(1);
     let consecutive_correct: i64 = row
         .try_get::<i32, _>("consecutiveCorrect")
         .map(|v| v as i64)
@@ -903,9 +566,16 @@ fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordLearningStateRecord {
         .map(|v| v as i64)
         .unwrap_or(0);
     let half_life: f64 = row.try_get::<f64, _>("halfLife").unwrap_or(1.0);
-    let version: i64 = row.try_get::<i32, _>("version").map(|v| v as i64).unwrap_or(0);
-    let created_dt: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_dt: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let version: i64 = row
+        .try_get::<i32, _>("version")
+        .map(|v| v as i64)
+        .unwrap_or(0);
+    let created_dt: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_dt: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     WordLearningStateRecord {
         id,
@@ -927,17 +597,105 @@ fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordLearningStateRecord {
     }
 }
 
-fn normalize_datetime_output(value: &str) -> Option<String> {
-    let ms = crate::auth::parse_sqlite_datetime_ms(value)?;
-    crate::auth::format_timestamp_ms_iso_millis(ms)
-}
-
 fn naive_to_iso(value: NaiveDateTime) -> String {
     DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
         .to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-pub fn validate_word_state_update_payload(raw: &serde_json::Map<String, serde_json::Value>) -> Result<WordStateUpdate, WordStateError> {
+pub async fn mark_mastered(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    word_id: &str,
+) -> Result<WordLearningStateRecord, WordStateError> {
+    let update = WordStateUpdate {
+        state: Some("MASTERED".to_string()),
+        mastery_level: Some(5),
+        consecutive_correct: Some(0),
+        consecutive_wrong: Some(0),
+        ..Default::default()
+    };
+    upsert_word_state(proxy, user_id, word_id, update).await
+}
+
+pub async fn mark_needs_practice(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    word_id: &str,
+) -> Result<WordLearningStateRecord, WordStateError> {
+    let update = WordStateUpdate {
+        state: Some("LEARNING".to_string()),
+        mastery_level: Some(1),
+        ease_factor: Some(2.0),
+        current_interval: Some(1),
+        consecutive_correct: Some(0),
+        consecutive_wrong: Some(0),
+        ..Default::default()
+    };
+    upsert_word_state(proxy, user_id, word_id, update).await
+}
+
+pub async fn reset_progress(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    word_id: &str,
+) -> Result<WordLearningStateRecord, WordStateError> {
+    let update = WordStateUpdate {
+        state: Some("NEW".to_string()),
+        mastery_level: Some(0),
+        ease_factor: Some(2.5),
+        review_count: Some(0),
+        current_interval: Some(1),
+        consecutive_correct: Some(0),
+        consecutive_wrong: Some(0),
+        last_review_date: Some(None),
+        next_review_date: Some(None),
+    };
+    upsert_word_state(proxy, user_id, word_id, update).await
+}
+
+pub async fn batch_update_states(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    word_ids: &[String],
+    operation: &str,
+) -> Result<Vec<WordLearningStateRecord>, WordStateError> {
+    if word_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    if word_ids.len() > MAX_BATCH_SIZE {
+        return Err(WordStateError::Validation(format!(
+            "wordIds array exceeds maximum size of {MAX_BATCH_SIZE}"
+        )));
+    }
+
+    let unique_ids: Vec<String> = word_ids
+        .iter()
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let mut results = Vec::with_capacity(unique_ids.len());
+    for word_id in &unique_ids {
+        let record = match operation {
+            "mastered" => mark_mastered(proxy, user_id, word_id).await?,
+            "needsPractice" => mark_needs_practice(proxy, user_id, word_id).await?,
+            "reset" => reset_progress(proxy, user_id, word_id).await?,
+            _ => {
+                return Err(WordStateError::Validation(
+                    "Invalid operation. Allowed: mastered, needsPractice, reset".to_string(),
+                ))
+            }
+        };
+        results.push(record);
+    }
+    Ok(results)
+}
+
+pub fn validate_word_state_update_payload(
+    raw: &serde_json::Map<String, serde_json::Value>,
+) -> Result<WordStateUpdate, WordStateError> {
     let allowed: HashSet<&'static str> = [
         "state",
         "masteryLevel",
@@ -958,11 +716,16 @@ pub fn validate_word_state_update_payload(raw: &serde_json::Map<String, serde_js
         .filter(|k| !allowed.contains(k))
         .collect();
     if !invalid.is_empty() {
-        return Err(WordStateError::Validation(format!("不允许的字段: {}", invalid.join(", "))));
+        return Err(WordStateError::Validation(format!(
+            "不允许的字段: {}",
+            invalid.join(", ")
+        )));
     }
 
     if raw.contains_key("userId") || raw.contains_key("wordId") {
-        return Err(WordStateError::Validation("不允许提交 userId 或 wordId".to_string()));
+        return Err(WordStateError::Validation(
+            "不允许提交 userId 或 wordId".to_string(),
+        ));
     }
 
     let mut out = WordStateUpdate::default();

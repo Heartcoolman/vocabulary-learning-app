@@ -74,10 +74,10 @@ export const List = memo(
     ) => {
       const variantStyles = {
         default: '',
-        bordered: 'border border-gray-200 rounded-button overflow-hidden',
+        bordered: 'border border-gray-200 dark:border-slate-700 rounded-button overflow-hidden',
         divided: horizontal
-          ? '[&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-gray-200'
-          : '[&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-gray-200',
+          ? '[&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-gray-200 dark:[&>*:not(:last-child)]:border-slate-700'
+          : '[&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-gray-200 dark:[&>*:not(:last-child)]:border-slate-700',
       };
 
       return (
@@ -181,15 +181,18 @@ export const ListItem = memo(
             'flex items-center gap-3',
             itemSizeStyles[size],
             'transition-colors duration-g3-instant',
-            isClickable && !disabled && 'cursor-pointer hover:bg-gray-50',
-            selected && 'bg-blue-50 hover:bg-blue-100',
+            isClickable &&
+              !disabled &&
+              'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50',
+            selected &&
+              'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/40',
             disabled && 'cursor-not-allowed opacity-50',
             className,
           )}
           {...props}
         >
           {prefix && (
-            <span className="flex flex-shrink-0 items-center justify-center text-gray-500">
+            <span className="flex flex-shrink-0 items-center justify-center text-gray-500 dark:text-gray-400">
               {prefix}
             </span>
           )}
@@ -197,9 +200,15 @@ export const ListItem = memo(
           <div className="min-w-0 flex-1">
             {primary || secondary ? (
               <>
-                {primary && <div className="truncate font-medium text-gray-900">{primary}</div>}
+                {primary && (
+                  <div className="truncate font-medium text-gray-900 dark:text-white">
+                    {primary}
+                  </div>
+                )}
                 {secondary && (
-                  <div className="mt-0.5 truncate text-sm text-gray-500">{secondary}</div>
+                  <div className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
+                    {secondary}
+                  </div>
                 )}
               </>
             ) : (
@@ -208,7 +217,9 @@ export const ListItem = memo(
           </div>
 
           {suffix && (
-            <span className="flex flex-shrink-0 items-center text-gray-400">{suffix}</span>
+            <span className="flex flex-shrink-0 items-center text-gray-400 dark:text-gray-500">
+              {suffix}
+            </span>
           )}
         </li>
       );
@@ -251,8 +262,8 @@ export const ListSubheader = memo(
           className={cn(
             'flex items-center',
             itemSizeStyles[size],
-            'text-xs font-semibold uppercase tracking-wider text-gray-500',
-            'bg-gray-50',
+            'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400',
+            'bg-gray-50 dark:bg-slate-800',
             sticky && 'sticky top-0 z-10',
             className,
           )}
@@ -282,7 +293,7 @@ export const ListDivider = memo(
         ref={ref}
         role="separator"
         aria-hidden="true"
-        className={cn('my-1 h-px bg-gray-200', inset && 'ml-12', className)}
+        className={cn('my-1 h-px bg-gray-200 dark:bg-slate-700', inset && 'ml-12', className)}
         {...props}
       />
     );

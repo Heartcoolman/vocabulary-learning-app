@@ -33,15 +33,15 @@ interface ErrorRateChartProps {
 // 常量 - Canvas 绘制颜色
 // ============================================
 
-const CHART_COLORS = {
+const getChartColors = (isDark: boolean) => ({
   primary: chartColors.primary,
   error: chartColors.error,
   warning: chartColors.warning,
   success: chartColors.success,
-  grid: chartColors.grid,
-  text: chartColors.text,
-  background: '#ffffff',
-};
+  grid: isDark ? chartColors.gridDark : chartColors.grid,
+  text: isDark ? chartColors.textDark : chartColors.text,
+  background: isDark ? chartColors.backgroundDark : '#ffffff',
+});
 
 // ============================================
 // 辅助函数
@@ -111,6 +111,10 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // 检测深色模式
+    const isDark = document.documentElement.classList.contains('dark');
+    const CHART_COLORS = getChartColors(isDark);
 
     // 获取设备像素比
     const dpr = window.devicePixelRatio || 1;
@@ -295,9 +299,11 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
   }, [data]);
 
   return (
-    <div className="rounded-button bg-white p-5 shadow-soft">
+    <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="m-0 text-base font-semibold text-gray-800">错误率趋势</h3>
+        <h3 className="m-0 text-base font-semibold text-gray-800 dark:text-slate-200">
+          错误率趋势
+        </h3>
         <div className="flex gap-2">
           {[15, 30, 60, 120].map((range) => (
             <button
@@ -305,7 +311,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
               className={`rounded border px-3 py-1 text-xs transition-all ${
                 selectedRange === range
                   ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
               }`}
               onClick={() => setSelectedRange(range)}
             >
@@ -340,49 +346,51 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
       </div>
 
       <div className="mt-4 flex justify-center gap-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
           <div
             className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: CHART_COLORS.error }}
+            style={{ backgroundColor: chartColors.error }}
           />
           <span>错误率</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
           <div
             className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: CHART_COLORS.warning }}
+            style={{ backgroundColor: chartColors.warning }}
           />
           <span>告警阈值</span>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-4 gap-4 border-t border-gray-100 pt-4">
+      <div className="mt-4 grid grid-cols-4 gap-4 border-t border-gray-100 pt-4 dark:border-slate-700">
         <div className="text-center">
-          <div className="text-xl font-semibold text-gray-800">
+          <div className="text-xl font-semibold text-gray-800 dark:text-slate-200">
             {stats.avgErrorRate.toFixed(2)}%
           </div>
-          <div className="mt-1 text-xs text-gray-400">平均错误率</div>
+          <div className="mt-1 text-xs text-gray-400 dark:text-slate-500">平均错误率</div>
         </div>
         <div className="text-center">
           <div
             className="text-xl font-semibold"
             style={{
-              color: stats.maxErrorRate > 2 ? CHART_COLORS.error : CHART_COLORS.success,
+              color: stats.maxErrorRate > 2 ? chartColors.error : chartColors.success,
             }}
           >
             {stats.maxErrorRate.toFixed(2)}%
           </div>
-          <div className="mt-1 text-xs text-gray-400">最高错误率</div>
+          <div className="mt-1 text-xs text-gray-400 dark:text-slate-500">最高错误率</div>
         </div>
         <div className="text-center">
-          <div className="text-xl font-semibold text-gray-800">{stats.totalErrors}</div>
-          <div className="mt-1 text-xs text-gray-400">错误总数</div>
+          <div className="text-xl font-semibold text-gray-800 dark:text-slate-200">
+            {stats.totalErrors}
+          </div>
+          <div className="mt-1 text-xs text-gray-400 dark:text-slate-500">错误总数</div>
         </div>
         <div className="text-center">
-          <div className="text-xl font-semibold text-gray-800">
+          <div className="text-xl font-semibold text-gray-800 dark:text-slate-200">
             {stats.totalRequests.toLocaleString()}
           </div>
-          <div className="mt-1 text-xs text-gray-400">请求总数</div>
+          <div className="mt-1 text-xs text-gray-400 dark:text-slate-500">请求总数</div>
         </div>
       </div>
     </div>

@@ -52,7 +52,7 @@ function TestOptions({
   const getButtonStyle = (option: string) => {
     // 如果还没有显示结果，使用默认样式
     if (!showResult) {
-      return 'bg-gray-100 hover:bg-gray-200 text-gray-900';
+      return 'bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-900 dark:text-white';
     }
 
     // 显示结果时的样式 - 支持多个正确答案
@@ -67,10 +67,10 @@ function TestOptions({
       return 'bg-red-500 text-white shadow-elevated';
     } else if (isCorrect) {
       // 正确答案高亮（用户选错时）
-      return 'bg-green-100 border-2 border-green-500 text-gray-900 shadow-elevated';
+      return 'bg-green-100 dark:bg-green-900/30 border-2 border-green-500 text-gray-900 dark:text-white shadow-elevated';
     } else {
       // 其他选项
-      return 'bg-gray-100 text-gray-500 opacity-60';
+      return 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 opacity-60';
     }
   };
 

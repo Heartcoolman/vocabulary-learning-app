@@ -41,7 +41,7 @@ export interface DetectorConfig {
  * 默认检测器配置
  */
 export const DEFAULT_DETECTOR_CONFIG: DetectorConfig = {
-  detectionIntervalMs: 200, // 5 FPS
+  detectionIntervalMs: 100, // 10 FPS (WASM优化后提升)
   enableBlendshapes: true,
   useGPU: false, // 暂时禁用 GPU 以排查 Worker 兼容性问题
   modelPath: '/models/mediapipe/face_landmarker.task',
@@ -179,8 +179,11 @@ export class VisualFatigueDetector {
 
       // 等待初始化响应
       return new Promise((resolve) => {
+        const INIT_TIMEOUT = 30000;
+
         const handler = (e: MessageEvent<WorkerResponse>) => {
           if (e.data.type === 'init-result') {
+            clearTimeout(timeoutId);
             this.worker?.removeEventListener('message', handler);
 
             if (e.data.success) {
@@ -197,6 +200,15 @@ export class VisualFatigueDetector {
             }
           }
         };
+
+        const timeoutId = setTimeout(() => {
+          this.worker?.removeEventListener('message', handler);
+          console.error('[VisualFatigue] Worker init timeout');
+          this.state.error = 'Worker initialization timeout';
+          this.state.isSupported = false;
+          resolve(false);
+        }, INIT_TIMEOUT);
+
         this.worker?.addEventListener('message', handler);
         this.worker?.postMessage({ type: 'init', config: initConfig });
       });
@@ -373,15 +385,17 @@ export class VisualFatigueDetector {
 
     // console.log('[VisualFatigue Debug] Sending frame to worker'); // 减少日志量, 仅需确认是否在跑
 
+    let bitmap: ImageBitmap | undefined;
     try {
       // 核心性能点：使用 createImageBitmap 零拷贝传输
-      const bitmap = await createImageBitmap(this.videoElement);
+      bitmap = await createImageBitmap(this.videoElement);
 
       this.worker.postMessage(
         { type: 'detect', image: bitmap, timestamp },
         [bitmap], // Transferable，移交所有権，Worker 用完需 close
       );
     } catch (error) {
+      bitmap?.close();
       console.error('[VisualFatigue] Frame capture error:', error);
     }
   }

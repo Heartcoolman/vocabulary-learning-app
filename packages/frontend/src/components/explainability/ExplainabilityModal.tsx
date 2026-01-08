@@ -107,7 +107,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
             factors,
             reasoning:
               explanationRes.reasoning ||
-              latestDecision.explanation ||
+              latestDecision.explanation?.text ||
               'AMAS 系统根据您当前的状态进行了最优决策。',
           });
         } else {
@@ -115,7 +115,8 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
           setExplanationData({
             decisionId: latestDecision.sessionId || `local-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            reasoning: latestDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
+            reasoning:
+              latestDecision.explanation?.text || 'AMAS 系统根据您当前的状态进行了最优决策。',
             state: {
               attention: latestDecision.state.attention,
               fatigue: latestDecision.state.fatigue,
@@ -169,9 +170,9 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
           onClick={onClose}
         />
 
-        <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-card bg-white shadow-2xl dark:bg-gray-900">
+        <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-card bg-white shadow-2xl dark:bg-slate-900">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-slate-800">
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">AMAS 决策透视</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">为什么选择这个词？</p>
@@ -185,7 +186,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
           </div>
 
           {/* Tabs */}
-          <div className="scrollbar-hide flex overflow-x-auto border-b border-gray-100 dark:border-gray-800">
+          <div className="scrollbar-hide flex overflow-x-auto border-b border-gray-100 dark:border-slate-800">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -243,7 +244,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-800/50">
+          <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-center text-xs text-gray-400 dark:border-slate-800 dark:bg-slate-800/50">
             Powered by AMAS Adaptive Learning Engine v2.5
           </div>
         </div>

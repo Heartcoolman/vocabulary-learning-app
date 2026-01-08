@@ -35,43 +35,43 @@ const variantStyles: Record<
   { solid: string; outline: string; selected: string }
 > = {
   default: {
-    solid: 'bg-gray-100 text-gray-700',
-    outline: 'border-gray-300 text-gray-700',
-    selected: 'bg-gray-200 text-gray-900',
+    solid: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200',
+    outline: 'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200',
+    selected: 'bg-gray-200 dark:bg-slate-600 text-gray-900 dark:text-white',
   },
   primary: {
-    solid: 'bg-blue-100 text-blue-700',
-    outline: 'border-blue-300 text-blue-700',
+    solid: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    outline: 'border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300',
     selected: 'bg-blue-500 text-white',
   },
   secondary: {
-    solid: 'bg-gray-100 text-gray-600',
-    outline: 'border-gray-300 text-gray-600',
-    selected: 'bg-gray-300 text-gray-800',
+    solid: 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300',
+    outline: 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300',
+    selected: 'bg-gray-300 dark:bg-slate-600 text-gray-800 dark:text-white',
   },
   ghost: {
-    solid: 'bg-transparent text-gray-600',
-    outline: 'border-transparent text-gray-600',
-    selected: 'bg-gray-100 text-gray-800',
+    solid: 'bg-transparent text-gray-600 dark:text-gray-400',
+    outline: 'border-transparent text-gray-600 dark:text-gray-400',
+    selected: 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-white',
   },
   danger: {
-    solid: 'bg-red-100 text-red-700',
-    outline: 'border-red-300 text-red-700',
+    solid: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    outline: 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300',
     selected: 'bg-red-500 text-white',
   },
   success: {
-    solid: 'bg-green-100 text-green-700',
-    outline: 'border-green-300 text-green-700',
+    solid: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+    outline: 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300',
     selected: 'bg-green-500 text-white',
   },
   warning: {
-    solid: 'bg-amber-100 text-amber-700',
-    outline: 'border-amber-300 text-amber-700',
+    solid: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+    outline: 'border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300',
     selected: 'bg-amber-500 text-white',
   },
   info: {
-    solid: 'bg-blue-100 text-blue-700',
-    outline: 'border-blue-300 text-blue-700',
+    solid: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    outline: 'border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300',
     selected: 'bg-blue-500 text-white',
   },
 };

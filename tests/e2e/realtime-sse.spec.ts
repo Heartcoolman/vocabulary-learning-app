@@ -23,7 +23,10 @@ test.describe('Realtime SSE', () => {
       // 监听 SSE 连接
       const sseConnections: any[] = [];
       page.on('request', (request) => {
-        if (request.url().includes('/api/v1/realtime/sessions/') && request.url().includes('/stream')) {
+        if (
+          request.url().includes('/api/v1/realtime/sessions/') &&
+          request.url().includes('/stream')
+        ) {
           sseConnections.push({
             url: request.url(),
             headers: request.headers(),
@@ -76,7 +79,10 @@ test.describe('Realtime SSE', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 回答问题
@@ -86,7 +92,9 @@ test.describe('Realtime SSE', () => {
         await page.waitForTimeout(500);
 
         // 应该看到反馈（正确或错误）
-        const feedbackIndicator = page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500');
+        const feedbackIndicator = page.locator(
+          '[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500',
+        );
         await expect(feedbackIndicator.first()).toBeVisible({ timeout: 3000 });
       }
     });
@@ -95,7 +103,10 @@ test.describe('Realtime SSE', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 获取初始进度
@@ -122,12 +133,18 @@ test.describe('Realtime SSE', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 回答多个问题
         for (let i = 0; i < 3; i++) {
-          const isStillLearning = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+          const isStillLearning = await page
+            .locator('[data-testid="word-card"]')
+            .isVisible()
+            .catch(() => false);
           if (!isStillLearning) break;
 
           await page.keyboard.press('1');
@@ -143,7 +160,7 @@ test.describe('Realtime SSE', () => {
   test.describe('Error Handling', () => {
     test('should handle SSE connection errors gracefully', async ({ page }) => {
       // 模拟网络错误
-      await page.route('**/api/v1/realtime/**', route => route.abort());
+      await page.route('**/api/v1/realtime/**', (route) => route.abort());
 
       await page.goto('/');
 
@@ -175,7 +192,10 @@ test.describe('Realtime SSE', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 回答问题触发事件
@@ -183,7 +203,10 @@ test.describe('Realtime SSE', () => {
         await page.waitForTimeout(500);
 
         // 验证收到反馈
-        const feedbackShown = await page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500').isVisible().catch(() => false);
+        const feedbackShown = await page
+          .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+          .isVisible()
+          .catch(() => false);
         expect(feedbackShown).toBeTruthy();
       }
     });
@@ -206,14 +229,20 @@ test.describe('Realtime SSE', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         const startTime = Date.now();
 
         // 快速回答 5 个问题
         for (let i = 0; i < 5; i++) {
-          const isStillLearning = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+          const isStillLearning = await page
+            .locator('[data-testid="word-card"]')
+            .isVisible()
+            .catch(() => false);
           if (!isStillLearning) break;
 
           await page.keyboard.press('1');
@@ -255,12 +284,12 @@ test.describe('Realtime SSE', () => {
 
       // 获取 cookies 用于 API 请求
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 请求统计信息
       const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
-          'Cookie': cookieHeader,
+          Cookie: cookieHeader,
         },
       });
 

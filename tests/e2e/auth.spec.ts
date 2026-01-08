@@ -149,7 +149,10 @@ test.describe('Authentication', () => {
       await submitForm(page);
 
       // May show error or accept depending on validation rules
-      const hasError = await page.locator('[role="alert"]').isVisible().catch(() => false);
+      const hasError = await page
+        .locator('[role="alert"]')
+        .isVisible()
+        .catch(() => false);
       const redirected = page.url().includes('/');
       expect(hasError || redirected).toBeTruthy();
     });

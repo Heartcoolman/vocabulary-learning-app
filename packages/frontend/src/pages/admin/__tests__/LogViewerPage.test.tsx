@@ -341,7 +341,7 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('levels=ERROR'));
+        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('level=ERROR'));
       });
     });
 
@@ -406,7 +406,9 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('search=error'));
+        expect(mockRequestAdmin).toHaveBeenCalledWith(
+          expect.stringContaining('messagePattern=error'),
+        );
       });
     });
 

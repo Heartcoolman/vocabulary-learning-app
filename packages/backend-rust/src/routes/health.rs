@@ -30,16 +30,29 @@ async fn root(State(state): State<AppState>) -> Response {
         status: if ok { "ok" } else { "degraded" },
     };
 
-    let status_code = if ok { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+    let status_code = if ok {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
     (status_code, Json(response)).into_response()
 }
 
 async fn info(State(state): State<AppState>) -> Response {
     let response = HealthInfoResponse {
         service: "danci-backend",
-        version: std::env::var("APP_VERSION").ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "unknown".to_string()),
-        environment: std::env::var("NODE_ENV").ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "development".to_string()),
-        node_version: std::env::var("NODE_VERSION").ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "unknown".to_string()),
+        version: std::env::var("APP_VERSION")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| "unknown".to_string()),
+        environment: std::env::var("NODE_ENV")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| "development".to_string()),
+        node_version: std::env::var("NODE_VERSION")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| "unknown".to_string()),
         start_time: system_time_iso(state.started_at_system()),
         uptime: state.uptime_seconds(),
     };
@@ -61,7 +74,10 @@ async fn live(State(state): State<AppState>) -> Response {
         status,
         timestamp: now_iso(),
         uptime: state.uptime_seconds(),
-        version: std::env::var("APP_VERSION").ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "unknown".to_string()),
+        version: std::env::var("APP_VERSION")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| "unknown".to_string()),
         checks: LivenessChecks {
             process: process_healthy,
             memory: memory_healthy,
@@ -101,7 +117,10 @@ async fn ready(State(state): State<AppState>) -> Response {
         status,
         timestamp: now_iso(),
         uptime: state.uptime_seconds(),
-        version: std::env::var("APP_VERSION").ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "unknown".to_string()),
+        version: std::env::var("APP_VERSION")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| "unknown".to_string()),
         checks: ReadinessChecks {
             database: database_status,
             memory: memory_healthy,
@@ -134,7 +153,10 @@ async fn metrics(State(state): State<AppState>) -> Response {
     };
 
     let mut metrics_map = std::collections::HashMap::new();
-    metrics_map.insert("db_connected".to_string(), if db_connected { 1.0 } else { 0.0 });
+    metrics_map.insert(
+        "db_connected".to_string(),
+        if db_connected { 1.0 } else { 0.0 },
+    );
     metrics_map.insert("p95_latency_ms".to_string(), db_latency);
     metrics_map.insert("error_rate".to_string(), 0.0);
     metrics_map.insert("worker_healthy".to_string(), 1.0);
@@ -151,10 +173,15 @@ async fn metrics(State(state): State<AppState>) -> Response {
             hostname,
             platform: std::env::consts::OS.to_string(),
             arch: normalize_arch(std::env::consts::ARCH).to_string(),
-            node_version: std::env::var("NODE_VERSION").ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "unknown".to_string()),
+            node_version: std::env::var("NODE_VERSION")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+                .unwrap_or_else(|| "unknown".to_string()),
             uptime: read_os_uptime_seconds(),
             load_average: vec![load_average[0], load_average[1], load_average[2]],
-            cpu_count: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1),
+            cpu_count: std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1),
         },
         process: MetricsProcess {
             pid: std::process::id(),
@@ -173,7 +200,9 @@ async fn metrics(State(state): State<AppState>) -> Response {
                 count: 0,
             },
         },
-        database: MetricsDatabase { slow_query_total: 0 },
+        database: MetricsDatabase {
+            slow_query_total: 0,
+        },
         alerts: MetricsAlerts {
             active_count: active_alerts.len() as u64,
             active: active_alerts
@@ -331,70 +360,18 @@ async fn database(State(state): State<AppState>) -> impl IntoResponse {
         return (StatusCode::OK, Json(response));
     };
 
-    if !proxy.sqlite_enabled() {
-        let primary = proxy.primary_status().await;
-        let response = DatabaseStatusResponse::Standalone(DatabaseStatusStandaloneResponse {
-            mode: "standalone",
-            state: "NORMAL",
-            primary: PrimaryStatus {
-                r#type: "postgresql",
-                healthy: primary.healthy,
-                latency: primary.latency_ms,
-                consecutive_failures: None,
-            },
-            fallback: None,
-            hot_standby_enabled: false,
-        });
-        return (StatusCode::OK, Json(response));
-    }
-
-    let sm = state.db_state();
-    let (current_state, last_state_change, uptime_ms, state_changes) = {
-        let guard = sm.read().await;
-        (
-            guard.state().as_str().to_string(),
-            guard.last_state_change_ms().map(unix_ms_to_iso),
-            guard.uptime_ms(),
-            guard.state_change_count(),
-        )
-    };
-
-    let sync_in_progress = current_state == "SYNCING";
-    let pending_changes = proxy.unsynced_change_count().await;
-    let sync_meta = proxy.sync_status().await;
     let primary = proxy.primary_status().await;
-    let fallback = proxy.fallback_status().await;
-
-    let response = DatabaseStatusResponse::HotStandby(DatabaseStatusHotStandbyResponse {
-        mode: "hot_standby",
-        state: current_state.clone(),
+    let response = DatabaseStatusResponse::Standalone(DatabaseStatusStandaloneResponse {
+        mode: "standalone",
+        state: "NORMAL",
         primary: PrimaryStatus {
             r#type: "postgresql",
             healthy: primary.healthy,
             latency: primary.latency_ms,
-            consecutive_failures: Some(primary.consecutive_failures),
+            consecutive_failures: None,
         },
-        fallback: FallbackStatus {
-            r#type: "sqlite",
-            healthy: fallback.healthy,
-            latency: fallback.latency_ms,
-            sync_status: SyncStatus {
-                last_sync_time: sync_meta.last_sync_time_ms,
-                pending_changes,
-                sync_in_progress,
-                last_error: sync_meta.last_error,
-            },
-        },
-        metrics: MetricsStatus {
-            total_queries: 0,
-            failed_queries: 0,
-            average_latency: 0.0,
-            state_changes,
-            pending_sync_changes: pending_changes,
-        },
-        last_state_change,
-        uptime: uptime_ms,
-        hot_standby_enabled: true,
+        fallback: None,
+        hot_standby_enabled: false,
     });
 
     (StatusCode::OK, Json(response))
@@ -411,27 +388,6 @@ async fn database_check(state: &AppState) -> DbCheckStatus {
     let Some(proxy) = state.db_proxy() else {
         return DbCheckStatus::Disconnected;
     };
-
-    let sm = state.db_state();
-    let current_state = { sm.read().await.state() };
-
-    let target_is_fallback = matches!(
-        current_state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    );
-
-    if target_is_fallback && proxy.sqlite_enabled() {
-        let fallback = proxy.fallback_status().await;
-        if fallback.healthy {
-            return DbCheckStatus::Connected {
-                latency_ms: fallback.latency_ms,
-            };
-        }
-        if fallback.error.as_deref() == Some("timeout") {
-            return DbCheckStatus::Timeout;
-        }
-        return DbCheckStatus::Disconnected;
-    }
 
     let primary = proxy.primary_status().await;
     if primary.healthy {
@@ -533,9 +489,18 @@ fn read_load_average() -> [f64; 3] {
     };
 
     let mut iter = raw.split_whitespace();
-    let one = iter.next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
-    let five = iter.next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
-    let fifteen = iter.next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
+    let one = iter
+        .next()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let five = iter
+        .next()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let fifteen = iter
+        .next()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.0);
     [one, five, fifteen]
 }
 

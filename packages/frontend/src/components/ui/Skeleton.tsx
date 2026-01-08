@@ -39,7 +39,7 @@ export const Skeleton = memo(
         <div
           ref={ref}
           className={cn(
-            'bg-gray-200/60',
+            'bg-gray-200/60 dark:bg-slate-700/60',
             variantStyles[variant],
             animationStyles[animation],
             className,
@@ -172,7 +172,7 @@ export const SkeletonCard = memo(
         <div
           ref={ref}
           className={cn(
-            'rounded-card border border-gray-100/50 bg-white p-4',
+            'rounded-card border border-gray-100/50 bg-white p-4 dark:border-slate-700/50 dark:bg-slate-800',
             'space-y-4 shadow-soft',
             className,
           )}

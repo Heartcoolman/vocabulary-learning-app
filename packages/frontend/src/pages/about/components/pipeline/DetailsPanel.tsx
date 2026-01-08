@@ -56,7 +56,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ node, state, trace, 
                       {stageInfo?.name || `Stage ${node.stage}`}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-white">{node.label}</h3>
+                  <h3 className="text-lg font-bold text-white dark:text-white">{node.label}</h3>
                   {node.description && (
                     <p className="mt-1 text-sm text-slate-400">{node.description}</p>
                   )}
@@ -73,7 +73,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ node, state, trace, 
             {/* 状态信息 */}
             {state && (
               <div className="border-b border-slate-700 p-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400">
                   实时状态
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
@@ -112,7 +112,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ node, state, trace, 
             {/* 元信息 */}
             {node.meta && Object.keys(node.meta).length > 0 && (
               <div className="border-b border-slate-700 p-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400">
                   技术参数
                 </h4>
                 <div className="space-y-2">
@@ -126,7 +126,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ node, state, trace, 
             {/* 处理轨迹 */}
             {trace && trace.stages.length > 0 && (
               <div className="p-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-400">
                   处理轨迹
                 </h4>
                 <div className="space-y-2">
@@ -139,7 +139,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ node, state, trace, 
                   ))}
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-slate-700 pt-3 text-sm">
-                  <span className="text-slate-500">总耗时</span>
+                  <span className="text-slate-500 dark:text-gray-400">总耗时</span>
                   <span className="font-mono text-cyan-400">{trace.totalDuration}ms</span>
                 </div>
               </div>
@@ -158,7 +158,7 @@ const StatusCard: React.FC<{ label: string; value: string; color: string }> = ({
   color,
 }) => (
   <div className="rounded-button bg-slate-800/50 p-2.5">
-    <div className="mb-0.5 text-xs text-slate-500">{label}</div>
+    <div className="mb-0.5 text-xs text-slate-500 dark:text-gray-400">{label}</div>
     <div className="text-sm font-medium" style={{ color }}>
       {value}
     </div>
@@ -167,9 +167,9 @@ const StatusCard: React.FC<{ label: string; value: string; color: string }> = ({
 
 /** 元信息项 */
 const MetaItem: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex items-center justify-between border-b border-slate-800 py-1.5 last:border-0">
-    <span className="text-sm text-slate-400">{label}</span>
-    <span className="font-mono text-sm text-slate-200">{value}</span>
+  <div className="flex items-center justify-between border-b border-slate-800 py-1.5 last:border-0 dark:border-slate-700">
+    <span className="text-sm text-slate-400 dark:text-gray-400">{label}</span>
+    <span className="font-mono text-sm text-slate-200 dark:text-gray-300">{value}</span>
   </div>
 );
 
@@ -185,14 +185,18 @@ const TraceItem: React.FC<{ stage: StageTrace; isLast: boolean }> = ({ stage, is
     {/* 内容 */}
     <div className="flex-1 pb-3">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-200">{stage.stageName}</span>
-        <span className="font-mono text-xs text-slate-500">{stage.duration}ms</span>
+        <span className="text-sm font-medium text-slate-200 dark:text-gray-300">
+          {stage.stageName}
+        </span>
+        <span className="font-mono text-xs text-slate-500 dark:text-gray-400">
+          {stage.duration}ms
+        </span>
       </div>
-      <div className="mb-1 text-xs text-slate-400">
+      <div className="mb-1 text-xs text-slate-400 dark:text-gray-400">
         {stage.input} → {stage.output}
       </div>
       {stage.details && (
-        <div className="rounded bg-slate-800/50 px-2 py-1 text-xs text-slate-500">
+        <div className="rounded bg-slate-800/50 px-2 py-1 text-xs text-slate-500 dark:bg-slate-800 dark:text-gray-400">
           {stage.details}
         </div>
       )}

@@ -75,7 +75,7 @@ const mockLatestDecision: AmasProcessResult = {
     batch_size: 10,
     hint_level: 1,
   },
-  explanation: '选择此单词是因为它匹配当前学习状态。',
+  explanation: { factors: [], changes: [], text: '选择此单词是因为它匹配当前学习状态。' },
   state: {
     attention: 0.7,
     fatigue: 0.3,

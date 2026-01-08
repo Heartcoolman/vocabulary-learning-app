@@ -24,11 +24,12 @@ import {
 } from '../../components/Icon';
 import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
+import { useToastStore } from '../../stores/toastStore';
 
 // --- Types (Matching Backend) ---
 
 interface ExperimentStatus {
-  status: 'running' | 'completed' | 'stopped';
+  status: 'running' | 'completed' | 'stopped' | 'draft' | 'aborted';
   pValue: number;
   effectSize: number;
   confidenceInterval: {
@@ -115,10 +116,20 @@ const StatusBadge = ({
       icon: XCircle,
       label: '已停止',
     },
+    aborted: {
+      color: 'bg-red-100 text-red-700 border-red-200',
+      icon: XCircle,
+      label: '已中止',
+    },
     ABORTED: {
       color: 'bg-red-100 text-red-700 border-red-200',
       icon: XCircle,
       label: '已中止',
+    },
+    draft: {
+      color: 'bg-gray-100 text-gray-700 border-gray-200',
+      icon: Gear,
+      label: '草稿',
     },
     DRAFT: {
       color: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -147,29 +158,31 @@ interface MetricCardProps {
 }
 
 const MetricCard = ({ label, value, subtext, icon: Icon, trend }: MetricCardProps) => (
-  <div className="animate-g3-fade-in rounded-card border border-gray-200 bg-white/90 p-5 shadow-soft backdrop-blur">
+  <div className="animate-g3-fade-in rounded-card border border-gray-200 bg-white/90 p-5 shadow-soft backdrop-blur dark:border-slate-700 dark:bg-slate-800/90">
     <div className="mb-2 flex items-start justify-between">
-      <div className="rounded-button bg-gray-50 p-2 text-gray-500">
+      <div className="rounded-button bg-gray-50 p-2 text-gray-500 dark:bg-slate-700 dark:text-gray-400">
         <Icon size={20} weight="duotone" />
       </div>
       {trend && (
         <span
           className={`rounded-full px-2 py-1 text-xs font-medium ${
             trend === 'positive'
-              ? 'bg-green-100 text-green-700'
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
               : trend === 'negative'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-gray-100 text-gray-600'
+                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400'
           }`}
         >
           {trend === 'positive' ? '优异' : '一般'}
         </span>
       )}
     </div>
-    <div className="text-2xl font-bold text-gray-900">{value}</div>
-    <div className="mt-1 text-sm text-gray-500">{label}</div>
+    <div className="text-2xl font-bold text-gray-900 dark:text-white">{value}</div>
+    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{label}</div>
     {subtext && (
-      <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-400">{subtext}</div>
+      <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-400 dark:border-slate-700 dark:text-gray-500">
+        {subtext}
+      </div>
     )}
   </div>
 );
@@ -408,12 +421,38 @@ const CreateExperimentModal = ({
             </div>
           </div>
 
+          {/* 最小可检测效应 */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              最小可检测效应 (MDE)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.minimumDetectableEffect}
+              onChange={(e) =>
+                setForm({ ...form, minimumDetectableEffect: parseFloat(e.target.value) })
+              }
+              className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              min="0.01"
+              max="0.5"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              希望能检测到的最小提升幅度，范围 0.01 - 0.5（即 1% - 50%）
+            </p>
+          </div>
+
           {/* 流量分配 */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">流量分配策略</label>
             <select
               value={form.trafficAllocation}
-              onChange={(e) => setForm({ ...form, trafficAllocation: e.target.value as any })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  trafficAllocation: e.target.value as CreateExperimentForm['trafficAllocation'],
+                })
+              }
               className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="EVEN">均匀分配</option>
@@ -484,15 +523,15 @@ const ExperimentList = ({
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8">
+    <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8 dark:bg-slate-900">
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
             <Flask className="text-indigo-600" weight="duotone" />
             A/B 测试实验管理
           </h1>
-          <p className="mt-1 text-gray-500">创建和管理算法对比实验</p>
+          <p className="mt-1 text-gray-500 dark:text-gray-400">创建和管理算法对比实验</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -504,7 +543,7 @@ const ExperimentList = ({
           </button>
           <button
             onClick={onRefresh}
-            className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+            className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
             title="刷新"
           >
             <ArrowsClockwise size={18} weight="bold" />
@@ -514,10 +553,10 @@ const ExperimentList = ({
 
       {/* 实验列表 */}
       {!experiments || experiments.length === 0 ? (
-        <div className="flex min-h-[400px] animate-g3-fade-in flex-col items-center justify-center rounded-card border border-gray-200 bg-white p-8">
-          <Flask size={64} className="mb-4 text-gray-300" weight="duotone" />
-          <h2 className="mb-2 text-xl font-bold text-gray-900">暂无实验</h2>
-          <p className="mb-6 text-gray-500">创建您的第一个 A/B 测试实验</p>
+        <div className="flex min-h-[400px] animate-g3-fade-in flex-col items-center justify-center rounded-card border border-gray-200 bg-white p-8 dark:border-slate-700 dark:bg-slate-800">
+          <Flask size={64} className="mb-4 text-gray-300 dark:text-gray-600" weight="duotone" />
+          <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">暂无实验</h2>
+          <p className="mb-6 text-gray-500 dark:text-gray-400">创建您的第一个 A/B 测试实验</p>
           <button
             onClick={onCreate}
             className="flex items-center gap-2 rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
@@ -531,18 +570,20 @@ const ExperimentList = ({
           {experiments.map((exp) => (
             <div
               key={exp.id}
-              className="animate-g3-fade-in rounded-card border border-gray-200 bg-white p-6 shadow-soft transition-shadow hover:shadow-elevated"
+              className="animate-g3-fade-in rounded-card border border-gray-200 bg-white p-6 shadow-soft transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-bold text-gray-900">{exp.name}</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{exp.name}</h3>
                     <StatusBadge status={exp.status} />
                   </div>
                   {exp.description && (
-                    <p className="mt-1 text-sm text-gray-500">{exp.description}</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {exp.description}
+                    </p>
                   )}
-                  <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">
+                  <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
                     <span className="flex items-center gap-1">
                       <UsersThree size={16} />
                       {exp.totalSamples} 样本
@@ -612,6 +653,7 @@ const ExperimentDetail = ({
   onBack: () => void;
 }) => {
   const [data, setData] = useState<ExperimentStatus | null>(null);
+  const [variants, setVariants] = useState<VariantData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -619,8 +661,12 @@ const ExperimentDetail = ({
     setLoading(true);
     setError(null);
     try {
-      const result = await apiClient.getExperimentStatus(experimentId);
-      setData(result);
+      const [statusResult, detailResult] = await Promise.all([
+        apiClient.getExperimentStatus(experimentId),
+        apiClient.getExperiment(experimentId),
+      ]);
+      setData(statusResult);
+      setVariants(detailResult?.variants || []);
     } catch (e) {
       const err = e as Error;
       adminLogger.error({ err: e }, '加载实验数据失败');
@@ -669,41 +715,41 @@ const ExperimentDetail = ({
   }
 
   const totalSamples = data.sampleSizes.reduce((acc, curr) => acc + curr.sampleCount, 0);
-  const controlSamples =
-    data.sampleSizes.find((s) => s.variantId.includes('control') || s.variantId.includes('linucb'))
-      ?.sampleCount ||
-    data.sampleSizes[0]?.sampleCount ||
-    0;
-  const treatmentSamples =
-    data.sampleSizes.find(
-      (s) => s.variantId.includes('treatment') || s.variantId.includes('thompson'),
-    )?.sampleCount ||
-    data.sampleSizes[1]?.sampleCount ||
-    0;
+
+  // 使用 isControl 标志查找变体，而不是字符串匹配
+  const controlVariant = variants.find((v) => v.isControl);
+  const treatmentVariant = variants.find((v) => !v.isControl);
+
+  const controlSamples = controlVariant
+    ? (data.sampleSizes.find((s) => s.variantId === controlVariant.id)?.sampleCount ?? 0)
+    : (data.sampleSizes[0]?.sampleCount ?? 0);
+  const treatmentSamples = treatmentVariant
+    ? (data.sampleSizes.find((s) => s.variantId === treatmentVariant.id)?.sampleCount ?? 0)
+    : (data.sampleSizes[1]?.sampleCount ?? 0);
 
   return (
-    <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8">
+    <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8 dark:bg-slate-900">
       {/* Header Section */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <button
             onClick={onBack}
-            className="mb-2 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="mb-2 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
             <ArrowLeft size={16} />
             返回列表
           </button>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
             <Flask className="text-indigo-600" weight="duotone" />
             实验详情
           </h1>
-          <p className="mt-1 text-gray-500">ID: {experimentId}</p>
+          <p className="mt-1 text-gray-500 dark:text-gray-400">ID: {experimentId}</p>
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={data.status} />
           <button
             onClick={loadData}
-            className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+            className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
             title="刷新数据"
           >
             <ArrowsClockwise size={18} weight="bold" />
@@ -752,9 +798,11 @@ const ExperimentDetail = ({
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* 2. Variant Comparison (Left Column - 1/3 width) */}
         <div className="space-y-6 lg:col-span-1">
-          <section className="overflow-hidden rounded-card border border-gray-200 bg-white shadow-soft">
-            <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
-              <h3 className="font-semibold text-gray-800">变体对比 (Variants)</h3>
+          <section className="overflow-hidden rounded-card border border-gray-200 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-800">
+            <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/50">
+              <h3 className="font-semibold text-gray-800 dark:text-slate-200">
+                变体对比 (Variants)
+              </h3>
             </div>
             <div className="space-y-6 p-6">
               {/* Control Group */}
@@ -764,19 +812,19 @@ const ExperimentDetail = ({
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
                       Control Group
                     </span>
-                    <h4 className="text-lg font-bold text-gray-900">对照组</h4>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">对照组</h4>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-2xl font-semibold text-gray-700">
+                    <div className="font-mono text-2xl font-semibold text-gray-700 dark:text-gray-300">
                       {controlSamples}
                     </div>
-                    <div className="text-xs text-gray-400">Samples</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Samples</div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-center text-gray-300">
-                <span className="rounded bg-gray-50 px-2 text-xs">VS</span>
+              <div className="flex items-center justify-center text-gray-300 dark:text-gray-600">
+                <span className="rounded bg-gray-50 px-2 text-xs dark:bg-slate-700">VS</span>
               </div>
 
               {/* Treatment Group */}
@@ -786,13 +834,13 @@ const ExperimentDetail = ({
                     <span className="text-xs font-bold uppercase tracking-wider text-green-600">
                       Treatment Group
                     </span>
-                    <h4 className="text-lg font-bold text-gray-900">实验组</h4>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">实验组</h4>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-2xl font-semibold text-gray-700">
+                    <div className="font-mono text-2xl font-semibold text-gray-700 dark:text-gray-300">
                       {treatmentSamples}
                     </div>
-                    <div className="text-xs text-gray-400">Samples</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Samples</div>
                   </div>
                 </div>
                 {data.effectSize > 0 && (
@@ -809,9 +857,9 @@ const ExperimentDetail = ({
         {/* 3. Statistical Analysis & Decision (Right Column - 2/3 width) */}
         <div className="space-y-6 lg:col-span-2">
           {/* Analysis Chart */}
-          <section className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
+          <section className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-6 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">
+              <h3 className="font-semibold text-gray-800 dark:text-slate-200">
                 置信区间分析 (95% Confidence Interval)
               </h3>
               {data.isSignificant ? (
@@ -904,6 +952,7 @@ export default function ExperimentDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedExperiment, setSelectedExperiment] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const toast = useToastStore();
 
   const loadExperiments = async () => {
     setLoading(true);
@@ -925,18 +974,24 @@ export default function ExperimentDashboard() {
   const handleStartExperiment = async (id: string) => {
     try {
       await apiClient.startExperiment(id);
+      toast.success('实验启动成功');
       await loadExperiments();
     } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '启动实验失败');
+      toast.error('启动失败: ' + (err?.message || '未知错误'));
     }
   };
 
   const handleStopExperiment = async (id: string) => {
     try {
       await apiClient.stopExperiment(id);
+      toast.success('实验已停止');
       await loadExperiments();
     } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '停止实验失败');
+      toast.error('停止失败: ' + (err?.message || '未知错误'));
     }
   };
 
@@ -946,9 +1001,12 @@ export default function ExperimentDashboard() {
     }
     try {
       await apiClient.deleteExperiment(id);
+      toast.success('实验已删除');
       await loadExperiments();
     } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '删除实验失败');
+      toast.error('删除失败: ' + (err?.message || '未知错误'));
     }
   };
 

@@ -41,7 +41,7 @@ export default defineConfig({
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
-    ['list']
+    ['list'],
   ],
   outputDir: 'test-results',
 
@@ -52,13 +52,13 @@ export default defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 15000,
     navigationTimeout: 30000,
-    storageState: undefined
+    storageState: undefined,
   },
 
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: { ...devices['Desktop Chrome'] },
     },
     // 取消注释以启用多浏览器测试
     // {
@@ -88,13 +88,13 @@ export default defineConfig({
         'pnpm --filter @danci/backend dev',
       url: BACKEND_READY_URL,
       reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000
+      timeout: 120 * 1000,
     },
     {
       command: `VITE_API_URL="${BACKEND_ORIGIN}" pnpm --filter @danci/frontend dev -- --port ${FRONTEND_PORT}`,
       url: FRONTEND_ORIGIN,
       reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000
-    }
-  ]
+      timeout: 120 * 1000,
+    },
+  ],
 });

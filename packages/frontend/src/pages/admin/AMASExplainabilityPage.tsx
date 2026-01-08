@@ -221,11 +221,13 @@ export default function AMASExplainabilityPage() {
     <div className="animate-g3-fade-in p-8">
       {/* 页面标题 */}
       <div className="mb-8">
-        <h1 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900">
+        <h1 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900 dark:text-white">
           <Brain size={36} weight="duotone" className="text-purple-500" />
           AMAS 可解释性
         </h1>
-        <p className="text-gray-600">深入了解 AMAS 自适应学习系统的决策过程和学习效果</p>
+        <p className="text-gray-600 dark:text-gray-400">
+          深入了解 AMAS 自适应学习系统的决策过程和学习效果
+        </p>
       </div>
 
       {/* 主要内容区域 */}

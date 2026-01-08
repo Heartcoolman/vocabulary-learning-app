@@ -192,8 +192,16 @@ function StatusBadge({
       ) : (
         <XCircle className="h-4 w-4 text-red-500" weight="fill" />
       )}
-      <span className={healthy ? 'text-green-700' : 'text-red-700'}>{label}</span>
-      {latency != null && <span className="text-xs text-gray-500">({latency}ms)</span>}
+      <span
+        className={
+          healthy ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+        }
+      >
+        {label}
+      </span>
+      {latency != null && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">({latency}ms)</span>
+      )}
     </div>
   );
 }
@@ -249,8 +257,8 @@ function InfrastructurePanel({
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-medium">Redis 缓存</div>
-            <div className="text-sm text-gray-500">
+            <div className="font-medium dark:text-white">Redis 缓存</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               {status.infrastructure.redis.connected ? '已连接' : '未连接'}
             </div>
           </div>
@@ -258,8 +266,8 @@ function InfrastructurePanel({
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-medium">LLM 服务</div>
-            <div className="text-sm text-gray-500">
+            <div className="font-medium dark:text-white">LLM 服务</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               {status.infrastructure.llm.mockResponse ? '模拟响应' : '正常'}
             </div>
           </div>
@@ -267,8 +275,8 @@ function InfrastructurePanel({
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-medium">模拟慢查询</div>
-            <div className="text-sm text-gray-500">数据库延迟测试</div>
+            <div className="font-medium dark:text-white">模拟慢查询</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">数据库延迟测试</div>
           </div>
           <Switch
             checked={status.infrastructure.database.simulateSlowQuery}
@@ -327,11 +335,11 @@ function AmasControlPanel({
             return (
               <div
                 key={k}
-                className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0"
+                className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0 dark:border-slate-700"
               >
                 <div className="mr-4 flex-1">
-                  <div className="text-sm font-medium">{info.label}</div>
-                  <div className="text-xs text-gray-500">{info.desc}</div>
+                  <div className="text-sm font-medium dark:text-white">{info.label}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{info.desc}</div>
                 </div>
                 <Switch checked={v} onCheckedChange={(c) => onUpdateFlag(k, c)} />
               </div>
@@ -340,7 +348,7 @@ function AmasControlPanel({
         </div>
         <div className="border-t pt-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm">熔断器</span>
+            <span className="text-sm dark:text-gray-300">熔断器</span>
             <Badge variant={isOpen ? 'danger' : 'success'}>{isOpen ? 'OPEN' : 'CLOSED'}</Badge>
           </div>
           <div className="flex gap-2">
@@ -383,7 +391,7 @@ function ServicesPanel({
       <CardContent className="space-y-3">
         {Object.entries(services).map(([k, v]) => (
           <div key={k} className="flex items-center justify-between">
-            <span className="text-sm">{labels[k] || k}</span>
+            <span className="text-sm dark:text-gray-300">{labels[k] || k}</span>
             <Switch checked={v} onCheckedChange={(c) => onToggle(k, c)} />
           </div>
         ))}
@@ -458,7 +466,7 @@ function FallbackTestPanel() {
       <CardContent className="space-y-4">
         {/* 场景快捷按钮 */}
         <div>
-          <div className="mb-2 text-xs text-gray-500">快捷测试</div>
+          <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">快捷测试</div>
           <div className="grid grid-cols-3 gap-2">
             {Object.entries(scenarios).map(([key, { label, color }]) => (
               <Button
@@ -479,13 +487,13 @@ function FallbackTestPanel() {
         </div>
 
         {/* 当前选中场景说明 */}
-        <div className="rounded-button border border-blue-100 bg-blue-50 p-3">
+        <div className="rounded-button border border-blue-100 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/30">
           <div className="mb-1 flex items-center gap-2">
             <span className={`font-medium ${scenarios[reason]?.color}`}>
               {scenarios[reason]?.label}
             </span>
           </div>
-          <div className="text-sm text-gray-600">{scenarios[reason]?.desc}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">{scenarios[reason]?.desc}</div>
         </div>
 
         {/* 自定义测试 */}
@@ -498,19 +506,17 @@ function FallbackTestPanel() {
 
         {/* 测试结果 */}
         {result && (
-          <div className="rounded-button border bg-gray-50 p-3 text-sm">
+          <div className="rounded-button border bg-gray-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-700">
             <div className="mb-2 flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="font-medium">测试结果</span>
             </div>
-            <div className="mb-2 text-gray-600">
-              {typeof result.explanation === 'string'
-                ? result.explanation
-                : result.explanation?.text || ''}
-            </div>
+            <div className="mb-2 text-gray-600 dark:text-gray-400">{result.explanation || ''}</div>
             <details className="cursor-pointer">
-              <summary className="text-xs text-gray-500 hover:text-gray-700">查看策略详情</summary>
-              <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-xs text-gray-500">
+              <summary className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                查看策略详情
+              </summary>
+              <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-xs text-gray-500 dark:bg-slate-800 dark:text-gray-400">
                 {JSON.stringify(result.strategy, null, 2)}
               </pre>
             </details>
@@ -520,10 +526,13 @@ function FallbackTestPanel() {
         {/* 测试历史 */}
         {history.length > 0 && (
           <div>
-            <div className="mb-2 text-xs text-gray-500">最近测试</div>
+            <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">最近测试</div>
             <div className="space-y-1">
               {history.map((h, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                <div
+                  key={i}
+                  className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+                >
                   {h.success ? (
                     <CheckCircle className="h-3 w-3 text-green-500" />
                   ) : (
@@ -561,7 +570,9 @@ function AuditLogPanel({ logs }: { logs?: AuditLogEntry[] }) {
               <Badge variant="secondary" className="text-xs">
                 {log.action}
               </Badge>
-              <span className="truncate text-xs text-gray-500">{JSON.stringify(log.details)}</span>
+              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                {JSON.stringify(log.details)}
+              </span>
             </div>
           ))}
         </div>
@@ -635,8 +646,8 @@ export default function SystemDebugPage() {
         <div className="flex items-center gap-3">
           <Bug className="h-8 w-8 text-red-600" />
           <div>
-            <h1 className="text-2xl font-bold">系统调试控制面板</h1>
-            <p className="text-sm text-gray-500">仅开发/测试环境可用</p>
+            <h1 className="text-2xl font-bold dark:text-white">系统调试控制面板</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">仅开发/测试环境可用</p>
           </div>
         </div>
         <div className="flex gap-2">

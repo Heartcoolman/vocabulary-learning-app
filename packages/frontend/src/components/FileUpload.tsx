@@ -161,39 +161,44 @@ const FileUpload: React.FC<FileUploadProps> = ({
           aria-disabled={disabled}
           className={`relative flex cursor-pointer flex-col items-center justify-center rounded-card border-2 border-dashed p-8 text-center outline-none transition-all duration-g3-fast ease-g3 ${
             disabled
-              ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
+              ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60 dark:border-slate-700 dark:bg-slate-800'
               : isDragging
-                ? 'scale-[1.01] border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-          } ${error ? 'border-red-300 bg-red-50' : ''} `}
+                ? 'scale-[1.01] border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:hover:bg-slate-800'
+          } ${error ? 'border-red-300 bg-red-50 dark:bg-red-900/30' : ''} `}
         >
-          <div className={`mb-4 rounded-full p-3 ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
+          <div
+            className={`mb-4 rounded-full p-3 ${isDragging ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-gray-100 dark:bg-slate-700'}`}
+          >
             <UploadSimple
-              className={`h-6 w-6 ${isDragging ? 'text-blue-600' : 'text-gray-500'}`}
+              className={`h-6 w-6 ${isDragging ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
               weight="bold"
               aria-hidden="true"
             />
           </div>
 
-          <p className="mb-1 text-sm font-medium text-gray-900">
+          <p className="mb-1 text-sm font-medium text-gray-900 dark:text-white">
             {isDragging ? '松开以上传' : '点击上传或拖拽文件到此处'}
           </p>
 
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             支持 {accept.replace(/,/g, ', ')} (最大 {maxSizeMB}MB)
           </p>
         </div>
       ) : (
-        <div className="animate-in fade-in slide-in-from-bottom-2 relative flex items-center gap-4 rounded-card border border-gray-200 bg-white p-4 shadow-soft duration-g3-normal">
-          <div className="rounded-button bg-blue-50 p-3">
-            <FileText className="h-6 w-6 text-blue-600" weight="duotone" />
+        <div className="animate-in fade-in slide-in-from-bottom-2 relative flex items-center gap-4 rounded-card border border-gray-200 bg-white p-4 shadow-soft duration-g3-normal dark:border-slate-700 dark:bg-slate-800">
+          <div className="rounded-button bg-blue-50 p-3 dark:bg-blue-900/30">
+            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" weight="duotone" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-900" title={file.name}>
+            <p
+              className="truncate text-sm font-medium text-gray-900 dark:text-white"
+              title={file.name}
+            >
               {file.name}
             </p>
-            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
           </div>
 
           <button

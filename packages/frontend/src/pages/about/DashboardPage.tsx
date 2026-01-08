@@ -68,13 +68,13 @@ function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardPro
   const baseClasses =
     'p-3 mb-3 rounded-button cursor-pointer border transition-all duration-g3-fast group hover:shadow-elevated hover:scale-[1.01]';
   const selectedClasses = isSelected
-    ? 'bg-indigo-50/80 border-indigo-500 shadow-soft ring-1 ring-indigo-200'
-    : 'bg-white border-slate-200 hover:border-indigo-200';
+    ? 'bg-indigo-50/80 border-indigo-500 shadow-soft ring-1 ring-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-400 dark:ring-indigo-700'
+    : 'bg-white border-slate-200 hover:border-indigo-200 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-indigo-500';
 
   return (
     <div onClick={onClick} className={`${baseClasses} ${selectedClasses}`}>
       <div className="mb-2 flex items-start justify-between">
-        <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500">
+        <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500 dark:text-gray-400">
           <Clock size={12} />
           <span>{formatTime(decision.timestamp)}</span>
         </div>
@@ -92,21 +92,23 @@ function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardPro
 
       <div className="mb-1 flex items-center gap-2">
         <div
-          className={`rounded-md p-1 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500 group-hover:text-indigo-500'}`}
+          className={`rounded-md p-1 ${isSelected ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400' : 'bg-slate-100 text-slate-500 group-hover:text-indigo-500 dark:bg-slate-700 dark:text-gray-400 dark:group-hover:text-indigo-400'}`}
         >
           <GitBranch size={16} />
         </div>
         <div className="overflow-hidden">
-          <p className="truncate text-sm font-semibold text-slate-800">{decision.pseudoId}</p>
+          <p className="truncate text-sm font-semibold text-slate-800 dark:text-white">
+            {decision.pseudoId}
+          </p>
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between border-t border-slate-100/80 pt-2">
-        <span className="flex items-center gap-1 text-[10px] uppercase text-slate-400">
+      <div className="mt-2 flex items-center justify-between border-t border-slate-100/80 pt-2 dark:border-slate-700/80">
+        <span className="flex items-center gap-1 text-[10px] uppercase text-slate-400 dark:text-gray-400">
           <Lightning size={12} />
           {decision.decisionSource}
         </span>
-        <span className="font-mono text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="font-mono text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-400">
           ID: {decision.decisionId.slice(-4)}
         </span>
       </div>
@@ -308,13 +310,13 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
       {/* Left Sidebar */}
-      <aside className="z-10 flex w-[300px] flex-shrink-0 flex-col border-r border-slate-200 bg-white/90 shadow-floating backdrop-blur-lg">
+      <aside className="z-10 flex w-[300px] flex-shrink-0 flex-col border-r border-slate-200 bg-white/90 shadow-floating backdrop-blur-lg dark:border-slate-700 dark:bg-slate-800/90">
         {/* Sidebar Header */}
-        <div className="border-b border-slate-200 bg-white/50 p-4">
+        <div className="border-b border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
+            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
               <Target size={18} weight="fill" className="text-indigo-500" />
               近期决策
             </h2>
@@ -323,13 +325,13 @@ export default function DashboardPage() {
             )}
           </div>
           {/* Tab Filter */}
-          <div className="flex gap-1 rounded-button bg-slate-100 p-1">
+          <div className="flex gap-1 rounded-button bg-slate-100 p-1 dark:bg-slate-700">
             <button
               onClick={() => setActiveTab('all')}
               className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-all ${
                 activeTab === 'all'
-                  ? 'bg-white text-slate-700 shadow-soft'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white text-slate-700 shadow-soft dark:bg-slate-600 dark:text-white'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
               全部 ({allDecisions.length})
@@ -338,8 +340,8 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('real')}
               className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-all ${
                 activeTab === 'real'
-                  ? 'bg-emerald-50 text-emerald-700 shadow-soft'
-                  : 'text-slate-500 hover:text-emerald-600'
+                  ? 'bg-emerald-50 text-emerald-700 shadow-soft dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : 'text-slate-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400'
               }`}
             >
               <Database size={12} />
@@ -349,8 +351,8 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('virtual')}
               className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-all ${
                 activeTab === 'virtual'
-                  ? 'bg-purple-50 text-purple-700 shadow-soft'
-                  : 'text-slate-500 hover:text-purple-600'
+                  ? 'bg-purple-50 text-purple-700 shadow-soft dark:bg-purple-900/30 dark:text-purple-400'
+                  : 'text-slate-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400'
               }`}
             >
               <Flask size={12} />
@@ -362,12 +364,12 @@ export default function DashboardPage() {
         {/* Sidebar List */}
         <div className="flex-1 overflow-y-auto p-3">
           {error ? (
-            <div className="flex h-40 flex-col items-center justify-center p-4 text-center text-slate-400">
+            <div className="flex h-40 flex-col items-center justify-center p-4 text-center text-slate-400 dark:text-gray-400">
               <WarningCircle size={32} weight="fill" className="mb-2 text-red-300" />
               <p className="text-xs">{error}</p>
             </div>
           ) : filteredDecisions.length === 0 && !isLoadingList ? (
-            <div className="py-10 text-center text-xs text-slate-400">
+            <div className="py-10 text-center text-xs text-slate-400 dark:text-gray-400">
               {activeTab === 'real'
                 ? '暂无真实决策记录，请先在学习页面使用系统'
                 : activeTab === 'virtual'
@@ -392,7 +394,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="flex items-center justify-center gap-2 border-t border-slate-200 bg-slate-50/50 p-3 text-center text-[10px] text-slate-400">
+        <div className="flex items-center justify-center gap-2 border-t border-slate-200 bg-slate-50/50 p-3 text-center text-[10px] text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-400">
           {isSSEConnected ? (
             <>
               <WifiHigh size={14} weight="fill" className="text-green-500" />
@@ -410,7 +412,7 @@ export default function DashboardPage() {
       {/* Main Content Area */}
       <main className="relative flex h-full flex-1 flex-col overflow-hidden">
         {isLoadingDetail && (
-          <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-soft backdrop-blur">
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-soft backdrop-blur dark:border-slate-700 dark:bg-slate-800/80 dark:text-gray-400">
             <CircleNotch size={14} weight="bold" className="animate-spin text-indigo-500" />
             Loading details...
           </div>

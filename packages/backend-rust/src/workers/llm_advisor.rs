@@ -6,26 +6,13 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, info, warn};
 
 use crate::db::DatabaseProxy;
-use crate::db::state_machine::DatabaseState;
 use crate::services::llm_provider::{ChatMessage, LLMProvider};
 
 pub async fn run_weekly_analysis(db: Arc<DatabaseProxy>) -> Result<(), super::WorkerError> {
     let start = Instant::now();
     info!("Starting weekly LLM analysis");
 
-    let state = db.state_machine().read().await.state();
-    if state == DatabaseState::Degraded || state == DatabaseState::Unavailable {
-        warn!("Database degraded, skipping LLM analysis");
-        return Ok(());
-    }
-
-    let pool = match db.primary_pool().await {
-        Some(p) => p,
-        None => {
-            debug!("Primary pool not available, skipping LLM analysis");
-            return Ok(());
-        }
-    };
+    let pool = db.pool();
 
     let llm_enabled = std::env::var("LLM_ADVISOR_ENABLED")
         .map(|v| v == "true" || v == "1")
@@ -73,10 +60,10 @@ async fn collect_system_stats(pool: &PgPool) -> Result<SystemStats, super::Worke
     let row = sqlx::query(
         r#"
         SELECT
-            (SELECT COUNT(*) FROM "user") as total_users,
-            (SELECT COUNT(DISTINCT "userId") FROM "answer_record" WHERE "timestamp" >= $1) as active_users,
-            (SELECT COUNT(*) FROM "answer_record" WHERE "timestamp" >= $1) as total_answers,
-            (SELECT AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) FROM "answer_record" WHERE "timestamp" >= $1) as avg_correct
+            (SELECT COUNT(*) FROM "users") as total_users,
+            (SELECT COUNT(DISTINCT "userId") FROM "answer_records" WHERE "timestamp" >= $1) as active_users,
+            (SELECT COUNT(*) FROM "answer_records" WHERE "timestamp" >= $1) as total_answers,
+            (SELECT AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) FROM "answer_records" WHERE "timestamp" >= $1) as avg_correct
         "#,
     )
     .bind(since_7d)
@@ -87,7 +74,11 @@ async fn collect_system_stats(pool: &PgPool) -> Result<SystemStats, super::Worke
         total_users: row.try_get("total_users").unwrap_or(0),
         active_users_7d: row.try_get("active_users").unwrap_or(0),
         total_answers: row.try_get("total_answers").unwrap_or(0),
-        avg_correct_rate: row.try_get::<Option<f64>, _>("avg_correct").ok().flatten().unwrap_or(0.0),
+        avg_correct_rate: row
+            .try_get::<Option<f64>, _>("avg_correct")
+            .ok()
+            .flatten()
+            .unwrap_or(0.0),
     })
 }
 
@@ -104,7 +95,7 @@ async fn analyze_user_patterns(pool: &PgPool) -> Result<UserPatterns, super::Wor
     let struggling_count: i64 = sqlx::query_scalar(
         r#"
         SELECT COUNT(*) FROM (
-            SELECT "userId" FROM "answer_record" WHERE "timestamp" >= $1
+            SELECT "userId" FROM "answer_records" WHERE "timestamp" >= $1
             GROUP BY "userId"
             HAVING AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) < 0.5 AND COUNT(*) >= 20
         ) sub
@@ -117,7 +108,7 @@ async fn analyze_user_patterns(pool: &PgPool) -> Result<UserPatterns, super::Wor
     let high_performers_count: i64 = sqlx::query_scalar(
         r#"
         SELECT COUNT(*) FROM (
-            SELECT "userId" FROM "answer_record" WHERE "timestamp" >= $1
+            SELECT "userId" FROM "answer_records" WHERE "timestamp" >= $1
             GROUP BY "userId"
             HAVING AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) > 0.9 AND COUNT(*) >= 50
         ) sub
@@ -130,7 +121,7 @@ async fn analyze_user_patterns(pool: &PgPool) -> Result<UserPatterns, super::Wor
     let difficult_words_count: i64 = sqlx::query_scalar(
         r#"
         SELECT COUNT(*) FROM (
-            SELECT "wordId" FROM "answer_record" WHERE "timestamp" >= $1
+            SELECT "wordId" FROM "answer_records" WHERE "timestamp" >= $1
             GROUP BY "wordId"
             HAVING AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) < 0.4 AND COUNT(*) >= 10
         ) sub
@@ -164,7 +155,11 @@ struct Suggestion {
     priority: String,
 }
 
-async fn generate_analysis(llm: &LLMProvider, stats: &SystemStats, patterns: &UserPatterns) -> AnalysisResult {
+async fn generate_analysis(
+    llm: &LLMProvider,
+    stats: &SystemStats,
+    patterns: &UserPatterns,
+) -> AnalysisResult {
     let id = uuid::Uuid::new_v4().to_string();
 
     match generate_llm_analysis(llm, stats, patterns).await {
@@ -191,8 +186,14 @@ async fn generate_llm_analysis(
     );
 
     let messages = [
-        ChatMessage { role: "system".into(), content: system_prompt.into() },
-        ChatMessage { role: "user".into(), content: user_prompt },
+        ChatMessage {
+            role: "system".into(),
+            content: system_prompt.into(),
+        },
+        ChatMessage {
+            role: "user".into(),
+            content: user_prompt,
+        },
     ];
 
     let response = llm.chat(&messages).await?;
@@ -200,11 +201,18 @@ async fn generate_llm_analysis(
     parse_analysis_response(raw)
 }
 
-fn parse_analysis_response(raw: &str) -> Result<AnalysisResult, crate::services::llm_provider::LLMError> {
+fn parse_analysis_response(
+    raw: &str,
+) -> Result<AnalysisResult, crate::services::llm_provider::LLMError> {
     let trimmed = raw.trim();
     let json_str = trimmed
-        .strip_prefix("```json").and_then(|s| s.strip_suffix("```"))
-        .or_else(|| trimmed.strip_prefix("```").and_then(|s| s.strip_suffix("```")))
+        .strip_prefix("```json")
+        .and_then(|s| s.strip_suffix("```"))
+        .or_else(|| {
+            trimmed
+                .strip_prefix("```")
+                .and_then(|s| s.strip_suffix("```"))
+        })
         .unwrap_or(trimmed);
 
     #[derive(serde::Deserialize)]
@@ -228,14 +236,21 @@ fn parse_analysis_response(raw: &str) -> Result<AnalysisResult, crate::services:
     })
 }
 
-fn generate_heuristic_analysis(id: &str, stats: &SystemStats, patterns: &UserPatterns) -> AnalysisResult {
+fn generate_heuristic_analysis(
+    id: &str,
+    stats: &SystemStats,
+    patterns: &UserPatterns,
+) -> AnalysisResult {
     let mut suggestions = Vec::new();
 
     if patterns.struggling_users_count > 0 {
         suggestions.push(Suggestion {
             category: "user_support".to_string(),
             title: "Struggling Users Detected".to_string(),
-            description: format!("{} users have accuracy below 50%.", patterns.struggling_users_count),
+            description: format!(
+                "{} users have accuracy below 50%.",
+                patterns.struggling_users_count
+            ),
             priority: "high".to_string(),
         });
     }
@@ -244,7 +259,10 @@ fn generate_heuristic_analysis(id: &str, stats: &SystemStats, patterns: &UserPat
         suggestions.push(Suggestion {
             category: "content".to_string(),
             title: "Difficult Words Identified".to_string(),
-            description: format!("{} words have low success rates.", patterns.difficult_words_count),
+            description: format!(
+                "{} words have low success rates.",
+                patterns.difficult_words_count
+            ),
             priority: "medium".to_string(),
         });
     }
@@ -253,19 +271,34 @@ fn generate_heuristic_analysis(id: &str, stats: &SystemStats, patterns: &UserPat
         suggestions.push(Suggestion {
             category: "algorithm".to_string(),
             title: "System-wide Accuracy Low".to_string(),
-            description: format!("Overall accuracy is {:.1}%.", stats.avg_correct_rate * 100.0),
+            description: format!(
+                "Overall accuracy is {:.1}%.",
+                stats.avg_correct_rate * 100.0
+            ),
             priority: "high".to_string(),
         });
     }
 
-    let data_quality = if stats.total_answers > 10000 { "high" } else if stats.total_answers > 1000 { "medium" } else { "low" };
-    let confidence = if stats.active_users_7d > 100 { 0.85 } else { 0.6 };
+    let data_quality = if stats.total_answers > 10000 {
+        "high"
+    } else if stats.total_answers > 1000 {
+        "medium"
+    } else {
+        "low"
+    };
+    let confidence = if stats.active_users_7d > 100 {
+        0.85
+    } else {
+        0.6
+    };
 
     AnalysisResult {
         id: id.to_string(),
         summary: format!(
             "Weekly analysis: {} active users, {:.1}% avg accuracy, {} suggestions",
-            stats.active_users_7d, stats.avg_correct_rate * 100.0, suggestions.len()
+            stats.active_users_7d,
+            stats.avg_correct_rate * 100.0,
+            suggestions.len()
         ),
         suggestions,
         confidence,
@@ -273,7 +306,10 @@ fn generate_heuristic_analysis(id: &str, stats: &SystemStats, patterns: &UserPat
     }
 }
 
-async fn store_analysis_result(pool: &PgPool, result: &AnalysisResult) -> Result<(), super::WorkerError> {
+async fn store_analysis_result(
+    pool: &PgPool,
+    result: &AnalysisResult,
+) -> Result<(), super::WorkerError> {
     let now = Utc::now();
     let suggestions_json = serde_json::to_value(&result.suggestions).unwrap_or_default();
 
