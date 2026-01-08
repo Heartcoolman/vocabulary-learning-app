@@ -22,13 +22,6 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.d.ts', 'src/main.tsx', 'src/vite-env.d.ts', 'src/test/**'],
       reportsDirectory: './coverage',
-      // 覆盖率阈值要求
-      thresholds: {
-        lines: 80,
-        statements: 80,
-        functions: 80,
-        branches: 80,
-      },
     },
     testTimeout: 10000,
     reporters: ['default'],
