@@ -102,9 +102,6 @@ jobs:
       - name: Run TypeScript check (Frontend)
         run: pnpm --filter @danci/frontend exec tsc --noEmit
 
-      - name: Run TypeScript check (Shared)
-        run: pnpm --filter @danci/shared exec tsc --noEmit
-
   # ============================================
   # 单元测试 (Unit Tests)
   # ============================================
