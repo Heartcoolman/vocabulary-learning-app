@@ -96,8 +96,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Shared Package
-        run: pnpm --filter @danci/shared build
+      - name: Clean and Build Shared Package
+        run: |
+          rm -rf packages/shared/dist packages/shared/tsconfig.tsbuildinfo
+          pnpm --filter @danci/shared build
 
       - name: Run TypeScript check (Frontend)
         run: pnpm --filter @danci/frontend exec tsc --noEmit
