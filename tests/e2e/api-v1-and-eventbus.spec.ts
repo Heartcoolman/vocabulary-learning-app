@@ -19,12 +19,12 @@ test.describe('v1 API Endpoints', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 测试 v1 API 端点
       const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
-          'Cookie': cookieHeader,
+          Cookie: cookieHeader,
         },
       });
 
@@ -63,12 +63,12 @@ test.describe('v1 API Endpoints', () => {
         await loginAsUser(page);
 
         const cookies = await page.context().cookies();
-        const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+        const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
         // 发送测试事件
         const response = await request.post(buildBackendUrl('/api/v1/realtime/test'), {
           headers: {
-            'Cookie': cookieHeader,
+            Cookie: cookieHeader,
             'Content-Type': 'application/json',
           },
           data: {
@@ -93,7 +93,7 @@ test.describe('v1 API Endpoints', () => {
       // 测试 v1 API 路径
       const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
-          'Authorization': 'Bearer invalid-token', // 应该返回认证错误
+          Authorization: 'Bearer invalid-token', // 应该返回认证错误
         },
       });
 
@@ -105,10 +105,10 @@ test.describe('v1 API Endpoints', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       expect(response.ok()).toBeTruthy();
@@ -123,10 +123,10 @@ test.describe('v1 API Endpoints', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       // 检查响应头（可能包含版本信息）
@@ -156,12 +156,12 @@ test.describe('v1 API Endpoints', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 发送格式错误的请求
       const response = await request.post(buildBackendUrl('/api/v1/realtime/test'), {
         headers: {
-          'Cookie': cookieHeader,
+          Cookie: cookieHeader,
           'Content-Type': 'application/json',
         },
         data: {
@@ -184,7 +184,10 @@ test.describe('Event Bus Integration', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 回答问题（触发事件）
@@ -192,7 +195,10 @@ test.describe('Event Bus Integration', () => {
         await page.waitForTimeout(500);
 
         // 验证事件已处理（通过 UI 反馈）
-        const feedbackShown = await page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500').isVisible().catch(() => false);
+        const feedbackShown = await page
+          .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+          .isVisible()
+          .catch(() => false);
         expect(feedbackShown).toBeTruthy();
 
         // 事件应该触发 UI 更新
@@ -205,12 +211,18 @@ test.describe('Event Bus Integration', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 快速触发多个事件
         for (let i = 0; i < 3; i++) {
-          const isStillActive = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+          const isStillActive = await page
+            .locator('[data-testid="word-card"]')
+            .isVisible()
+            .catch(() => false);
           if (!isStillActive) break;
 
           await page.keyboard.press('1');
@@ -227,7 +239,10 @@ test.describe('Event Bus Integration', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 获取初始问题计数
@@ -253,7 +268,10 @@ test.describe('Event Bus Integration', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 学习交互应该触发实时反馈
@@ -261,7 +279,10 @@ test.describe('Event Bus Integration', () => {
         await page.waitForTimeout(500);
 
         // 验证反馈显示（说明服务间协调成功）
-        const feedback = await page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500').isVisible().catch(() => false);
+        const feedback = await page
+          .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+          .isVisible()
+          .catch(() => false);
         expect(feedback).toBeTruthy();
       }
     });
@@ -271,7 +292,10 @@ test.describe('Event Bus Integration', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 记录当前统计
@@ -302,7 +326,10 @@ test.describe('Event Bus Integration', () => {
       // 即使事件总线有问题，页面也应该继续工作
       await expect(page.locator('main')).toBeVisible();
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 交互应该仍然工作
@@ -321,7 +348,10 @@ test.describe('Event Bus Integration', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 触发事件
@@ -332,8 +362,14 @@ test.describe('Event Bus Integration', () => {
         // 1. UI 反馈
         // 2. 进度更新
         // 3. 统计更新
-        const hasFeedback = await page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500').isVisible().catch(() => false);
-        const hasProgress = await page.locator('[data-testid="question-count"]').isVisible().catch(() => false);
+        const hasFeedback = await page
+          .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+          .isVisible()
+          .catch(() => false);
+        const hasProgress = await page
+          .locator('[data-testid="question-count"]')
+          .isVisible()
+          .catch(() => false);
 
         // 至少应该有一些响应
         expect(hasFeedback || hasProgress).toBeTruthy();
@@ -364,24 +400,28 @@ test.describe('Event Bus Integration', () => {
 
 test.describe('API Deprecation Warnings', () => {
   test.describe('Deprecation Headers', () => {
-    test('should include deprecation warnings in response headers for old APIs', async ({ page, request }) => {
+    test('should include deprecation warnings in response headers for old APIs', async ({
+      page,
+      request,
+    }) => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 测试可能被废弃的旧 API 端点
       const response = await request.get(buildBackendUrl('/api/statistics/overview'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       // 检查响应头
       const headers = response.headers();
 
       // 可能包含 Deprecation 或 Sunset 头
-      const hasDeprecationHeader = headers['deprecation'] !== undefined ||
-                                   headers['sunset'] !== undefined ||
-                                   headers['warning'] !== undefined;
+      const hasDeprecationHeader =
+        headers['deprecation'] !== undefined ||
+        headers['sunset'] !== undefined ||
+        headers['warning'] !== undefined;
 
       // API 应该仍然工作
       expect(response.ok() || response.status() === 404).toBeTruthy();
@@ -409,15 +449,18 @@ test.describe('API Deprecation Warnings', () => {
   });
 
   test.describe('Migration Guides', () => {
-    test('should provide alternative endpoints in deprecation response', async ({ page, request }) => {
+    test('should provide alternative endpoints in deprecation response', async ({
+      page,
+      request,
+    }) => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 请求可能被废弃的端点
       const response = await request.get(buildBackendUrl('/api/statistics/overview'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       // 即使废弃，也应该提供替代方案或继续工作
@@ -439,8 +482,11 @@ test.describe('API Deprecation Warnings', () => {
       await page.waitForTimeout(2000);
 
       // 应该有内容
-      const hasContent = await page.locator('text=/学习|统计|数据/i').isVisible().catch(() => false);
-      expect(hasContent || await page.locator('main').isVisible()).toBeTruthy();
+      const hasContent = await page
+        .locator('text=/学习|统计|数据/i')
+        .isVisible()
+        .catch(() => false);
+      expect(hasContent || (await page.locator('main').isVisible())).toBeTruthy();
     });
   });
 
@@ -449,11 +495,11 @@ test.describe('API Deprecation Warnings', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 测试 v1 API
       const v1Response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       // v1 应该工作
@@ -461,7 +507,7 @@ test.describe('API Deprecation Warnings', () => {
 
       // 测试未版本化的 API（可能作为默认版本）
       const defaultResponse = await request.get(buildBackendUrl('/api/users/profile'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       // 默认 API 也应该工作
@@ -472,7 +518,7 @@ test.describe('API Deprecation Warnings', () => {
       // v1 路径应该路由到 v1 处理器
       const v1Response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
-          'Authorization': 'Bearer invalid',
+          Authorization: 'Bearer invalid',
         },
       });
 

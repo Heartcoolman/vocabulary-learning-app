@@ -24,7 +24,7 @@ test.describe('Learning Page', () => {
 
     test('should show main content', async ({ page }) => {
       await page.waitForLoadState('networkidle');
-      
+
       // Should have some main content
       const mainContent = page.locator('main');
       await expect(mainContent).toBeVisible();

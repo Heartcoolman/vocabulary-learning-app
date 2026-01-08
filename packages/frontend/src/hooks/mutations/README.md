@@ -175,7 +175,11 @@ export function useMasteryLearning() {
 ### 错误处理
 
 ```typescript
-const { mutate: submitAnswer, error, reset } = useSubmitAnswer({
+const {
+  mutate: submitAnswer,
+  error,
+  reset,
+} = useSubmitAnswer({
   onError: (error) => {
     // 自定义错误处理
     if (error.message.includes('network')) {

@@ -31,7 +31,7 @@ test.describe('Vocabulary', () => {
     test('should show wordbook list', async ({ page }) => {
       // Wait for content to load
       await page.waitForLoadState('networkidle');
-      
+
       // Should show some wordbook cards or list items
       const content = await page.content();
       // Check if page has loaded some content (not just loading spinner)
@@ -43,10 +43,10 @@ test.describe('Vocabulary', () => {
     test('should navigate to wordbook detail', async ({ page }) => {
       // Wait for content to load
       await page.waitForLoadState('networkidle');
-      
+
       // Try to find and click a wordbook link
       const wordbookLink = page.locator('a[href^="/wordbooks/"]').first();
-      
+
       if (await wordbookLink.isVisible()) {
         await wordbookLink.click();
         await expect(page).toHaveURL(/\/wordbooks\/\w+/);

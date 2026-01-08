@@ -60,13 +60,18 @@ test.describe('Learning Session', () => {
       const noWordsMessage = page.locator('text=暂无单词');
       const completedMessage = page.locator('text=目标达成');
 
-      await expect(wordCard.or(noWordsMessage).or(completedMessage).first()).toBeVisible({ timeout: 15000 });
+      await expect(wordCard.or(noWordsMessage).or(completedMessage).first()).toBeVisible({
+        timeout: 15000,
+      });
     });
 
     test('should display progress tracking when learning', async ({ page }) => {
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Progress component should be visible
@@ -78,7 +83,10 @@ test.describe('Learning Session', () => {
     test('should display test options when learning', async ({ page }) => {
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Test options should be visible
@@ -97,7 +105,10 @@ test.describe('Learning Session', () => {
     test('should preserve session on page reload', async ({ page }) => {
       await page.waitForLoadState('networkidle');
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer a question

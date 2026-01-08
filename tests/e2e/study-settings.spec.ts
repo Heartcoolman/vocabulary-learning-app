@@ -10,11 +10,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import {
-  loginAsUser,
-  waitForPageReady,
-  expectErrorAlert,
-} from './utils/test-helpers';
+import { loginAsUser, waitForPageReady, expectErrorAlert } from './utils/test-helpers';
 
 // Increase timeout for settings tests
 test.setTimeout(45000);
@@ -75,7 +71,7 @@ test.describe('Study Settings', () => {
       const wordbooks = page.locator('input[type="checkbox"]');
       const noWordbooks = page.locator('text=暂无可用词书');
 
-      const hasWordbooks = await wordbooks.count() > 0;
+      const hasWordbooks = (await wordbooks.count()) > 0;
       const hasNoWordbooksMessage = await noWordbooks.isVisible().catch(() => false);
 
       expect(hasWordbooks || hasNoWordbooksMessage).toBeTruthy();
@@ -401,7 +397,7 @@ test.describe('Study Settings - Edge Cases', () => {
       await checkboxes.nth(0).check();
 
       // Block API requests
-      await page.route('**/api/**', route => route.abort());
+      await page.route('**/api/**', (route) => route.abort());
 
       // Try to save
       await page.click('button:has-text("保存设置")');

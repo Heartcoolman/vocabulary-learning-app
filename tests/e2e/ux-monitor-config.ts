@@ -196,7 +196,7 @@ export function getEnvironmentConfig(): Partial<UXMonitorConfig> {
 export function evaluatePerformance(
   metric: string,
   value: number,
-  budgets: PerformanceBudget[]
+  budgets: PerformanceBudget[],
 ): 'good' | 'warning' | 'critical' {
   const budget = budgets.find((b) => b.metric === metric);
 
@@ -230,10 +230,14 @@ export function generatePerformanceSummary(metrics: Record<string, number>): {
 
     if (status === 'critical') {
       score -= 15;
-      issues.push(`${budget.metric} 严重超标: ${value}${budget.unit} (期望 < ${budget.critical}${budget.unit})`);
+      issues.push(
+        `${budget.metric} 严重超标: ${value}${budget.unit} (期望 < ${budget.critical}${budget.unit})`,
+      );
     } else if (status === 'warning') {
       score -= 5;
-      issues.push(`${budget.metric} 超出警告线: ${value}${budget.unit} (期望 < ${budget.warning}${budget.unit})`);
+      issues.push(
+        `${budget.metric} 超出警告线: ${value}${budget.unit} (期望 < ${budget.warning}${budget.unit})`,
+      );
     }
   });
 

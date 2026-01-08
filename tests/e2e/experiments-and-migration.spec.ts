@@ -10,7 +10,13 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { loginAsUser, waitForPageReady, generateTestUser, fillRegistrationForm, submitForm } from './utils/test-helpers';
+import {
+  loginAsUser,
+  waitForPageReady,
+  generateTestUser,
+  fillRegistrationForm,
+  submitForm,
+} from './utils/test-helpers';
 import { buildBackendUrl } from './utils/urls';
 
 test.describe('A/B Experiments', () => {
@@ -33,13 +39,19 @@ test.describe('A/B Experiments', () => {
       await expect(page.locator('main')).toBeVisible();
     });
 
-    test('should maintain consistent experiment group across sessions', async ({ page, context }) => {
+    test('should maintain consistent experiment group across sessions', async ({
+      page,
+      context,
+    }) => {
       await loginAsUser(page);
       await page.goto('/');
       await waitForPageReady(page);
 
       // 第一次会话 - 获取某些行为特征
-      const hasWordCard1 = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard1 = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       // 登出
       await page.goto('/profile');
@@ -60,7 +72,10 @@ test.describe('A/B Experiments', () => {
 
       // 第二次会话 - 行为应该一致
       await waitForPageReady(page);
-      const hasWordCard2 = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard2 = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       // 基本状态应该一致（都有或都没有单词卡片）
       expect(typeof hasWordCard1).toBe('boolean');
@@ -72,12 +87,12 @@ test.describe('A/B Experiments', () => {
 
       // 获取 cookies
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 请求用户信息（可能包含实验分组）
       const response = await request.get(buildBackendUrl('/api/users/profile'), {
         headers: {
-          'Cookie': cookieHeader,
+          Cookie: cookieHeader,
         },
       });
 
@@ -96,7 +111,10 @@ test.describe('A/B Experiments', () => {
       await page.goto('/');
       await waitForPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // 执行一些学习交互
@@ -141,11 +159,12 @@ test.describe('Data Migration Verification', () => {
       const usernameElement = page.locator('text=/testuser|用户名/i');
 
       // 至少应该有一些用户信息显示
-      const hasUserInfo = await emailElement.isVisible().catch(() => false) ||
-                          await usernameElement.isVisible().catch(() => false);
+      const hasUserInfo =
+        (await emailElement.isVisible().catch(() => false)) ||
+        (await usernameElement.isVisible().catch(() => false));
 
       // 页面应该正常显示
-      expect(hasUserInfo || await page.locator('main').isVisible()).toBeTruthy();
+      expect(hasUserInfo || (await page.locator('main').isVisible())).toBeTruthy();
     });
 
     test('should update user settings after migration', async ({ page }) => {
@@ -191,10 +210,13 @@ test.describe('Data Migration Verification', () => {
 
       // 查找统计数据元素
       const statsElements = page.locator('[data-testid*="stat"], .stat, text=/学习|单词|掌握/i');
-      const hasStats = await statsElements.first().isVisible().catch(() => false);
+      const hasStats = await statsElements
+        .first()
+        .isVisible()
+        .catch(() => false);
 
       // 至少应该有统计界面
-      expect(hasStats || await page.locator('main').isVisible()).toBeTruthy();
+      expect(hasStats || (await page.locator('main').isVisible())).toBeTruthy();
     });
 
     test('should access historical learning records', async ({ page }) => {
@@ -236,10 +258,15 @@ test.describe('Data Migration Verification', () => {
       await page.waitForTimeout(1000);
 
       // 应该有词书相关内容
-      const vocabContent = page.locator('text=/词书|单词|选择/i, [data-testid*="word"], .vocabulary');
-      const hasContent = await vocabContent.first().isVisible().catch(() => false);
+      const vocabContent = page.locator(
+        'text=/词书|单词|选择/i, [data-testid*="word"], .vocabulary',
+      );
+      const hasContent = await vocabContent
+        .first()
+        .isVisible()
+        .catch(() => false);
 
-      expect(hasContent || await page.locator('main').isVisible()).toBeTruthy();
+      expect(hasContent || (await page.locator('main').isVisible())).toBeTruthy();
     });
 
     test('should add new words to collection', async ({ page }) => {
@@ -248,8 +275,13 @@ test.describe('Data Migration Verification', () => {
       await waitForPageReady(page);
 
       // 查找添加按钮
-      const addButton = page.locator('button:has-text("添加"), button:has-text("选择词书"), a:has-text("添加")');
-      const hasAddButton = await addButton.first().isVisible().catch(() => false);
+      const addButton = page.locator(
+        'button:has-text("添加"), button:has-text("选择词书"), a:has-text("添加")',
+      );
+      const hasAddButton = await addButton
+        .first()
+        .isVisible()
+        .catch(() => false);
 
       if (hasAddButton) {
         // 点击添加按钮
@@ -267,18 +299,18 @@ test.describe('Data Migration Verification', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 请求用户数据
       const profileResponse = await request.get(buildBackendUrl('/api/users/profile'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       expect(profileResponse.ok()).toBeTruthy();
 
       // 请求学习统计
       const statsResponse = await request.get(buildBackendUrl('/api/statistics/overview'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       // 至少有一个接口应该正常工作
@@ -305,11 +337,11 @@ test.describe('Data Migration Verification', () => {
       await loginAsUser(page);
 
       const cookies = await page.context().cookies();
-      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
       // 获取用户配置
       const response = await request.get(buildBackendUrl('/api/users/profile'), {
-        headers: { 'Cookie': cookieHeader },
+        headers: { Cookie: cookieHeader },
       });
 
       if (response.ok()) {

@@ -25,7 +25,7 @@ describe('Matrix Operations', () => {
         recentAccuracy: 0.7,
         studyStreak: 5,
         totalInteractions: 100,
-        averageResponseTime: 2000
+        averageResponseTime: 2000,
       };
 
       const action = { wordId: 'test', difficulty: 'recall', scheduledAt: undefined };
@@ -56,7 +56,7 @@ describe('Matrix Operations', () => {
         recentAccuracy: 0.8,
         studyStreak: 10,
         totalInteractions: 50,
-        averageResponseTime: 1500
+        averageResponseTime: 1500,
       };
 
       const actions = [
@@ -99,7 +99,7 @@ describe('Matrix Operations', () => {
         recentAccuracy: 0.7,
         studyStreak: 5,
         totalInteractions: 100,
-        averageResponseTime: 2000
+        averageResponseTime: 2000,
       };
 
       const actions = [

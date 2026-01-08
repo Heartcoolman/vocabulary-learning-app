@@ -8,14 +8,14 @@
 
 ### 1.1 修正后的性能目标
 
-| 指标 | 当前 (TypeScript) | 目标 (Rust) | 预期提升 |
-|------|-------------------|-------------|----------|
-| LinUCB selectAction | ~5ms | ~1-2ms | **2-5x** |
-| LinUCB update | ~10ms | ~2-3ms | **3-5x** |
-| Cholesky 分解 (d=22) | ~50μs | ~10-20μs | **2-5x** |
-| Rank-1 更新 (d=22) | ~20μs | ~5-10μs | **2-4x** |
-| 贝叶斯优化 GP 更新 | ~2ms | ~0.5-1ms | **2-4x** |
-| 内存占用 | 基准 | 0.5x | **2x** |
+| 指标                 | 当前 (TypeScript) | 目标 (Rust) | 预期提升 |
+| -------------------- | ----------------- | ----------- | -------- |
+| LinUCB selectAction  | ~5ms              | ~1-2ms      | **2-5x** |
+| LinUCB update        | ~10ms             | ~2-3ms      | **3-5x** |
+| Cholesky 分解 (d=22) | ~50μs             | ~10-20μs    | **2-5x** |
+| Rank-1 更新 (d=22)   | ~20μs             | ~5-10μs     | **2-4x** |
+| 贝叶斯优化 GP 更新   | ~2ms              | ~0.5-1ms    | **2-4x** |
+| 内存占用             | 基准              | 0.5x        | **2x**   |
 
 > **注意**：原方案预估 10-50x 过于乐观。d=22 维度下单次操作仅几千次浮点运算，
 > FFI 往返开销会抵消部分收益。2-8x 是更现实的预期。
@@ -68,15 +68,15 @@
 
 ### 1.3 关键改进点 (基于 Codex 审计)
 
-| 问题 | 原方案 | 修订方案 |
-|------|--------|----------|
-| 性能预估过高 | 10-50x | **2-8x** (现实预期) |
-| 接口不一致 | `a/b/l` | **`A/b/L/updateCount`** (与 TS 对齐) |
-| 数值稳定性 | 部分实现 | **完整移植 TS 版护栏** |
-| FFI 开销 | String + Vec 拷贝 | **Float64Array 零拷贝 + 枚举** |
-| 降级逻辑 | 仅 LinUCB | **统一包装器 + 贝叶斯 fallback** |
-| 熔断恢复 | 永久禁用 | **定期重试 + 健康检测** |
-| 维度限制 | 可配置但不一致 | **固定 22 维或动态对齐** |
+| 问题         | 原方案            | 修订方案                             |
+| ------------ | ----------------- | ------------------------------------ |
+| 性能预估过高 | 10-50x            | **2-8x** (现实预期)                  |
+| 接口不一致   | `a/b/l`           | **`A/b/L/updateCount`** (与 TS 对齐) |
+| 数值稳定性   | 部分实现          | **完整移植 TS 版护栏**               |
+| FFI 开销     | String + Vec 拷贝 | **Float64Array 零拷贝 + 枚举**       |
+| 降级逻辑     | 仅 LinUCB         | **统一包装器 + 贝叶斯 fallback**     |
+| 熔断恢复     | 永久禁用          | **定期重试 + 健康检测**              |
+| 维度限制     | 可配置但不一致    | **固定 22 维或动态对齐**             |
 
 ---
 
@@ -848,10 +848,7 @@ export class LinUCBNativeWrapper {
   private recoveryAttempts: number = 0;
   private isCircuitOpen: boolean = false;
 
-  constructor(
-    options?: { alpha?: number; lambda?: number },
-    config?: NativeWrapperConfig
-  ) {
+  constructor(options?: { alpha?: number; lambda?: number }, config?: NativeWrapperConfig) {
     this.fallback = new LinUCB(options);
 
     this.config = {
@@ -889,8 +886,7 @@ export class LinUCBNativeWrapper {
 
     // 熔断状态下，检查是否可以尝试恢复
     const now = Date.now();
-    if (this.lastFailureTime &&
-        now - this.lastFailureTime > this.config.recoveryIntervalMs) {
+    if (this.lastFailureTime && now - this.lastFailureTime > this.config.recoveryIntervalMs) {
       // 尝试恢复
       this.attemptRecovery();
     }
@@ -902,7 +898,7 @@ export class LinUCBNativeWrapper {
   private attemptRecovery(): void {
     this.recoveryAttempts++;
     logger.info('[NativeWrapper] Attempting recovery', {
-      attempt: this.recoveryAttempts
+      attempt: this.recoveryAttempts,
     });
 
     try {
@@ -955,8 +951,8 @@ export class LinUCBNativeWrapper {
       try {
         const result = this.native!.selectAction(
           this.toNativeState(state),
-          actions.map(a => this.toNativeAction(a)),
-          this.toNativeContext(context)
+          actions.map((a) => this.toNativeAction(a)),
+          this.toNativeContext(context),
         );
         this.recordSuccess();
         return this.fromNativeSelection(result, actions);
@@ -976,7 +972,7 @@ export class LinUCBNativeWrapper {
           this.toNativeState(state),
           this.toNativeAction(action),
           reward,
-          this.toNativeContext(context)
+          this.toNativeContext(context),
         );
         this.recordSuccess();
       } catch (error) {
@@ -1034,7 +1030,7 @@ export class LinUCBNativeWrapper {
     return {
       interval_scale: action.interval_scale,
       new_ratio: action.new_ratio,
-      difficulty: action.difficulty,  // 字符串，Rust 侧兼容处理
+      difficulty: action.difficulty, // 字符串，Rust 侧兼容处理
       batch_size: action.batch_size,
       hint_level: action.hint_level,
     };
@@ -1265,28 +1261,28 @@ CMD ["node", "dist/index.js"]
 
 ## 9. 风险与缓解 (修订版)
 
-| 风险 | 概率 | 影响 | 缓解措施 |
-|------|------|------|----------|
-| 性能不达预期 | **高** | 中 | 先 benchmark 验证，保留 TS 回退 |
-| FFI 开销抵消收益 | 中 | 中 | 批量 API、Float64Array 零拷贝 |
-| 数值精度不一致 | 中 | 高 | 完整移植 TS 护栏，边界测试 |
-| Native 编译失败 | 中 | 中 | 预编译所有平台，CI 自动化 |
-| 永久降级 | 低 | 中 | 熔断恢复机制，健康检测 |
-| 模型持久化不兼容 | 中 | 高 | 字段命名对齐，迁移脚本 |
-| musl/Alpine 兼容 | 中 | 中 | Dockerfile 完整依赖 |
+| 风险             | 概率   | 影响 | 缓解措施                        |
+| ---------------- | ------ | ---- | ------------------------------- |
+| 性能不达预期     | **高** | 中   | 先 benchmark 验证，保留 TS 回退 |
+| FFI 开销抵消收益 | 中     | 中   | 批量 API、Float64Array 零拷贝   |
+| 数值精度不一致   | 中     | 高   | 完整移植 TS 护栏，边界测试      |
+| Native 编译失败  | 中     | 中   | 预编译所有平台，CI 自动化       |
+| 永久降级         | 低     | 中   | 熔断恢复机制，健康检测          |
+| 模型持久化不兼容 | 中     | 高   | 字段命名对齐，迁移脚本          |
+| musl/Alpine 兼容 | 中     | 中   | Dockerfile 完整依赖             |
 
 ---
 
 ## 10. 成功指标
 
-| 指标 | 目标值 | 验收标准 |
-|------|--------|----------|
-| LinUCB selectAction 加速 | ≥ 2x | benchmark 验证 |
-| LinUCB update 加速 | ≥ 2x | benchmark 验证 |
-| P99 延迟 | ≤ 50ms | 生产监控 |
-| 数值一致性 | 误差 < 1e-6 | 单元测试 |
-| 测试通过率 | 100% | CI 通过 |
-| Fallback 命中率 | < 1% | 监控告警 |
+| 指标                     | 目标值      | 验收标准       |
+| ------------------------ | ----------- | -------------- |
+| LinUCB selectAction 加速 | ≥ 2x        | benchmark 验证 |
+| LinUCB update 加速       | ≥ 2x        | benchmark 验证 |
+| P99 延迟                 | ≤ 50ms      | 生产监控       |
+| 数值一致性               | 误差 < 1e-6 | 单元测试       |
+| 测试通过率               | 100%        | CI 通过        |
+| Fallback 命中率          | < 1%        | 监控告警       |
 
 ---
 
@@ -1296,11 +1292,11 @@ CMD ["node", "dist/index.js"]
 
 ### 11.1 FFI 开销进一步减少
 
-| 优化策略 | 实现方式 | 预期收益 |
-|----------|----------|----------|
-| **ArrayBuffer 池复用** | TS 侧维护固定长度 `Float64Array` 池，通过 N-API Reference 传入 Rust，避免 `to_vec` 二次拷贝 | 更新路径 **10-20%** |
-| **句柄式 API** | 模型状态完全保留在 Rust，仅传入 `u32 model_id` + 索引/奖励 | FFI 成本再降 **20-30%** |
-| **参数扁平化** | 将 state/action/context 合并为单一 `Float64Array`（固定长度） | **5-10%** |
+| 优化策略               | 实现方式                                                                                    | 预期收益                |
+| ---------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
+| **ArrayBuffer 池复用** | TS 侧维护固定长度 `Float64Array` 池，通过 N-API Reference 传入 Rust，避免 `to_vec` 二次拷贝 | 更新路径 **10-20%**     |
+| **句柄式 API**         | 模型状态完全保留在 Rust，仅传入 `u32 model_id` + 索引/奖励                                  | FFI 成本再降 **20-30%** |
+| **参数扁平化**         | 将 state/action/context 合并为单一 `Float64Array`（固定长度）                               | **5-10%**               |
 
 ```rust
 // 句柄式 API 示例
@@ -1322,12 +1318,12 @@ pub fn select_action_by_id(
 
 虽然 d=22 较小，但以下操作仍可受益于 SIMD：
 
-| 操作 | SIMD 策略 | 预期收益 |
-|------|-----------|----------|
-| **外积 `x*x^T`** | AVX2/FMA 内联 (`std::arch` 或 `wide` crate) | **1.2-1.5x** |
-| **点积 `dot`** | 4/8 元素并行 | **1.1-1.3x** |
-| **三角求解** | forward/backward solve 向量化 | **1.15-1.25x** |
-| **批量 UCB** | feature 向量按 4/8 对齐，批量 `mul_add` | **1.1-1.3x** |
+| 操作             | SIMD 策略                                   | 预期收益       |
+| ---------------- | ------------------------------------------- | -------------- |
+| **外积 `x*x^T`** | AVX2/FMA 内联 (`std::arch` 或 `wide` crate) | **1.2-1.5x**   |
+| **点积 `dot`**   | 4/8 元素并行                                | **1.1-1.3x**   |
+| **三角求解**     | forward/backward solve 向量化               | **1.15-1.25x** |
+| **批量 UCB**     | feature 向量按 4/8 对齐，批量 `mul_add`     | **1.1-1.3x**   |
 
 ```rust
 // SIMD 点积示例 (使用 std::arch)
@@ -1386,11 +1382,11 @@ impl CompactLowerTriangular {
 
 #### 缓存友好性
 
-| 优化 | 实现 | 收益 |
-|------|------|------|
-| **栈分配** | `SmallVec<[f64; 484]>` 存 A/L | 避免堆分配开销 |
-| **64B 对齐** | `#[repr(align(64))]` 对齐 feature_vec | 降低 load 延迟 ~5% |
-| **访问顺序** | 外积按列迭代，保持内层连续访问 | 减少 L1 miss 15-20% |
+| 优化         | 实现                                  | 收益                |
+| ------------ | ------------------------------------- | ------------------- |
+| **栈分配**   | `SmallVec<[f64; 484]>` 存 A/L         | 避免堆分配开销      |
+| **64B 对齐** | `#[repr(align(64))]` 对齐 feature_vec | 降低 load 延迟 ~5%  |
+| **访问顺序** | 外积按列迭代，保持内层连续访问        | 减少 L1 miss 15-20% |
 
 ### 11.4 矩阵运算优化
 
@@ -1558,23 +1554,23 @@ RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata" cargo build --release
 
 ### 11.7 其他优化
 
-| 优化 | 实现 | 收益 |
-|------|------|------|
-| **减少重复 sanitize** | TS 侧预裁剪输入，Rust 仅做 `is_finite` 检查 | 5-8% |
-| **预热调用** | 首次调用前运行微基准，触发 JIT/页错误缓存 | 稳态延迟改善 |
-| **内联标记** | 对 `solve_triangular_lower`、`dot` 标记 `#[inline(always)]` | 减少调用开销 |
-| **诊断指标** | 收集 NaN/Inf/diag<阈值 计数，调优重分解频率 | 间接提升稳定性 |
+| 优化                  | 实现                                                        | 收益           |
+| --------------------- | ----------------------------------------------------------- | -------------- |
+| **减少重复 sanitize** | TS 侧预裁剪输入，Rust 仅做 `is_finite` 检查                 | 5-8%           |
+| **预热调用**          | 首次调用前运行微基准，触发 JIT/页错误缓存                   | 稳态延迟改善   |
+| **内联标记**          | 对 `solve_triangular_lower`、`dot` 标记 `#[inline(always)]` | 减少调用开销   |
+| **诊断指标**          | 收集 NaN/Inf/diag<阈值 计数，调优重分解频率                 | 间接提升稳定性 |
 
 ### 11.8 优化收益总结
 
-| 优化类别 | 预期收益 | 实现复杂度 | 优先级 |
-|----------|----------|------------|--------|
-| FFI 优化 (缓冲池/句柄) | **20-40%** | 中 | P0 |
-| SIMD + 尺寸特化 | **1.2-1.6x** | 高 | P1 |
-| 下三角压缩 + 连续访问 | **10-20%** | 中 | P1 |
-| 编译选项 (target-cpu/PGO) | **5-15%** | 低 | P0 |
-| 并发 (模型间并行) | **线性吞吐提升** | 中 | P2 |
-| 其他 (预热/内联) | **5-10%** | 低 | P2 |
+| 优化类别                  | 预期收益         | 实现复杂度 | 优先级 |
+| ------------------------- | ---------------- | ---------- | ------ |
+| FFI 优化 (缓冲池/句柄)    | **20-40%**       | 中         | P0     |
+| SIMD + 尺寸特化           | **1.2-1.6x**     | 高         | P1     |
+| 下三角压缩 + 连续访问     | **10-20%**       | 中         | P1     |
+| 编译选项 (target-cpu/PGO) | **5-15%**        | 低         | P0     |
+| 并发 (模型间并行)         | **线性吞吐提升** | 中         | P2     |
+| 其他 (预热/内联)          | **5-10%**        | 低         | P2     |
 
 **叠加预期**: 在基础 2-8x 方案上，全部优化可再提升 **1.5-2.5x**，最终达到 **3-15x** 整体加速。
 
@@ -1583,18 +1579,21 @@ RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata" cargo build --release
 ## 12. 实施优先级建议
 
 ### 阶段一 (基础版 - 2 周)
+
 - [ ] 基础 LinUCB 实现 (2-8x 加速)
 - [ ] Float64Array 零拷贝
 - [ ] 批量 API
 - [ ] 编译优化 (target-cpu=native, LTO)
 
 ### 阶段二 (进阶版 - 2 周)
+
 - [ ] ArrayBuffer 池复用
 - [ ] 句柄式 API
 - [ ] 下三角压缩存储
 - [ ] `#[inline(always)]` 标记
 
 ### 阶段三 (极致版 - 2 周)
+
 - [ ] SIMD 优化 (AVX2/FMA)
 - [ ] 尺寸专用 Cholesky (d=22)
 - [ ] PGO 编译

@@ -25,6 +25,7 @@ import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTrackin
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
 import { useTestOptionsGenerator } from '../hooks/useTestOptions';
 import { trackingService } from '../services/TrackingService';
+import { apiLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export default function LearningPage() {
@@ -215,7 +216,7 @@ export default function LearningPage() {
       } catch (error) {
         // 提交失败时记录错误，但不阻止用户继续学习
         // 答案会被保存到本地队列，后续会自动重试同步
-        console.error('[LearningPage] 提交答案失败:', error);
+        apiLogger.error({ err: error }, '[LearningPage] 提交答案失败');
       }
       // 注意: isSubmittingRef 在 handleNext 中重置，确保用户看到结果后才能进入下一题
     },

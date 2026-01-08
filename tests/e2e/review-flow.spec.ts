@@ -152,8 +152,12 @@ test.describe('Review Flow', () => {
         await answerQuestion(page, 0);
 
         // Should show visual feedback
-        const greenFeedback = page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].border-green-500');
-        const redFeedback = page.locator('[data-testid^="option-"].bg-red-500, [data-testid^="option-"].border-red-500');
+        const greenFeedback = page.locator(
+          '[data-testid^="option-"].bg-green-500, [data-testid^="option-"].border-green-500',
+        );
+        const redFeedback = page.locator(
+          '[data-testid^="option-"].bg-red-500, [data-testid^="option-"].border-red-500',
+        );
 
         await expect(greenFeedback.or(redFeedback).first()).toBeVisible({ timeout: 3000 });
       }
@@ -171,7 +175,9 @@ test.describe('Review Flow', () => {
         await page.waitForTimeout(500);
 
         // At least one option should show correct answer indicator
-        const greenIndicator = page.locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].border-green-500');
+        const greenIndicator = page.locator(
+          '[data-testid^="option-"].bg-green-500, [data-testid^="option-"].border-green-500',
+        );
         await expect(greenIndicator.first()).toBeVisible({ timeout: 3000 });
       }
     });
@@ -325,14 +331,18 @@ test.describe('Review Flow', () => {
         await answerQuestion(page, 0);
         await page.waitForTimeout(500);
 
-        const questionCountBefore = await page.locator('[data-testid="question-count"]').textContent();
+        const questionCountBefore = await page
+          .locator('[data-testid="question-count"]')
+          .textContent();
 
         // Reload
         await page.reload();
         await waitForLearningPageReady(page);
 
         // Progress should be maintained
-        const questionCountAfter = await page.locator('[data-testid="question-count"]').textContent();
+        const questionCountAfter = await page
+          .locator('[data-testid="question-count"]')
+          .textContent();
 
         if (questionCountBefore && questionCountAfter) {
           const before = parseInt(questionCountBefore.match(/\d+/)?.[0] || '0');
@@ -435,7 +445,7 @@ test.describe('Review Flow - Error Handling', () => {
 
     if (await hasWordCard(page)) {
       // Block API
-      await page.route('**/api/**', route => route.abort());
+      await page.route('**/api/**', (route) => route.abort());
 
       // Try to answer
       await page.locator('[data-testid="option-0"]').click();
@@ -469,7 +479,7 @@ test.describe('Review Flow - Error Handling', () => {
   });
 
   test('should display error message when loading fails', async ({ page }) => {
-    await page.route('**/api/study/**', route => route.abort());
+    await page.route('**/api/study/**', (route) => route.abort());
     await clearLearningSession(page);
 
     await page.goto('/');
@@ -480,7 +490,9 @@ test.describe('Review Flow - Error Handling', () => {
     const wordCard = page.locator('[data-testid="word-card"]');
     const noWordsMessage = page.locator('text=暂无单词');
 
-    await expect(errorMessage.or(wordCard).or(noWordsMessage).first()).toBeVisible({ timeout: 10000 });
+    await expect(errorMessage.or(wordCard).or(noWordsMessage).first()).toBeVisible({
+      timeout: 10000,
+    });
   });
 });
 
@@ -533,7 +545,7 @@ test.describe('Review Flow - Performance', () => {
       // Answer 5 questions
       for (let i = 0; i < 5; i++) {
         const wordCard = page.locator('[data-testid="word-card"]');
-        if (!await wordCard.isVisible().catch(() => false)) break;
+        if (!(await wordCard.isVisible().catch(() => false))) break;
 
         await page.keyboard.press('1');
         await waitForNextWord(page);

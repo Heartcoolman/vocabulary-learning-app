@@ -180,16 +180,11 @@ export class VisualFatigueDetector {
       // 等待初始化响应
       return new Promise((resolve) => {
         const INIT_TIMEOUT = 30000;
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-        const cleanup = () => {
-          if (timeoutId) clearTimeout(timeoutId);
-          this.worker?.removeEventListener('message', handler);
-        };
 
         const handler = (e: MessageEvent<WorkerResponse>) => {
           if (e.data.type === 'init-result') {
-            cleanup();
+            clearTimeout(timeoutId);
+            this.worker?.removeEventListener('message', handler);
 
             if (e.data.success) {
               console.log('[VisualFatigue] Worker initialized successfully');
@@ -206,8 +201,8 @@ export class VisualFatigueDetector {
           }
         };
 
-        timeoutId = setTimeout(() => {
-          cleanup();
+        const timeoutId = setTimeout(() => {
+          this.worker?.removeEventListener('message', handler);
           console.error('[VisualFatigue] Worker init timeout');
           this.state.error = 'Worker initialization timeout';
           this.state.isSupported = false;

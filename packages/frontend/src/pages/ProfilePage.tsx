@@ -58,7 +58,7 @@ export default function ProfilePage() {
 
     const hasLetter = /[a-zA-Z]/.test(newPassword);
     const hasDigit = /[0-9]/.test(newPassword);
-    const hasSpecial = /[!@#$%^&*()_\-+=\[\]{};:'",.<>/?\\|`~]/.test(newPassword);
+    const hasSpecial = /[!@#$%^&*()_\-+=[\]{};:'",.<>/?\\|`~]/.test(newPassword);
     if (!hasLetter || !hasDigit || !hasSpecial) {
       setError('新密码需包含字母、数字和特殊符号');
       return;

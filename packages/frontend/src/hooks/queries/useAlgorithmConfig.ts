@@ -14,6 +14,7 @@ import { QUERY_PRESETS, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
 import { apiClient } from '../../services/client';
 import type { AlgorithmConfig, ConfigHistory } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
+import { apiLogger } from '../../utils/logger';
 
 /**
  * 获取当前激活的算法配置
@@ -71,7 +72,7 @@ export function useAlgorithmConfigPresets() {
           return presets;
         }
       } catch (error) {
-        console.warn('获取后端预设失败，使用本地默认配置:', error);
+        apiLogger.warn({ err: error }, '获取后端预设失败，使用本地默认配置');
       }
 
       // 回退到本地默认配置

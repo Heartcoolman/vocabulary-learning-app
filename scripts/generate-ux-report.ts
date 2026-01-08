@@ -144,14 +144,10 @@ function calculateScenarioSummary(results: TestResult[]): ScenarioSummary[] {
     const metricKeys = ['fcp', 'lcp', 'tti', 'loadTime', 'memoryUsage'];
 
     metricKeys.forEach((key) => {
-      const values = tests
-        .map((t) => t.metrics[key])
-        .filter((v) => v !== undefined);
+      const values = tests.map((t) => t.metrics[key]).filter((v) => v !== undefined);
 
       if (values.length > 0) {
-        averageMetrics[key] = Math.round(
-          values.reduce((a, b) => a + b, 0) / values.length
-        );
+        averageMetrics[key] = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
       }
     });
 
@@ -174,11 +170,7 @@ function calculateScenarioSummary(results: TestResult[]): ScenarioSummary[] {
 /**
  * 生成性能建议
  */
-function generateRecommendations(
-  scenario: string,
-  metrics: any,
-  tests: TestResult[]
-): string[] {
+function generateRecommendations(scenario: string, metrics: any, tests: TestResult[]): string[] {
   const recommendations: string[] = [];
 
   // 场景1: 新用户首次访问
@@ -391,7 +383,7 @@ function generateMarkdownReport(report: Report): string {
     lines.push(`- **通过**: ${scenario.passedTests} ✓`);
     lines.push(`- **失败**: ${scenario.failedTests} ✗`);
     lines.push(
-      `- **通过率**: ${Math.round((scenario.passedTests / scenario.totalTests) * 100)}%\n`
+      `- **通过率**: ${Math.round((scenario.passedTests / scenario.totalTests) * 100)}%\n`,
     );
 
     // 性能指标
@@ -411,7 +403,7 @@ function generateMarkdownReport(report: Report): string {
       }
       if (scenario.averageMetrics.memoryUsage) {
         lines.push(
-          `- 内存使用: ${Math.round(scenario.averageMetrics.memoryUsage / 1024 / 1024)}MB`
+          `- 内存使用: ${Math.round(scenario.averageMetrics.memoryUsage / 1024 / 1024)}MB`,
         );
       }
       lines.push('');
@@ -455,8 +447,7 @@ function generateMarkdownReport(report: Report): string {
  */
 function main() {
   const args = process.argv.slice(2);
-  const reportPath =
-    args[0] || path.join(process.cwd(), 'test-results', 'results.json');
+  const reportPath = args[0] || path.join(process.cwd(), 'test-results', 'results.json');
   const outputPath = args[1] || path.join(process.cwd(), 'reports', 'user-experience-report.md');
 
   console.log('正在生成用户体验测试报告...');
@@ -492,7 +483,9 @@ function main() {
   console.log('\n✓ 报告生成完成!');
   console.log(`  - Markdown: ${outputPath}`);
   console.log(`  - JSON: ${jsonPath}`);
-  console.log(`\n综合评分: ${report.overallScore}/100 (${report.overallScore >= 80 ? 'A' : report.overallScore >= 70 ? 'B' : report.overallScore >= 60 ? 'C' : 'D'})`);
+  console.log(
+    `\n综合评分: ${report.overallScore}/100 (${report.overallScore >= 80 ? 'A' : report.overallScore >= 70 ? 'B' : report.overallScore >= 60 ? 'C' : 'D'})`,
+  );
 }
 
 // 如果直接运行此脚本

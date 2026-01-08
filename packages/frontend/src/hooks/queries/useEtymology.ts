@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { WordEtymology, WordFamily, RootFeatures } from '@danci/shared';
-import apiClient from '../../services/client/apiClient';
+import { etymologyClient } from '../../services/client/etymology/EtymologyClient';
 
 const ETYMOLOGY_STALE_TIME = 30 * 60 * 1000;
 
@@ -12,53 +12,6 @@ export const etymologyKeys = {
   search: (query: string) => [...etymologyKeys.all, 'search', query] as const,
 };
 
-async function fetchWordEtymology(wordId: string): Promise<WordEtymology | null> {
-  try {
-    const response = await apiClient.get<{ success: boolean; data: WordEtymology }>(
-      `/etymology/words/${wordId}/etymology`,
-    );
-    return response.data?.data ?? null;
-  } catch (error) {
-    if ((error as { response?: { status: number } }).response?.status === 404) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-async function fetchWordFamily(morphemeId: string, limit = 20): Promise<WordFamily | null> {
-  try {
-    const response = await apiClient.get<{ success: boolean; data: WordFamily }>(
-      `/etymology/morphemes/${morphemeId}/family`,
-      { params: { limit } },
-    );
-    return response.data?.data ?? null;
-  } catch (error) {
-    if ((error as { response?: { status: number } }).response?.status === 404) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-async function fetchRootFeatures(wordId: string): Promise<RootFeatures> {
-  try {
-    const response = await apiClient.get<{ success: boolean; data: RootFeatures }>(
-      `/etymology/words/${wordId}/root-features`,
-    );
-    return (
-      response.data?.data ?? {
-        rootCount: 0,
-        knownRootRatio: 0,
-        avgRootMastery: 0,
-        maxRootMastery: 0,
-      }
-    );
-  } catch {
-    return { rootCount: 0, knownRootRatio: 0, avgRootMastery: 0, maxRootMastery: 0 };
-  }
-}
-
 export interface UseWordEtymologyOptions {
   wordId: string;
   enabled?: boolean;
@@ -69,7 +22,7 @@ export function useWordEtymology({ wordId, enabled = true }: UseWordEtymologyOpt
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: etymologyKeys.word(wordId),
-    queryFn: () => fetchWordEtymology(wordId),
+    queryFn: () => etymologyClient.getWordEtymology(wordId),
     enabled: shouldFetch,
     staleTime: ETYMOLOGY_STALE_TIME,
     gcTime: ETYMOLOGY_STALE_TIME * 2,
@@ -96,7 +49,7 @@ export function useWordFamily({ morphemeId, limit = 20, enabled = true }: UseWor
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: etymologyKeys.family(morphemeId),
-    queryFn: () => fetchWordFamily(morphemeId, limit),
+    queryFn: () => etymologyClient.getWordFamily(morphemeId, limit),
     enabled: shouldFetch,
     staleTime: ETYMOLOGY_STALE_TIME,
     gcTime: ETYMOLOGY_STALE_TIME * 2,
@@ -121,7 +74,7 @@ export function useRootFeatures({ wordId, enabled = true }: UseRootFeaturesOptio
 
   const { data, isLoading, error } = useQuery({
     queryKey: etymologyKeys.rootFeatures(wordId),
-    queryFn: () => fetchRootFeatures(wordId),
+    queryFn: () => etymologyClient.getRootFeatures(wordId),
     enabled: shouldFetch,
     staleTime: 5 * 60 * 1000,
   });

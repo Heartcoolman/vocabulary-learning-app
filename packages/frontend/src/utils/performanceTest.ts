@@ -63,9 +63,7 @@ export function comparePerformance(
       const renderTimeReduction = beforeMetric.renderTime - afterMetric.renderTime;
       const reRenderReduction = beforeMetric.reRenderCount - afterMetric.reRenderCount;
       const percentageImprovement =
-        beforeMetric.renderTime > 0
-          ? (renderTimeReduction / beforeMetric.renderTime) * 100
-          : 0;
+        beforeMetric.renderTime > 0 ? (renderTimeReduction / beforeMetric.renderTime) * 100 : 0;
 
       improvements.push({
         componentName: beforeMetric.componentName,

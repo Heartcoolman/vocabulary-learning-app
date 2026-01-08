@@ -71,7 +71,9 @@ test.describe('Learning Flow', () => {
       const completedMessage = page.locator('text=目标达成');
 
       // Either should be visible
-      await expect(wordCard.or(noWordsMessage).or(completedMessage).first()).toBeVisible({ timeout: 10000 });
+      await expect(wordCard.or(noWordsMessage).or(completedMessage).first()).toBeVisible({
+        timeout: 10000,
+      });
     });
 
     test('should show progress bar when learning starts', async ({ page }) => {
@@ -81,7 +83,10 @@ test.describe('Learning Flow', () => {
       const progressBar = page.locator('[data-testid="mastery-progress"]');
 
       // Check if progress component exists (may not if no words)
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
       if (hasWordCard) {
         await expect(progressBar).toBeVisible();
       }
@@ -109,7 +114,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         const testOptions = page.locator('[data-testid="test-options"]');
@@ -126,7 +134,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Phonetic is displayed with / / markers
@@ -141,7 +152,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Click the first option
@@ -158,7 +172,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Click an option
@@ -170,7 +187,9 @@ test.describe('Learning Flow', () => {
         const greenBorder = page.locator('[data-testid^="option-"].border-green-500');
 
         // At least one feedback style should appear
-        await expect(greenOption.or(redOption).or(greenBorder).first()).toBeVisible({ timeout: 3000 });
+        await expect(greenOption.or(redOption).or(greenBorder).first()).toBeVisible({
+          timeout: 3000,
+        });
       }
     });
 
@@ -178,7 +197,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Get current word
@@ -210,7 +232,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Get initial question count
@@ -237,7 +262,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         const masteredCount = page.locator('[data-testid="mastered-count"]');
@@ -255,7 +283,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Press "1" to select first option
@@ -271,7 +302,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Focus on body to ensure keyboard events are captured
@@ -299,7 +333,10 @@ test.describe('Learning Flow', () => {
       const completionIndicators = page.locator('text=目标达成, text=今日学习结束, text=重新开始');
 
       // If already completed, verify completion UI
-      const isCompleted = await completionIndicators.first().isVisible().catch(() => false);
+      const isCompleted = await completionIndicators
+        .first()
+        .isVisible()
+        .catch(() => false);
       if (isCompleted) {
         // Should have restart button
         const restartButton = page.locator('button:has-text("重新开始")');
@@ -339,7 +376,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer a few questions to build session state
@@ -347,21 +387,29 @@ test.describe('Learning Flow', () => {
         await page.waitForTimeout(2200);
 
         // Get current progress
-        const questionCountBefore = await page.locator('[data-testid="question-count"]').textContent();
+        const questionCountBefore = await page
+          .locator('[data-testid="question-count"]')
+          .textContent();
 
         // Reload page
         await page.reload();
         await waitForLearningPageReady(page);
 
         // Check if session was restored (progress should be maintained)
-        const questionCountAfter = await page.locator('[data-testid="question-count"]').textContent();
+        const questionCountAfter = await page
+          .locator('[data-testid="question-count"]')
+          .textContent();
 
         // Progress should be preserved (or page shows completion)
-        const hasProgress = await page.locator('[data-testid="question-count"]').isVisible().catch(() => false);
+        const hasProgress = await page
+          .locator('[data-testid="question-count"]')
+          .isVisible()
+          .catch(() => false);
         if (hasProgress && questionCountBefore && questionCountAfter) {
           // Session state should be maintained
-          expect(parseInt(questionCountAfter.match(/\d+/)?.[0] || '0'))
-            .toBeGreaterThanOrEqual(parseInt(questionCountBefore.match(/\d+/)?.[0] || '0') - 1);
+          expect(parseInt(questionCountAfter.match(/\d+/)?.[0] || '0')).toBeGreaterThanOrEqual(
+            parseInt(questionCountBefore.match(/\d+/)?.[0] || '0') - 1,
+          );
         }
       }
     });
@@ -370,7 +418,7 @@ test.describe('Learning Flow', () => {
   test.describe('Error Handling', () => {
     test('should handle network errors gracefully', async ({ page }) => {
       // Intercept API calls and simulate error
-      await page.route('**/api/learning/**', route => route.abort());
+      await page.route('**/api/learning/**', (route) => route.abort());
 
       await page.goto('/');
 
@@ -385,7 +433,7 @@ test.describe('Learning Flow', () => {
     test('should display error message when loading fails', async ({ page }) => {
       // This test checks that error state is properly displayed
       // Simulate network error
-      await page.route('**/api/study/mastery/words**', route => route.abort());
+      await page.route('**/api/study/mastery/words**', (route) => route.abort());
       await clearLearningSession(page);
 
       await page.goto('/');
@@ -397,12 +445,14 @@ test.describe('Learning Flow', () => {
       const noWordsMessage = page.locator('text=暂无单词');
 
       // One of these should be visible
-      await expect(errorMessage.or(wordCard).or(noWordsMessage).first()).toBeVisible({ timeout: 5000 });
+      await expect(errorMessage.or(wordCard).or(noWordsMessage).first()).toBeVisible({
+        timeout: 5000,
+      });
     });
 
     test('should provide retry option on error', async ({ page }) => {
       // First make API fail
-      await page.route('**/api/study/mastery/words**', route => route.abort());
+      await page.route('**/api/study/mastery/words**', (route) => route.abort());
       await clearLearningSession(page);
 
       await page.goto('/');
@@ -431,7 +481,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer a question
@@ -450,7 +503,10 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
-      const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+      const hasWordCard = await page
+        .locator('[data-testid="word-card"]')
+        .isVisible()
+        .catch(() => false);
 
       if (hasWordCard) {
         // Answer a question to enable AI suggestion
@@ -511,7 +567,10 @@ test.describe('Learning Flow - Multiple Sessions', () => {
     await page.goto('/');
     await waitForLearningPageReady(page);
 
-    const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+    const hasWordCard = await page
+      .locator('[data-testid="word-card"]')
+      .isVisible()
+      .catch(() => false);
 
     if (hasWordCard) {
       // Rapid clicks should be debounced
@@ -530,7 +589,10 @@ test.describe('Learning Flow - Multiple Sessions', () => {
     await page.goto('/');
     await waitForLearningPageReady(page);
 
-    const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
+    const hasWordCard = await page
+      .locator('[data-testid="word-card"]')
+      .isVisible()
+      .catch(() => false);
 
     if (hasWordCard) {
       // Answer 5 questions

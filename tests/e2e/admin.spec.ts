@@ -19,7 +19,7 @@ test.describe('Admin', () => {
       await page.goto('/admin');
       // Wait for page to load
       await page.waitForLoadState('networkidle');
-      
+
       // Should show admin page content
       await expect(page).toHaveURL('/admin');
     });
@@ -27,7 +27,7 @@ test.describe('Admin', () => {
     test('should show admin navigation', async ({ page }) => {
       await page.goto('/admin');
       await page.waitForLoadState('networkidle');
-      
+
       // Admin layout should have navigation links
       const adminLinks = page.locator('a[href^="/admin/"]');
       const count = await adminLinks.count();
@@ -38,7 +38,7 @@ test.describe('Admin', () => {
   test.describe('User Management', () => {
     test('should navigate to users page', async ({ page }) => {
       await page.goto('/admin');
-      
+
       // Click on users link
       const usersLink = page.locator('a[href="/admin/users"]');
       if (await usersLink.isVisible()) {
@@ -51,7 +51,7 @@ test.describe('Admin', () => {
   test.describe('Algorithm Config', () => {
     test('should navigate to algorithm config page', async ({ page }) => {
       await page.goto('/admin');
-      
+
       // Click on algorithm config link
       const configLink = page.locator('a[href="/admin/algorithm-config"]');
       if (await configLink.isVisible()) {

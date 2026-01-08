@@ -492,7 +492,9 @@ test.describe('Learning Flow Integration with React Query', () => {
         .textContent()
         .catch(() => '');
 
-      console.log(`Initial: ${initialProgress}, Updated: ${updatedProgress}, Restored: ${restoredProgress}`);
+      console.log(
+        `Initial: ${initialProgress}, Updated: ${updatedProgress}, Restored: ${restoredProgress}`,
+      );
 
       // 进度应该恢复到更新后的状态
       // 注意：这取决于服务器端的持久化实现

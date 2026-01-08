@@ -8,7 +8,7 @@ const validatePassword = (password: string): string | null => {
   }
   const hasLetter = /[a-zA-Z]/.test(password);
   const hasDigit = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*()_\-+=\[\]{};:'",.<>/?\\|`~]/.test(password);
+  const hasSpecial = /[!@#$%^&*()_\-+=[\]{};:'",.<>/?\\|`~]/.test(password);
   if (!hasLetter || !hasDigit || !hasSpecial) {
     return '密码需包含字母、数字和特殊符号';
   }

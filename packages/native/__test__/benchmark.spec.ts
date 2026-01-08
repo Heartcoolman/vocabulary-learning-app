@@ -37,7 +37,9 @@ describe('Performance Benchmarks', () => {
       const elapsed = performance.now() - start;
 
       const avgMs = elapsed / iterations;
-      console.log(`selectAction: ${avgMs.toFixed(4)}ms avg (${iterations} iterations, ${elapsed.toFixed(2)}ms total)`);
+      console.log(
+        `selectAction: ${avgMs.toFixed(4)}ms avg (${iterations} iterations, ${elapsed.toFixed(2)}ms total)`,
+      );
 
       // 目标: < 0.5ms per call
       expect(avgMs).toBeLessThan(0.5);
@@ -80,7 +82,9 @@ describe('Performance Benchmarks', () => {
       const elapsed = performance.now() - start;
 
       const avgMs = elapsed / iterations;
-      console.log(`update: ${avgMs.toFixed(4)}ms avg (${iterations} iterations, ${elapsed.toFixed(2)}ms total)`);
+      console.log(
+        `update: ${avgMs.toFixed(4)}ms avg (${iterations} iterations, ${elapsed.toFixed(2)}ms total)`,
+      );
 
       // 目标: < 0.5ms per call
       expect(avgMs).toBeLessThan(0.5);
@@ -114,7 +118,7 @@ describe('Performance Benchmarks', () => {
     it('should be faster than individual updates for batch', () => {
       const batchSize = 100;
       const featureVecs = Array.from({ length: batchSize }, () =>
-        Array.from({ length: 22 }, () => Math.random())
+        Array.from({ length: 22 }, () => Math.random()),
       );
       const rewards = Array.from({ length: batchSize }, () => Math.random());
 

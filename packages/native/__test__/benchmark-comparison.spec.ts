@@ -43,7 +43,10 @@ class ACTRMemoryTS {
    * A = ln(sum(w_j * t_j^(-d)))
    * where t_j is the time since last review in seconds
    */
-  computeActivation(traces: { timestamp: number; isCorrect: boolean }[], currentTime: number): number {
+  computeActivation(
+    traces: { timestamp: number; isCorrect: boolean }[],
+    currentTime: number,
+  ): number {
     if (!traces || traces.length === 0) {
       return -Infinity;
     }
@@ -79,7 +82,7 @@ class ACTRMemoryTS {
 
   batchComputeActivations(
     traceSets: { timestamp: number; isCorrect: boolean }[][],
-    currentTime: number
+    currentTime: number,
   ): { activation: number; recallProbability: number }[] {
     return traceSets.map((traces) => {
       const activation = this.computeActivation(traces, currentTime);
@@ -151,8 +154,7 @@ class CausalInferenceTS {
         const pred = this.sigmoid(logit);
 
         const treatment = obs.treatment;
-        loss +=
-          -treatment * Math.log(pred + 1e-10) - (1 - treatment) * Math.log(1 - pred + 1e-10);
+        loss += -treatment * Math.log(pred + 1e-10) - (1 - treatment) * Math.log(1 - pred + 1e-10);
 
         const error = pred - treatment;
         for (let j = 0; j < d; j++) {
@@ -185,9 +187,7 @@ class CausalInferenceTS {
     this.fitted = true;
   }
 
-  private fitLinearRegression(
-    data: { features: number[]; outcome: number }[]
-  ): number[] {
+  private fitLinearRegression(data: { features: number[]; outcome: number }[]): number[] {
     const n = data.length;
     const d = this.featureDim + 1;
 
@@ -213,15 +213,15 @@ class CausalInferenceTS {
   }
 
   predictOutcome(features: number[], treatment: number): number {
-    const weights =
-      treatment === 1 ? this.outcomeWeightsTreatment : this.outcomeWeightsControl;
+    const weights = treatment === 1 ? this.outcomeWeightsTreatment : this.outcomeWeightsControl;
     const featuresWithBias = this.addBias(features);
     return this.dotProduct(featuresWithBias, weights);
   }
 
-  estimateATE(
-    observations: { features: number[]; treatment: number; outcome: number }[]
-  ): { ate: number; standardError: number } {
+  estimateATE(observations: { features: number[]; treatment: number; outcome: number }[]): {
+    ate: number;
+    standardError: number;
+  } {
     if (observations.length === 0 || !this.fitted) {
       return { ate: 0, standardError: 0 };
     }
@@ -255,7 +255,7 @@ class CausalInferenceTS {
 
   bootstrapSE(
     observations: { features: number[]; treatment: number; outcome: number }[],
-    nBootstrap: number
+    nBootstrap: number,
   ): number {
     if (observations.length < 10) return 0;
 
@@ -295,8 +295,7 @@ class CausalInferenceTS {
  */
 class ThompsonSamplingTS {
   private globalParams: Map<string, { alpha: number; beta: number }> = new Map();
-  private contextParams: Map<string, Map<string, { alpha: number; beta: number }>> =
-    new Map();
+  private contextParams: Map<string, Map<string, { alpha: number; beta: number }>> = new Map();
   private priorAlpha = 1.0;
   private priorBeta = 1.0;
 
@@ -424,10 +423,7 @@ class ThompsonSamplingTS {
     return this.globalParams.get(actionKey)!;
   }
 
-  private getContextParams(
-    actionKey: string,
-    contextKey: string
-  ): { alpha: number; beta: number } {
+  private getContextParams(actionKey: string, contextKey: string): { alpha: number; beta: number } {
     const contextMap = this.contextParams.get(actionKey);
     if (!contextMap || !contextMap.has(contextKey)) {
       return { alpha: this.priorAlpha, beta: this.priorBeta };
@@ -485,10 +481,7 @@ const benchmarkResults: BenchmarkResult[] = [];
 
 // ==================== Report Formatting ====================
 
-function formatTable(
-  title: string,
-  results: BenchmarkResult[]
-): string {
+function formatTable(title: string, results: BenchmarkResult[]): string {
   const lines: string[] = [];
   lines.push(`\n${title}:`);
   lines.push('| Operation                  | Rust (ms) | TS (ms)   | Speedup |');
@@ -585,7 +578,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `computeActivation (100 traces, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `computeActivation (100 traces, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         // Just verify the result is reasonable (no strict performance requirement)
@@ -621,7 +614,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `computeActivation (1000 traces, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `computeActivation (1000 traces, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(Number.isFinite(rustActr.computeActivation(traces, currentTime))).toBe(true);
@@ -656,7 +649,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `computeActivation (10000 traces, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `computeActivation (10000 traces, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(Number.isFinite(rustActr.computeActivation(traces, currentTime))).toBe(true);
@@ -696,7 +689,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `retrievalProbability (${iterations * 100} calls): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `retrievalProbability (${iterations * 100} calls): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         // Verify result is in valid range
@@ -744,7 +737,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `batchComputeActivations (${batchSize} sets, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `batchComputeActivations (${batchSize} sets, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -760,7 +753,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         const tsResult = tsActr.computeActivation(traces, currentTime);
 
         console.log(
-          `Numerical comparison: Rust=${rustResult.toFixed(6)}, TS=${tsResult.toFixed(6)}`
+          `Numerical comparison: Rust=${rustResult.toFixed(6)}, TS=${tsResult.toFixed(6)}`,
         );
 
         // Both should be finite numbers
@@ -812,7 +805,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `fitPropensity (500 obs, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `fitPropensity (500 obs, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -848,7 +841,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `fitPropensity (2000 obs, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `fitPropensity (2000 obs, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -891,7 +884,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `estimateATE (500 obs, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `estimateATE (500 obs, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -936,7 +929,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `bootstrapSE (200 obs, ${nBootstrap} bootstraps, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `bootstrapSE (200 obs, ${nBootstrap} bootstraps, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -978,7 +971,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `sampleBeta (${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `sampleBeta (${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         // Verify sample is in valid range
@@ -992,8 +985,15 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         const tsTs = new ThompsonSamplingTS();
 
         const testParams = [
-          [1, 1], [2, 2], [5, 5], [10, 2], [2, 10],
-          [0.5, 0.5], [1, 10], [10, 1], [100, 100],
+          [1, 1],
+          [2, 2],
+          [5, 5],
+          [10, 2],
+          [2, 10],
+          [0.5, 0.5],
+          [1, 10],
+          [10, 1],
+          [100, 100],
         ];
         const iterations = 1000;
 
@@ -1025,7 +1025,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `sampleBeta varied params (${iterations * testParams.length} calls): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `sampleBeta varied params (${iterations * testParams.length} calls): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -1071,7 +1071,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `batchSample (100 actions, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `batchSample (100 actions, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -1115,7 +1115,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `batchSample (1000 actions, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `batchSample (1000 actions, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -1153,7 +1153,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `update (${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `update (${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -1204,7 +1204,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `getExpectedValue (${iterations * actionKeys.length} calls): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `getExpectedValue (${iterations * actionKeys.length} calls): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
@@ -1252,7 +1252,7 @@ describe('Performance Comparison: Rust vs TypeScript', () => {
         });
 
         console.log(
-          `batchSampleWithContext (50 actions, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`
+          `batchSampleWithContext (50 actions, ${iterations} iterations): Rust=${rustTime.toFixed(2)}ms, TS=${tsTime.toFixed(2)}ms, Speedup=${speedup.toFixed(2)}x`,
         );
 
         expect(true).toBe(true);
