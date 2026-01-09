@@ -127,13 +127,39 @@ struct ConstraintViolationResponse {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 struct StrategyResponse {
     interval_scale: f64,
     new_ratio: f64,
     difficulty: String,
     batch_size: i32,
     hint_level: i32,
+}
+
+#[cfg(test)]
+mod strategy_response_tests {
+    use super::StrategyResponse;
+
+    #[test]
+    fn serializes_strategy_fields_as_snake_case() {
+        let strategy = StrategyResponse {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: "mid".to_string(),
+            batch_size: 8,
+            hint_level: 1,
+        };
+
+        let value = serde_json::to_value(strategy).expect("StrategyResponse should serialize");
+        assert!(value.get("interval_scale").is_some());
+        assert!(value.get("new_ratio").is_some());
+        assert!(value.get("batch_size").is_some());
+        assert!(value.get("hint_level").is_some());
+
+        assert!(value.get("intervalScale").is_none());
+        assert!(value.get("newRatio").is_none());
+        assert!(value.get("batchSize").is_none());
+        assert!(value.get("hintLevel").is_none());
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -287,7 +313,7 @@ async fn process_event(
         let now_ms = chrono::Utc::now().timestamp_millis();
         let elapsed_days = ws
             .last_review_date
-            .map(|lr| (now_ms - lr) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
+            .map(|lr| ((now_ms - lr) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).max(0.0))
             .unwrap_or(0.0);
         crate::amas::types::FSRSWordState {
             stability: ws.stability,
@@ -425,34 +451,48 @@ async fn process_event(
             .await;
 
             // Update learning session statistics (only on successful record creation)
+            // Use transaction to ensure atomic updates
             if !session_id.is_empty() {
-                let _ = sqlx::query(
-                    r#"UPDATE "learning_sessions"
-                       SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1
-                       WHERE "id" = $2 AND "userId" = $3"#,
-                )
-                .bind(chrono::Utc::now().naive_utc())
-                .bind(&session_id)
-                .bind(&user.id)
-                .execute(proxy.pool())
+                let update_result: Result<(), sqlx::Error> = async {
+                    let mut tx = proxy.pool().begin().await?;
+                    let now = chrono::Utc::now().naive_utc();
+
+                    sqlx::query(
+                        r#"UPDATE "learning_sessions"
+                           SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1
+                           WHERE "id" = $2 AND "userId" = $3"#,
+                    )
+                    .bind(now)
+                    .bind(&session_id)
+                    .bind(&user.id)
+                    .execute(&mut *tx)
+                    .await?;
+
+                    if let Some(ref mastery) = result.word_mastery_decision {
+                        const MASTERY_THRESHOLD: f64 = 0.6;
+                        if mastery.new_mastery >= MASTERY_THRESHOLD
+                            && mastery.prev_mastery < MASTERY_THRESHOLD
+                        {
+                            sqlx::query(
+                                r#"UPDATE "learning_sessions"
+                                   SET "actualMasteryCount" = "actualMasteryCount" + 1, "updatedAt" = $1
+                                   WHERE "id" = $2 AND "userId" = $3"#,
+                            )
+                            .bind(now)
+                            .bind(&session_id)
+                            .bind(&user.id)
+                            .execute(&mut *tx)
+                            .await?;
+                        }
+                    }
+
+                    tx.commit().await?;
+                    Ok(())
+                }
                 .await;
 
-                if let Some(ref mastery) = result.word_mastery_decision {
-                    const MASTERY_THRESHOLD: f64 = 0.6;
-                    if mastery.new_mastery >= MASTERY_THRESHOLD
-                        && mastery.prev_mastery < MASTERY_THRESHOLD
-                    {
-                        let _ = sqlx::query(
-                            r#"UPDATE "learning_sessions"
-                               SET "actualMasteryCount" = "actualMasteryCount" + 1, "updatedAt" = $1
-                               WHERE "id" = $2 AND "userId" = $3"#,
-                        )
-                        .bind(chrono::Utc::now().naive_utc())
-                        .bind(&session_id)
-                        .bind(&user.id)
-                        .execute(proxy.pool())
-                        .await;
-                    }
+                if let Err(e) = update_result {
+                    tracing::warn!(error = %e, "Failed to update learning session stats");
                 }
             }
         }
@@ -1666,84 +1706,9 @@ async fn reset_user(
 }
 
 async fn reset_user_state(proxy: &crate::db::DatabaseProxy, user_id: &str) -> Result<(), AppError> {
-    let now = Utc::now().naive_utc();
-    let now_ms = Utc::now().timestamp_millis();
-
-    let state_id = Uuid::new_v4().to_string();
-    let default_cognitive = serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 });
-
-    let model_id = Uuid::new_v4().to_string();
-    let default_model = serde_json::json!({});
-
-    let pool = proxy.pool();
-
-    sqlx::query(
-        r#"
-        INSERT INTO "amas_user_states" (
-            "id",
-            "userId",
-            "attention",
-            "fatigue",
-            "motivation",
-            "confidence",
-            "cognitiveProfile",
-            "habitProfile",
-            "trendState",
-            "coldStartState",
-            "lastUpdateTs",
-            "updatedAt"
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-        ON CONFLICT ("userId") DO UPDATE SET
-            "attention" = EXCLUDED."attention",
-            "fatigue" = EXCLUDED."fatigue",
-            "motivation" = EXCLUDED."motivation",
-            "confidence" = EXCLUDED."confidence",
-            "cognitiveProfile" = EXCLUDED."cognitiveProfile",
-            "habitProfile" = EXCLUDED."habitProfile",
-            "trendState" = EXCLUDED."trendState",
-            "coldStartState" = EXCLUDED."coldStartState",
-            "lastUpdateTs" = EXCLUDED."lastUpdateTs",
-            "updatedAt" = EXCLUDED."updatedAt"
-        "#,
-    )
-    .bind(state_id)
-    .bind(user_id)
-    .bind(0.7f64)
-    .bind(0.0f64)
-    .bind(0.5f64)
-    .bind(0.5f64)
-    .bind(default_cognitive.clone())
-    .bind(Option::<serde_json::Value>::None)
-    .bind(Option::<String>::None)
-    .bind(Option::<serde_json::Value>::None)
-    .bind(now_ms)
-    .bind(now)
-    .execute(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-
-    sqlx::query(
-        r#"
-        INSERT INTO "amas_user_models" (
-            "id",
-            "userId",
-            "modelData",
-            "updatedAt"
-        )
-        VALUES ($1,$2,$3,$4)
-        ON CONFLICT ("userId") DO UPDATE SET
-            "modelData" = EXCLUDED."modelData",
-            "updatedAt" = EXCLUDED."updatedAt"
-        "#,
-    )
-    .bind(model_id)
-    .bind(user_id)
-    .bind(default_model)
-    .bind(now)
-    .execute(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
+    crate::services::amas::reset_user(proxy, user_id)
+        .await
+        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
     Ok(())
 }

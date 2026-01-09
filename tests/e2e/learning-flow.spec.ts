@@ -28,6 +28,7 @@ async function login(page: Page) {
 // Helper function to clear localStorage session data
 async function clearLearningSession(page: Page) {
   await page.evaluate(() => {
+    localStorage.removeItem('mastery_session_cache');
     localStorage.removeItem('mastery_learning_session');
   });
 }
@@ -433,7 +434,7 @@ test.describe('Learning Flow', () => {
     test('should display error message when loading fails', async ({ page }) => {
       // This test checks that error state is properly displayed
       // Simulate network error
-      await page.route('**/api/study/mastery/words**', (route) => route.abort());
+      await page.route('**/api/learning/study-words**', (route) => route.abort());
       await clearLearningSession(page);
 
       await page.goto('/');
@@ -452,7 +453,7 @@ test.describe('Learning Flow', () => {
 
     test('should provide retry option on error', async ({ page }) => {
       // First make API fail
-      await page.route('**/api/study/mastery/words**', (route) => route.abort());
+      await page.route('**/api/learning/study-words**', (route) => route.abort());
       await clearLearningSession(page);
 
       await page.goto('/');
@@ -464,7 +465,7 @@ test.describe('Learning Flow', () => {
 
       if (isErrorState) {
         // Remove the route blocking
-        await page.unroute('**/api/study/mastery/words**');
+        await page.unroute('**/api/learning/study-words**');
 
         // Click retry
         await retryButton.click();

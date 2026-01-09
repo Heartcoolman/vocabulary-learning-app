@@ -221,7 +221,14 @@ pub async fn today_words(State(state): State<AppState>, req: Request<Body>) -> R
         }
     };
 
-    match study_config::get_today_words(proxy.as_ref(), &auth_user.id).await {
+    let amas_engine = state.amas_engine();
+    match study_config::get_today_words(
+        proxy.as_ref(),
+        &auth_user.id,
+        Some(amas_engine.as_ref()),
+    )
+    .await
+    {
         Ok(result) => Json(SuccessResponse {
             success: true,
             data: result,

@@ -479,7 +479,7 @@ test.describe('Review Flow - Error Handling', () => {
   });
 
   test('should display error message when loading fails', async ({ page }) => {
-    await page.route('**/api/study/**', (route) => route.abort());
+    await page.route('**/api/learning/study-words**', (route) => route.abort());
     await clearLearningSession(page);
 
     await page.goto('/');

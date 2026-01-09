@@ -198,7 +198,7 @@ async fn process_batch(
 }
 
 fn calculate_retention(state: &LearningState, now: chrono::DateTime<Utc>) -> f64 {
-    let elapsed_secs = (now - state.last_review_date).num_seconds() as f64;
+    let elapsed_secs = (now - state.last_review_date).num_seconds().max(0) as f64;
     let half_life_secs = state.half_life;
 
     if half_life_secs <= 0.0 {
@@ -223,9 +223,10 @@ async fn upsert_forgetting_alert(
     let now = Utc::now();
     let id = uuid::Uuid::new_v4().to_string();
 
+    let safe_retention = retention.clamp(0.0001, 0.9999);
     let predicted_forget_at = now
         + chrono::Duration::seconds(
-            (state.half_life * (1.0 - retention).ln().abs() / 0.693147) as i64,
+            (state.half_life * (1.0 - safe_retention).ln().abs() / 0.693147) as i64,
         );
 
     let result = sqlx::query(

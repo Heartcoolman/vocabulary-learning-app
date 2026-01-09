@@ -110,6 +110,7 @@ class LearningService {
         isCorrect,
         responseTime,
         dwellTime,
+        sessionId: this.currentSession?.id,
       });
 
       if (this.currentSession) {

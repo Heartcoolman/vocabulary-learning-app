@@ -14,8 +14,8 @@ use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
 use crate::db::DatabaseProxy;
 use crate::services::fsrs::{
-    compute_fsrs_mastery_score, fsrs_next_interval, fsrs_next_interval_with_root,
-    fsrs_retrievability, FSRSParams, FSRSState, Rating,
+    compute_fsrs_mastery_score, fsrs_next_interval_with_root, fsrs_retrievability, FSRSParams,
+    FSRSState, Rating,
 };
 
 struct UserModels {
@@ -349,16 +349,28 @@ impl AMASEngine {
     }
 
     pub async fn get_user_state(&self, user_id: &str) -> Option<UserState> {
-        let states = self.user_states.read().await;
-        states.get(user_id).map(|s| s.user_state.clone())
+        {
+            let states = self.user_states.read().await;
+            if let Some(state) = states.get(user_id) {
+                return Some(state.user_state.clone());
+            }
+        }
+        if self.persistence.is_some() {
+            let state = self.load_or_init_state(user_id).await;
+            return Some(state.user_state);
+        }
+        None
     }
 
     pub async fn get_current_strategy(&self, user_id: &str) -> StrategyParams {
-        let states = self.user_states.read().await;
-        states
-            .get(user_id)
-            .map(|s| s.current_strategy.clone())
-            .unwrap_or_default()
+        {
+            let states = self.user_states.read().await;
+            if let Some(state) = states.get(user_id) {
+                return state.current_strategy.clone();
+            }
+        }
+        let state = self.load_or_init_state(user_id).await;
+        state.current_strategy
     }
 
     pub async fn invalidate_cache(&self, user_id: &str) {

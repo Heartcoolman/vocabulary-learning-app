@@ -24,6 +24,7 @@ async function login(page: Page) {
 // Helper function to clear localStorage session data
 async function clearLearningSession(page: Page) {
   await page.evaluate(() => {
+    localStorage.removeItem('mastery_session_cache');
     localStorage.removeItem('mastery_learning_session');
   });
 }
@@ -87,9 +88,7 @@ test.describe('AMAS Decision Chain', () => {
         await page.waitForTimeout(1000);
 
         // Should have made learning-related API call
-        const hasLearningCall = apiCalls.some(
-          (url) => url.includes('learning') || url.includes('amas') || url.includes('study'),
-        );
+        const hasLearningCall = apiCalls.some((url) => url.includes('/api/amas/process'));
         expect(hasLearningCall).toBeTruthy();
       }
     });
@@ -303,7 +302,7 @@ test.describe('AMAS Decision Chain', () => {
       // Monitor API request bodies
       let capturedResponseTime = 0;
       page.on('request', async (request) => {
-        if (request.method() === 'POST' && request.url().includes('learning')) {
+        if (request.method() === 'POST' && request.url().includes('/api/amas/process')) {
           try {
             const postData = request.postData();
             if (postData) {
@@ -332,8 +331,7 @@ test.describe('AMAS Decision Chain', () => {
         await page.locator('[data-testid="option-0"]').click();
         await page.waitForTimeout(1000);
 
-        // Response time should have been captured (if API was called)
-        // Note: Response time tracking happens client-side
+        expect(capturedResponseTime).toBeGreaterThan(0);
         expect(page).toHaveURL('/');
       }
     });

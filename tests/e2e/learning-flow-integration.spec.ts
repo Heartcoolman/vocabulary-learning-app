@@ -28,11 +28,23 @@ async function clearLearningData(page: Page) {
   await page.evaluate(() => {
     // 清除学习会话数据
     localStorage.removeItem('mastery_learning_session');
+    localStorage.removeItem('mastery_session_cache');
     localStorage.removeItem('learning_session_state');
     localStorage.removeItem('current_word_index');
     // 清除 React Query 缓存
     sessionStorage.clear();
   });
+}
+
+function parseFirstInt(text: string | null): number | null {
+  if (!text) return null;
+  const match = text.match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+async function getQuestionCount(page: Page): Promise<number | null> {
+  const text = await page.locator('[data-testid="question-count"]').textContent().catch(() => null);
+  return parseFirstInt(text);
 }
 
 async function waitForPageReady(page: Page) {
@@ -63,7 +75,10 @@ test.describe('Learning Flow Integration with React Query', () => {
       // 3. 检查是否有单词卡片
       const wordCard = page.locator('[data-testid="word-card"]');
       const noWordsMessage = page.locator('text=暂无单词');
-      const completedMessage = page.locator('text=目标达成');
+      const completedMessage = page
+        .locator('text=掌握目标达成')
+        .or(page.locator('text=今日学习结束'))
+        .or(page.locator('text=没有可学习的单词'));
 
       const hasWords = await wordCard.isVisible().catch(() => false);
 
@@ -81,55 +96,27 @@ test.describe('Learning Flow Integration with React Query', () => {
       await expect(progressBar).toBeVisible();
 
       // 6. 获取初始进度值
-      const initialProgress = await page
-        .locator('[data-testid="progress-text"]')
-        .textContent()
-        .catch(() => '0/0');
+      const initialQuestions = (await getQuestionCount(page)) ?? 0;
 
       // 7. 选择答案（选择第一个选项）
-      const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+      const firstOption = page.locator('[data-testid^="option-"]').first();
       await expect(firstOption).toBeVisible();
       await firstOption.click();
 
       // 8. 等待反馈显示（乐观更新应该立即显示）
-      await page.waitForTimeout(300);
+      const visualFeedback = page
+        .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+        .first();
+      await expect(visualFeedback).toBeVisible({ timeout: 1000 });
 
-      // 9. 验证答案反馈
-      const feedback = page.locator('[data-testid="answer-feedback"]');
-      const hasFeedback = await feedback.isVisible().catch(() => false);
-
-      if (hasFeedback) {
-        // 应该显示正确或错误的反馈
-        const feedbackText = await feedback.textContent();
-        expect(feedbackText).toBeTruthy();
-      }
-
-      // 10. 继续下一个单词或完成
-      const nextButton = page.locator('button:has-text("继续")');
-      const completeButton = page.locator('button:has-text("完成")');
-
-      const hasNextButton = await nextButton.isVisible().catch(() => false);
-      const hasCompleteButton = await completeButton.isVisible().catch(() => false);
-
-      if (hasNextButton) {
-        await nextButton.click();
-        // 应该显示下一个单词或完成页面
-        await page.waitForTimeout(500);
-      } else if (hasCompleteButton) {
-        await completeButton.click();
-        // 应该跳转到完成页面或返回首页
-        await page.waitForTimeout(500);
-      }
+      // 10. 等待自动进入下一题或完成
+      await page.waitForTimeout(2300);
 
       // 11. 验证进度已更新（如果还有单词）
       const hasNewWordCard = await wordCard.isVisible().catch(() => false);
       if (hasNewWordCard) {
-        const newProgress = await page
-          .locator('[data-testid="progress-text"]')
-          .textContent()
-          .catch(() => '0/0');
-        // 进度应该有变化（除非是回顾模式）
-        console.log(`Initial: ${initialProgress}, New: ${newProgress}`);
+        const newQuestions = (await getQuestionCount(page)) ?? initialQuestions;
+        console.log(`Initial questions: ${initialQuestions}, New questions: ${newQuestions}`);
       }
     });
 
@@ -156,34 +143,18 @@ test.describe('Learning Flow Integration with React Query', () => {
         }
 
         // 选择第一个答案
-        const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+        const firstOption = page.locator('[data-testid^="option-"]').first();
         await expect(firstOption).toBeVisible();
         await firstOption.click();
 
-        // 等待处理
-        await page.waitForTimeout(500);
-
-        // 点击继续按钮
-        const nextButton = page.locator('button:has-text("继续")');
-        const completeButton = page.locator('button:has-text("完成")');
-
-        const hasNextButton = await nextButton.isVisible().catch(() => false);
-        const hasCompleteButton = await completeButton.isVisible().catch(() => false);
-
-        if (hasNextButton) {
-          await nextButton.click();
-          await page.waitForTimeout(300);
-        } else if (hasCompleteButton) {
-          await completeButton.click();
-          break;
-        } else {
-          // 可能已经到达最后一个单词
-          break;
-        }
+        // 等待自动进入下一题（或完成/无更多单词）
+        await page.waitForTimeout(2300);
       }
 
       // 验证完成后的状态
-      const completedMessage = page.locator('text=目标达成');
+      const completedMessage = page
+        .locator('text=掌握目标达成')
+        .or(page.locator('text=今日学习结束'));
       const newWordCard = page.locator('[data-testid="word-card"]');
 
       const isCompleted = await completedMessage.isVisible().catch(() => false);
@@ -246,10 +217,7 @@ test.describe('Learning Flow Integration with React Query', () => {
       }
 
       // 记录当前状态
-      const progressBefore = await page
-        .locator('[data-testid="progress-text"]')
-        .textContent()
-        .catch(() => '');
+      const questionsBefore = await getQuestionCount(page);
 
       // 导航到其他页面
       const statsLink = page.locator('a[href*="/statistics"]').first();
@@ -265,13 +233,10 @@ test.describe('Learning Flow Integration with React Query', () => {
         await waitForPageReady(page);
 
         // 验证状态保持
-        const progressAfter = await page
-          .locator('[data-testid="progress-text"]')
-          .textContent()
-          .catch(() => '');
+        const questionsAfter = await getQuestionCount(page);
 
         // 进度应该保持不变（除非数据已过期）
-        console.log(`Progress before: ${progressBefore}, after: ${progressAfter}`);
+        console.log(`Questions before: ${questionsBefore}, after: ${questionsAfter}`);
       }
     });
   });
@@ -294,14 +259,16 @@ test.describe('Learning Flow Integration with React Query', () => {
       const startTime = Date.now();
 
       // 点击答案
-      const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+      const firstOption = page.locator('[data-testid^="option-"]').first();
       await firstOption.click();
 
       // 立即检查反馈（不等待网络请求）
-      const feedback = page.locator('[data-testid="answer-feedback"]');
+      const visualFeedback = page
+        .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+        .first();
 
       // 反馈应该在很短的时间内显示（乐观更新）
-      await expect(feedback).toBeVisible({ timeout: 1000 });
+      await expect(visualFeedback).toBeVisible({ timeout: 1000 });
 
       const responseTime = Date.now() - startTime;
 
@@ -331,12 +298,14 @@ test.describe('Learning Flow Integration with React Query', () => {
       const startTime = Date.now();
 
       // 点击答案
-      const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+      const firstOption = page.locator('[data-testid^="option-"]').first();
       await firstOption.click();
 
       // 即使网络慢，反馈也应该快速显示（乐观更新）
-      const feedback = page.locator('[data-testid="answer-feedback"]');
-      await expect(feedback).toBeVisible({ timeout: 1000 });
+      const visualFeedback = page
+        .locator('[data-testid^="option-"].bg-green-500, [data-testid^="option-"].bg-red-500')
+        .first();
+      await expect(visualFeedback).toBeVisible({ timeout: 1000 });
 
       const responseTime = Date.now() - startTime;
 
@@ -436,13 +405,13 @@ test.describe('Learning Flow Integration with React Query', () => {
       }
 
       // 答题
-      const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+      const firstOption = page.locator('[data-testid^="option-"]').first();
       await firstOption.click();
       await page.waitForTimeout(500);
 
       // 检查本地存储
       const hasSession = await page.evaluate(() => {
-        return localStorage.getItem('mastery_learning_session') !== null;
+        return localStorage.getItem('mastery_session_cache') !== null;
       });
 
       // 应该保存了会话数据
@@ -461,21 +430,15 @@ test.describe('Learning Flow Integration with React Query', () => {
       }
 
       // 获取初始进度
-      const initialProgress = await page
-        .locator('[data-testid="progress-text"]')
-        .textContent()
-        .catch(() => '');
+      const initialProgress = await getQuestionCount(page);
 
       // 答题
-      const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+      const firstOption = page.locator('[data-testid^="option-"]').first();
       await firstOption.click();
       await page.waitForTimeout(500);
 
       // 获取更新后的进度
-      const updatedProgress = await page
-        .locator('[data-testid="progress-text"]')
-        .textContent()
-        .catch(() => '');
+      const updatedProgress = await getQuestionCount(page);
 
       // 关闭并重新打开页面
       await page.close();
@@ -487,10 +450,7 @@ test.describe('Learning Flow Integration with React Query', () => {
       await waitForPageReady(newPage);
 
       // 获取恢复后的进度
-      const restoredProgress = await newPage
-        .locator('[data-testid="progress-text"]')
-        .textContent()
-        .catch(() => '');
+      const restoredProgress = await getQuestionCount(newPage);
 
       console.log(
         `Initial: ${initialProgress}, Updated: ${updatedProgress}, Restored: ${restoredProgress}`,
@@ -525,7 +485,7 @@ test.describe('Learning Flow Integration with React Query', () => {
         const initialStatus = await amasStatus.textContent();
 
         // 答题
-        const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+        const firstOption = page.locator('[data-testid^="option-"]').first();
         await firstOption.click();
         await page.waitForTimeout(1000);
 
@@ -551,7 +511,7 @@ test.describe('Learning Flow Integration with React Query', () => {
           break;
         }
 
-        const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+        const firstOption = page.locator('[data-testid^="option-"]').first();
         const hasOption = await firstOption.isVisible().catch(() => false);
 
         if (!hasOption) {
@@ -559,7 +519,7 @@ test.describe('Learning Flow Integration with React Query', () => {
         }
 
         await firstOption.click();
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(2300);
 
         // 检查是否显示休息建议
         const breakSuggestion = page.locator('text=建议休息');
@@ -570,16 +530,7 @@ test.describe('Learning Flow Integration with React Query', () => {
           break;
         }
 
-        // 继续下一个
-        const nextButton = page.locator('button:has-text("继续")');
-        const hasNextButton = await nextButton.isVisible().catch(() => false);
-
-        if (hasNextButton) {
-          await nextButton.click();
-          await page.waitForTimeout(300);
-        } else {
-          break;
-        }
+        // 继续下一题：当前页面使用自动切换
       }
     });
   });
@@ -615,7 +566,7 @@ test.describe('Learning Flow Integration with React Query', () => {
       // 测试点击响应时间
       const startTime = Date.now();
 
-      const firstOption = page.locator('[data-testid^="answer-option-"]').first();
+      const firstOption = page.locator('[data-testid^="option-"]').first();
       await firstOption.click();
 
       // 等待任何视觉反馈

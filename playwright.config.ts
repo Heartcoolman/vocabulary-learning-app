@@ -85,13 +85,14 @@ export default defineConfig({
         `NODE_ENV=test PORT=${BACKEND_PORT} ` +
         `CORS_ORIGIN="${FRONTEND_ORIGIN}" ` +
         `HEALTHCHECK_ENDPOINT="${HEALTHCHECK_ENDPOINT}" ` +
-        'pnpm --filter @danci/backend dev',
+        'pnpm dev:backend',
       url: BACKEND_READY_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
     {
-      command: `VITE_API_URL="${BACKEND_ORIGIN}" pnpm --filter @danci/frontend dev -- --port ${FRONTEND_PORT}`,
+      // Use same-origin `/api` via Vite proxy during E2E to avoid CORS/cookie issues.
+      command: `VITE_API_URL="" pnpm --filter @danci/frontend dev -- --port ${FRONTEND_PORT}`,
       url: FRONTEND_ORIGIN,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,

@@ -4,11 +4,35 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Row};
 
+use crate::amas::types::StrategyParams as AmasStrategyParams;
+use crate::amas::AMASEngine;
+use crate::db::operations::get_amas_user_model;
 use crate::db::DatabaseProxy;
 use crate::services::amas::{
     compute_new_word_difficulty, map_difficulty_level, DifficultyRange, StrategyParams,
 };
 use crate::services::study_config::get_or_create_user_study_config;
+
+fn convert_amas_strategy(s: AmasStrategyParams) -> StrategyParams {
+    StrategyParams {
+        interval_scale: s.interval_scale,
+        new_ratio: s.new_ratio,
+        difficulty: s.difficulty.as_str().to_string(),
+        batch_size: s.batch_size,
+        hint_level: s.hint_level,
+    }
+}
+
+fn clamp_batch_size(value: i64) -> usize {
+    value.max(1).min(20) as usize
+}
+
+fn effective_batch_size(requested: Option<i64>, strategy: &StrategyParams) -> usize {
+    match requested {
+        Some(count) => clamp_batch_size(count),
+        None => clamp_batch_size(strategy.batch_size as i64),
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -145,6 +169,7 @@ pub async fn get_words_for_mastery_mode(
     proxy: &DatabaseProxy,
     user_id: &str,
     target_count: Option<i64>,
+    amas_engine: Option<&AMASEngine>,
 ) -> Result<MasteryStudyWordsResponse, sqlx::Error> {
     let config = get_or_create_user_study_config(proxy, user_id).await?;
     tracing::info!(
@@ -159,8 +184,18 @@ pub async fn get_words_for_mastery_mode(
         .or(Some(config.daily_word_count))
         .unwrap_or(20);
 
-    let strategy = StrategyParams::default_strategy();
-    let words = fetch_words_with_strategy(proxy, user_id, 5, &strategy, &[]).await?;
+    let strategy = match amas_engine {
+        Some(engine) => convert_amas_strategy(engine.get_current_strategy(user_id).await),
+        None => load_user_strategy(proxy, user_id).await,
+    };
+    tracing::info!(
+        user_id = %user_id,
+        strategy = ?strategy,
+        "get_words_for_mastery_mode: using AMAS strategy"
+    );
+    let fetch_count = effective_batch_size(None, &strategy)
+        .min(usize::try_from(target.max(1)).unwrap_or(20));
+    let words = fetch_words_with_strategy(proxy, user_id, fetch_count, &strategy, &[]).await?;
 
     tracing::info!(
         user_id = %user_id,
@@ -185,9 +220,19 @@ pub async fn get_next_words(
     proxy: &DatabaseProxy,
     user_id: &str,
     input: GetNextWordsInput,
+    amas_engine: Option<&AMASEngine>,
 ) -> Result<NextWordsResponse, sqlx::Error> {
-    let batch_size = input.count.unwrap_or(3).max(1).min(20) as usize;
-    let strategy = StrategyParams::default_strategy();
+    let strategy = match amas_engine {
+        Some(engine) => convert_amas_strategy(engine.get_current_strategy(user_id).await),
+        None => load_user_strategy(proxy, user_id).await,
+    };
+    let batch_size = effective_batch_size(input.count, &strategy);
+    tracing::info!(
+        user_id = %user_id,
+        strategy = ?strategy,
+        batch_size = batch_size,
+        "get_next_words: using AMAS strategy"
+    );
 
     let mut exclude: HashSet<String> = HashSet::new();
     for id in input
@@ -317,7 +362,9 @@ pub async fn sync_session_progress(
     sqlx::query(
         r#"
         UPDATE "learning_sessions"
-        SET "actualMasteryCount" = $1, "totalQuestions" = $2, "updatedAt" = $3
+        SET "actualMasteryCount" = GREATEST(COALESCE("actualMasteryCount", 0), $1),
+            "totalQuestions" = GREATEST(COALESCE("totalQuestions", 0), $2),
+            "updatedAt" = $3
         WHERE "id" = $4 AND "userId" = $5
         "#,
     )
@@ -455,11 +502,21 @@ async fn fetch_words_with_strategy(
 
     let difficulty_range = map_difficulty_level(&strategy.difficulty);
 
-    // 复习词按优先级排序，不按难度过滤（用户需要复习已学过的单词，无论难度）
+    // 复习词按难度偏好+优先级排序（优先选择符合策略难度的词，但不硬性过滤）
     due_words.sort_by(|a, b| {
-        b.priority
-            .partial_cmp(&a.priority)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        let a_in_range =
+            a.difficulty >= difficulty_range.min && a.difficulty <= difficulty_range.max;
+        let b_in_range =
+            b.difficulty >= difficulty_range.min && b.difficulty <= difficulty_range.max;
+
+        match (a_in_range, b_in_range) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => b
+                .priority
+                .partial_cmp(&a.priority)
+                .unwrap_or(std::cmp::Ordering::Equal),
+        }
     });
 
     let review_count = ((count as f64) * (1.0 - strategy.new_ratio)).ceil() as usize;
@@ -900,6 +957,73 @@ fn explain_word_selection(strategy: &StrategyParams, words: &[LearningWord]) -> 
         format!("状态良好，推送{new_count}个新词和{review_count}个复习词")
     } else {
         format!("推送{review_count}个复习词和{new_count}个新词，难度{difficulty_text}")
+    }
+}
+
+pub async fn load_user_strategy(proxy: &DatabaseProxy, user_id: &str) -> StrategyParams {
+    match get_amas_user_model(proxy, user_id, "strategy").await {
+        Ok(Some(model)) => {
+            serde_json::from_value(model.parameters).unwrap_or_else(|_| {
+                tracing::debug!(user_id = %user_id, "AMAS strategy parse failed, using default");
+                StrategyParams::default_strategy()
+            })
+        }
+        Ok(None) => {
+            tracing::info!(user_id = %user_id, "No AMAS strategy found, using default");
+            StrategyParams::default_strategy()
+        }
+        Err(e) => {
+            tracing::warn!(user_id = %user_id, error = %e, "Failed to load AMAS strategy, using default");
+            StrategyParams::default_strategy()
+        }
+    }
+}
+
+#[cfg(test)]
+mod batch_size_tests {
+    use super::{effective_batch_size, StrategyParams};
+
+    fn make_strategy(batch_size: i32) -> StrategyParams {
+        StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: "mid".to_string(),
+            batch_size,
+            hint_level: 1,
+        }
+    }
+
+    #[test]
+    fn uses_requested_count_when_provided() {
+        let strategy = make_strategy(8);
+        assert_eq!(effective_batch_size(Some(5), &strategy), 5);
+    }
+
+    #[test]
+    fn clamps_requested_count_to_range() {
+        let strategy = make_strategy(8);
+        assert_eq!(effective_batch_size(Some(-5), &strategy), 1);
+        assert_eq!(effective_batch_size(Some(0), &strategy), 1);
+        assert_eq!(effective_batch_size(Some(1), &strategy), 1);
+        assert_eq!(effective_batch_size(Some(20), &strategy), 20);
+        assert_eq!(effective_batch_size(Some(21), &strategy), 20);
+        assert_eq!(effective_batch_size(Some(100), &strategy), 20);
+    }
+
+    #[test]
+    fn defaults_to_strategy_batch_size_when_missing() {
+        let strategy = make_strategy(9);
+        assert_eq!(effective_batch_size(None, &strategy), 9);
+    }
+
+    #[test]
+    fn clamps_strategy_batch_size_to_range() {
+        assert_eq!(effective_batch_size(None, &make_strategy(-3)), 1);
+        assert_eq!(effective_batch_size(None, &make_strategy(0)), 1);
+        assert_eq!(effective_batch_size(None, &make_strategy(1)), 1);
+        assert_eq!(effective_batch_size(None, &make_strategy(20)), 20);
+        assert_eq!(effective_batch_size(None, &make_strategy(21)), 20);
+        assert_eq!(effective_batch_size(None, &make_strategy(999)), 20);
     }
 }
 

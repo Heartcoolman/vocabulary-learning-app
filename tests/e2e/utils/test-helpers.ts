@@ -79,6 +79,9 @@ export async function logout(page: Page) {
  */
 export async function clearLearningSession(page: Page) {
   await page.evaluate(() => {
+    // Current key used by `useSessionCache` (frontend)
+    localStorage.removeItem('mastery_session_cache');
+    // Backward compatibility (older key used by some tests/versions)
     localStorage.removeItem('mastery_learning_session');
   });
 }

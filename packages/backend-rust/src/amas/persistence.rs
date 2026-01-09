@@ -152,18 +152,7 @@ impl AMASPersistence {
                 .map_err(|e| e.to_string())?;
         }
 
-        let strategy_model = AmasUserModel {
-            id: format!("{}:strategy", state.user_id),
-            user_id: state.user_id.clone(),
-            model_type: "strategy".to_string(),
-            parameters: serde_json::to_value(&state.current_strategy).unwrap_or_default(),
-            version: 1,
-            created_at: chrono::Utc::now().to_rfc3339(),
-            updated_at: chrono::Utc::now().to_rfc3339(),
-        };
-        insert_amas_user_model(&self.db_proxy, &strategy_model)
-            .await
-            .map_err(|e| e.to_string())?;
+        self.save_strategy_snapshot(state).await?;
 
         let count_model = AmasUserModel {
             id: format!("{}:interaction_count", state.user_id),
@@ -179,6 +168,38 @@ impl AMASPersistence {
             .map_err(|e| e.to_string())?;
 
         Ok(())
+    }
+
+    async fn save_strategy_snapshot(&self, state: &PersistedAMASState) -> Result<(), String> {
+        let new_parameters = serde_json::to_value(&state.current_strategy).unwrap_or_default();
+        let previous = get_amas_user_model(&self.db_proxy, &state.user_id, "strategy")
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if let Some(ref previous) = previous {
+            if previous.parameters == new_parameters {
+                return Ok(());
+            }
+        }
+
+        let next_version = previous
+            .as_ref()
+            .map(|m| m.version.max(0).saturating_add(1))
+            .unwrap_or(1);
+
+        let strategy_model = AmasUserModel {
+            id: format!("{}:strategy:{}", state.user_id, next_version),
+            user_id: state.user_id.clone(),
+            model_type: "strategy".to_string(),
+            parameters: new_parameters,
+            version: next_version,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        insert_amas_user_model(&self.db_proxy, &strategy_model)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     fn row_to_user_state(&self, row: &AmasUserState) -> UserState {

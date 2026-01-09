@@ -147,8 +147,14 @@ async fn study_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Res
         }
     };
 
-    match mastery_learning::get_words_for_mastery_mode(proxy.as_ref(), &auth_user.id, target_count)
-        .await
+    let amas_engine = state.amas_engine();
+    match mastery_learning::get_words_for_mastery_mode(
+        proxy.as_ref(),
+        &auth_user.id,
+        target_count,
+        Some(amas_engine.as_ref()),
+    )
+    .await
     {
         Ok(result) => Json(SuccessResponse {
             success: true,
@@ -252,7 +258,15 @@ async fn next_words_inner(state: AppState, req: Request<Body>, v1: bool) -> Resp
         count: payload.count,
     };
 
-    match mastery_learning::get_next_words(proxy.as_ref(), &auth_user.id, input).await {
+    let amas_engine = state.amas_engine();
+    match mastery_learning::get_next_words(
+        proxy.as_ref(),
+        &auth_user.id,
+        input,
+        Some(amas_engine.as_ref()),
+    )
+    .await
+    {
         Ok(result) => Json(SuccessResponse {
             success: true,
             data: result,

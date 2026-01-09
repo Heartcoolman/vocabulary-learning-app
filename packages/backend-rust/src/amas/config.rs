@@ -177,8 +177,8 @@ pub struct ColdStartConfig {
 impl Default for ColdStartConfig {
     fn default() -> Self {
         Self {
-            classify_samples: 5,
-            explore_samples: 10,
+            classify_samples: 3,
+            explore_samples: 5,
             probe_sequence: vec![0, 1, 2, 0, 1, 2],
         }
     }

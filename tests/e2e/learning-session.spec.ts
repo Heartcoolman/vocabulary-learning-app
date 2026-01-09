@@ -21,6 +21,7 @@ async function login(page: Page) {
 // Helper function to clear localStorage session data
 async function clearLearningSession(page: Page) {
   await page.evaluate(() => {
+    localStorage.removeItem('mastery_session_cache');
     localStorage.removeItem('mastery_learning_session');
   });
 }
@@ -147,6 +148,7 @@ test.describe('Learning Session', () => {
 
       // Clear session storage
       await page.evaluate(() => {
+        localStorage.removeItem('mastery_session_cache');
         localStorage.removeItem('mastery_learning_session');
       });
 

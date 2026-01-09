@@ -1,6 +1,9 @@
 import { apiLogger } from '../../../utils/logger';
 import { STORAGE_KEYS } from '../../../constants/storageKeys';
 
+const CSRF_COOKIE_NAME = 'csrf_token';
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
+
 /**
  * JWT解码后的payload结构
  */
@@ -46,6 +49,18 @@ function isTokenExpired(token: string): boolean {
 
   // exp是秒级时间戳，需要转换为毫秒
   return payload.exp * 1000 < Date.now();
+}
+
+function getCookieValue(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [key, value] = cookie.trim().split('=');
+    if (key === name && value) {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
 }
 
 /**
@@ -167,13 +182,30 @@ class TokenManager {
 
     this.refreshPromise = (async () => {
       try {
-        const response = await fetch('/api/v1/auth/refresh_token', {
-          method: 'POST',
-          headers: {
+        const attemptRefresh = async (csrfToken: string | null): Promise<Response> => {
+          const headers: Record<string, string> = {
             Authorization: `Bearer ${this.token}`,
-          },
-          credentials: 'include',
-        });
+          };
+          if (csrfToken) {
+            headers[CSRF_HEADER_NAME] = csrfToken;
+          }
+          return fetch('/api/v1/auth/refresh_token', {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+          });
+        };
+
+        let csrfToken = getCookieValue(CSRF_COOKIE_NAME);
+        let response = await attemptRefresh(csrfToken);
+        if (response.status === 403) {
+          // CSRF cookie may be set on the 403 response by middleware; retry once with the new token.
+          const refreshedCsrf = getCookieValue(CSRF_COOKIE_NAME);
+          if (refreshedCsrf && refreshedCsrf !== csrfToken) {
+            csrfToken = refreshedCsrf;
+            response = await attemptRefresh(csrfToken);
+          }
+        }
 
         if (response.ok) {
           const data = await response.json();

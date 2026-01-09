@@ -79,6 +79,7 @@ export class WordQueueManager {
   private totalQuestions: number = 0;
   private config: QueueConfig;
   private wordMap: Map<string, WordItem> = new Map();
+  private stateSnapshot: QueueState | null = null;
 
   constructor(words: WordItem[], config: Partial<QueueConfig> = {}) {
     this.pendingWords = [...words];
@@ -500,6 +501,60 @@ export class WordQueueManager {
     );
   }
 
+  /**
+   * 恢复进度快照（用于会话恢复）
+   *
+   * 与 `restoreState` 不同，这里只恢复进度相关字段（totalQuestions/masteredWordIds），
+   * 不依赖/不覆盖 activeWords 的详细进度，适合“服务端重新拉词，本地仅恢复进度”的场景。
+   */
+  restoreProgressSnapshot(masteredWordIds: string[], totalQuestions: number): void {
+    const ids = new Set(masteredWordIds.map((id) => id.trim()).filter((id) => id.length > 0));
+
+    if (ids.size > 0) {
+      // 从 pending / active 中移除已掌握的词，避免重复出现
+      this.pendingWords = this.pendingWords.filter((w) => !ids.has(w.id));
+      for (const id of ids) {
+        this.activeWords.delete(id);
+        this.masteredWords.add(id);
+      }
+    }
+
+    if (Number.isFinite(totalQuestions) && totalQuestions > this.totalQuestions) {
+      this.totalQuestions = totalQuestions;
+    }
+  }
+
+  /**
+   * 创建当前状态的快照（用于乐观更新回滚）
+   * 在调用 recordAnswer 之前调用此方法
+   */
+  snapshotState(): void {
+    this.stateSnapshot = this.getState();
+    learningLogger.debug('[WordQueue] State snapshot created');
+  }
+
+  /**
+   * 回滚到上次快照的状态（用于乐观更新失败时恢复）
+   * @returns 是否成功回滚
+   */
+  rollbackState(): boolean {
+    if (!this.stateSnapshot) {
+      learningLogger.warn('[WordQueue] No snapshot to rollback to');
+      return false;
+    }
+    this.restoreState(this.stateSnapshot);
+    this.stateSnapshot = null;
+    learningLogger.info('[WordQueue] State rolled back successfully');
+    return true;
+  }
+
+  /**
+   * 清除状态快照（在服务端确认成功后调用）
+   */
+  clearSnapshot(): void {
+    this.stateSnapshot = null;
+  }
+
   // ========== 队列动态调整方法 ==========
 
   /**
@@ -518,8 +573,25 @@ export class WordQueueManager {
     if (strategy.difficulty !== undefined) {
       this.config.masteryThreshold =
         strategy.difficulty === 'easy' ? 1 : strategy.difficulty === 'hard' ? 3 : 2;
+      this.reorderPendingByDifficulty(strategy.difficulty);
+    }
+    if (strategy.intervalScale !== undefined) {
+      this.config.minRepeatInterval = Math.max(1, Math.round(2 * strategy.intervalScale));
     }
     learningLogger.debug({ strategy, config: this.config }, '[WordQueue] Applied AMAS strategy');
+  }
+
+  private reorderPendingByDifficulty(difficulty: string): void {
+    if (this.pendingWords.length <= 1) return;
+    const center = difficulty === 'easy' ? 0.3 : difficulty === 'hard' ? 0.7 : 0.5;
+    this.pendingWords.sort((a, b) => {
+      const aDiff = (a as WordItem & { difficulty?: number }).difficulty ?? 0.5;
+      const bDiff = (b as WordItem & { difficulty?: number }).difficulty ?? 0.5;
+      return Math.abs(aDiff - center) - Math.abs(bDiff - center);
+    });
+    learningLogger.debug(
+      `[WordQueue] Reordered pending queue by difficulty=${difficulty}, center=${center}`,
+    );
   }
 
   /**

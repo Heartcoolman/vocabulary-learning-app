@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::Json;
@@ -160,7 +160,7 @@ async fn end_session(
         ));
     };
 
-    let token = crate::auth::extract_token(&headers).or_else(|| payload.auth_token.clone());
+    let (token, used_cookie_auth) = extract_end_session_token(&headers, payload.auth_token.as_deref());
 
     let Some(token) = token else {
         return Err(json_error(
@@ -169,6 +169,10 @@ async fn end_session(
             "未提供认证令牌",
         ));
     };
+
+    if used_cookie_auth {
+        validate_csrf_from_headers(&headers)?;
+    }
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
@@ -621,7 +625,14 @@ async fn set_learning_session_ended_at(
 ) -> Result<(), AppError> {
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
-    let affected = sqlx::query(r#"UPDATE "learning_sessions" SET "endedAt" = $1, "updatedAt" = $2 WHERE "id" = $3 AND "userId" = $4"#)
+    let affected = sqlx::query(
+        r#"
+        UPDATE "learning_sessions"
+        SET "endedAt" = COALESCE("endedAt", $1),
+            "updatedAt" = $2
+        WHERE "id" = $3 AND "userId" = $4
+        "#,
+    )
         .bind(now)
         .bind(now)
         .bind(session_id)
@@ -638,4 +649,99 @@ async fn set_learning_session_ended_at(
         ));
     }
     Ok(())
+}
+
+fn extract_end_session_token(
+    headers: &HeaderMap,
+    body_token: Option<&str>,
+) -> (Option<String>, bool) {
+    if let Some(token) = extract_bearer_token(headers) {
+        return (Some(token), false);
+    }
+
+    if let Some(token) = body_token.and_then(|value| normalize_token(value)) {
+        return (Some(token.to_string()), false);
+    }
+
+    let cookie_token = get_cookie(headers, "auth_token");
+    (cookie_token, true)
+}
+
+fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
+    let auth_header = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())?;
+
+    auth_header
+        .strip_prefix("Bearer ")
+        .and_then(normalize_token)
+        .map(|value| value.to_string())
+}
+
+fn normalize_token(value: &str) -> Option<&str> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+fn validate_csrf_from_headers(headers: &HeaderMap) -> Result<(), AppError> {
+    const CSRF_COOKIE_NAME: &str = "csrf_token";
+    const CSRF_HEADER_NAME: &str = "x-csrf-token";
+
+    let cookie_token = get_cookie(headers, CSRF_COOKIE_NAME);
+    let header_token = headers
+        .get(CSRF_HEADER_NAME)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_string());
+
+    let Some(cookie_token) = cookie_token else {
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "CSRF_TOKEN_MISSING",
+            "CSRF token 验证失败",
+        ));
+    };
+    let Some(header_token) = header_token else {
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "CSRF_TOKEN_MISSING",
+            "CSRF token 验证失败",
+        ));
+    };
+
+    if !secure_eq(cookie_token.as_bytes(), header_token.as_bytes()) {
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "CSRF_TOKEN_MISMATCH",
+            "CSRF token 验证失败",
+        ));
+    }
+
+    Ok(())
+}
+
+fn get_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
+    let raw = headers.get(header::COOKIE)?.to_str().ok()?;
+    for part in raw.split(';') {
+        let trimmed = part.trim();
+        let (key, value) = trimmed.split_once('=')?;
+        if key == name {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
+fn secure_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (left, right) in a.iter().zip(b.iter()) {
+        diff |= left ^ right;
+    }
+    diff == 0
 }

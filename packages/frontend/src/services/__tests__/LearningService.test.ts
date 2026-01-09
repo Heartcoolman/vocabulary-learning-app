@@ -378,6 +378,7 @@ describe('LearningService', () => {
         isCorrect: true,
         responseTime: 2000,
         dwellTime: 5000,
+        sessionId: 'mock-uuid-1234',
       });
       expect(result).not.toBeNull();
     });
