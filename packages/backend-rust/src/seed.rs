@@ -36,13 +36,14 @@ pub async fn seed_test_users(proxy: &DatabaseProxy) {
     let pool = proxy.pool();
 
     for user in TEST_USERS {
-        let existing: Option<String> = sqlx::query(r#"SELECT "id" FROM "users" WHERE "email" = $1"#)
-            .bind(user.email)
-            .fetch_optional(pool)
-            .await
-            .ok()
-            .flatten()
-            .and_then(|row| row.try_get("id").ok());
+        let existing: Option<String> =
+            sqlx::query(r#"SELECT "id" FROM "users" WHERE "email" = $1"#)
+                .bind(user.email)
+                .fetch_optional(pool)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|row| row.try_get("id").ok());
 
         if existing.is_some() {
             tracing::debug!(email = user.email, "test user already exists");
