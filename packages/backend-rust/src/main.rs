@@ -35,6 +35,7 @@ async fn main() {
         {
             tracing::warn!(error = %err, "failed to restore algorithm metrics");
         }
+        danci_backend_rust::seed::seed_test_users(proxy.as_ref()).await;
     }
 
     let cache = match std::env::var("REDIS_URL") {

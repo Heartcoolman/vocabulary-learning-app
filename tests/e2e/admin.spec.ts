@@ -9,7 +9,7 @@ test.describe('Admin', () => {
     // Login as admin
     await page.goto('/login');
     await page.fill('#email', 'admin@example.com');
-    await page.fill('#password', 'admin123');
+    await page.fill('#password', 'AdminPass123!');
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/');
   });
@@ -78,7 +78,7 @@ test.describe('Admin', () => {
 
       // Login as regular user
       await page.fill('#email', 'test@example.com');
-      await page.fill('#password', 'password123');
+      await page.fill('#password', 'TestPass123!');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/');
 

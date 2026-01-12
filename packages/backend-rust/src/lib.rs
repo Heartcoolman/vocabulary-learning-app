@@ -10,6 +10,7 @@ pub mod logging;
 pub mod middleware;
 pub mod response;
 pub mod routes;
+pub mod seed;
 pub mod services;
 pub mod state;
 pub mod workers;

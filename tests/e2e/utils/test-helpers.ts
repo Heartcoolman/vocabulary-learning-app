@@ -11,12 +11,12 @@ import { Page, expect } from '@playwright/test';
 export const TEST_USERS = {
   regular: {
     email: 'test@example.com',
-    password: 'password123',
+    password: 'TestPass123!',
     username: 'testuser',
   },
   admin: {
     email: 'admin@example.com',
-    password: 'admin123',
+    password: 'AdminPass123!',
     username: 'admin',
   },
 } as const;
