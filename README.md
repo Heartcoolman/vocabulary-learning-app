@@ -132,41 +132,17 @@ Danci 是一个现代化的智能单词学习系统，采用先进的 **AMAS (Ad
 - **Redis**: >= 6
 - **Docker** (可选，推荐用于部署)
 
-### Zeabur 部署
+### Zeabur 一键部署（最简单）
 
-Zeabur 是 monorepo，需要分别部署各服务：
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/2K1A1P)
 
-#### 1. 创建项目和数据库
+点击按钮后：
 
-1. 登录 [Zeabur Dashboard](https://dash.zeabur.com)
-2. 创建新项目
-3. 添加 **PostgreSQL** 服务（选择 Marketplace → PostgreSQL）
-4. 添加 **Redis** 服务（选择 Marketplace → Redis）
+1. 填写 **应用域名**（自动分配或绑定自定义）
+2. 填写 **JWT 密钥**（64+ 字符）
+3. 点击部署，等待完成
 
-#### 2. 部署后端
-
-1. 点击 **Add Service** → **Deploy from GitHub**
-2. 选择本仓库，**Root Directory** 设为 `packages/backend-rust`
-3. 配置环境变量：
-
-| 变量           | 值                             |
-| -------------- | ------------------------------ |
-| `DATABASE_URL` | 点击 PostgreSQL 服务复制连接串 |
-| `REDIS_URL`    | 点击 Redis 服务复制连接串      |
-| `JWT_SECRET`   | 自定义 64+ 字符密钥            |
-| `CORS_ORIGIN`  | 前端域名（部署前端后填写）     |
-
-#### 3. 部署前端
-
-1. 点击 **Add Service** → **Deploy from GitHub**
-2. 选择本仓库，**Root Directory** 设为 `packages/frontend`
-3. 配置环境变量：
-
-| 变量           | 值                                                  |
-| -------------- | --------------------------------------------------- |
-| `VITE_API_URL` | 后端服务域名（如 `https://backend-xxx.zeabur.app`） |
-
-4. 绑定域名后更新后端的 `CORS_ORIGIN`
+Zeabur 会自动创建 PostgreSQL、Redis、后端、前端四个服务。
 
 ### Docker 部署（推荐）
 

@@ -5,11 +5,10 @@ metadata:
 spec:
   description: 基于 AMAS 自适应学习引擎的智能单词学习应用
   icon: https://raw.githubusercontent.com/Heartcoolman/vocabulary-learning-app/dev/packages/frontend/public/favicon.svg
-  coverImage: https://raw.githubusercontent.com/Heartcoolman/vocabulary-learning-app/dev/docs/images/cover.png
   tags:
-    - Education
     - Tool
-  readme: |
+    - Website
+  readme: |-
     # Danci - 智能单词学习应用
 
     基于 AMAS 自适应学习引擎的智能单词学习应用。
@@ -18,26 +17,21 @@ spec:
     - AMAS 自适应学习引擎
     - 视觉疲劳检测
     - 学习数据统计分析
-    - 词库管理
 
   variables:
     - key: PUBLIC_DOMAIN
       type: DOMAIN
-      name: 应用域名
-      description: 前端应用访问域名
+      name: Domain
+      description: Frontend domain
     - key: JWT_SECRET
       type: STRING
-      name: JWT 密钥
-      description: JWT 签名密钥
+      name: JWT Secret
+      description: JWT signing key (64+ chars)
 
   services:
-    # PostgreSQL (使用 Zeabur Marketplace)
-    - name: postgresql
+    - name: PostgreSQL
       template: PREBUILT
       spec:
-        id: postgresql
-        name: PostgreSQL
-        icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/postgresql.svg
         source:
           image: postgres:15
         ports:
@@ -58,15 +52,10 @@ spec:
           POSTGRES_URI:
             default: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${CONTAINER_HOSTNAME}:5432/${POSTGRES_DB}
             expose: true
-            readonly: true
 
-    # Redis (使用 Zeabur Marketplace)
-    - name: redis
+    - name: Redis
       template: PREBUILT
       spec:
-        id: redis
-        name: Redis
-        icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/redis.svg
         source:
           image: redis:7-alpine
         ports:
@@ -80,16 +69,13 @@ spec:
           REDIS_URI:
             default: redis://${CONTAINER_HOSTNAME}:6379
             expose: true
-            readonly: true
 
-    # Rust 后端
-    - name: backend
+    - name: Backend
       template: GIT
-      icon: https://www.rust-lang.org/logos/rust-logo-512x512.png
       spec:
         source:
-          type: GITHUB
-          repoID: 1100646679
+          source: GITHUB
+          repo: 1100646679
           branch: dev
           subPath: packages/backend-rust
         ports:
@@ -107,26 +93,24 @@ spec:
           RUST_LOG:
             default: info
           DATABASE_URL:
-            default: ${postgresql.POSTGRES_URI}
+            default: ${POSTGRES_URI}
           REDIS_URL:
-            default: ${redis.REDIS_URI}
+            default: ${REDIS_URI}
           JWT_SECRET:
             default: ${JWT_SECRET}
           CORS_ORIGIN:
             default: https://${PUBLIC_DOMAIN}
       dependencies:
-        - postgresql
-        - redis
+        - PostgreSQL
+        - Redis
 
-    # 前端
-    - name: frontend
+    - name: Frontend
       template: GIT
-      icon: https://vitejs.dev/logo.svg
       domainKey: PUBLIC_DOMAIN
       spec:
         source:
-          type: GITHUB
-          repoID: 1100646679
+          source: GITHUB
+          repo: 1100646679
           branch: dev
           subPath: packages/frontend
         ports:
@@ -135,6 +119,6 @@ spec:
             type: HTTP
         env:
           VITE_API_URL:
-            default: https://${backend.ZEABUR_WEB_DOMAIN}
+            default: https://${ZEABUR_BACKEND_URL}
       dependencies:
-        - backend
+        - Backend
