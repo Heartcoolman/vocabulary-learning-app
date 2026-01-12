@@ -1,0 +1,142 @@
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: Danci - 智能单词学习应用
+spec:
+  description: 基于 AMAS 自适应学习引擎的智能单词学习应用，支持视觉疲劳检测
+  icon: https://raw.githubusercontent.com/Heartcoolman/vocabulary-learning-app/main/packages/frontend/public/favicon.svg
+  tags:
+    - Education
+    - Learning
+    - Vocabulary
+  readme: |
+    # Danci - 智能单词学习应用
+
+    基于 AMAS (Adaptive Memory Acquisition System) 自适应学习引擎的智能单词学习应用。
+
+    ## 功能特点
+    - 🧠 AMAS 自适应学习引擎 (LinUCB/Thompson/ACT-R)
+    - 👁️ 视觉疲劳检测
+    - 📊 学习数据统计分析
+    - 📚 词库管理
+
+    ## 部署后访问
+    - 前端应用通过绑定的域名访问
+    - 默认管理员账户请查看后端日志
+
+  variables:
+    - key: PUBLIC_DOMAIN
+      type: DOMAIN
+      name: 应用域名
+      description: 前端应用访问域名
+    - key: JWT_SECRET
+      type: STRING
+      name: JWT 密钥
+      description: JWT 签名密钥（至少 64 字符）
+
+  services:
+    # PostgreSQL 数据库
+    - name: postgres
+      template: PREBUILT
+      spec:
+        source:
+          image: timescale/timescaledb:latest-pg15
+        ports:
+          - id: database
+            port: 5432
+            type: TCP
+        volumes:
+          - id: data
+            dir: /var/lib/postgresql/data
+        env:
+          POSTGRES_DB:
+            default: vocabulary_db
+          POSTGRES_USER:
+            default: danci
+          POSTGRES_PASSWORD:
+            default: ${PASSWORD}
+            expose: true
+          DATABASE_URL:
+            default: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${CONTAINER_HOSTNAME}:5432/${POSTGRES_DB}
+            expose: true
+            readonly: true
+
+    # Redis 缓存
+    - name: redis
+      template: PREBUILT
+      spec:
+        source:
+          image: redis:7-alpine
+        ports:
+          - id: cache
+            port: 6379
+            type: TCP
+        volumes:
+          - id: data
+            dir: /data
+        env:
+          REDIS_URL:
+            default: redis://${CONTAINER_HOSTNAME}:6379
+            expose: true
+            readonly: true
+
+    # Rust 后端
+    - name: backend
+      template: GIT
+      icon: https://www.rust-lang.org/logos/rust-logo-512x512.png
+      spec:
+        source:
+          type: GITHUB
+          repoURL: https://github.com/Heartcoolman/vocabulary-learning-app
+          branch: main
+          subPath: packages/backend-rust
+        ports:
+          - id: api
+            port: 3000
+            type: HTTP
+        volumes:
+          - id: data
+            dir: /app/data
+        env:
+          HOST:
+            default: '0.0.0.0'
+          PORT:
+            default: '3000'
+          RUST_LOG:
+            default: info
+          DATABASE_URL:
+            default: ${postgres.DATABASE_URL}
+          REDIS_URL:
+            default: ${redis.REDIS_URL}
+          JWT_SECRET:
+            default: ${JWT_SECRET}
+          CORS_ORIGIN:
+            default: https://${PUBLIC_DOMAIN}
+          SQLITE_FALLBACK_ENABLED:
+            default: 'true'
+          SQLITE_FALLBACK_PATH:
+            default: /app/data/fallback.db
+      dependencies:
+        - postgres
+        - redis
+
+    # 前端应用
+    - name: frontend
+      template: GIT
+      icon: https://vitejs.dev/logo.svg
+      domainKey: PUBLIC_DOMAIN
+      spec:
+        source:
+          type: GITHUB
+          repoURL: https://github.com/Heartcoolman/vocabulary-learning-app
+          branch: main
+          subPath: packages/frontend
+        ports:
+          - id: web
+            port: 80
+            type: HTTP
+        env:
+          VITE_API_URL:
+            default: https://${ZEABUR_WEB_DOMAIN}/api
+      dependencies:
+        - backend

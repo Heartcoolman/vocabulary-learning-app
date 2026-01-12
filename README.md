@@ -12,6 +12,12 @@
   <img src="https://img.shields.io/badge/Build-Turborepo-000000?style=flat-square&logo=turborepo" alt="Turborepo">
 </p>
 
+<p align="center">
+  <a href="https://zeabur.com/templates/DANCI">
+    <img src="https://zeabur.com/button.svg" alt="Deploy on Zeabur" height="32">
+  </a>
+</p>
+
 ---
 
 ## 目录
@@ -131,6 +137,19 @@ Danci 是一个现代化的智能单词学习系统，采用先进的 **AMAS (Ad
 - **PostgreSQL**: >= 14
 - **Redis**: >= 6
 - **Docker** (可选，推荐用于部署)
+
+### Zeabur 一键部署（最简单）
+
+点击下方按钮，一键部署到 Zeabur：
+
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/DANCI)
+
+部署时需要配置：
+
+- **应用域名**：自动分配或绑定自定义域名
+- **JWT 密钥**：用于用户认证（至少 64 字符）
+
+Zeabur 会自动创建 PostgreSQL、Redis 并连接后端服务。
 
 ### Docker 部署（推荐）
 
