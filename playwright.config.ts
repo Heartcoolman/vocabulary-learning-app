@@ -32,6 +32,10 @@ const BACKEND_READY_URL = `${BACKEND_ORIGIN}${HEALTHCHECK_ENDPOINT}/ready`;
 const FRONTEND_PORT = frontendUrl.port ? parseInt(frontendUrl.port, 10) : 5173;
 const BACKEND_PORT = backendUrl.port ? parseInt(backendUrl.port, 10) : 3000;
 
+const DATABASE_URL = process.env.DATABASE_URL || 'postgres://danci:danci_dev_2024@localhost:5432/vocabulary_db';
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_e2e';
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -83,6 +87,9 @@ export default defineConfig({
     {
       command:
         `NODE_ENV=test PORT=${BACKEND_PORT} ` +
+        `DATABASE_URL="${DATABASE_URL}" ` +
+        `REDIS_URL="${REDIS_URL}" ` +
+        `JWT_SECRET="${JWT_SECRET}" ` +
         `CORS_ORIGIN="${FRONTEND_ORIGIN}" ` +
         `HEALTHCHECK_ENDPOINT="${HEALTHCHECK_ENDPOINT}" ` +
         'pnpm dev:backend',
