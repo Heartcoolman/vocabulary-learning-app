@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TreeStructure, CaretDown } from '@phosphor-icons/react';
-import WordCard, { WordCardProps, WordCardWord } from './WordCard';
+import WordCard, { WordCardProps } from './WordCard';
 import { MorphologyBreakdown } from './etymology';
 import { useWordEtymology } from '../hooks/queries/useEtymology';
 
@@ -53,7 +53,7 @@ function WordCardWithEtymology({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-700/50">
+                <div className="mt-4 rounded-card border border-gray-100 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-700/50">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-4">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />

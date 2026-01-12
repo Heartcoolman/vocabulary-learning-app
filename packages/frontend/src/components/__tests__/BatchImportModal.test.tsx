@@ -9,7 +9,9 @@ import BatchImportModal from '../BatchImportModal';
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+      <div {...props}>{children}</div>
+    ),
   },
 }));
 
@@ -38,7 +40,7 @@ vi.mock('../../utils/animations', () => ({
 
 // Mock FileUpload component
 vi.mock('../FileUpload', () => ({
-  default: ({ onFileSelect }: any) => (
+  default: ({ onFileSelect }: { onFileSelect: (file: File) => void }) => (
     <div data-testid="file-upload">
       <button onClick={() => onFileSelect(new File(['test'], 'test.csv', { type: 'text/csv' }))}>
         Select File
