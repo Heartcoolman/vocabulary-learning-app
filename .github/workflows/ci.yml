@@ -440,16 +440,31 @@ jobs:
         env:
           PGPASSWORD: danci_test
         run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -U danci -d danci_test; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 1
+          done
+
+          echo "Executing SQL migrations..."
           for sql_file in packages/backend-rust/sql/*.sql; do
             echo "Executing: $(basename $sql_file)"
-            psql -h localhost -U danci -d danci_test -f "$sql_file" 2>/dev/null || true
+            psql -h localhost -U danci -d danci_test -f "$sql_file" -v ON_ERROR_STOP=1
           done
+
+          echo "Verifying tables exist..."
+          psql -h localhost -U danci -d danci_test -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
 
       - name: Run E2E Tests
         run: pnpm test:e2e
         env:
           DATABASE_URL: postgres://danci:danci_test@localhost:5432/danci_test
           REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret_for_e2e
           E2E_FRONTEND_URL: http://localhost:5173
           E2E_BACKEND_URL: http://localhost:3000
           CI: true
