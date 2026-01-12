@@ -1062,8 +1062,8 @@ export default function AboutDataFlow() {
             if (parsed.payload) {
               processSSEFrame(parsed.payload);
             }
-          } catch (err) {
-            console.error('Failed to parse amas-flow event:', err);
+          } catch {
+            // Parse error ignored
           }
         });
 
@@ -1074,8 +1074,7 @@ export default function AboutDataFlow() {
         es.onerror = () => {
           setSseConnected(false);
         };
-      } catch (err) {
-        console.error('Failed to lookup user:', err);
+      } catch {
         alert('查询用户失败');
       }
     },

@@ -160,7 +160,8 @@ async fn end_session(
         ));
     };
 
-    let (token, used_cookie_auth) = extract_end_session_token(&headers, payload.auth_token.as_deref());
+    let (token, used_cookie_auth) =
+        extract_end_session_token(&headers, payload.auth_token.as_deref());
 
     let Some(token) = token else {
         return Err(json_error(
@@ -633,14 +634,14 @@ async fn set_learning_session_ended_at(
         WHERE "id" = $3 AND "userId" = $4
         "#,
     )
-        .bind(now)
-        .bind(now)
-        .bind(session_id)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
-        .rows_affected();
+    .bind(now)
+    .bind(now)
+    .bind(session_id)
+    .bind(user_id)
+    .execute(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
+    .rows_affected();
     if affected == 0 {
         return Err(json_error(
             StatusCode::NOT_FOUND,

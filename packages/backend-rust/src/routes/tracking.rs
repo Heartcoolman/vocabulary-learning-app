@@ -286,8 +286,15 @@ async fn process_batch(proxy: Arc<crate::db::DatabaseProxy>, user_id: String, ba
 
 fn event_key(event: &TrackingEvent) -> String {
     let session_id = event.session_id.as_deref().unwrap_or("");
-    let data = event.data.as_ref().map(|v| v.to_string()).unwrap_or_default();
-    format!("{session_id}|{}|{}|{data}", event.event_type, event.timestamp)
+    let data = event
+        .data
+        .as_ref()
+        .map(|v| v.to_string())
+        .unwrap_or_default();
+    format!(
+        "{session_id}|{}|{}|{data}",
+        event.event_type, event.timestamp
+    )
 }
 
 async fn stats(State(state): State<AppState>, headers: axum::http::HeaderMap) -> Response {
@@ -484,23 +491,29 @@ fn validate_csrf_from_headers(headers: &HeaderMap) -> Result<(), Response> {
         .map(|value| value.to_string());
 
     let Some(cookie_token) = cookie_token else {
-        return Err(
-            json_error(StatusCode::FORBIDDEN, "CSRF_TOKEN_MISSING", "CSRF token 验证失败")
-                .into_response(),
-        );
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "CSRF_TOKEN_MISSING",
+            "CSRF token 验证失败",
+        )
+        .into_response());
     };
     let Some(header_token) = header_token else {
-        return Err(
-            json_error(StatusCode::FORBIDDEN, "CSRF_TOKEN_MISSING", "CSRF token 验证失败")
-                .into_response(),
-        );
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "CSRF_TOKEN_MISSING",
+            "CSRF token 验证失败",
+        )
+        .into_response());
     };
 
     if !secure_eq(cookie_token.as_bytes(), header_token.as_bytes()) {
-        return Err(
-            json_error(StatusCode::FORBIDDEN, "CSRF_TOKEN_MISMATCH", "CSRF token 验证失败")
-                .into_response(),
-        );
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "CSRF_TOKEN_MISMATCH",
+            "CSRF token 验证失败",
+        )
+        .into_response());
     }
 
     Ok(())

@@ -346,7 +346,7 @@ pub async fn list_users(
     params: ListUsersParams,
 ) -> Result<UserListResult, AdminError> {
     let page = params.page.max(1);
-    let page_size = params.page_size.max(1).min(200);
+    let page_size = params.page_size.clamp(1, 200);
     let offset = (page - 1) * page_size;
     let search = normalize_search(params.search.as_deref());
 
@@ -446,7 +446,7 @@ pub async fn get_user_learning_data(
     user_id: &str,
     limit: i64,
 ) -> Result<UserLearningData, AdminError> {
-    let _limit = limit.max(1).min(100);
+    let _limit = limit.clamp(1, 100);
     let user = select_basic_user(proxy, user_id).await?;
 
     let (total_records, correct_records, total_words_learned) =
@@ -502,7 +502,7 @@ pub async fn get_user_words(
     params: UserWordsParams,
 ) -> Result<UserWordsResult, AdminError> {
     let page = params.page.max(1);
-    let page_size = params.page_size.max(1).min(200);
+    let page_size = params.page_size.clamp(1, 200);
     let offset = (page - 1) * page_size;
 
     let normalized_state = match params.state.as_deref() {
@@ -557,7 +557,7 @@ pub async fn get_user_decisions(
     params: UserDecisionsParams,
 ) -> Result<UserDecisionsResult, AdminError> {
     let page = params.page.max(1);
-    let page_size = params.page_size.max(1).min(100);
+    let page_size = params.page_size.clamp(1, 100);
 
     Ok(UserDecisionsResult {
         decisions: Vec::new(),
@@ -1498,7 +1498,7 @@ pub async fn get_word_history(
     limit: i64,
 ) -> Result<Vec<WordHistoryItem>, AdminError> {
     let pool = proxy.pool();
-    let limit = limit.min(200).max(1);
+    let limit = limit.clamp(1, 200);
 
     let rows = sqlx::query(
         r#"

@@ -192,7 +192,7 @@ fn next_forget_stability(w: &[f64; 17], d: f64, s: f64, r: f64) -> f64 {
 fn next_interval(stability: f64, desired_retention: f64) -> f64 {
     let safe_retention = desired_retention.clamp(0.0001, 0.9999);
     let interval = stability / FACTOR * (safe_retention.powf(1.0 / DECAY) - 1.0);
-    interval.max(1.0).min(36500.0)
+    interval.clamp(1.0, 36500.0)
 }
 
 pub fn fsrs_next_interval_with_root(

@@ -30,13 +30,12 @@ pub async fn run_weekly_health_analysis(db: Arc<DatabaseProxy>) -> Result<(), su
     let week_end = today - Duration::days(today.weekday().num_days_from_monday() as i64);
     let week_start = week_end - Duration::days(6);
 
-    let existing: Option<(i32,)> = sqlx::query_as(
-        r#"SELECT 1 FROM "amas_health_reports" WHERE "weekStart" = $1"#,
-    )
-    .bind(week_start)
-    .fetch_optional(pool)
-    .await
-    .map_err(super::WorkerError::Database)?;
+    let existing: Option<(i32,)> =
+        sqlx::query_as(r#"SELECT 1 FROM "amas_health_reports" WHERE "weekStart" = $1"#)
+            .bind(week_start)
+            .fetch_optional(pool)
+            .await
+            .map_err(super::WorkerError::Database)?;
 
     if existing.is_some() {
         info!(week = %week_start, "Health report already exists, skipping");

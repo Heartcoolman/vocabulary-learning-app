@@ -29,7 +29,10 @@ async fn main() {
 
     if let Some(ref proxy) = db_proxy {
         quality_service::cleanup_stale_tasks(proxy).await;
-        if let Err(err) = danci_backend_rust::amas::metrics_persistence::restore_registry_from_db(proxy.as_ref()).await {
+        if let Err(err) =
+            danci_backend_rust::amas::metrics_persistence::restore_registry_from_db(proxy.as_ref())
+                .await
+        {
             tracing::warn!(error = %err, "failed to restore algorithm metrics");
         }
     }

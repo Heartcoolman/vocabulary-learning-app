@@ -113,11 +113,24 @@ impl Default for AttentionWeights {
 
 impl AttentionWeights {
     pub fn total(&self) -> f64 {
-        self.rt_mean + self.rt_cv + self.pace_cv + self.pause + self.switch
-            + self.drift + self.interaction + self.focus_loss + self.recent_accuracy
-            + self.streak + self.hint_used + self.retry_count + self.dwell_time
-            + self.visual_fatigue + self.motivation + self.cognitive
-            + self.study_duration + self.circadian
+        self.rt_mean
+            + self.rt_cv
+            + self.pace_cv
+            + self.pause
+            + self.switch
+            + self.drift
+            + self.interaction
+            + self.focus_loss
+            + self.recent_accuracy
+            + self.streak
+            + self.hint_used
+            + self.retry_count
+            + self.dwell_time
+            + self.visual_fatigue
+            + self.motivation
+            + self.cognitive
+            + self.study_duration
+            + self.circadian
     }
 }
 

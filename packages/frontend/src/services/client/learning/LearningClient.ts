@@ -371,6 +371,15 @@ export class LearningClient extends BaseClient {
       fetchCount: number;
       masteryThreshold: number;
       maxQuestions: number;
+      strategy?: {
+        batchSize?: number;
+        batch_size?: number;
+        difficulty?: string;
+        hintLevel?: number;
+        hint_level?: number;
+        intervalScale?: number;
+        interval_scale?: number;
+      };
     };
   }> {
     const query = targetCount ? `?targetCount=${targetCount}` : '';

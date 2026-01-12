@@ -150,7 +150,8 @@ pub struct AlgorithmMetrics {
 impl AlgorithmMetrics {
     pub fn record_call(&self, latency_us: u64) {
         self.call_count.fetch_add(1, Ordering::Relaxed);
-        self.total_latency_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.total_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
         self.last_called_at.store(now_ms(), Ordering::Relaxed);
     }
 
@@ -182,7 +183,11 @@ impl AlgorithmMetrics {
 
     pub fn last_called_at(&self) -> Option<u64> {
         let ts = self.last_called_at.load(Ordering::Relaxed);
-        if ts == 0 { None } else { Some(ts) }
+        if ts == 0 {
+            None
+        } else {
+            Some(ts)
+        }
     }
 
     pub fn snapshot(&self) -> AlgorithmMetricsSnapshot {
@@ -195,10 +200,14 @@ impl AlgorithmMetrics {
     }
 
     pub fn apply_snapshot(&self, snapshot: AlgorithmMetricsSnapshot) {
-        self.call_count.store(snapshot.call_count, Ordering::Relaxed);
-        self.total_latency_us.store(snapshot.total_latency_us, Ordering::Relaxed);
-        self.error_count.store(snapshot.error_count, Ordering::Relaxed);
-        self.last_called_at.store(snapshot.last_called_at.unwrap_or(0), Ordering::Relaxed);
+        self.call_count
+            .store(snapshot.call_count, Ordering::Relaxed);
+        self.total_latency_us
+            .store(snapshot.total_latency_us, Ordering::Relaxed);
+        self.error_count
+            .store(snapshot.error_count, Ordering::Relaxed);
+        self.last_called_at
+            .store(snapshot.last_called_at.unwrap_or(0), Ordering::Relaxed);
     }
 
     pub fn is_active(&self) -> bool {

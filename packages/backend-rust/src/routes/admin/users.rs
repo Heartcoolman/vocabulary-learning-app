@@ -129,7 +129,7 @@ async fn list_users(
     };
 
     let page = query.page.unwrap_or(1).max(1);
-    let page_size = query.page_size.unwrap_or(20).max(1).min(200);
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 200);
 
     let params = crate::services::admin::ListUsersParams {
         page,
@@ -296,7 +296,7 @@ async fn get_learning_data(
         .into_response();
     };
 
-    let limit = query.limit.unwrap_or(50).max(1).min(100);
+    let limit = query.limit.unwrap_or(50).clamp(1, 100);
     match crate::services::admin::get_user_learning_data(proxy.as_ref(), &id, limit).await {
         Ok(data) => Json(SuccessResponse {
             success: true,
@@ -343,7 +343,7 @@ async fn get_user_words(
 
     let params = crate::services::admin::UserWordsParams {
         page: query.page.unwrap_or(1).max(1),
-        page_size: query.page_size.unwrap_or(20).max(1).min(200),
+        page_size: query.page_size.unwrap_or(20).clamp(1, 200),
         sort_by: crate::services::admin::UserWordsSortBy::from_query(query.sort_by.as_deref()),
         sort_order: crate::services::admin::SortOrder::from_query(query.sort_order.as_deref()),
         state: query.state,
@@ -430,7 +430,7 @@ async fn get_user_decisions(
 
     let params = crate::services::admin::UserDecisionsParams {
         page: query.page.unwrap_or(1).max(1),
-        page_size: query.page_size.unwrap_or(20).max(1).min(100),
+        page_size: query.page_size.unwrap_or(20).clamp(1, 100),
         start_date: query.start_date,
         end_date: query.end_date,
         decision_source: query.decision_source,

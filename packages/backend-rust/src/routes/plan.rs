@@ -567,7 +567,7 @@ async fn adjust_plan_internal(
     let mut new_daily_target = ((remaining_words + remaining_days - 1) / remaining_days).max(1);
     let min_target = (plan.daily_target as f64 * 0.5).floor() as i64;
     let max_target = (plan.daily_target as f64 * 1.5).ceil() as i64;
-    new_daily_target = new_daily_target.max(min_target).min(max_target);
+    new_daily_target = new_daily_target.clamp(min_target, max_target);
 
     update_plan_daily_target(proxy, user_id, new_daily_target).await?;
     let updated = select_plan(proxy, user_id).await?;

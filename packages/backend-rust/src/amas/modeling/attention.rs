@@ -118,7 +118,9 @@ impl AttentionMonitor {
         let motivation_score = features.motivation.clamp(0.0, 1.0);
 
         // Cognitive composite score
-        let cognitive_avg = (features.cognitive.mem + features.cognitive.speed + features.cognitive.stability) / 3.0;
+        let cognitive_avg =
+            (features.cognitive.mem + features.cognitive.speed + features.cognitive.stability)
+                / 3.0;
         let cognitive_score = cognitive_avg.clamp(0.0, 1.0);
 
         // Study duration decay (after 20 minutes, attention starts declining)
@@ -165,7 +167,8 @@ impl AttentionMonitor {
         let volatility = (features.rt_cv + features.pace_cv + features.switch_count / 5.0) / 3.0;
         let adaptive_smoothing = (self.base_smoothing * (1.0 + 0.5 * volatility)).clamp(0.15, 0.7);
 
-        let smoothed = adaptive_smoothing * raw_attention + (1.0 - adaptive_smoothing) * self.current_value;
+        let smoothed =
+            adaptive_smoothing * raw_attention + (1.0 - adaptive_smoothing) * self.current_value;
         self.current_value = smoothed.clamp(0.0, 1.0);
         self.current_value
     }

@@ -252,7 +252,7 @@ async fn require_admin_user(
 }
 
 fn clamp(value: f64, bounds: Bounds) -> f64 {
-    value.max(bounds.min).min(bounds.max)
+    value.clamp(bounds.min, bounds.max)
 }
 
 fn random_unit() -> f64 {

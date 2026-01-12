@@ -385,13 +385,18 @@ async fn lookup_user_by_email(
         ));
     }
 
-    let row: Option<(String,)> = sqlx::query_as(
-        r#"SELECT "id" FROM "users" WHERE LOWER("email") = $1 LIMIT 1"#,
-    )
-    .bind(&email)
-    .fetch_optional(proxy.pool())
-    .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "数据库查询失败"))?;
+    let row: Option<(String,)> =
+        sqlx::query_as(r#"SELECT "id" FROM "users" WHERE LOWER("email") = $1 LIMIT 1"#)
+            .bind(&email)
+            .fetch_optional(proxy.pool())
+            .await
+            .map_err(|_| {
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "DB_ERROR",
+                    "数据库查询失败",
+                )
+            })?;
 
     match row {
         Some((user_id,)) => Ok(Json(SuccessResponse {

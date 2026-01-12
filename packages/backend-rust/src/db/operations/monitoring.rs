@@ -61,7 +61,9 @@ pub struct MonitoringOverview {
     pub latest_health_status: Option<String>,
 }
 
-pub async fn get_monitoring_overview(proxy: &DatabaseProxy) -> Result<MonitoringOverview, sqlx::Error> {
+pub async fn get_monitoring_overview(
+    proxy: &DatabaseProxy,
+) -> Result<MonitoringOverview, sqlx::Error> {
     let today = Utc::now().date_naive();
 
     let daily: Option<(i64, i32)> = sqlx::query_as(
@@ -155,7 +157,9 @@ pub async fn get_aggregates_15m(
                 avg_attention: row.get::<Option<f64>, _>("avgAttention").unwrap_or(0.0),
                 avg_fatigue: row.get::<Option<f64>, _>("avgFatigue").unwrap_or(0.0),
                 avg_motivation: row.get::<Option<f64>, _>("avgMotivation").unwrap_or(0.0),
-                constraints_satisfied_rate: row.get::<Option<f64>, _>("constraintsSatisfiedRate").unwrap_or(1.0),
+                constraints_satisfied_rate: row
+                    .get::<Option<f64>, _>("constraintsSatisfiedRate")
+                    .unwrap_or(1.0),
                 alert_level: row.get("alertLevel"),
             }
         })
@@ -202,12 +206,30 @@ pub async fn get_aggregates_daily(
                 date: row.get("date"),
                 total_events: row.get("totalEvents"),
                 anomaly_count: row.get("totalAnomalies"),
-                avg_latency_ms: latency_dist.get("p50").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                p95_latency_ms: latency_dist.get("p95").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                avg_attention: state_metrics.get("avgAttention").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                avg_fatigue: state_metrics.get("avgFatigue").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                avg_motivation: state_metrics.get("avgMotivation").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                constraints_satisfied_rate: constraint_health.get("satisfiedRate").and_then(|v| v.as_f64()).unwrap_or(1.0),
+                avg_latency_ms: latency_dist
+                    .get("p50")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                p95_latency_ms: latency_dist
+                    .get("p95")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                avg_attention: state_metrics
+                    .get("avgAttention")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                avg_fatigue: state_metrics
+                    .get("avgFatigue")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                avg_motivation: state_metrics
+                    .get("avgMotivation")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                constraints_satisfied_rate: constraint_health
+                    .get("satisfiedRate")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1.0),
                 unique_users: row.get("uniqueUsers"),
                 alert_level: alert_level.to_string(),
             }

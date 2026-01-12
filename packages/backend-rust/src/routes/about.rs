@@ -19,12 +19,12 @@ use uuid::Uuid;
 
 use crate::amas::metrics::registry;
 use crate::db::operations::{
-    get_algorithm_distribution as db_get_algorithm_distribution, get_decision_by_id,
-    get_global_recent_decisions, get_monitoring_overview, get_today_decision_count,
-    get_algorithm_status as db_get_algorithm_status, get_memory_status as db_get_memory_status,
-    get_pipeline_status as db_get_pipeline_status, get_user_state_status as db_get_user_state_status,
-    has_decision_data, has_learning_state_data, has_monitoring_data, has_user_state_data,
-    DecisionRecord,
+    get_algorithm_distribution as db_get_algorithm_distribution,
+    get_algorithm_status as db_get_algorithm_status, get_decision_by_id,
+    get_global_recent_decisions, get_memory_status as db_get_memory_status,
+    get_monitoring_overview, get_pipeline_status as db_get_pipeline_status,
+    get_today_decision_count, get_user_state_status as db_get_user_state_status, has_decision_data,
+    has_learning_state_data, has_monitoring_data, has_user_state_data, DecisionRecord,
 };
 use crate::services::amas::StrategyParams;
 use crate::state::AppState;
@@ -519,7 +519,9 @@ async fn simulate_batch(
     use crate::db::operations::{insert_decision_record, DecisionRecord};
 
     let count = payload.count.unwrap_or(100).min(500);
-    let user_id = payload.user_id.unwrap_or_else(|| format!("sim-user-{}", now_ms()));
+    let user_id = payload
+        .user_id
+        .unwrap_or_else(|| format!("sim-user-{}", now_ms()));
     let start = std::time::Instant::now();
 
     let engine = state.amas_engine();
@@ -568,7 +570,7 @@ async fn simulate_batch(
                 let is_coldstart = matches!(
                     result.cold_start_phase,
                     Some(crate::amas::types::ColdStartPhase::Classify)
-                    | Some(crate::amas::types::ColdStartPhase::Explore)
+                        | Some(crate::amas::types::ColdStartPhase::Explore)
                 );
                 let decision_source = if is_coldstart {
                     "coldstart".to_string()
@@ -577,7 +579,9 @@ async fn simulate_batch(
                 };
                 let difficulty = format!("{:?}", result.strategy.difficulty).to_lowercase();
                 let confidence = result.state.conf;
-                let coldstart_phase = result.cold_start_phase.map(|p| format!("{:?}", p).to_lowercase());
+                let coldstart_phase = result
+                    .cold_start_phase
+                    .map(|p| format!("{:?}", p).to_lowercase());
 
                 // Write decision record to database
                 if let Some(ref proxy) = proxy {
@@ -1337,10 +1341,7 @@ fn decision_record_to_detail(record: &DecisionRecord) -> DecisionDetail {
                 .get("interval_scale")
                 .and_then(|v| v.as_f64())
                 .unwrap_or(1.0),
-            new_ratio: obj
-                .get("new_ratio")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.2),
+            new_ratio: obj.get("new_ratio").and_then(|v| v.as_f64()).unwrap_or(0.2),
             hint_level: obj.get("hint_level").and_then(|v| v.as_i64()).unwrap_or(1) as i32,
         })
         .unwrap_or(StrategyParams {
@@ -1359,7 +1360,10 @@ fn decision_record_to_detail(record: &DecisionRecord) -> DecisionDetail {
             arr.iter()
                 .filter_map(|v| {
                     Some(MemberVoteDetail {
-                        member: v.get("member").and_then(|m| m.as_str()).map(|s| s.to_string()),
+                        member: v
+                            .get("member")
+                            .and_then(|m| m.as_str())
+                            .map(|s| s.to_string()),
                         action: v.get("action")?.as_str()?.to_string(),
                         contribution: v.get("contribution")?.as_f64()?,
                         confidence: v.get("confidence")?.as_f64()?,
@@ -1602,30 +1606,37 @@ async fn system_algorithm_status(State(state): State<AppState>) -> Response {
     let algorithms = registry().snapshot();
 
     // Group by layer for better organization
-    let by_layer: std::collections::HashMap<String, Vec<_>> = algorithms
-        .iter()
-        .fold(std::collections::HashMap::new(), |mut acc, a| {
-            acc.entry(a.layer.clone()).or_default().push(a.clone());
-            acc
-        });
+    let by_layer: std::collections::HashMap<String, Vec<_>> =
+        algorithms
+            .iter()
+            .fold(std::collections::HashMap::new(), |mut acc, a| {
+                acc.entry(a.layer.clone()).or_default().push(a.clone());
+                acc
+            });
 
     let Some(proxy) = state.db_proxy() else {
-        return about_ok_with_source(serde_json::json!({
-            "algorithms": algorithms,
-            "byLayer": by_layer,
-            "ensembleConsensusRate": 0.8,
-            "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
-        }), "runtime");
+        return about_ok_with_source(
+            serde_json::json!({
+                "algorithms": algorithms,
+                "byLayer": by_layer,
+                "ensembleConsensusRate": 0.8,
+                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
+            }),
+            "runtime",
+        );
     };
 
     // Merge with DB stats if available
     if !has_decision_data(proxy.as_ref()).await {
-        return about_ok_with_source(serde_json::json!({
-            "algorithms": algorithms,
-            "byLayer": by_layer,
-            "ensembleConsensusRate": 0.8,
-            "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
-        }), "runtime");
+        return about_ok_with_source(
+            serde_json::json!({
+                "algorithms": algorithms,
+                "byLayer": by_layer,
+                "ensembleConsensusRate": 0.8,
+                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
+            }),
+            "runtime",
+        );
     }
 
     match db_get_algorithm_status(proxy.as_ref()).await {
@@ -1638,12 +1649,15 @@ async fn system_algorithm_status(State(state): State<AppState>) -> Response {
             }),
             "runtime+db",
         ),
-        Err(_) => about_ok_with_source(serde_json::json!({
-            "algorithms": algorithms,
-            "byLayer": by_layer,
-            "ensembleConsensusRate": 0.8,
-            "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
-        }), "runtime"),
+        Err(_) => about_ok_with_source(
+            serde_json::json!({
+                "algorithms": algorithms,
+                "byLayer": by_layer,
+                "ensembleConsensusRate": 0.8,
+                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
+            }),
+            "runtime",
+        ),
     }
 }
 
@@ -1820,26 +1834,29 @@ async fn feature_flags(State(state): State<AppState>) -> Response {
 
     let source = if has_db { "real" } else { "computed" };
 
-    about_ok_with_source(serde_json::json!({
-        "readEnabled": has_db,
-        "writeEnabled": false,
-        "flags": {
-            "ensemble": { "enabled": amas_flags.ensemble_enabled, "status": if amas_flags.ensemble_enabled { "healthy" } else { "disabled" } },
-            "thompsonSampling": { "enabled": amas_flags.thompson_enabled, "status": if amas_flags.thompson_enabled { "healthy" } else { "disabled" } },
-            "linucb": { "enabled": amas_flags.linucb_enabled, "status": if amas_flags.linucb_enabled { "healthy" } else { "disabled" } },
-            "heuristicBaseline": { "enabled": amas_flags.heuristic_enabled, "status": if amas_flags.heuristic_enabled { "healthy" } else { "disabled" } },
-            "actrMemory": { "enabled": amas_flags.actr_memory_enabled, "status": if amas_flags.actr_memory_enabled { "healthy" } else { "disabled" } },
-            "coldStartManager": { "enabled": true, "status": "healthy" },
-            "userParamsManager": { "enabled": true, "status": "healthy" },
-            "trendAnalyzer": { "enabled": true, "status": "healthy" },
-            "bayesianOptimizer": { "enabled": amas_flags.bayesian_optimizer_enabled, "status": if amas_flags.bayesian_optimizer_enabled { "healthy" } else { "disabled" } },
-            "causalInference": { "enabled": amas_flags.causal_inference_enabled, "status": if amas_flags.causal_inference_enabled { "healthy" } else { "disabled" } },
-            "delayedReward": { "enabled": true, "status": "healthy" },
-            "realDataWrite": { "enabled": false, "status": "disabled" },
-            "realDataRead": { "enabled": has_db, "status": if has_db { "healthy" } else { "disabled" } },
-            "visualization": { "enabled": true, "status": "healthy" }
-        }
-    }), source)
+    about_ok_with_source(
+        serde_json::json!({
+            "readEnabled": has_db,
+            "writeEnabled": false,
+            "flags": {
+                "ensemble": { "enabled": amas_flags.ensemble_enabled, "status": if amas_flags.ensemble_enabled { "healthy" } else { "disabled" } },
+                "thompsonSampling": { "enabled": amas_flags.thompson_enabled, "status": if amas_flags.thompson_enabled { "healthy" } else { "disabled" } },
+                "linucb": { "enabled": amas_flags.linucb_enabled, "status": if amas_flags.linucb_enabled { "healthy" } else { "disabled" } },
+                "heuristicBaseline": { "enabled": amas_flags.heuristic_enabled, "status": if amas_flags.heuristic_enabled { "healthy" } else { "disabled" } },
+                "actrMemory": { "enabled": amas_flags.actr_memory_enabled, "status": if amas_flags.actr_memory_enabled { "healthy" } else { "disabled" } },
+                "coldStartManager": { "enabled": true, "status": "healthy" },
+                "userParamsManager": { "enabled": true, "status": "healthy" },
+                "trendAnalyzer": { "enabled": true, "status": "healthy" },
+                "bayesianOptimizer": { "enabled": amas_flags.bayesian_optimizer_enabled, "status": if amas_flags.bayesian_optimizer_enabled { "healthy" } else { "disabled" } },
+                "causalInference": { "enabled": amas_flags.causal_inference_enabled, "status": if amas_flags.causal_inference_enabled { "healthy" } else { "disabled" } },
+                "delayedReward": { "enabled": true, "status": "healthy" },
+                "realDataWrite": { "enabled": false, "status": "disabled" },
+                "realDataRead": { "enabled": has_db, "status": if has_db { "healthy" } else { "disabled" } },
+                "visualization": { "enabled": true, "status": "healthy" }
+            }
+        }),
+        source,
+    )
 }
 
 #[derive(Debug, Serialize)]
@@ -1855,10 +1872,13 @@ struct ModuleHealthStatus {
 
 async fn module_health_check(State(state): State<AppState>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return about_ok_with_source(serde_json::json!({
-            "flags": default_module_health(false),
-            "checkedAt": now_iso()
-        }), "computed");
+        return about_ok_with_source(
+            serde_json::json!({
+                "flags": default_module_health(false),
+                "checkedAt": now_iso()
+            }),
+            "computed",
+        );
     };
 
     let pool = proxy.pool();
@@ -1882,25 +1902,28 @@ async fn module_health_check(State(state): State<AppState>) -> Response {
         call_count: None,
     };
 
-    about_ok_with_source(serde_json::json!({
-        "flags": {
-            "ensemble": ensemble,
-            "thompsonSampling": thompson,
-            "linucb": linucb,
-            "heuristicBaseline": heuristic,
-            "actrMemory": actr,
-            "coldStartManager": cold_start,
-            "userParamsManager": user_params,
-            "trendAnalyzer": trend_analyzer,
-            "bayesianOptimizer": bayesian,
-            "causalInference": causal,
-            "delayedReward": delayed_reward,
-            "realDataWrite": { "enabled": false, "status": "disabled" },
-            "realDataRead": { "enabled": true, "status": "healthy" },
-            "visualization": { "enabled": true, "status": "healthy" }
-        },
-        "checkedAt": now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
-    }), "real")
+    about_ok_with_source(
+        serde_json::json!({
+            "flags": {
+                "ensemble": ensemble,
+                "thompsonSampling": thompson,
+                "linucb": linucb,
+                "heuristicBaseline": heuristic,
+                "actrMemory": actr,
+                "coldStartManager": cold_start,
+                "userParamsManager": user_params,
+                "trendAnalyzer": trend_analyzer,
+                "bayesianOptimizer": bayesian,
+                "causalInference": causal,
+                "delayedReward": delayed_reward,
+                "realDataWrite": { "enabled": false, "status": "disabled" },
+                "realDataRead": { "enabled": true, "status": "healthy" },
+                "visualization": { "enabled": true, "status": "healthy" }
+            },
+            "checkedAt": now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+        }),
+        "real",
+    )
 }
 
 async fn probe_coldstart_health() -> ModuleHealthStatus {
@@ -1939,11 +1962,10 @@ async fn probe_user_params_health(pool: &sqlx::PgPool) -> ModuleHealthStatus {
     let start = std::time::Instant::now();
 
     // Probe: try to query amas_user_states table
-    let result: Result<Option<(i64,)>, _> = sqlx::query_as(
-        r#"SELECT COUNT(*) FROM "amas_user_states" LIMIT 1"#
-    )
-    .fetch_optional(pool)
-    .await;
+    let result: Result<Option<(i64,)>, _> =
+        sqlx::query_as(r#"SELECT COUNT(*) FROM "amas_user_states" LIMIT 1"#)
+            .fetch_optional(pool)
+            .await;
 
     let latency = start.elapsed().as_millis() as i64;
 
@@ -1971,11 +1993,10 @@ async fn probe_trend_analyzer_health(pool: &sqlx::PgPool) -> ModuleHealthStatus 
     let start = std::time::Instant::now();
 
     // Probe: try to query learning history for trend calculation
-    let result: Result<Vec<(f64,)>, _> = sqlx::query_as(
-        r#"SELECT COALESCE(motivation, 0.0) FROM "amas_user_states" LIMIT 5"#
-    )
-    .fetch_all(pool)
-    .await;
+    let result: Result<Vec<(f64,)>, _> =
+        sqlx::query_as(r#"SELECT COALESCE(motivation, 0.0) FROM "amas_user_states" LIMIT 5"#)
+            .fetch_all(pool)
+            .await;
 
     let latency = start.elapsed().as_millis() as i64;
 
@@ -2010,7 +2031,7 @@ async fn probe_delayed_reward_health(pool: &sqlx::PgPool) -> ModuleHealthStatus 
             COUNT(*) FILTER (WHERE status = 'PENDING'::"RewardStatus") as pending_count
         FROM "reward_queue"
         WHERE "createdAt" >= NOW() - INTERVAL '1 hour'
-        "#
+        "#,
     )
     .fetch_optional(pool)
     .await;
@@ -2081,7 +2102,7 @@ async fn probe_bayesian_health(pool: &sqlx::PgPool) -> ModuleHealthStatus {
         SELECT COUNT(*)::bigint as cnt, MAX("timestamp") as last_run
         FROM "optimization_event"
         WHERE "timestamp" >= NOW() - INTERVAL '7 days'
-        "#
+        "#,
     )
     .fetch_optional(pool)
     .await;
@@ -2094,7 +2115,8 @@ async fn probe_bayesian_health(pool: &sqlx::PgPool) -> ModuleHealthStatus {
             ModuleHealthStatus {
                 enabled: true,
                 status,
-                last_activity: last_run.map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
+                last_activity: last_run
+                    .map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
                 latency_ms: Some(latency),
                 error_rate: None,
                 call_count: Some(count),
@@ -2119,7 +2141,15 @@ async fn probe_bayesian_health(pool: &sqlx::PgPool) -> ModuleHealthStatus {
     }
 }
 
-async fn probe_algorithm_health(_pool: &sqlx::PgPool) -> (ModuleHealthStatus, ModuleHealthStatus, ModuleHealthStatus, ModuleHealthStatus, ModuleHealthStatus) {
+async fn probe_algorithm_health(
+    _pool: &sqlx::PgPool,
+) -> (
+    ModuleHealthStatus,
+    ModuleHealthStatus,
+    ModuleHealthStatus,
+    ModuleHealthStatus,
+    ModuleHealthStatus,
+) {
     use crate::amas::config::AMASConfig;
     use crate::amas::decision::ensemble::EnsembleDecision;
     use crate::amas::decision::heuristic::HeuristicLearner;
@@ -2264,7 +2294,13 @@ async fn probe_algorithm_health(_pool: &sqlx::PgPool) -> (ModuleHealthStatus, Mo
         let start = std::time::Instant::now();
         let decider = EnsembleDecision::new(amas_flags.clone());
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            decider.decide(&test_state, &test_feature, &test_strategy, Some(&test_strategy), Some(&test_strategy))
+            decider.decide(
+                &test_state,
+                &test_feature,
+                &test_strategy,
+                Some(&test_strategy),
+                Some(&test_strategy),
+            )
         }));
         let latency = start.elapsed().as_millis() as i64;
 
@@ -2279,14 +2315,16 @@ async fn probe_algorithm_health(_pool: &sqlx::PgPool) -> (ModuleHealthStatus, Mo
             }
         } else {
             match result {
-                Ok((strategy, candidates)) if strategy.batch_size > 0 && !candidates.is_empty() => ModuleHealthStatus {
-                    enabled: true,
-                    status: "healthy",
-                    last_activity: Some(now_iso()),
-                    latency_ms: Some(latency),
-                    error_rate: None,
-                    call_count: None,
-                },
+                Ok((strategy, candidates)) if strategy.batch_size > 0 && !candidates.is_empty() => {
+                    ModuleHealthStatus {
+                        enabled: true,
+                        status: "healthy",
+                        last_activity: Some(now_iso()),
+                        latency_ms: Some(latency),
+                        error_rate: None,
+                        call_count: None,
+                    }
+                }
                 _ => ModuleHealthStatus {
                     enabled: true,
                     status: "error",
@@ -2343,7 +2381,13 @@ async fn probe_algorithm_health(_pool: &sqlx::PgPool) -> (ModuleHealthStatus, Mo
         }
     };
 
-    (ensemble_status, thompson_status, linucb_status, heuristic_status, actr_status)
+    (
+        ensemble_status,
+        thompson_status,
+        linucb_status,
+        heuristic_status,
+        actr_status,
+    )
 }
 
 fn default_module_health(has_db: bool) -> serde_json::Value {

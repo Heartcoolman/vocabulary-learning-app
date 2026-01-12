@@ -226,9 +226,21 @@ pub async fn get_pipeline_status(proxy: &DatabaseProxy) -> Result<PipelineStatus
     .await?;
 
     let events_15m: i64 = agg_row.try_get("events_15m").unwrap_or(0);
-    let avg_p50: f64 = agg_row.try_get::<Option<f64>, _>("avg_p50").ok().flatten().unwrap_or(5.0);
-    let avg_p95: f64 = agg_row.try_get::<Option<f64>, _>("avg_p95").ok().flatten().unwrap_or(15.0);
-    let constraint_rate: f64 = agg_row.try_get::<Option<f64>, _>("avg_constraint_rate").ok().flatten().unwrap_or(0.95);
+    let avg_p50: f64 = agg_row
+        .try_get::<Option<f64>, _>("avg_p50")
+        .ok()
+        .flatten()
+        .unwrap_or(5.0);
+    let avg_p95: f64 = agg_row
+        .try_get::<Option<f64>, _>("avg_p95")
+        .ok()
+        .flatten()
+        .unwrap_or(15.0);
+    let constraint_rate: f64 = agg_row
+        .try_get::<Option<f64>, _>("avg_constraint_rate")
+        .ok()
+        .flatten()
+        .unwrap_or(0.95);
 
     // 实时健康状态判定
     let system_health = if anomaly_rate > 0.05 || latency_p95_ms > 500.0 {
@@ -269,7 +281,11 @@ pub async fn get_pipeline_status(proxy: &DatabaseProxy) -> Result<PipelineStatus
             let event_count: i64 = r.try_get("event_count").unwrap_or(0);
             let last_run: Option<DateTime<Utc>> = r.try_get("last_run").ok();
             // 如果有优化事件运行过，即使 optimized_users 为 0 也算有活动
-            let effective_count = if event_count > 0 { count.max(event_count) } else { 0 };
+            let effective_count = if event_count > 0 {
+                count.max(event_count)
+            } else {
+                0
+            };
             (effective_count, last_run)
         })
         .unwrap_or((0, None));
@@ -280,16 +296,20 @@ pub async fn get_pipeline_status(proxy: &DatabaseProxy) -> Result<PipelineStatus
 
     // 活动指示器：有活动=绿色(healthy)，无活动=红色(error)
     let activity_status = |count: i64| -> String {
-        if count > 0 { "healthy".to_string() } else { "error".to_string() }
+        if count > 0 {
+            "healthy".to_string()
+        } else {
+            "error".to_string()
+        }
     };
 
     // 优化层特殊处理：定时任务（每天凌晨3点），7天内有执行过就算healthy
     let optimization_status = if optimization_count > 0 {
         "healthy".to_string()
     } else if optimization_last_run.is_some() {
-        "warning".to_string()  // 有历史记录但最近7天无活动
+        "warning".to_string() // 有历史记录但最近7天无活动
     } else {
-        "warning".to_string()  // 无历史记录，可能刚部署
+        "warning".to_string() // 无历史记录，可能刚部署
     };
 
     let perception_count = base_count;
@@ -368,7 +388,9 @@ pub async fn get_pipeline_status(proxy: &DatabaseProxy) -> Result<PipelineStatus
     })
 }
 
-pub async fn get_algorithm_status(proxy: &DatabaseProxy) -> Result<AlgorithmStatusReal, sqlx::Error> {
+pub async fn get_algorithm_status(
+    proxy: &DatabaseProxy,
+) -> Result<AlgorithmStatusReal, sqlx::Error> {
     let stats_row = sqlx::query(
         r#"
         SELECT
@@ -387,7 +409,11 @@ pub async fn get_algorithm_status(proxy: &DatabaseProxy) -> Result<AlgorithmStat
     .await?;
 
     let total_calls: i64 = stats_row.try_get("total_calls").unwrap_or(0);
-    let avg_latency: f64 = stats_row.try_get::<Option<f64>, _>("avg_latency").ok().flatten().unwrap_or(10.0);
+    let avg_latency: f64 = stats_row
+        .try_get::<Option<f64>, _>("avg_latency")
+        .ok()
+        .flatten()
+        .unwrap_or(10.0);
     let last_called: Option<DateTime<Utc>> = stats_row.try_get("last_called").ok();
     let total_explore: i64 = stats_row.try_get("explore_count").unwrap_or(0);
     let total_classify: i64 = stats_row.try_get("classify_count").unwrap_or(0);
@@ -413,14 +439,11 @@ pub async fn get_algorithm_status(proxy: &DatabaseProxy) -> Result<AlgorithmStat
 
     let consensus_rate = if total_calls > 0 { 0.85 } else { 0.8 };
     let ensemble_calls = total_calls - coldstart_count;
-    let last_called_str = last_called.map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+    let last_called_str =
+        last_called.map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
 
     let algo_ids = ["thompson", "linucb", "heuristic"];
-    let algo_names = [
-        "Thompson Sampling",
-        "LinUCB",
-        "Heuristic Rules",
-    ];
+    let algo_names = ["Thompson Sampling", "LinUCB", "Heuristic Rules"];
     let default_weights = [0.4, 0.4, 0.2];
 
     let algorithms: Vec<AlgorithmStats> = algo_ids
@@ -502,7 +525,11 @@ pub async fn get_user_state_status(
 
     let distributions = UserStateDistributions {
         attention: DimensionDistribution {
-            avg: dist_row.try_get::<Option<f64>, _>("avg_attention").ok().flatten().unwrap_or(0.65),
+            avg: dist_row
+                .try_get::<Option<f64>, _>("avg_attention")
+                .ok()
+                .flatten()
+                .unwrap_or(0.65),
             low: dist_row.try_get::<i64, _>("attention_low").unwrap_or(0) as f64 / total_f,
             medium: dist_row.try_get::<i64, _>("attention_med").unwrap_or(0) as f64 / total_f,
             high: dist_row.try_get::<i64, _>("attention_high").unwrap_or(0) as f64 / total_f,
@@ -510,23 +537,52 @@ pub async fn get_user_state_status(
             high_alert_count: None,
         },
         fatigue: FatigueDistribution {
-            avg: dist_row.try_get::<Option<f64>, _>("avg_fatigue").ok().flatten().unwrap_or(0.35),
+            avg: dist_row
+                .try_get::<Option<f64>, _>("avg_fatigue")
+                .ok()
+                .flatten()
+                .unwrap_or(0.35),
             fresh: dist_row.try_get::<i64, _>("fatigue_fresh").unwrap_or(0) as f64 / total_f,
             normal: dist_row.try_get::<i64, _>("fatigue_normal").unwrap_or(0) as f64 / total_f,
             tired: dist_row.try_get::<i64, _>("fatigue_tired").unwrap_or(0) as f64 / total_f,
             high_alert_count: dist_row.try_get("fatigue_alert").unwrap_or(0),
         },
         motivation: MotivationDistribution {
-            avg: dist_row.try_get::<Option<f64>, _>("avg_motivation").ok().flatten().unwrap_or(0.25),
-            frustrated: dist_row.try_get::<i64, _>("motivation_frustrated").unwrap_or(0) as f64 / total_f,
-            neutral: dist_row.try_get::<i64, _>("motivation_neutral").unwrap_or(0) as f64 / total_f,
-            motivated: dist_row.try_get::<i64, _>("motivation_motivated").unwrap_or(0) as f64 / total_f,
+            avg: dist_row
+                .try_get::<Option<f64>, _>("avg_motivation")
+                .ok()
+                .flatten()
+                .unwrap_or(0.25),
+            frustrated: dist_row
+                .try_get::<i64, _>("motivation_frustrated")
+                .unwrap_or(0) as f64
+                / total_f,
+            neutral: dist_row
+                .try_get::<i64, _>("motivation_neutral")
+                .unwrap_or(0) as f64
+                / total_f,
+            motivated: dist_row
+                .try_get::<i64, _>("motivation_motivated")
+                .unwrap_or(0) as f64
+                / total_f,
             low_alert_count: dist_row.try_get("motivation_alert").unwrap_or(0),
         },
         cognitive: CognitiveDistribution {
-            memory: dist_row.try_get::<Option<f64>, _>("cognitive_mem").ok().flatten().unwrap_or(0.6),
-            speed: dist_row.try_get::<Option<f64>, _>("cognitive_speed").ok().flatten().unwrap_or(0.55),
-            stability: dist_row.try_get::<Option<f64>, _>("cognitive_stability").ok().flatten().unwrap_or(0.7),
+            memory: dist_row
+                .try_get::<Option<f64>, _>("cognitive_mem")
+                .ok()
+                .flatten()
+                .unwrap_or(0.6),
+            speed: dist_row
+                .try_get::<Option<f64>, _>("cognitive_speed")
+                .ok()
+                .flatten()
+                .unwrap_or(0.55),
+            stability: dist_row
+                .try_get::<Option<f64>, _>("cognitive_stability")
+                .ok()
+                .flatten()
+                .unwrap_or(0.7),
         },
     };
 
@@ -642,7 +698,11 @@ pub async fn get_memory_status(proxy: &DatabaseProxy) -> Result<MemoryStatusReal
         urgent_review_count: row.try_get("urgent").unwrap_or(0),
         soon_review_count: row.try_get("soon").unwrap_or(0),
         stable_count: row.try_get("stable").unwrap_or(0),
-        avg_half_life_days: row.try_get::<Option<f64>, _>("avg_half_life").ok().flatten().unwrap_or(3.0),
+        avg_half_life_days: row
+            .try_get::<Option<f64>, _>("avg_half_life")
+            .ok()
+            .flatten()
+            .unwrap_or(3.0),
         today_consolidation_rate: consolidation_rate,
     })
 }

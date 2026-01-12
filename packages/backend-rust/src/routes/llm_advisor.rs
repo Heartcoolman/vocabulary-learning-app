@@ -769,7 +769,7 @@ async fn list_suggestions(
         }
     }
 
-    let limit = query.limit.unwrap_or(20).max(1).min(100);
+    let limit = query.limit.unwrap_or(20).clamp(1, 100);
     let offset = query.offset.unwrap_or(0).max(0);
 
     let pool = proxy.pool();

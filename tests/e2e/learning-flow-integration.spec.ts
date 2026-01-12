@@ -43,7 +43,10 @@ function parseFirstInt(text: string | null): number | null {
 }
 
 async function getQuestionCount(page: Page): Promise<number | null> {
-  const text = await page.locator('[data-testid="question-count"]').textContent().catch(() => null);
+  const text = await page
+    .locator('[data-testid="question-count"]')
+    .textContent()
+    .catch(() => null);
   return parseFirstInt(text);
 }
 

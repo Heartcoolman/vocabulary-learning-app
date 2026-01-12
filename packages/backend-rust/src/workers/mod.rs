@@ -317,10 +317,10 @@ impl WorkerManager {
 
         // System log export - runs hourly when file logging is enabled
         if logging::file_logging_enabled() {
-            let schedule = std::env::var("LOG_EXPORT_SCHEDULE")
-                .unwrap_or_else(|_| "0 0 * * * *".to_string());
-            let export_dir = std::env::var("LOG_EXPORT_DIR")
-                .unwrap_or_else(|_| "./logs/exports".to_string());
+            let schedule =
+                std::env::var("LOG_EXPORT_SCHEDULE").unwrap_or_else(|_| "0 0 * * * *".to_string());
+            let export_dir =
+                std::env::var("LOG_EXPORT_DIR").unwrap_or_else(|_| "./logs/exports".to_string());
             let db = Arc::clone(&self.db_proxy);
             let shutdown_rx = self.shutdown_tx.subscribe();
             let job = Job::new_async(&schedule, move |_uuid, _lock| {

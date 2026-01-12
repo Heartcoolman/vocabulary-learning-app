@@ -161,7 +161,11 @@ async fn load_checkpoint(path: &Path) -> Option<(DateTime<Utc>, String)> {
     Some((ts, checkpoint.last_id.unwrap_or_default()))
 }
 
-async fn save_checkpoint(path: &Path, timestamp: DateTime<Utc>, last_id: &str) -> Result<(), WorkerError> {
+async fn save_checkpoint(
+    path: &Path,
+    timestamp: DateTime<Utc>,
+    last_id: &str,
+) -> Result<(), WorkerError> {
     let checkpoint = ExportCheckpoint {
         last_exported_at: timestamp.to_rfc3339(),
         last_id: Some(last_id.to_string()),

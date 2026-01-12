@@ -81,7 +81,9 @@ impl AMASMonitor {
             user_state: serde_json::to_value(&result.state).unwrap_or_default(),
             strategy: serde_json::to_value(&result.strategy).unwrap_or_default(),
             reward: serde_json::to_value(&result.reward).unwrap_or_default(),
-            cold_start_phase: result.cold_start_phase.map(|p| format!("{:?}", p).to_lowercase()),
+            cold_start_phase: result
+                .cold_start_phase
+                .map(|p| format!("{:?}", p).to_lowercase()),
             constraints_satisfied: result
                 .objective_evaluation
                 .as_ref()
@@ -119,10 +121,34 @@ impl AMASMonitor {
         self.check_range(&mut violations, "fatigue", state.fatigue, 0.0, 1.0);
         self.check_range(&mut violations, "motivation", state.motivation, -1.0, 1.0);
         self.check_range(&mut violations, "conf", state.conf, 0.0, 1.0);
-        self.check_range(&mut violations, "cognitive.mem", state.cognitive.mem, 0.0, 1.0);
-        self.check_range(&mut violations, "cognitive.speed", state.cognitive.speed, 0.0, 1.0);
-        self.check_range(&mut violations, "cognitive.stability", state.cognitive.stability, 0.0, 1.0);
-        self.check_range(&mut violations, "strategy.new_ratio", strategy.new_ratio, 0.0, 1.0);
+        self.check_range(
+            &mut violations,
+            "cognitive.mem",
+            state.cognitive.mem,
+            0.0,
+            1.0,
+        );
+        self.check_range(
+            &mut violations,
+            "cognitive.speed",
+            state.cognitive.speed,
+            0.0,
+            1.0,
+        );
+        self.check_range(
+            &mut violations,
+            "cognitive.stability",
+            state.cognitive.stability,
+            0.0,
+            1.0,
+        );
+        self.check_range(
+            &mut violations,
+            "strategy.new_ratio",
+            strategy.new_ratio,
+            0.0,
+            1.0,
+        );
         self.check_range(&mut violations, "reward.value", reward.value, -1.0, 1.0);
 
         self.check_nan_inf(&mut violations, "attention", state.attention);

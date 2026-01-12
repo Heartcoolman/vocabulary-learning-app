@@ -689,10 +689,10 @@ async fn update_config(
         enabled = value;
     }
     if let Some(value) = patch.detection_fps {
-        detection_fps = value.max(1).min(30);
+        detection_fps = value.clamp(1, 30);
     }
     if let Some(value) = patch.upload_interval_ms {
-        upload_interval_ms = value.max(1000).min(60_000);
+        upload_interval_ms = value.clamp(1000, 60_000);
     }
     if let Some(value) = patch.vlm_analysis_enabled {
         vlm = value;

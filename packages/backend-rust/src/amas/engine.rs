@@ -139,7 +139,10 @@ impl AMASEngine {
         let cold_start_result = if let Some(ref mut cs) = models.cold_start {
             if !cs.is_complete() {
                 let accuracy = if event.is_correct { 1.0 } else { 0.0 };
-                track_algorithm!(AlgorithmId::ColdStartManager, cs.update(accuracy, event.response_time))
+                track_algorithm!(
+                    AlgorithmId::ColdStartManager,
+                    cs.update(accuracy, event.response_time)
+                )
             } else {
                 None
             }
@@ -160,24 +163,41 @@ impl AMASEngine {
             let strategy_candidates = self.generate_strategy_candidates(&current_strategy);
 
             let linucb_action = if config.feature_flags.linucb_enabled {
-                track_algorithm!(AlgorithmId::LinUCB, models.linucb.select_action(&new_user_state, &feature_vector, &strategy_candidates))
+                track_algorithm!(
+                    AlgorithmId::LinUCB,
+                    models.linucb.select_action(
+                        &new_user_state,
+                        &feature_vector,
+                        &strategy_candidates
+                    )
+                )
             } else {
                 None
             };
             let thompson_action = if config.feature_flags.thompson_enabled {
-                track_algorithm!(AlgorithmId::Thompson, models.thompson.select_action(&new_user_state, &feature_vector, &strategy_candidates))
+                track_algorithm!(
+                    AlgorithmId::Thompson,
+                    models.thompson.select_action(
+                        &new_user_state,
+                        &feature_vector,
+                        &strategy_candidates
+                    )
+                )
             } else {
                 None
             };
 
             let ensemble = self.ensemble.read().await;
-            track_algorithm!(AlgorithmId::Heuristic, ensemble.decide(
-                &new_user_state,
-                &feature_vector,
-                &current_strategy,
-                thompson_action.as_ref(),
-                linucb_action.as_ref(),
-            ))
+            track_algorithm!(
+                AlgorithmId::Heuristic,
+                ensemble.decide(
+                    &new_user_state,
+                    &feature_vector,
+                    &current_strategy,
+                    thompson_action.as_ref(),
+                    linucb_action.as_ref(),
+                )
+            )
         };
 
         let reward = self.compute_reward(&event, &new_user_state, &options, &config);
@@ -205,19 +225,22 @@ impl AMASEngine {
                     reps: ws.reps,
                     lapses: ws.lapses,
                 };
-                let desired_retention = ws.desired_retention.max(0.8).min(0.95);
+                let desired_retention = ws.desired_retention.clamp(0.8, 0.95);
                 let root_bonus = options
                     .root_features
                     .as_ref()
                     .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
                     .unwrap_or(0.0);
-                let result = track_algorithm!(AlgorithmId::Fsrs, fsrs_next_interval_with_root(
-                    &fsrs_state,
-                    rating,
-                    desired_retention,
-                    &fsrs_params,
-                    root_bonus,
-                ));
+                let result = track_algorithm!(
+                    AlgorithmId::Fsrs,
+                    fsrs_next_interval_with_root(
+                        &fsrs_state,
+                        rating,
+                        desired_retention,
+                        &fsrs_params,
+                        root_bonus,
+                    )
+                );
                 let retrievability = fsrs_retrievability(ws.stability, ws.elapsed_days);
 
                 // AMAS comprehensive mastery decision
@@ -230,8 +253,10 @@ impl AMASEngine {
                     + new_user_state.cognitive.stability * 0.3)
                     * 20.0;
                 let attention_bonus = new_user_state.attention * 10.0;
-                let fatigue_penalty =
-                    new_user_state.fused_fatigue.unwrap_or(new_user_state.fatigue) * 10.0;
+                let fatigue_penalty = new_user_state
+                    .fused_fatigue
+                    .unwrap_or(new_user_state.fatigue)
+                    * 10.0;
                 let user_state_score = cognitive_score + attention_bonus - fatigue_penalty;
 
                 // First attempt fast correct bonus
@@ -268,13 +293,16 @@ impl AMASEngine {
                     .as_ref()
                     .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
                     .unwrap_or(0.0);
-                let result = track_algorithm!(AlgorithmId::Fsrs, fsrs_next_interval_with_root(
-                    &fsrs_state,
-                    rating,
-                    0.9,
-                    &fsrs_params,
-                    root_bonus,
-                ));
+                let result = track_algorithm!(
+                    AlgorithmId::Fsrs,
+                    fsrs_next_interval_with_root(
+                        &fsrs_state,
+                        rating,
+                        0.9,
+                        &fsrs_params,
+                        root_bonus,
+                    )
+                );
 
                 // AMAS comprehensive mastery decision for new word
                 let (fsrs_score, _) = compute_fsrs_mastery_score(&result.state, rating);
@@ -285,8 +313,10 @@ impl AMASEngine {
                     + new_user_state.cognitive.stability * 0.3)
                     * 20.0;
                 let attention_bonus = new_user_state.attention * 10.0;
-                let fatigue_penalty =
-                    new_user_state.fused_fatigue.unwrap_or(new_user_state.fatigue) * 10.0;
+                let fatigue_penalty = new_user_state
+                    .fused_fatigue
+                    .unwrap_or(new_user_state.fatigue)
+                    * 10.0;
                 let user_state_score = cognitive_score + attention_bonus - fatigue_penalty;
 
                 // First attempt fast correct bonus (always true for new word)
@@ -578,10 +608,8 @@ impl AMASEngine {
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_else(|| ThompsonSamplingModel::new(1.0, 1.0));
 
-        let mut attention = AttentionMonitor::new(
-            config.attention_weights.clone(),
-            config.attention_smoothing,
-        );
+        let mut attention =
+            AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
         attention.set_value(state.user_state.attention);
 
         let mut fatigue = FatigueEstimator::new(config.fatigue.clone());
@@ -609,10 +637,8 @@ impl AMASEngine {
 
         let mut model_map = self.user_models.write().await;
 
-        let mut attention2 = AttentionMonitor::new(
-            config.attention_weights.clone(),
-            config.attention_smoothing,
-        );
+        let mut attention2 =
+            AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
         attention2.set_value(state.user_state.attention);
 
         let mut fatigue2 = FatigueEstimator::new(config.fatigue.clone());
@@ -719,38 +745,44 @@ impl AMASEngine {
 
         let hour_of_day = chrono::Local::now().hour();
 
-        let attention = track_algorithm!(AlgorithmId::AttentionMonitor, models.attention.update(AttentionFeatures {
-            rt_mean: rt_norm,
-            rt_cv: options.rt_cv.unwrap_or(0.0),
-            pace_cv: options.pace_cv.unwrap_or(0.0),
-            pause_count: event.pause_count as f64,
-            switch_count: event.switch_count as f64,
-            drift: 0.0,
-            interaction_density: event.interaction_density.unwrap_or(0.5),
-            focus_loss: event
-                .focus_loss_duration
-                .map(|ms| ms as f64 / 60000.0)
-                .unwrap_or(0.0),
-            recent_accuracy: options.recent_accuracy.unwrap_or(0.7),
-            is_correct: Some(event.is_correct),
-            hint_used: event.hint_used,
-            retry_count: event.retry_count,
-            dwell_time: dwell_norm,
-            visual_fatigue: options.visual_fatigue_score.unwrap_or(0.0),
-            visual_fatigue_confidence: options.visual_fatigue_confidence.unwrap_or(0.5),
-            motivation: prev_state.motivation,
-            cognitive: prev_state.cognitive.clone(),
-            study_duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
-            hour_of_day,
-        }));
+        let attention = track_algorithm!(
+            AlgorithmId::AttentionMonitor,
+            models.attention.update(AttentionFeatures {
+                rt_mean: rt_norm,
+                rt_cv: options.rt_cv.unwrap_or(0.0),
+                pace_cv: options.pace_cv.unwrap_or(0.0),
+                pause_count: event.pause_count as f64,
+                switch_count: event.switch_count as f64,
+                drift: 0.0,
+                interaction_density: event.interaction_density.unwrap_or(0.5),
+                focus_loss: event
+                    .focus_loss_duration
+                    .map(|ms| ms as f64 / 60000.0)
+                    .unwrap_or(0.0),
+                recent_accuracy: options.recent_accuracy.unwrap_or(0.7),
+                is_correct: Some(event.is_correct),
+                hint_used: event.hint_used,
+                retry_count: event.retry_count,
+                dwell_time: dwell_norm,
+                visual_fatigue: options.visual_fatigue_score.unwrap_or(0.0),
+                visual_fatigue_confidence: options.visual_fatigue_confidence.unwrap_or(0.5),
+                motivation: prev_state.motivation,
+                cognitive: prev_state.cognitive.clone(),
+                study_duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
+                hour_of_day,
+            })
+        );
 
         let break_minutes = event.paused_time_ms.map(|ms| ms as f64 / 60000.0);
-        let fatigue = track_algorithm!(AlgorithmId::FatigueEstimator, models.fatigue.update(FatigueFeatures {
-            error_rate_trend: if event.is_correct { -0.05 } else { 0.1 },
-            rt_increase_rate: rt_norm,
-            repeat_errors: event.retry_count,
-            break_minutes,
-        }));
+        let fatigue = track_algorithm!(
+            AlgorithmId::FatigueEstimator,
+            models.fatigue.update(FatigueFeatures {
+                error_rate_trend: if event.is_correct { -0.05 } else { 0.1 },
+                rt_increase_rate: rt_norm,
+                repeat_errors: event.retry_count,
+                break_minutes,
+            })
+        );
 
         let recent_accuracy =
             options
@@ -758,11 +790,14 @@ impl AMASEngine {
                 .unwrap_or(if event.is_correct { 0.8 } else { 0.6 });
         let error_variance = recent_accuracy * (1.0 - recent_accuracy);
 
-        let cognitive = track_algorithm!(AlgorithmId::CognitiveProfiler, models.cognitive.update(CognitiveInput {
-            accuracy: if event.is_correct { 1.0 } else { 0.0 },
-            avg_response_time: event.response_time,
-            error_variance,
-        }));
+        let cognitive = track_algorithm!(
+            AlgorithmId::CognitiveProfiler,
+            models.cognitive.update(CognitiveInput {
+                accuracy: if event.is_correct { 1.0 } else { 0.0 },
+                avg_response_time: event.response_time,
+                error_variance,
+            })
+        );
 
         // Integrate ACT-R memory model if enabled and history is available
         let actr_mem = if config.feature_flags.actr_memory_enabled {
@@ -783,15 +818,21 @@ impl AMASEngine {
             cognitive
         };
 
-        let motivation = track_algorithm!(AlgorithmId::MotivationTracker, models.motivation.update(MotivationEvent {
-            is_correct: event.is_correct,
-            is_quit: false,
-            streak_length: models.motivation.streak(),
-        }));
+        let motivation = track_algorithm!(
+            AlgorithmId::MotivationTracker,
+            models.motivation.update(MotivationEvent {
+                is_correct: event.is_correct,
+                is_quit: false,
+                streak_length: models.motivation.streak(),
+            })
+        );
 
         let mastery_score =
             (final_cognitive.mem + final_cognitive.speed + final_cognitive.stability) / 3.0;
-        let trend = track_algorithm!(AlgorithmId::TrendAnalyzer, models.trend.update(mastery_score));
+        let trend = track_algorithm!(
+            AlgorithmId::TrendAnalyzer,
+            models.trend.update(mastery_score)
+        );
 
         let conf = (config.confidence_decay * prev_state.conf
             + (1.0 - config.confidence_decay) * 0.7)
@@ -813,15 +854,16 @@ impl AMASEngine {
             trend: Some(trend),
             conf,
             ts: chrono::Utc::now().timestamp_millis(),
-            visual_fatigue: options.visual_fatigue_score.map(|score| {
-                VisualFatigueState {
+            visual_fatigue: options
+                .visual_fatigue_score
+                .map(|score| VisualFatigueState {
                     score,
                     confidence: options.visual_fatigue_confidence.unwrap_or(0.5),
                     freshness: 1.0,
                     trend: 0.0,
                     last_updated: chrono::Utc::now().timestamp_millis(),
-                }
-            }).or_else(|| prev_state.visual_fatigue.clone()),
+                })
+                .or_else(|| prev_state.visual_fatigue.clone()),
             fused_fatigue: Some(fused),
         }
     }

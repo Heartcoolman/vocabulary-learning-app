@@ -4,7 +4,9 @@ use chrono::{DateTime, Utc};
 use tracing::info;
 
 use crate::amas::metrics::{registry, AlgorithmId, AlgorithmMetricsSnapshot};
-use crate::db::operations::algorithm_metrics::{list_algorithm_metrics_daily, upsert_algorithm_metrics_daily};
+use crate::db::operations::algorithm_metrics::{
+    list_algorithm_metrics_daily, upsert_algorithm_metrics_daily,
+};
 use crate::db::DatabaseProxy;
 
 #[derive(Debug)]
@@ -39,7 +41,9 @@ impl AlgorithmMetricsPersistor {
             let last = self.last_snapshot.get(id).copied().unwrap_or_default();
 
             let call_count_delta = current.call_count.saturating_sub(last.call_count);
-            let total_latency_delta = current.total_latency_us.saturating_sub(last.total_latency_us);
+            let total_latency_delta = current
+                .total_latency_us
+                .saturating_sub(last.total_latency_us);
             let error_count_delta = current.error_count.saturating_sub(last.error_count);
 
             if call_count_delta == 0 && total_latency_delta == 0 && error_count_delta == 0 {

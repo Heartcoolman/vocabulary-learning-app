@@ -124,13 +124,12 @@ pub async fn aggregate_daily(db: Arc<DatabaseProxy>) -> Result<(), super::Worker
     let pool = db.pool();
     let yesterday = (Utc::now() - Duration::days(1)).date_naive();
 
-    let existing: Option<(i32,)> = sqlx::query_as(
-        r#"SELECT 1 FROM "amas_monitoring_aggregates_daily" WHERE "date" = $1"#,
-    )
-    .bind(yesterday)
-    .fetch_optional(pool)
-    .await
-    .map_err(super::WorkerError::Database)?;
+    let existing: Option<(i32,)> =
+        sqlx::query_as(r#"SELECT 1 FROM "amas_monitoring_aggregates_daily" WHERE "date" = $1"#)
+            .bind(yesterday)
+            .fetch_optional(pool)
+            .await
+            .map_err(super::WorkerError::Database)?;
 
     if existing.is_some() {
         return Ok(());
@@ -252,7 +251,10 @@ fn compute_alert_level(
             level = "warn";
         }
         if constraints_rate < 0.90 {
-            reasons.push(format!("constraints_rate: {:.1}%", constraints_rate * 100.0));
+            reasons.push(format!(
+                "constraints_rate: {:.1}%",
+                constraints_rate * 100.0
+            ));
             level = "warn";
         }
     }

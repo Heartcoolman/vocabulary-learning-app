@@ -403,10 +403,7 @@ fn default_feature_flags() -> Map<String, Value> {
 }
 
 fn debug_flag_bool(flags: &Map<String, Value>, key: &str, default: bool) -> bool {
-    flags
-        .get(key)
-        .and_then(|v| v.as_bool())
-        .unwrap_or(default)
+    flags.get(key).and_then(|v| v.as_bool()).unwrap_or(default)
 }
 
 fn debug_flags_to_feature_flags(flags: &Map<String, Value>) -> FeatureFlags {

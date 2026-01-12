@@ -13,14 +13,16 @@ use uuid::Uuid;
 use crate::amas::types::{
     ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
 };
-use crate::db::operations::{insert_decision_insight, insert_decision_record, list_algorithm_metrics_daily, DecisionRecord};
+use crate::db::operations::{
+    insert_decision_insight, insert_decision_record, list_algorithm_metrics_daily, DecisionRecord,
+};
 use crate::response::{json_error, AppError};
+use crate::routes::realtime::send_event;
 use crate::services::delayed_reward::{enqueue_delayed_reward, EnqueueRewardInput};
 use crate::services::learning_state::{upsert_word_state, WordState, WordStateUpdateData};
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
 use crate::state::AppState;
-use crate::routes::realtime::send_event;
 
 #[derive(Debug, Serialize)]
 struct SuccessResponse<T> {
@@ -381,21 +383,27 @@ async fn process_event(
         .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, "AMAS_ERROR", &e))?;
 
     // Push AMAS flow data to SSE for real-time visualization
-    let weights_json = result.algorithm_weights.as_ref().map(|w| {
-        serde_json::json!({
-            "thompson": w.thompson,
-            "linucb": w.linucb,
-            "heuristic": w.heuristic,
-            "actr": w.actr,
-            "coldstart": w.coldstart,
+    let weights_json = result
+        .algorithm_weights
+        .as_ref()
+        .map(|w| {
+            serde_json::json!({
+                "thompson": w.thompson,
+                "linucb": w.linucb,
+                "heuristic": w.heuristic,
+                "actr": w.actr,
+                "coldstart": w.coldstart,
+            })
         })
-    }).unwrap_or_else(|| serde_json::json!({
-        "thompson": 0.25,
-        "linucb": 0.25,
-        "actr": 0.2,
-        "heuristic": 0.2,
-        "coldstart": 0.1,
-    }));
+        .unwrap_or_else(|| {
+            serde_json::json!({
+                "thompson": 0.25,
+                "linucb": 0.25,
+                "actr": 0.2,
+                "heuristic": 0.2,
+                "coldstart": 0.1,
+            })
+        });
     let amas_flow_payload = serde_json::json!({
         "timestamp": chrono::Utc::now().timestamp_millis(),
         "rawEvent": {
@@ -1860,37 +1868,33 @@ async fn load_latest_visual_fatigue(
     let freshness_threshold_ms = 30 * 1000i64;
 
     let row = match session_id {
-        Some(sid) if !sid.is_empty() => {
-            sqlx::query(
-                r#"
+        Some(sid) if !sid.is_empty() => sqlx::query(
+            r#"
                 SELECT "score", "confidence", "createdAt"
                 FROM "visual_fatigue_records"
                 WHERE "userId" = $1 AND "sessionId" = $2
                 ORDER BY "createdAt" DESC
                 LIMIT 1
                 "#,
-            )
-            .bind(user_id)
-            .bind(sid)
-            .fetch_optional(pool)
-            .await
-            .ok()?
-        }
-        _ => {
-            sqlx::query(
-                r#"
+        )
+        .bind(user_id)
+        .bind(sid)
+        .fetch_optional(pool)
+        .await
+        .ok()?,
+        _ => sqlx::query(
+            r#"
                 SELECT "score", "confidence", "createdAt"
                 FROM "visual_fatigue_records"
                 WHERE "userId" = $1
                 ORDER BY "createdAt" DESC
                 LIMIT 1
                 "#,
-            )
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await
-            .ok()?
-        }
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .ok()?,
     }?;
 
     let created_at: chrono::NaiveDateTime = row.try_get("createdAt").ok()?;
@@ -2018,5 +2022,8 @@ async fn get_algorithm_metrics_history(
         })
         .collect();
 
-    Ok(Json(SuccessResponse { success: true, data }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data,
+    }))
 }

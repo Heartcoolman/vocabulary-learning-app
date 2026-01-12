@@ -24,7 +24,7 @@ fn convert_amas_strategy(s: AmasStrategyParams) -> StrategyParams {
 }
 
 fn clamp_batch_size(value: i64) -> usize {
-    value.max(1).min(20) as usize
+    value.clamp(1, 20) as usize
 }
 
 fn effective_batch_size(requested: Option<i64>, strategy: &StrategyParams) -> usize {
@@ -193,8 +193,8 @@ pub async fn get_words_for_mastery_mode(
         strategy = ?strategy,
         "get_words_for_mastery_mode: using AMAS strategy"
     );
-    let fetch_count = effective_batch_size(None, &strategy)
-        .min(usize::try_from(target.max(1)).unwrap_or(20));
+    let fetch_count =
+        effective_batch_size(None, &strategy).min(usize::try_from(target.max(1)).unwrap_or(20));
     let words = fetch_words_with_strategy(proxy, user_id, fetch_count, &strategy, &[]).await?;
 
     tracing::info!(
@@ -962,12 +962,10 @@ fn explain_word_selection(strategy: &StrategyParams, words: &[LearningWord]) -> 
 
 pub async fn load_user_strategy(proxy: &DatabaseProxy, user_id: &str) -> StrategyParams {
     match get_amas_user_model(proxy, user_id, "strategy").await {
-        Ok(Some(model)) => {
-            serde_json::from_value(model.parameters).unwrap_or_else(|_| {
-                tracing::debug!(user_id = %user_id, "AMAS strategy parse failed, using default");
-                StrategyParams::default_strategy()
-            })
-        }
+        Ok(Some(model)) => serde_json::from_value(model.parameters).unwrap_or_else(|_| {
+            tracing::debug!(user_id = %user_id, "AMAS strategy parse failed, using default");
+            StrategyParams::default_strategy()
+        }),
         Ok(None) => {
             tracing::info!(user_id = %user_id, "No AMAS strategy found, using default");
             StrategyParams::default_strategy()
