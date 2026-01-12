@@ -18,11 +18,20 @@ spec:
     - 视觉疲劳检测
     - 学习数据统计分析
 
+    ## 部署说明
+    1. 部署完成后为 Backend 服务绑定域名
+    2. 将 Backend 域名填入 BACKEND_DOMAIN 变量
+    3. 重新部署 Frontend 服务
+
   variables:
     - key: PUBLIC_DOMAIN
       type: DOMAIN
-      name: Domain
-      description: Frontend domain
+      name: Frontend Domain
+      description: Frontend public domain
+    - key: BACKEND_DOMAIN
+      type: STRING
+      name: Backend Domain
+      description: Backend public domain (e.g., api.example.com)
     - key: JWT_SECRET
       type: STRING
       name: JWT Secret
@@ -93,16 +102,13 @@ spec:
           RUST_LOG:
             default: info
           DATABASE_URL:
-            default: ${POSTGRES_URI}
+            default: ${PostgreSQL.POSTGRES_URI}
           REDIS_URL:
-            default: ${REDIS_URI}
+            default: ${Redis.REDIS_URI}
           JWT_SECRET:
             default: ${JWT_SECRET}
           CORS_ORIGIN:
             default: https://${PUBLIC_DOMAIN}
-      dependencies:
-        - PostgreSQL
-        - Redis
 
     - name: Frontend
       template: GIT
@@ -112,13 +118,11 @@ spec:
           source: GITHUB
           repo: 1100646679
           branch: dev
-          subPath: packages/frontend
+        dockerfile: Dockerfile.zeabur-frontend
         ports:
           - id: web
             port: 80
             type: HTTP
         env:
           VITE_API_URL:
-            default: https://${ZEABUR_BACKEND_URL}
-      dependencies:
-        - Backend
+            default: https://${BACKEND_DOMAIN}
