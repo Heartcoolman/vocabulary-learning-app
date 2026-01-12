@@ -30,6 +30,10 @@ impl EnsembleDecision {
         }
     }
 
+    pub fn set_feature_flags(&mut self, flags: FeatureFlags) {
+        self.feature_flags = flags;
+    }
+
     pub fn decide(
         &self,
         state: &UserState,

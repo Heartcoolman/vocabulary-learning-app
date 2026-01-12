@@ -216,6 +216,85 @@ export interface AnomalyFlag {
 }
 
 /**
+ * AMAS 监控概览
+ */
+export interface AMASMonitoringOverview {
+  totalEvents: number;
+  eventsLast24h: number;
+  anomalyRate: number;
+  avgLatencyMs: number;
+  constraintsSatisfiedRate: number;
+  latestHealthScore: number | null;
+  latestHealthStatus: string | null;
+}
+
+/**
+ * AMAS 15分钟聚合数据
+ */
+export interface AMASAggregate15m {
+  id: string;
+  periodStart: string;
+  eventCount: number;
+  anomalyCount: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  avgAttention: number;
+  avgFatigue: number;
+  avgMotivation: number;
+  constraintsSatisfiedRate: number;
+  alertLevel: string;
+}
+
+/**
+ * AMAS 每日聚合数据
+ */
+export interface AMASAggregateDaily {
+  id: string;
+  date: string;
+  totalEvents: number;
+  anomalyCount: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  avgAttention: number;
+  avgFatigue: number;
+  avgMotivation: number;
+  constraintsSatisfiedRate: number;
+  uniqueUsers: number;
+  alertLevel: string;
+}
+
+/**
+ * AMAS 聚合响应
+ */
+export interface AMASAggregatesResponse {
+  period: string;
+  data: AMASAggregate15m[] | AMASAggregateDaily[];
+}
+
+/**
+ * AMAS 健康报告
+ */
+export interface AMASHealthReport {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  healthScore: number;
+  healthStatus: string;
+  insights: {
+    summary: string;
+    anomalyAnalysis?: string;
+    performanceAnalysis?: string;
+  };
+  recommendations: Array<{
+    priority: string;
+    category: string;
+    action: string;
+    rationale: string;
+  }>;
+  createdAt: string;
+}
+
+/**
  * 视觉疲劳统计数据（管理员）
  */
 export interface VisualFatigueStats {
@@ -1047,10 +1126,7 @@ export class AdminClient extends BaseClient {
     if (params?.taskType) queryParams.append('taskType', params.taskType);
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     const query = queryParams.toString();
-    const response = await this.request<{ success: boolean; data: LLMTask[] }>(
-      `/api/admin/llm/tasks${query ? `?${query}` : ''}`,
-    );
-    return response.data;
+    return this.request<LLMTask[]>(`/api/admin/llm/tasks${query ? `?${query}` : ''}`);
   }
 
   /**
@@ -1061,11 +1137,10 @@ export class AdminClient extends BaseClient {
     priority?: number;
     input: Record<string, unknown>;
   }): Promise<{ id: string }> {
-    const response = await this.request<{ success: boolean; data: { id: string } }>(
-      '/api/admin/llm/tasks',
-      { method: 'POST', body: JSON.stringify(data) },
-    );
-    return response.data;
+    return this.request<{ id: string }>('/api/admin/llm/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   /**
@@ -1114,10 +1189,7 @@ export class AdminClient extends BaseClient {
     if (params?.wordId) queryParams.append('wordId', params.wordId);
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     const query = queryParams.toString();
-    const response = await this.request<{ success: boolean; data: WordVariant[] }>(
-      `/api/admin/llm/word-variants${query ? `?${query}` : ''}`,
-    );
-    return response.data;
+    return this.request<WordVariant[]>(`/api/admin/llm/word-variants${query ? `?${query}` : ''}`);
   }
 
   /**
@@ -1131,11 +1203,10 @@ export class AdminClient extends BaseClient {
     confidence: number;
     taskId?: string;
   }): Promise<{ id: string }> {
-    const response = await this.request<{ success: boolean; data: { id: string } }>(
-      '/api/admin/llm/word-variants',
-      { method: 'POST', body: JSON.stringify(data) },
-    );
-    return response.data;
+    return this.request<{ id: string }>('/api/admin/llm/word-variants', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   /**
@@ -1163,5 +1234,38 @@ export class AdminClient extends BaseClient {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  // ==================== AMAS 监控 API ====================
+
+  /**
+   * 获取 AMAS 监控概览
+   */
+  async getAMASMonitoringOverview(): Promise<AMASMonitoringOverview> {
+    return this.request<AMASMonitoringOverview>('/api/admin/amas-monitoring/overview');
+  }
+
+  /**
+   * 获取 AMAS 监控聚合数据
+   */
+  async getAMASMonitoringAggregates(params?: {
+    period?: '15m' | 'daily';
+    limit?: number;
+  }): Promise<AMASAggregatesResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.period) queryParams.append('period', params.period);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const query = queryParams.toString();
+    return this.request<AMASAggregatesResponse>(
+      `/api/admin/amas-monitoring/aggregates${query ? `?${query}` : ''}`,
+    );
+  }
+
+  /**
+   * 获取 AMAS 健康报告列表
+   */
+  async getAMASHealthReports(limit?: number): Promise<AMASHealthReport[]> {
+    const query = limit ? `?limit=${limit}` : '';
+    return this.request<AMASHealthReport[]>(`/api/admin/amas-monitoring/health-reports${query}`);
   }
 }

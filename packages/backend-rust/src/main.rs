@@ -2,11 +2,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing_subscriber::EnvFilter;
 
 use danci_backend_rust::cache::RedisCache;
 use danci_backend_rust::config::Config;
 use danci_backend_rust::db;
+use danci_backend_rust::logging;
 use danci_backend_rust::routes;
 use danci_backend_rust::services::quality_service;
 use danci_backend_rust::state::AppState;
@@ -17,11 +17,7 @@ async fn main() {
     let _ = dotenvy::dotenv();
     let config = Config::from_env();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_new(&config.log_level).unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
+    let _file_log_guard = logging::init_tracing(&config.log_level);
 
     let db_proxy = match db::DatabaseProxy::from_env().await {
         Ok(proxy) => Some(proxy),
@@ -33,6 +29,9 @@ async fn main() {
 
     if let Some(ref proxy) = db_proxy {
         quality_service::cleanup_stale_tasks(proxy).await;
+        if let Err(err) = danci_backend_rust::amas::metrics_persistence::restore_registry_from_db(proxy.as_ref()).await {
+            tracing::warn!(error = %err, "failed to restore algorithm metrics");
+        }
     }
 
     let cache = match std::env::var("REDIS_URL") {

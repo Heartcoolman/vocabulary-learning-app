@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -10,6 +12,33 @@ const DEFAULT_API_ENDPOINT: &str = "https://api.openai.com/v1";
 const DEFAULT_TIMEOUT_MS: u64 = 60_000;
 const MAX_RETRIES: usize = 3;
 const BASE_BACKOFF_MS: u64 = 200;
+
+static LLM_RUNTIME_ENABLED: OnceLock<AtomicBool> = OnceLock::new();
+static LLM_RUNTIME_MOCK: OnceLock<AtomicBool> = OnceLock::new();
+
+fn llm_enabled_flag() -> &'static AtomicBool {
+    LLM_RUNTIME_ENABLED.get_or_init(|| AtomicBool::new(true))
+}
+
+fn llm_mock_flag() -> &'static AtomicBool {
+    LLM_RUNTIME_MOCK.get_or_init(|| AtomicBool::new(false))
+}
+
+pub fn set_llm_runtime_enabled(enabled: bool) {
+    llm_enabled_flag().store(enabled, Ordering::Relaxed);
+}
+
+pub fn set_llm_runtime_mock(mock: bool) {
+    llm_mock_flag().store(mock, Ordering::Relaxed);
+}
+
+pub fn is_llm_runtime_enabled() -> bool {
+    llm_enabled_flag().load(Ordering::Relaxed)
+}
+
+pub fn is_llm_runtime_mock() -> bool {
+    llm_mock_flag().load(Ordering::Relaxed)
+}
 
 #[derive(Debug, Clone)]
 pub struct LLMConfig {
@@ -110,6 +139,14 @@ impl LLMProvider {
     }
 
     pub async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, LLMError> {
+        if !is_llm_runtime_enabled() {
+            return Err(LLMError::NotConfigured("LLM runtime disabled"));
+        }
+
+        if is_llm_runtime_mock() {
+            return Ok(mock_chat_response());
+        }
+
         let api_key = self
             .config
             .api_key
@@ -231,4 +268,21 @@ fn is_retryable(status: reqwest::StatusCode) -> bool {
     status == reqwest::StatusCode::TOO_MANY_REQUESTS
         || status == reqwest::StatusCode::REQUEST_TIMEOUT
         || status.is_server_error()
+}
+
+fn mock_chat_response() -> ChatResponse {
+    ChatResponse {
+        model: Some("mock".to_string()),
+        choices: vec![ChatChoice {
+            message: ChatMessage {
+                role: "assistant".to_string(),
+                content: r#"{"summary":"Mock response - LLM is in mock mode","suggestions":[],"confidence":0.5,"dataQuality":"mock"}"#.to_string(),
+            },
+        }],
+        usage: Some(ChatUsage {
+            prompt_tokens: Some(0),
+            completion_tokens: Some(0),
+            total_tokens: Some(0),
+        }),
+    }
 }

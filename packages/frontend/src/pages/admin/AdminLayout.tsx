@@ -20,6 +20,7 @@ import {
   ChartLine,
   Sparkle,
   Queue,
+  Heartbeat,
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
@@ -84,6 +85,7 @@ export default function AdminLayout() {
     { path: '/admin/causal-analysis', label: '因果分析', icon: Brain },
     { path: '/admin/llm-advisor', label: 'LLM 顾问', icon: Robot },
     { path: '/admin/llm-tasks', label: 'LLM 任务', icon: Queue },
+    { path: '/admin/amas-monitoring', label: 'AMAS 监控', icon: Heartbeat },
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
     { path: '/admin/weekly-report', label: '运营周报', icon: ChartLine },
     { path: '/admin/logs', label: '系统日志', icon: FileText },

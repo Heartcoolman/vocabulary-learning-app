@@ -57,7 +57,6 @@ dependency-*.json
 
 # Log files (besides npm logs)
 *.log
-!packages/backend/logs/.gitkeep
 
 # Temporary/backup files
 *.bak
@@ -82,18 +81,13 @@ coverage/
 target/
 Cargo.lock
 
-# Prisma
-packages/backend/prisma/*.db
-
-# SQLite WAL artifacts (tracked fallback.db 会生成临时文件)
-packages/backend/data/fallback.db-shm
-packages/backend/data/fallback.db-wal
+# SQLite WAL artifacts
+packages/backend-rust/data/fallback.db-shm
+packages/backend-rust/data/fallback.db-wal
 
 # Large test result files
 **/simulation-test-results*.txt
 **/integration-test-results*.txt
-packages/backend/vitest-results*.json
-packages/backend/vitest-unit-report.json
 packages/frontend/failed-test-files*.list
 packages/frontend/failed-tests.list
 

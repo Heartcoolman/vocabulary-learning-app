@@ -17,6 +17,7 @@ use crate::state::AppState;
 mod analytics;
 mod llm;
 mod logs;
+mod monitoring;
 mod ops;
 mod quality;
 mod statistics;
@@ -38,6 +39,7 @@ pub fn router() -> Router<AppState> {
         .nest("/ops", ops::router())
         .nest("/llm", llm::router())
         .nest("/analytics", analytics::router())
+        .nest("/amas-monitoring", monitoring::router())
         .route(
             "/statistics",
             axum::routing::get(statistics::get_statistics),

@@ -6,9 +6,15 @@
  */
 
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Sparkle, SlidersHorizontal, Pulse, ChartBar, Cpu, SignIn } from '../../components/Icon';
+import {
+  Sparkle,
+  SlidersHorizontal,
+  Pulse,
+  ChartBar,
+  Cpu,
+  ArrowRight,
+} from '../../components/Icon';
 
-/** 菜单项配置 */
 const menuItems = [
   { path: '/about', label: '概览', icon: Sparkle, exact: true },
   { path: '/about/simulation', label: '模拟演示', icon: SlidersHorizontal },
@@ -21,18 +27,34 @@ export default function AboutLayout() {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="relative flex h-dvh min-h-screen w-full overflow-hidden bg-slate-50 text-slate-900 selection:bg-blue-100 dark:bg-slate-900 dark:text-slate-100">
+      {/* Aurora Background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-64 -top-64 h-[500px] w-[500px] rounded-full bg-blue-200/40 blur-[100px] dark:bg-blue-900/20"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-64 -right-64 h-[500px] w-[500px] rounded-full bg-purple-200/40 blur-[100px] dark:bg-purple-900/20"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-emerald-100/40 blur-[100px] dark:bg-emerald-900/20"
+      />
+
       {/* 侧边栏 */}
-      <aside className="flex w-64 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+      <aside className="z-20 flex w-72 flex-col border-r border-white/40 bg-white/60 backdrop-blur-2xl dark:border-slate-700/40 dark:bg-slate-800/60">
         {/* 标题区 */}
-        <div className="border-b border-gray-200 p-6 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-card bg-gradient-to-br from-blue-500 to-indigo-600 shadow-elevated shadow-blue-500/25">
-              <Sparkle size={24} weight="fill" className="text-white" />
+        <div className="border-b border-white/20 p-8 dark:border-slate-700/20">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20">
+              <Sparkle size={20} weight="fill" className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">AMAS</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">智能学习引擎</p>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                AMAS
+              </h1>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">智能学习引擎</p>
             </div>
           </div>
         </div>
@@ -40,10 +62,9 @@ export default function AboutLayout() {
         {/* 导航菜单 */}
         <nav className="flex-1 space-y-2 p-4">
           {menuItems.map((item) => {
-            // 特殊处理：/about 精确匹配
             const finalActive = item.exact
               ? location.pathname === item.path
-              : !item.exact && location.pathname.startsWith(item.path);
+              : location.pathname.startsWith(item.path);
 
             const IconComponent = item.icon;
 
@@ -51,35 +72,45 @@ export default function AboutLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-card px-4 py-3 transition-all duration-g3-fast hover:scale-[1.02] active:scale-[0.98] ${
+                aria-current={finalActive ? 'page' : undefined}
+                className={`group flex items-center gap-3 rounded-2xl px-5 py-3.5 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                   finalActive
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-elevated shadow-blue-500/25'
-                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800'
-                } `}
+                    ? 'bg-white text-blue-600 shadow-md shadow-slate-200/50 ring-1 ring-black/5 dark:bg-slate-700 dark:text-blue-400 dark:shadow-none'
+                    : 'text-slate-500 hover:bg-white/50 hover:text-slate-900 hover:shadow-sm dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'
+                }`}
               >
-                <IconComponent size={20} weight={finalActive ? 'fill' : 'regular'} />
-                <span className={finalActive ? 'font-medium' : ''}>{item.label}</span>
+                <IconComponent
+                  size={18}
+                  weight={finalActive ? 'fill' : 'regular'}
+                  className={`transition-transform duration-300 ${finalActive ? 'scale-110' : 'group-hover:scale-110'}`}
+                />
+                <span>{item.label}</span>
+                {finalActive && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-500" />}
               </Link>
             );
           })}
         </nav>
 
         {/* 底部登录按钮 */}
-        <div className="border-t border-gray-200 p-4 dark:border-slate-700">
+        <div className="border-t border-white/20 p-6 dark:border-slate-700/20">
           <Link
             to="/login"
-            className="flex w-full items-center justify-center gap-2 rounded-card bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 font-medium text-white shadow-elevated shadow-green-500/25 transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-floating hover:shadow-green-500/30 active:scale-[0.98]"
+            className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-medium text-white shadow-lg shadow-slate-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl active:translate-y-0 dark:bg-blue-600 dark:shadow-blue-500/20 dark:hover:bg-blue-500"
           >
-            <SignIn size={20} weight="bold" />
-            开始学习
+            <span>开始学习</span>
+            <ArrowRight
+              size={16}
+              className="transition-transform duration-300 group-hover:translate-x-1"
+            />
           </Link>
-
-          <p className="mt-3 text-center text-xs text-gray-400">登录后体验完整功能</p>
+          <p className="mt-4 text-center text-xs font-medium uppercase tracking-wider text-slate-400">
+            登录后体验完整功能
+          </p>
         </div>
       </aside>
 
       {/* 主内容区 */}
-      <main className="flex-1 overflow-auto">
+      <main className="z-10 flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

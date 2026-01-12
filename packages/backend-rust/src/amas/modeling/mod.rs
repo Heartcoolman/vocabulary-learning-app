@@ -3,6 +3,7 @@
 pub mod attention;
 pub mod cognitive;
 pub mod fatigue;
+pub mod fatigue_fusion;
 pub mod motivation;
 pub mod trend;
 

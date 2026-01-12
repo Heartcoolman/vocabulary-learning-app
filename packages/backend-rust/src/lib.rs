@@ -6,6 +6,7 @@ pub mod cache;
 pub mod config;
 pub mod core;
 pub mod db;
+pub mod logging;
 pub mod middleware;
 pub mod response;
 pub mod routes;
@@ -22,6 +23,10 @@ pub async fn create_app() -> axum::Router {
         Ok(proxy) => Some(proxy),
         Err(_) => None,
     };
+
+    if let Some(ref proxy) = db_proxy {
+        let _ = amas::metrics_persistence::restore_registry_from_db(proxy.as_ref()).await;
+    }
 
     let amas_engine = AppState::create_amas_engine(db_proxy.clone());
     let state = AppState::new(db_proxy, amas_engine, None);

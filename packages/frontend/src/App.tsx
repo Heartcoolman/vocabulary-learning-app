@@ -26,8 +26,9 @@ function AppContent() {
   const location = useLocation();
   const hasPrefetchedRef = useRef(false);
 
-  // /about 路由使用独立布局，不显示主导航栏
-  const isAboutRoute = location.pathname.startsWith('/about');
+  // 独立页面路由，不显示主导航栏
+  const isStandalonePage =
+    location.pathname.startsWith('/about') || location.pathname === '/system-status';
 
   // 用户登录后，在浏览器空闲时预加载常用路由
   useEffect(() => {
@@ -43,8 +44,8 @@ function AppContent() {
   return (
     <>
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-        {!isAboutRoute && <Navigation />}
-        <main role="main" className={isAboutRoute ? '' : 'pt-[72px]'}>
+        {!isStandalonePage && <Navigation />}
+        <main role="main" className={isStandalonePage ? '' : 'pt-[72px]'}>
           <AppRoutes />
         </main>
       </div>

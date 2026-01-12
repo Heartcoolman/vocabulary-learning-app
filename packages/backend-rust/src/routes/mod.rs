@@ -565,7 +565,7 @@ pub fn router(state: AppState) -> Router {
     app = app.nest("/api/llm-advisor", llm_advisor::router());
     app = app.nest("/api/optimization", optimization::router());
     app = app.nest("/api/plan", plan::router());
-    app = app.nest("/api/v1/realtime", realtime::router());
+    app = app.nest("/api/realtime", realtime::router());
     app = app.nest("/api/tracking", tracking::router());
     app = app.nest("/api/visual-fatigue", visual_fatigue::router());
     app = app.nest("/api/word-contexts", word_contexts::router());

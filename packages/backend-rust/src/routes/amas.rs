@@ -5,7 +5,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
@@ -13,13 +13,14 @@ use uuid::Uuid;
 use crate::amas::types::{
     ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
 };
-use crate::db::operations::{insert_decision_insight, insert_decision_record, DecisionRecord};
+use crate::db::operations::{insert_decision_insight, insert_decision_record, list_algorithm_metrics_daily, DecisionRecord};
 use crate::response::{json_error, AppError};
 use crate::services::delayed_reward::{enqueue_delayed_reward, EnqueueRewardInput};
 use crate::services::learning_state::{upsert_word_state, WordState, WordStateUpdateData};
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
 use crate::state::AppState;
+use crate::routes::realtime::send_event;
 
 #[derive(Debug, Serialize)]
 struct SuccessResponse<T> {
@@ -43,6 +44,14 @@ struct RangeQuery {
 #[serde(rename_all = "camelCase")]
 struct DaysQuery {
     days: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MetricsHistoryQuery {
+    start_date: Option<String>,
+    end_date: Option<String>,
+    algorithm_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -276,6 +285,7 @@ pub fn router() -> Router<AppState> {
         .route("/phase", get(get_phase))
         .route("/decision-timeline", get(get_decision_timeline))
         .route("/counterfactual", post(counterfactual))
+        .route("/metrics/history", get(get_algorithm_metrics_history))
 }
 
 fn not_implemented() -> Response {
@@ -330,6 +340,13 @@ async fn process_event(
     let recent_answers = load_recent_answers(proxy.pool(), &user.id, 20).await;
     let (rt_cv, recent_accuracy) = calculate_performance_features(&recent_answers);
 
+    // Load latest visual fatigue data (freshness < 30s, session-scoped)
+    let visual_fatigue =
+        load_latest_visual_fatigue(proxy.pool(), &user.id, Some(&session_id)).await;
+
+    // Calculate study duration from session start
+    let study_duration_minutes = load_session_duration_minutes(proxy.pool(), &session_id).await;
+
     let raw_event = RawEvent {
         word_id: Some(body.word_id),
         is_correct: body.is_correct,
@@ -350,6 +367,10 @@ async fn process_event(
         word_state: fsrs_word_state,
         rt_cv: Some(rt_cv),
         recent_accuracy: Some(recent_accuracy),
+        visual_fatigue_score: visual_fatigue.as_ref().map(|v| v.score),
+        visual_fatigue_confidence: visual_fatigue.as_ref().map(|v| v.confidence),
+        study_duration_minutes: Some(study_duration_minutes),
+        session_id: Some(session_id.clone()),
         ..Default::default()
     };
 
@@ -358,6 +379,59 @@ async fn process_event(
         .process_event(&user.id, raw_event, options)
         .await
         .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, "AMAS_ERROR", &e))?;
+
+    // Push AMAS flow data to SSE for real-time visualization
+    let weights_json = result.algorithm_weights.as_ref().map(|w| {
+        serde_json::json!({
+            "thompson": w.thompson,
+            "linucb": w.linucb,
+            "heuristic": w.heuristic,
+            "actr": w.actr,
+            "coldstart": w.coldstart,
+        })
+    }).unwrap_or_else(|| serde_json::json!({
+        "thompson": 0.25,
+        "linucb": 0.25,
+        "actr": 0.2,
+        "heuristic": 0.2,
+        "coldstart": 0.1,
+    }));
+    let amas_flow_payload = serde_json::json!({
+        "timestamp": chrono::Utc::now().timestamp_millis(),
+        "rawEvent": {
+            "isCorrect": body.is_correct,
+            "responseTime": body.response_time,
+            "wordId": &word_id,
+        },
+        "state": {
+            "attention": result.state.attention,
+            "fatigue": result.state.fatigue,
+            "fusedFatigue": result.state.fused_fatigue,
+            "visualFatigue": result.state.visual_fatigue.as_ref().map(|v| v.score),
+            "motivation": result.state.motivation,
+            "cognitive": {
+                "mem": result.state.cognitive.mem,
+                "speed": result.state.cognitive.speed,
+                "stability": result.state.cognitive.stability,
+            },
+        },
+        "weights": weights_json,
+        "reward": {
+            "value": result.reward.value,
+            "reason": result.reward.reason.clone(),
+        },
+        "decision": {
+            "difficulty": result.strategy.difficulty.as_str(),
+            "batchSize": result.strategy.batch_size,
+            "intervalScale": result.strategy.interval_scale,
+        },
+    });
+    send_event(
+        user.id.clone(),
+        Some(session_id.clone()),
+        "amas-flow",
+        amas_flow_payload,
+    );
 
     // Save state snapshot for learning curve history
     let snapshot = UserStateSnapshot {
@@ -1770,4 +1844,179 @@ fn calculate_performance_features(answers: &[RecentAnswer]) -> (f64, f64) {
     let recent_accuracy = correct_count as f64 / answers.len() as f64;
 
     (rt_cv.min(2.0), recent_accuracy)
+}
+
+struct VisualFatigueData {
+    score: f64,
+    confidence: f64,
+}
+
+async fn load_latest_visual_fatigue(
+    pool: &PgPool,
+    user_id: &str,
+    session_id: Option<&str>,
+) -> Option<VisualFatigueData> {
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let freshness_threshold_ms = 30 * 1000i64;
+
+    let row = match session_id {
+        Some(sid) if !sid.is_empty() => {
+            sqlx::query(
+                r#"
+                SELECT "score", "confidence", "createdAt"
+                FROM "visual_fatigue_records"
+                WHERE "userId" = $1 AND "sessionId" = $2
+                ORDER BY "createdAt" DESC
+                LIMIT 1
+                "#,
+            )
+            .bind(user_id)
+            .bind(sid)
+            .fetch_optional(pool)
+            .await
+            .ok()?
+        }
+        _ => {
+            sqlx::query(
+                r#"
+                SELECT "score", "confidence", "createdAt"
+                FROM "visual_fatigue_records"
+                WHERE "userId" = $1
+                ORDER BY "createdAt" DESC
+                LIMIT 1
+                "#,
+            )
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .ok()?
+        }
+    }?;
+
+    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").ok()?;
+    let record_ms = created_at.and_utc().timestamp_millis();
+
+    if now_ms - record_ms > freshness_threshold_ms {
+        return None;
+    }
+
+    Some(VisualFatigueData {
+        score: row.try_get("score").ok()?,
+        confidence: row.try_get("confidence").ok()?,
+    })
+}
+
+async fn load_session_duration_minutes(pool: &PgPool, session_id: &str) -> f64 {
+    let row = sqlx::query(
+        r#"
+        SELECT "startedAt"
+        FROM "learning_sessions"
+        WHERE "id" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(session_id)
+    .fetch_optional(pool)
+    .await;
+
+    match row {
+        Ok(Some(r)) => {
+            let started_at: Option<chrono::NaiveDateTime> = r.try_get("startedAt").ok();
+            started_at
+                .map(|s| {
+                    let now = chrono::Utc::now().naive_utc();
+                    (now - s).num_seconds() as f64 / 60.0
+                })
+                .unwrap_or(0.0)
+                .max(0.0)
+        }
+        _ => 0.0,
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AlgorithmMetricsHistoryItem {
+    algorithm_id: String,
+    day: String,
+    call_count: i64,
+    total_latency_us: i64,
+    avg_latency_ms: f64,
+    error_count: i64,
+    last_called_at: Option<String>,
+}
+
+async fn get_algorithm_metrics_history(
+    State(state): State<AppState>,
+    Query(query): Query<MetricsHistoryQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let Some(proxy) = state.db_proxy() else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
+    };
+
+    let today = Utc::now().date_naive();
+    let start_date = query
+        .start_date
+        .as_ref()
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| today - Duration::days(30));
+    let end_date = query
+        .end_date
+        .as_ref()
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or(today);
+
+    if start_date > end_date {
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "startDate 不能晚于 endDate",
+        ));
+    }
+
+    let rows = list_algorithm_metrics_daily(
+        proxy.as_ref(),
+        start_date,
+        end_date,
+        query.algorithm_id.as_deref(),
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "Failed to fetch algorithm metrics history");
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "获取历史数据失败",
+        )
+    })?;
+
+    let data: Vec<AlgorithmMetricsHistoryItem> = rows
+        .into_iter()
+        .map(|row| {
+            let avg_latency_ms = if row.call_count > 0 {
+                let avg = row.total_latency_us as f64 / row.call_count as f64 / 1000.0;
+                (avg * 10000.0).round() / 10000.0
+            } else {
+                0.0
+            };
+
+            AlgorithmMetricsHistoryItem {
+                algorithm_id: row.algorithm_id,
+                day: row.day.format("%Y-%m-%d").to_string(),
+                call_count: row.call_count,
+                total_latency_us: row.total_latency_us,
+                avg_latency_ms,
+                error_count: row.error_count,
+                last_called_at: row
+                    .last_called_at
+                    .map(|dt| dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
+            }
+        })
+        .collect();
+
+    Ok(Json(SuccessResponse { success: true, data }))
 }

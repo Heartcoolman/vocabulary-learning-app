@@ -3,7 +3,10 @@
 pub mod config;
 pub mod decision;
 pub mod engine;
+pub mod metrics;
+pub mod metrics_persistence;
 pub mod modeling;
+pub mod monitoring;
 pub mod persistence;
 pub mod types;
 

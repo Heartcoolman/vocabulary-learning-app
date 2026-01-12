@@ -86,6 +86,7 @@ export default {
           'g3SlideInRight var(--g3-duration-normal) var(--ease-g3-enter) forwards',
         shimmer: 'shimmer 1.5s ease-in-out infinite',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+        float: 'float 5s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -109,6 +110,12 @@ export default {
         pulseSoft: {
           '0%, 100%': { opacity: '0.6' },
           '50%': { opacity: '1' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translate(0, 0)' },
+          '25%': { transform: 'translate(4px, -6px)' },
+          '50%': { transform: 'translate(0, -10px)' },
+          '75%': { transform: 'translate(-4px, -6px)' },
         },
       },
     },

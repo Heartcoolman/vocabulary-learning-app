@@ -1,9 +1,13 @@
 #![allow(dead_code)]
 
+mod algorithm_metrics;
+mod amas_aggregation;
+mod amas_health_analyzer;
 mod delayed_reward;
 mod etymology;
 mod forgetting_alert;
 mod llm_advisor;
+mod log_export;
 mod optimization;
 mod session_cleanup;
 
@@ -16,6 +20,7 @@ use tracing::{error, info, warn};
 
 use crate::amas::AMASEngine;
 use crate::db::DatabaseProxy;
+use crate::logging;
 
 static WORKER_LEADER: AtomicBool = AtomicBool::new(false);
 
@@ -229,6 +234,136 @@ impl WorkerManager {
             .map_err(WorkerError::Scheduler)?;
             scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
             info!("AMAS cache cleanup worker scheduled (every 10 minutes)");
+        }
+
+        // AMAS monitoring aggregation - runs every 15 minutes
+        let enable_amas_monitoring = std::env::var("ENABLE_AMAS_MONITORING_WORKER")
+            .map(|v| v != "false" && v != "0")
+            .unwrap_or(true);
+
+        if enable_amas_monitoring {
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async("0 */15 * * * *", move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = amas_aggregation::aggregate_15min(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "AMAS 15min aggregation error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!("AMAS monitoring 15min aggregation worker scheduled");
+        }
+
+        // AMAS daily aggregation - runs at 01:00 daily
+        if enable_amas_monitoring {
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async("0 0 1 * * *", move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = amas_aggregation::aggregate_daily(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "AMAS daily aggregation error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!("AMAS monitoring daily aggregation worker scheduled");
+        }
+
+        // AMAS weekly health analysis - runs Monday 05:00
+        let enable_health_analyzer = std::env::var("ENABLE_AMAS_HEALTH_ANALYZER_WORKER")
+            .map(|v| v != "false" && v != "0")
+            .unwrap_or(true);
+
+        if enable_health_analyzer {
+            let schedule = std::env::var("AMAS_HEALTH_ANALYZER_SCHEDULE")
+                .unwrap_or_else(|_| "0 0 5 * * 1".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = amas_health_analyzer::run_weekly_health_analysis(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "AMAS health analyzer error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "AMAS health analyzer worker scheduled");
+        }
+
+        // System log export - runs hourly when file logging is enabled
+        if logging::file_logging_enabled() {
+            let schedule = std::env::var("LOG_EXPORT_SCHEDULE")
+                .unwrap_or_else(|_| "0 0 * * * *".to_string());
+            let export_dir = std::env::var("LOG_EXPORT_DIR")
+                .unwrap_or_else(|_| "./logs/exports".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let export_dir = export_dir.clone();
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = log_export::export_system_logs(db, &export_dir) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "Log export error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "Log export worker scheduled");
+        }
+
+        // Algorithm metrics persistence - runs every 5 minutes
+        {
+            let db = Arc::clone(&self.db_proxy);
+            let persistor = Arc::new(Mutex::new(
+                crate::amas::metrics_persistence::AlgorithmMetricsPersistor::new(),
+            ));
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async("0 */5 * * * *", move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let persistor = Arc::clone(&persistor);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        _ = algorithm_metrics::flush_metrics(db, persistor) => {}
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!("Algorithm metrics persistence worker scheduled (every 5 minutes)");
         }
 
         scheduler.start().await.map_err(WorkerError::Scheduler)?;

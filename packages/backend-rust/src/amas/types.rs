@@ -438,6 +438,16 @@ pub struct WordMasteryDecision {
     pub confidence: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AlgorithmWeights {
+    pub thompson: f64,
+    pub linucb: f64,
+    pub heuristic: f64,
+    pub actr: f64,
+    pub coldstart: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessResult {
@@ -450,6 +460,7 @@ pub struct ProcessResult {
     pub cold_start_phase: Option<ColdStartPhase>,
     pub objective_evaluation: Option<ObjectiveEvaluation>,
     pub multi_objective_adjusted: Option<bool>,
+    pub algorithm_weights: Option<AlgorithmWeights>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -519,6 +530,7 @@ pub struct ProcessOptions {
     pub session_stats: Option<SessionStats>,
     pub word_review_history: Option<Vec<WordReviewHistory>>,
     pub visual_fatigue_score: Option<f64>,
+    pub visual_fatigue_confidence: Option<f64>,
     pub study_duration_minutes: Option<f64>,
     pub word_state: Option<FSRSWordState>,
     pub rt_cv: Option<f64>,

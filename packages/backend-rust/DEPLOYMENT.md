@@ -10,30 +10,6 @@ cargo build --release
 DATABASE_URL=postgres://... ./target/release/danci-backend-rust
 ```
 
-## 流量迁移
-
-### 渐进式迁移 (推荐)
-
-```bash
-# 10% 金丝雀
-./scripts/traffic-migrate.sh 10
-docker compose exec nginx nginx -s reload
-
-# 验证后递增
-./scripts/traffic-migrate.sh 25
-./scripts/traffic-migrate.sh 50
-./scripts/traffic-migrate.sh 75
-./scripts/traffic-migrate.sh 100
-```
-
-### 一键切换
-
-```bash
-./scripts/cutover.sh
-```
-
-执行5阶段验证后自动切换100%流量。
-
 ## 验证
 
 ```bash
@@ -47,14 +23,6 @@ cargo test --test integration_test
 curl http://localhost:3001/health/live
 curl http://localhost:3001/health/ready
 curl http://localhost:3001/health/metrics
-```
-
-## 回滚
-
-```bash
-# 紧急回滚到Node
-./scripts/traffic-migrate.sh 0
-docker compose exec nginx nginx -s reload
 ```
 
 ## 环境变量

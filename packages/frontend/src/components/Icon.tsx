@@ -131,6 +131,8 @@ export {
   // 偏好设置页面图标
   PaintBrush,
   GearSix,
+  // AMAS 监控页面图标
+  Heartbeat,
 } from '@phosphor-icons/react';
 
 // 图标别名

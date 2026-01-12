@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Queue,
   CircleNotch,
@@ -19,6 +19,9 @@ type TabType = 'tasks' | 'variants';
 
 export default function LLMTasksPage() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const [activeTab, setActiveTab] = useState<TabType>('tasks');
   const [tasks, setTasks] = useState<LLMTask[]>([]);
   const [variants, setVariants] = useState<WordVariant[]>([]);
@@ -36,11 +39,11 @@ export default function LLMTasksPage() {
       });
       setTasks(data);
     } catch {
-      toast.error('加载任务列表失败');
+      toastRef.current.error('加载任务列表失败');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, toast]);
+  }, [statusFilter]);
 
   const loadVariants = useCallback(async () => {
     try {
@@ -51,11 +54,11 @@ export default function LLMTasksPage() {
       });
       setVariants(data);
     } catch {
-      toast.error('加载变体列表失败');
+      toastRef.current.error('加载变体列表失败');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, toast]);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (activeTab === 'tasks') {

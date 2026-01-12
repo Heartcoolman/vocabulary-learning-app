@@ -1,10 +1,81 @@
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
+use tokio::sync::RwLock;
+
+use crate::amas::config::FeatureFlags;
 use crate::amas::AMASEngine;
 use crate::cache::RedisCache;
 use crate::core::EventBus;
 use crate::db::DatabaseProxy;
+
+#[derive(Debug)]
+pub struct RuntimeConfig {
+    pub redis_enabled: AtomicBool,
+    pub llm_enabled: AtomicBool,
+    pub llm_mock: AtomicBool,
+    pub db_slow_enabled: AtomicBool,
+    pub db_slow_delay_ms: AtomicU64,
+    amas_flags: RwLock<FeatureFlags>,
+}
+
+impl RuntimeConfig {
+    pub fn new() -> Self {
+        Self {
+            redis_enabled: AtomicBool::new(true),
+            llm_enabled: AtomicBool::new(true),
+            llm_mock: AtomicBool::new(false),
+            db_slow_enabled: AtomicBool::new(false),
+            db_slow_delay_ms: AtomicU64::new(0),
+            amas_flags: RwLock::new(FeatureFlags::default()),
+        }
+    }
+
+    pub fn is_redis_enabled(&self) -> bool {
+        self.redis_enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn is_llm_enabled(&self) -> bool {
+        self.llm_enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn is_llm_mock(&self) -> bool {
+        self.llm_mock.load(Ordering::Relaxed)
+    }
+
+    pub fn is_db_slow_enabled(&self) -> bool {
+        self.db_slow_enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn db_slow_delay(&self) -> Duration {
+        Duration::from_millis(self.db_slow_delay_ms.load(Ordering::Relaxed))
+    }
+
+    pub async fn amas_flags(&self) -> FeatureFlags {
+        self.amas_flags.read().await.clone()
+    }
+
+    pub async fn set_amas_flags(&self, flags: FeatureFlags) {
+        let mut guard = self.amas_flags.write().await;
+        *guard = flags;
+    }
+
+    pub async fn maybe_db_delay(&self) {
+        if self.is_db_slow_enabled() {
+            let delay = self.db_slow_delay();
+            if !delay.is_zero() {
+                tokio::time::sleep(delay).await;
+            }
+        }
+    }
+}
+
+impl Default for RuntimeConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,6 +85,7 @@ pub struct AppState {
     cache: Option<Arc<RedisCache>>,
     amas_engine: Arc<AMASEngine>,
     event_bus: Arc<EventBus>,
+    runtime: Arc<RuntimeConfig>,
 }
 
 impl AppState {
@@ -29,6 +101,7 @@ impl AppState {
             cache,
             amas_engine,
             event_bus: Arc::new(EventBus::new()),
+            runtime: Arc::new(RuntimeConfig::new()),
         }
     }
 
@@ -52,6 +125,13 @@ impl AppState {
     }
 
     pub fn cache(&self) -> Option<Arc<RedisCache>> {
+        if !self.runtime.is_redis_enabled() {
+            return None;
+        }
+        self.cache.clone()
+    }
+
+    pub fn cache_raw(&self) -> Option<Arc<RedisCache>> {
         self.cache.clone()
     }
 
@@ -61,5 +141,9 @@ impl AppState {
 
     pub fn event_bus(&self) -> Arc<EventBus> {
         Arc::clone(&self.event_bus)
+    }
+
+    pub fn runtime(&self) -> Arc<RuntimeConfig> {
+        Arc::clone(&self.runtime)
     }
 }

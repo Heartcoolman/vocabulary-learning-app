@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档记录 Rust 后端 (`packages/backend-rust`) 相对于 Node.js 后端 (`packages/backend`) 的功能实现状态。
+本文档记录 Danci Rust 后端的功能实现状态。
 
 ---
 
