@@ -24,7 +24,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 danci-algo = { path = "../../crates/danci-algo" }
-sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid", "json"] }
+sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid", "json", "migrate"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 redis = { version = "0.27", features = ["tokio-comp"] }
 bytes = "1"
