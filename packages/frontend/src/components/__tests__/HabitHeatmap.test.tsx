@@ -58,7 +58,7 @@ describe('HabitHeatmap', () => {
     });
 
     it('should render 24 hour cells', () => {
-      const { container } = render(<HabitHeatmap timePref={createTimePref()} />);
+      render(<HabitHeatmap timePref={createTimePref()} />);
 
       // Check for hour labels 0-23
       for (let i = 0; i < 24; i++) {
@@ -337,7 +337,7 @@ describe('HabitHeatmap', () => {
     it('should handle very small positive values', () => {
       const timePref = Array(24).fill(0.001);
 
-      const { container } = render(<HabitHeatmap timePref={timePref} />);
+      render(<HabitHeatmap timePref={timePref} />);
 
       // Should render without errors
       expect(screen.getByText('学习时间偏好 (24小时制)')).toBeInTheDocument();
@@ -346,7 +346,7 @@ describe('HabitHeatmap', () => {
     it('should handle very large values', () => {
       const timePref = Array(24).fill(1000);
 
-      const { container } = render(<HabitHeatmap timePref={timePref} />);
+      render(<HabitHeatmap timePref={timePref} />);
 
       // Should still render with highest intensity
       expect(screen.getAllByText('频繁').length).toBeGreaterThan(0);
@@ -364,7 +364,7 @@ describe('HabitHeatmap', () => {
     it('should handle array with less than 24 elements', () => {
       const timePref = Array(12).fill(0.5);
 
-      const { container } = render(<HabitHeatmap timePref={timePref} />);
+      render(<HabitHeatmap timePref={timePref} />);
 
       // Should render partial data without crashing
       expect(screen.getByText('学习时间偏好 (24小时制)')).toBeInTheDocument();
@@ -373,7 +373,7 @@ describe('HabitHeatmap', () => {
     it('should handle array with more than 24 elements', () => {
       const timePref = Array(48).fill(0.5);
 
-      const { container } = render(<HabitHeatmap timePref={timePref} />);
+      render(<HabitHeatmap timePref={timePref} />);
 
       // Should render correctly (only first 24 used in groups, all shown in detailed)
       expect(screen.getByText('学习时间偏好 (24小时制)')).toBeInTheDocument();
@@ -383,7 +383,7 @@ describe('HabitHeatmap', () => {
       const timePref = Array(24).fill(NaN);
 
       // Should not crash
-      const { container } = render(<HabitHeatmap timePref={timePref} />);
+      render(<HabitHeatmap timePref={timePref} />);
 
       expect(screen.getByText('学习时间偏好 (24小时制)')).toBeInTheDocument();
     });

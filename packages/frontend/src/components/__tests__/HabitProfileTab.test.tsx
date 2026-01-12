@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HabitProfileTab from '../HabitProfileTab';
 import type { HabitProfile } from '../../types/habit-profile';
@@ -14,22 +14,54 @@ vi.mock('../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../Icon')>();
   return {
     ...actual,
-    Clock: ({ className, size, weight }: any) => (
+    Clock: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span data-testid="clock-icon" className={className} data-size={size} data-weight={weight}>
         🕐
       </span>
     ),
-    TrendUp: ({ className, size, weight }: any) => (
+    TrendUp: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span data-testid="trend-up-icon" className={className} data-size={size} data-weight={weight}>
         📈
       </span>
     ),
-    Calendar: ({ className, size, weight }: any) => (
+    Calendar: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span data-testid="calendar-icon" className={className} data-size={size} data-weight={weight}>
         📅
       </span>
     ),
-    ArrowClockwise: ({ className, size, weight }: any) => (
+    ArrowClockwise: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="arrow-clockwise-icon"
         className={className}
@@ -39,7 +71,15 @@ vi.mock('../Icon', async (importOriginal) => {
         🔄
       </span>
     ),
-    FloppyDisk: ({ className, size, weight }: any) => (
+    FloppyDisk: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="floppy-disk-icon"
         className={className}
@@ -49,7 +89,15 @@ vi.mock('../Icon', async (importOriginal) => {
         💾
       </span>
     ),
-    ArrowCounterClockwise: ({ className, size, weight }: any) => (
+    ArrowCounterClockwise: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="arrow-counter-clockwise-icon"
         className={className}
@@ -59,7 +107,15 @@ vi.mock('../Icon', async (importOriginal) => {
         ↺
       </span>
     ),
-    Lightbulb: ({ className, size, weight }: any) => (
+    Lightbulb: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="lightbulb-icon"
         className={className}
