@@ -3,20 +3,11 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-
-// Helper function for login
-async function login(page: Page) {
-  await page.goto('/login');
-  await page.waitForSelector('#email');
-  await page.fill('#email', 'test@example.com');
-  await page.fill('#password', 'password123');
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL('/', { timeout: 15000 });
-}
+import { loginAsUser } from './utils/test-helpers';
 
 test.describe('Vocabulary', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginAsUser(page);
     await page.goto('/vocabulary');
     await expect(page).toHaveURL('/vocabulary');
   });

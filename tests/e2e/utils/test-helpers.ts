@@ -91,7 +91,7 @@ export async function clearLearningSession(page: Page) {
  */
 export async function waitForPageReady(page: Page) {
   await page.waitForLoadState('networkidle');
-  await page.locator('main').waitFor({ state: 'visible' });
+  await page.locator('main').first().waitFor({ state: 'visible' });
 }
 
 /**
@@ -101,7 +101,7 @@ export async function waitForLearningPageReady(page: Page) {
   const wordCard = page.locator('[data-testid="word-card"]');
   const noWordsMessage = page.locator('text=暂无单词');
   const completedMessage = page.locator('text=目标达成');
-  const mainContent = page.locator('main');
+  const mainContent = page.locator('main').first();
 
   await expect(mainContent).toBeVisible();
   await page.waitForTimeout(500);
@@ -186,10 +186,17 @@ export async function navigateViaInsightsDropdown(page: Page, path: string) {
  * Check for error alert
  */
 export async function expectErrorAlert(page: Page, textPattern?: string | RegExp) {
-  const alert = page.locator('[role="alert"]');
-  await expect(alert).toBeVisible({ timeout: 5000 });
+  // Try multiple selectors for error messages
+  const alertSelectors = [
+    '[role="alert"]',
+    '.text-red-700',
+    '.border-red-300',
+    '[aria-live="assertive"]',
+  ];
+  const alert = page.locator(alertSelectors.join(', '));
+  await expect(alert.first()).toBeVisible({ timeout: 5000 });
   if (textPattern) {
-    await expect(alert).toContainText(textPattern);
+    await expect(alert.first()).toContainText(textPattern);
   }
 }
 

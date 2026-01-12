@@ -44,13 +44,13 @@ test.describe('Algorithm Config - Admin Access', () => {
       // Wait for loading to complete
       await page.waitForLoadState('networkidle');
 
-      // Check for main configuration sections
-      await expect(page.getByText('遗忘曲线参数')).toBeVisible();
-      await expect(page.getByText('难度调整参数')).toBeVisible();
-      await expect(page.getByText('优先级权重')).toBeVisible();
-      await expect(page.getByText('掌握程度阈值')).toBeVisible();
-      await expect(page.getByText('单词得分权重')).toBeVisible();
-      await expect(page.getByText('答题速度评分标准')).toBeVisible();
+      // Check for main configuration sections (use heading role to avoid duplicate matches)
+      await expect(page.getByRole('heading', { name: '遗忘曲线参数' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '难度调整参数' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '优先级权重' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '掌握程度阈值' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '单词得分权重' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '答题速度评分标准' })).toBeVisible();
     });
 
     test('should display save and reset buttons', async ({ page }) => {
@@ -143,8 +143,8 @@ test.describe('Algorithm Config - Admin Access', () => {
       await goToAlgorithmConfig(page);
       await page.waitForLoadState('networkidle');
 
-      // Check for total weight display
-      await expect(page.getByText('权重总和')).toBeVisible();
+      // Check for total weight display (use first() since there are multiple weight sections)
+      await expect(page.getByText('权重总和').first()).toBeVisible();
     });
 
     test('should show warning when weights do not sum to 100', async ({ page }) => {
@@ -298,7 +298,7 @@ test.describe('Algorithm Config - Admin Access', () => {
 
       // Confirmation dialog should appear
       await expect(page.locator('[role="dialog"], .fixed.inset-0')).toBeVisible();
-      await expect(page.getByText('确认重置')).toBeVisible();
+      await expect(page.getByRole('heading', { name: '确认重置' })).toBeVisible();
     });
 
     test('should cancel reset when clicking cancel', async ({ page }) => {
@@ -418,7 +418,7 @@ test.describe('Algorithm Config - Loading States', () => {
 
     // Loading indicator might appear briefly
     const loadingIndicator = page.locator('text=加载配置中');
-    const mainContent = page.locator('main');
+    const mainContent = page.locator('main').first();
 
     // Either loading or main content should be visible
     await expect(loadingIndicator.or(mainContent)).toBeVisible();
@@ -435,7 +435,7 @@ test.describe('Algorithm Config - Loading States', () => {
     await page.waitForTimeout(3000);
 
     // Should show error or fallback UI
-    const mainContent = page.locator('main');
+    const mainContent = page.locator('main').first();
     await expect(mainContent).toBeVisible();
 
     // Unblock requests

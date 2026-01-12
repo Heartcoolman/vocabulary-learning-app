@@ -7,29 +7,12 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-
-// Helper function for login
-async function login(page: Page) {
-  await page.goto('/login');
-  await page.waitForSelector('#email');
-  await page.fill('#email', 'test@example.com');
-  await page.fill('#password', 'password123');
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL('/', { timeout: 15000 });
-}
-
-// Helper function to clear localStorage session data
-async function clearLearningSession(page: Page) {
-  await page.evaluate(() => {
-    localStorage.removeItem('mastery_session_cache');
-    localStorage.removeItem('mastery_learning_session');
-  });
-}
+import { loginAsUser, clearLearningSession, TEST_USERS } from './utils/test-helpers';
 
 test.describe('Learning Session', () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
-    await login(page);
+    await loginAsUser(page);
     // Clear any existing session to ensure fresh state
     await clearLearningSession(page);
     // Refresh to apply cleared state
@@ -153,8 +136,8 @@ test.describe('Learning Session', () => {
       });
 
       // Re-login
-      await page.fill('#email', 'test@example.com');
-      await page.fill('#password', 'password123');
+      await page.fill('#email', TEST_USERS.regular.email);
+      await page.fill('#password', TEST_USERS.regular.password);
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/', { timeout: 15000 });
 

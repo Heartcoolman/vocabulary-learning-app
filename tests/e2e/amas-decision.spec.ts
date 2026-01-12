@@ -10,24 +10,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-
-// Helper function for login
-async function login(page: Page) {
-  await page.goto('/login');
-  await page.waitForSelector('#email');
-  await page.fill('#email', 'test@example.com');
-  await page.fill('#password', 'password123');
-  await page.click('button[type="submit"]');
-  await page.waitForURL('/', { timeout: 15000 });
-}
-
-// Helper function to clear localStorage session data
-async function clearLearningSession(page: Page) {
-  await page.evaluate(() => {
-    localStorage.removeItem('mastery_session_cache');
-    localStorage.removeItem('mastery_learning_session');
-  });
-}
+import { loginAsUser, clearLearningSession } from './utils/test-helpers';
 
 // Helper to answer questions quickly (simulating good performance)
 async function answerQuestionsFast(page: Page, count: number = 3) {
@@ -58,7 +41,7 @@ async function answerQuestionsSlow(page: Page, count: number = 3) {
 
 test.describe('AMAS Decision Chain', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginAsUser(page);
     await clearLearningSession(page);
     await page.reload();
     await page.waitForLoadState('networkidle');
@@ -631,7 +614,7 @@ test.describe('AMAS Decision Chain', () => {
 
 test.describe('AMAS Decision - Edge Cases', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginAsUser(page);
     await clearLearningSession(page);
     await page.reload();
   });

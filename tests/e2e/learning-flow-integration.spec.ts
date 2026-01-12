@@ -11,18 +11,11 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { loginAsUser, clearLearningSession } from './utils/test-helpers';
 
 test.setTimeout(60000);
 
 // ==================== Helper Functions ====================
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await page.fill('#email', 'test@example.com');
-  await page.fill('#password', 'password123');
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL('/', { timeout: 10000 });
-}
 
 async function clearLearningData(page: Page) {
   await page.evaluate(() => {
@@ -59,7 +52,7 @@ async function waitForPageReady(page: Page) {
 
 test.describe('Learning Flow Integration with React Query', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginAsUser(page);
     await clearLearningData(page);
   });
 
