@@ -1,0 +1,64 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+    - banner [ref=e4]:
+        - generic [ref=e6]:
+            - link "返回首页" [ref=e7] [cursor=pointer]:
+                - /url: /
+                - heading "词汇学习" [level=1] [ref=e8]
+            - navigation "主导航" [ref=e9]:
+                - link "学习" [ref=e10] [cursor=pointer]:
+                    - /url: /
+                - link "词库管理" [ref=e11] [cursor=pointer]:
+                    - /url: /vocabulary
+                - link "学习设置" [ref=e12] [cursor=pointer]:
+                    - /url: /study-settings
+                - link "学习历史" [ref=e13] [cursor=pointer]:
+                    - /url: /history
+                - link "登录" [ref=e14] [cursor=pointer]:
+                    - /url: /login
+                - button "Toggle theme" [ref=e15] [cursor=pointer]:
+                    - generic [ref=e16]:
+                        - img [ref=e18]
+                        - generic:
+                            - img
+    - main [ref=e20]:
+        - generic [ref=e22]:
+            - generic [ref=e23]:
+                - heading "创建账号" [level=1] [ref=e24]
+                - paragraph [ref=e25]: 注册后即可开始您的学习之旅
+            - generic [ref=e26]:
+                - generic [ref=e27]:
+                    - alert [ref=e28]: 密码长度至少为10个字符
+                    - generic [ref=e29]:
+                        - generic [ref=e30]: 用户名
+                        - textbox "用户名" [ref=e31]:
+                            - /placeholder: 您的昵称
+                            - text: testuser
+                    - generic [ref=e32]:
+                        - generic [ref=e33]: 邮箱地址
+                        - textbox "邮箱地址" [ref=e34]:
+                            - /placeholder: your@email.com
+                            - text: test@example.com
+                    - generic [ref=e35]:
+                        - generic [ref=e36]: 密码
+                        - textbox "密码" [ref=e37]:
+                            - /placeholder: 至少10个字符
+                            - text: short
+                        - paragraph [ref=e38]: 密码长度至少10个字符，需包含字母、数字和特殊符号
+                    - generic [ref=e39]:
+                        - generic [ref=e40]: 确认密码
+                        - textbox "确认密码" [ref=e41]:
+                            - /placeholder: 再次输入密码
+                            - text: short
+                    - button "注册" [active] [ref=e42] [cursor=pointer]
+                - paragraph [ref=e44]:
+                    - text: 已有账号？
+                    - link "立即登录" [ref=e45] [cursor=pointer]:
+                        - /url: /login
+            - link "了解更多" [ref=e47] [cursor=pointer]:
+                - /url: /about
+                - img [ref=e48]
+                - text: 了解更多
+```

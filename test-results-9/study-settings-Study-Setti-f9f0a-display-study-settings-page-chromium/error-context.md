@@ -1,0 +1,116 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+    - banner [ref=e4]:
+        - generic [ref=e6]:
+            - link "返回首页" [ref=e7] [cursor=pointer]:
+                - /url: /
+                - heading "词汇学习" [level=1] [ref=e8]
+            - navigation "主导航" [ref=e9]:
+                - link "学习" [ref=e10] [cursor=pointer]:
+                    - /url: /
+                - link "词库管理" [ref=e11] [cursor=pointer]:
+                    - /url: /vocabulary
+                - link "学习设置" [ref=e12] [cursor=pointer]:
+                    - /url: /study-settings
+                - link "学习历史" [ref=e13] [cursor=pointer]:
+                    - /url: /history
+                - button "学习洞察" [ref=e15] [cursor=pointer]:
+                    - text: 学习洞察
+                    - img [ref=e17]
+                - link "个人资料 - testuser" [ref=e19] [cursor=pointer]:
+                    - /url: /profile
+                    - text: testuser
+                - button "Toggle theme" [ref=e20] [cursor=pointer]:
+                    - generic [ref=e21]:
+                        - img [ref=e23]
+                        - generic:
+                            - img
+    - main [ref=e25]:
+        - generic [ref=e27]:
+            - heading "学习设置" [level=1] [ref=e28]
+            - generic [ref=e29]:
+                - generic [ref=e30]:
+                    - heading "选择学习词书" [level=2] [ref=e31]
+                    - paragraph [ref=e32]: 选中的词书将用于每日学习，支持多选
+                    - generic [ref=e33]:
+                        - generic [ref=e34] [cursor=pointer]:
+                            - checkbox "小学词汇 系统词库 小学阶段必备英语单词，适合小学生学习使用 50 个单词" [ref=e35]
+                            - generic [ref=e36]:
+                                - generic [ref=e37]:
+                                    - generic [ref=e38]: 小学词汇
+                                    - generic [ref=e39]: 系统词库
+                                - generic [ref=e40]: 小学阶段必备英语单词，适合小学生学习使用
+                                - generic [ref=e41]: 50 个单词
+                        - generic [ref=e42] [cursor=pointer]:
+                            - checkbox "日常英语口语 系统词库 日常生活中常用的英语口语表达，适合日常交流使用 3 个单词" [ref=e43]
+                            - generic [ref=e44]:
+                                - generic [ref=e45]:
+                                    - generic [ref=e46]: 日常英语口语
+                                    - generic [ref=e47]: 系统词库
+                                - generic [ref=e48]: 日常生活中常用的英语口语表达，适合日常交流使用
+                                - generic [ref=e49]: 3 个单词
+                        - generic [ref=e50] [cursor=pointer]:
+                            - checkbox "CET-4 核心词汇 系统词库 大学英语四级考试核心词汇，适合英语四级备考使用 5 个单词" [ref=e51]
+                            - generic [ref=e52]:
+                                - generic [ref=e53]:
+                                    - generic [ref=e54]: CET-4 核心词汇
+                                    - generic [ref=e55]: 系统词库
+                                - generic [ref=e56]: 大学英语四级考试核心词汇，适合英语四级备考使用
+                                - generic [ref=e57]: 5 个单词
+                        - generic [ref=e58] [cursor=pointer]:
+                            - checkbox "小学词汇 系统词库 小学阶段必备英语单词，适合小学生学习使用 50 个单词" [ref=e59]
+                            - generic [ref=e60]:
+                                - generic [ref=e61]:
+                                    - generic [ref=e62]: 小学词汇
+                                    - generic [ref=e63]: 系统词库
+                                - generic [ref=e64]: 小学阶段必备英语单词，适合小学生学习使用
+                                - generic [ref=e65]: 50 个单词
+                        - generic [ref=e66] [cursor=pointer]:
+                            - checkbox "日常英语口语 系统词库 日常生活中常用的英语口语表达，适合日常交流使用 3 个单词" [ref=e67]
+                            - generic [ref=e68]:
+                                - generic [ref=e69]:
+                                    - generic [ref=e70]: 日常英语口语
+                                    - generic [ref=e71]: 系统词库
+                                - generic [ref=e72]: 日常生活中常用的英语口语表达，适合日常交流使用
+                                - generic [ref=e73]: 3 个单词
+                        - generic [ref=e74] [cursor=pointer]:
+                            - checkbox "CET-4 核心词汇 系统词库 大学英语四级考试核心词汇，适合英语四级备考使用 5 个单词" [ref=e75]
+                            - generic [ref=e76]:
+                                - generic [ref=e77]:
+                                    - generic [ref=e78]: CET-4 核心词汇
+                                    - generic [ref=e79]: 系统词库
+                                - generic [ref=e80]: 大学英语四级考试核心词汇，适合英语四级备考使用
+                                - generic [ref=e81]: 5 个单词
+                        - generic [ref=e82] [cursor=pointer]:
+                            - checkbox "小学词汇 系统词库 小学阶段必备英语单词，适合小学生学习使用 50 个单词" [ref=e83]
+                            - generic [ref=e84]:
+                                - generic [ref=e85]:
+                                    - generic [ref=e86]: 小学词汇
+                                    - generic [ref=e87]: 系统词库
+                                - generic [ref=e88]: 小学阶段必备英语单词，适合小学生学习使用
+                                - generic [ref=e89]: 50 个单词
+                - generic [ref=e90]:
+                    - generic [ref=e91]:
+                        - heading "每日学习量" [level=2] [ref=e92]
+                        - generic [ref=e93]:
+                            - slider [ref=e94] [cursor=pointer]: '20'
+                            - generic [ref=e95]: '20'
+                        - paragraph [ref=e96]: 预计学习时长：约 10 分钟
+                    - generic [ref=e97]:
+                        - generic [ref=e98]:
+                            - generic [ref=e99]:
+                                - img [ref=e100]
+                                - generic [ref=e102]:
+                                    - heading "视觉疲劳检测" [level=2] [ref=e103]
+                                    - paragraph [ref=e104]: 使用摄像头检测眼睛疲劳，智能提醒休息
+                            - button "开启视觉疲劳检测" [ref=e105] [cursor=pointer]
+                        - generic [ref=e107]:
+                            - img [ref=e108]
+                            - generic [ref=e110]: 检测已关闭
+                        - paragraph [ref=e112]: 所有检测在本地完成，视频数据不会上传到服务器。
+                    - generic [ref=e113]:
+                        - button "保存设置" [disabled] [ref=e114]
+                        - button "取消" [ref=e115] [cursor=pointer]
+```

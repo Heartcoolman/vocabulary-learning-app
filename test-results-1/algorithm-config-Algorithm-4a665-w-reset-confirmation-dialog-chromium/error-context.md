@@ -1,0 +1,382 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+    - banner [ref=e4]:
+        - generic [ref=e6]:
+            - link "返回首页" [ref=e7] [cursor=pointer]:
+                - /url: /
+                - heading "词汇学习" [level=1] [ref=e8]
+            - navigation "主导航" [ref=e9]:
+                - link "学习" [ref=e10] [cursor=pointer]:
+                    - /url: /
+                - link "词库管理" [ref=e11] [cursor=pointer]:
+                    - /url: /vocabulary
+                - link "学习设置" [ref=e12] [cursor=pointer]:
+                    - /url: /study-settings
+                - link "学习历史" [ref=e13] [cursor=pointer]:
+                    - /url: /history
+                - button "学习洞察" [ref=e15] [cursor=pointer]:
+                    - text: 学习洞察
+                    - img [ref=e17]
+                - link "管理后台" [ref=e19] [cursor=pointer]:
+                    - /url: /admin
+                - link "个人资料 - admin" [ref=e20] [cursor=pointer]:
+                    - /url: /profile
+                    - text: admin
+                - button "Toggle theme" [ref=e21] [cursor=pointer]:
+                    - generic [ref=e22]:
+                        - img [ref=e24]
+                        - generic:
+                            - img
+    - main [ref=e26]:
+        - generic [ref=e27]:
+            - complementary [ref=e28]:
+                - generic [ref=e29]:
+                    - heading "管理后台" [level=1] [ref=e30]
+                    - paragraph [ref=e31]: admin
+                - navigation [ref=e32]:
+                    - link "仪表盘" [ref=e33] [cursor=pointer]:
+                        - /url: /admin
+                        - img [ref=e34]
+                        - text: 仪表盘
+                    - link "用户管理" [ref=e36] [cursor=pointer]:
+                        - /url: /admin/users
+                        - img [ref=e37]
+                        - text: 用户管理
+                    - link "系统词库" [ref=e39] [cursor=pointer]:
+                        - /url: /admin/wordbooks
+                        - img [ref=e40]
+                        - text: 系统词库
+                    - link "词库质量" [ref=e42] [cursor=pointer]:
+                        - /url: /admin/word-quality
+                        - img [ref=e43]
+                        - text: 词库质量
+                    - link "算法配置" [ref=e45] [cursor=pointer]:
+                        - /url: /admin/algorithm-config
+                        - img [ref=e46]
+                        - text: 算法配置
+                    - link "配置历史" [ref=e48] [cursor=pointer]:
+                        - /url: /admin/config-history
+                        - img [ref=e49]
+                        - text: 配置历史
+                    - link "优化分析" [ref=e51] [cursor=pointer]:
+                        - /url: /admin/optimization
+                        - img [ref=e52]
+                        - text: 优化分析
+                    - link "因果分析" [ref=e54] [cursor=pointer]:
+                        - /url: /admin/causal-analysis
+                        - img [ref=e55]
+                        - text: 因果分析
+                    - link "LLM 顾问" [ref=e57] [cursor=pointer]:
+                        - /url: /admin/llm-advisor
+                        - img [ref=e58]
+                        - text: LLM 顾问
+                    - link "LLM 任务" [ref=e60] [cursor=pointer]:
+                        - /url: /admin/llm-tasks
+                        - img [ref=e61]
+                        - text: LLM 任务
+                    - link "AMAS 监控" [ref=e63] [cursor=pointer]:
+                        - /url: /admin/amas-monitoring
+                        - img [ref=e64]
+                        - text: AMAS 监控
+                    - link "AMAS 可解释性" [ref=e66] [cursor=pointer]:
+                        - /url: /admin/amas-explainability
+                        - img [ref=e67]
+                        - text: AMAS 可解释性
+                    - link "运营周报" [ref=e69] [cursor=pointer]:
+                        - /url: /admin/weekly-report
+                        - img [ref=e70]
+                        - text: 运营周报
+                    - link "系统日志" [ref=e72] [cursor=pointer]:
+                        - /url: /admin/logs
+                        - img [ref=e73]
+                        - text: 系统日志
+                    - link "告警规则" [ref=e75] [cursor=pointer]:
+                        - /url: /admin/log-alerts
+                        - img [ref=e76]
+                        - text: 告警规则
+                    - link "系统调试" [ref=e78] [cursor=pointer]:
+                        - /url: /admin/system-debug
+                        - img [ref=e79]
+                        - text: 系统调试
+                - link "返回主页" [ref=e82] [cursor=pointer]:
+                    - /url: /
+                    - img [ref=e83]
+                    - text: 返回主页
+            - main [ref=e85]:
+                - generic [ref=e86]:
+                    - generic [ref=e87]:
+                        - generic [ref=e88]:
+                            - img [ref=e89]
+                            - heading "算法配置" [level=1] [ref=e92]
+                        - paragraph [ref=e93]: 配置学习算法的各项参数，影响单词学习和复习的调度策略
+                    - generic [ref=e94]:
+                        - generic [ref=e95]:
+                            - generic [ref=e96]:
+                                - generic [ref=e97]:
+                                    - heading "遗忘曲线参数" [level=2] [ref=e98]
+                                    - paragraph [ref=e99]: 配置复习间隔序列（单位：天）（已修改）
+                                - button "添加间隔" [ref=e100] [cursor=pointer]:
+                                    - img [ref=e101]
+                                    - text: 添加间隔
+                            - generic [ref=e103]:
+                                - generic [ref=e104]:
+                                    - generic [ref=e105]: 第 1 次
+                                    - spinbutton [ref=e106]: '1'
+                                    - generic [ref=e107]: 天后
+                                    - button [ref=e108] [cursor=pointer]:
+                                        - img [ref=e109]
+                                - generic [ref=e111]:
+                                    - generic [ref=e112]: 第 2 次
+                                    - spinbutton [ref=e113]: '3'
+                                    - generic [ref=e114]: 天后
+                                    - button [ref=e115] [cursor=pointer]:
+                                        - img [ref=e116]
+                                - generic [ref=e118]:
+                                    - generic [ref=e119]: 第 3 次
+                                    - spinbutton [ref=e120]: '7'
+                                    - generic [ref=e121]: 天后
+                                    - button [ref=e122] [cursor=pointer]:
+                                        - img [ref=e123]
+                                - generic [ref=e125]:
+                                    - generic [ref=e126]: 第 4 次
+                                    - spinbutton [ref=e127]: '14'
+                                    - generic [ref=e128]: 天后
+                                    - button [ref=e129] [cursor=pointer]:
+                                        - img [ref=e130]
+                                - generic [ref=e132]:
+                                    - generic [ref=e133]: 第 5 次
+                                    - spinbutton [ref=e134]: '30'
+                                    - generic [ref=e135]: 天后
+                                    - button [ref=e136] [cursor=pointer]:
+                                        - img [ref=e137]
+                                - generic [ref=e139]:
+                                    - generic [ref=e140]: 第 6 次
+                                    - spinbutton [ref=e141]: '60'
+                                    - generic [ref=e142]: 天后
+                                    - button [ref=e143] [cursor=pointer]:
+                                        - img [ref=e144]
+                                - generic [ref=e146]:
+                                    - generic [ref=e147]: 第 7 次
+                                    - spinbutton [ref=e148]: '120'
+                                    - generic [ref=e149]: 天后
+                                    - button [ref=e150] [cursor=pointer]:
+                                        - img [ref=e151]
+                            - paragraph [ref=e154]:
+                                - strong [ref=e155]: 默认值：
+                                - text: 1, 3, 7, 15, 30 天
+                        - generic [ref=e156]:
+                            - generic [ref=e157]:
+                                - heading "难度调整参数" [level=2] [ref=e158]
+                                - paragraph [ref=e159]: 配置自适应难度调整的触发条件（已修改）
+                            - generic [ref=e160]:
+                                - generic [ref=e161]:
+                                    - generic [ref=e162]:
+                                        - generic [ref=e163]: 连续答对阈值（增加难度）
+                                        - generic [ref=e164]: 6 次
+                                    - slider [ref=e165] [cursor=pointer]: '6'
+                                    - generic [ref=e166]:
+                                        - generic [ref=e167]: 3 次
+                                        - generic [ref=e168]: 10 次
+                                    - paragraph [ref=e169]: 默认值：5 次
+                                - generic [ref=e170]:
+                                    - generic [ref=e171]:
+                                        - generic [ref=e172]: 连续答错阈值（降低难度）
+                                        - generic [ref=e173]: 3 次
+                                    - slider [ref=e174] [cursor=pointer]: '3'
+                                    - generic [ref=e175]:
+                                        - generic [ref=e176]: 2 次
+                                        - generic [ref=e177]: 5 次
+                                    - paragraph [ref=e178]: 默认值：3 次
+                                - generic [ref=e179]:
+                                    - generic [ref=e180]:
+                                        - generic [ref=e181]: 最小调整间隔
+                                        - generic [ref=e182]: 1 个会话
+                                    - spinbutton [ref=e183]: '1'
+                                    - paragraph [ref=e184]: 默认值：1 个会话
+                        - generic [ref=e185]:
+                            - generic [ref=e186]:
+                                - heading "优先级权重" [level=2] [ref=e187]
+                                - paragraph [ref=e188]: 配置学习队列优先级计算的各项权重（总和必须为 100%）
+                            - generic [ref=e189]:
+                                - generic [ref=e190]:
+                                    - generic [ref=e191]:
+                                        - generic [ref=e192]: 新单词权重
+                                        - generic [ref=e193]: 40%
+                                    - slider [ref=e194] [cursor=pointer]: '40'
+                                - generic [ref=e195]:
+                                    - generic [ref=e196]:
+                                        - generic [ref=e197]: 错误率权重
+                                        - generic [ref=e198]: 30%
+                                    - slider [ref=e199] [cursor=pointer]: '30'
+                                - generic [ref=e200]:
+                                    - generic [ref=e201]:
+                                        - generic [ref=e202]: 逾期时间权重
+                                        - generic [ref=e203]: 20%
+                                    - slider [ref=e204] [cursor=pointer]: '20'
+                                - generic [ref=e205]:
+                                    - generic [ref=e206]:
+                                        - generic [ref=e207]: 单词得分权重
+                                        - generic [ref=e208]: 10%
+                                    - slider [ref=e209] [cursor=pointer]: '10'
+                            - generic [ref=e211]:
+                                - generic [ref=e212]: 权重总和
+                                - generic [ref=e213]: 100.0%
+                            - paragraph [ref=e215]:
+                                - strong [ref=e216]: 默认值：
+                                - text: 新单词 40%、 错误率 30%、 逾期时间 20%、 单词得分 10%
+                        - generic [ref=e217]:
+                            - generic [ref=e218]:
+                                - heading "掌握程度阈值" [level=2] [ref=e219]
+                                - paragraph [ref=e220]: 配置各级别的晋升条件（1-5级）（已修改）
+                            - table [ref=e222]:
+                                - rowgroup [ref=e223]:
+                                    - row "级别 连续答对次数 最低正确率 最低得分" [ref=e224]:
+                                        - columnheader "级别" [ref=e225]
+                                        - columnheader "连续答对次数" [ref=e226]
+                                        - columnheader "最低正确率" [ref=e227]
+                                        - columnheader "最低得分" [ref=e228]
+                                - rowgroup [ref=e229]:
+                                    - row "1 2 次 0.6 (60%) 20 分" [ref=e230]:
+                                        - cell "1" [ref=e231]:
+                                            - generic [ref=e232]: '1'
+                                        - cell "2 次" [ref=e233]:
+                                            - spinbutton [ref=e234]: '2'
+                                            - text: 次
+                                        - cell "0.6 (60%)" [ref=e235]:
+                                            - spinbutton [ref=e236]: '0.6'
+                                            - generic [ref=e237]: (60%)
+                                        - cell "20 分" [ref=e238]:
+                                            - spinbutton [ref=e239]: '20'
+                                            - text: 分
+                                    - row "2 3 次 0.7 (70%) 40 分" [ref=e240]:
+                                        - cell "2" [ref=e241]:
+                                            - generic [ref=e242]: '2'
+                                        - cell "3 次" [ref=e243]:
+                                            - spinbutton [ref=e244]: '3'
+                                            - text: 次
+                                        - cell "0.7 (70%)" [ref=e245]:
+                                            - spinbutton [ref=e246]: '0.7'
+                                            - generic [ref=e247]: (70%)
+                                        - cell "40 分" [ref=e248]:
+                                            - spinbutton [ref=e249]: '40'
+                                            - text: 分
+                                    - row "3 4 次 0.75 (75%) 60 分" [ref=e250]:
+                                        - cell "3" [ref=e251]:
+                                            - generic [ref=e252]: '3'
+                                        - cell "4 次" [ref=e253]:
+                                            - spinbutton [ref=e254]: '4'
+                                            - text: 次
+                                        - cell "0.75 (75%)" [ref=e255]:
+                                            - spinbutton [ref=e256]: '0.75'
+                                            - generic [ref=e257]: (75%)
+                                        - cell "60 分" [ref=e258]:
+                                            - spinbutton [ref=e259]: '60'
+                                            - text: 分
+                                    - row "4 5 次 0.8 (80%) 80 分" [ref=e260]:
+                                        - cell "4" [ref=e261]:
+                                            - generic [ref=e262]: '4'
+                                        - cell "5 次" [ref=e263]:
+                                            - spinbutton [ref=e264]: '5'
+                                            - text: 次
+                                        - cell "0.8 (80%)" [ref=e265]:
+                                            - spinbutton [ref=e266]: '0.8'
+                                            - generic [ref=e267]: (80%)
+                                        - cell "80 分" [ref=e268]:
+                                            - spinbutton [ref=e269]: '80'
+                                            - text: 分
+                                    - row "5 6 次 0.85 (85%) 95 分" [ref=e270]:
+                                        - cell "5" [ref=e271]:
+                                            - generic [ref=e272]: '5'
+                                        - cell "6 次" [ref=e273]:
+                                            - spinbutton [ref=e274]: '6'
+                                            - text: 次
+                                        - cell "0.85 (85%)" [ref=e275]:
+                                            - spinbutton [ref=e276]: '0.85'
+                                            - generic [ref=e277]: (85%)
+                                        - cell "95 分" [ref=e278]:
+                                            - spinbutton [ref=e279]: '95'
+                                            - text: 分
+                            - paragraph [ref=e281]:
+                                - strong [ref=e282]: 说明：
+                                - text: 单词需要同时满足所有条件才能晋升到对应级别
+                        - generic [ref=e283]:
+                            - generic [ref=e284]:
+                                - heading "单词得分权重" [level=2] [ref=e285]
+                                - paragraph [ref=e286]: 配置单词综合得分计算的各维度权重（总和必须为 100%）
+                            - generic [ref=e287]:
+                                - generic [ref=e288]:
+                                    - generic [ref=e289]:
+                                        - generic [ref=e290]: 正确率权重
+                                        - generic [ref=e291]: 40%
+                                    - slider [ref=e292] [cursor=pointer]: '40'
+                                - generic [ref=e293]:
+                                    - generic [ref=e294]:
+                                        - generic [ref=e295]: 答题速度权重
+                                        - generic [ref=e296]: 30%
+                                    - slider [ref=e297] [cursor=pointer]: '30'
+                                - generic [ref=e298]:
+                                    - generic [ref=e299]:
+                                        - generic [ref=e300]: 稳定性权重
+                                        - generic [ref=e301]: 20%
+                                    - slider [ref=e302] [cursor=pointer]: '20'
+                                - generic [ref=e303]:
+                                    - generic [ref=e304]:
+                                        - generic [ref=e305]: 熟练度权重
+                                        - generic [ref=e306]: 10%
+                                    - slider [ref=e307] [cursor=pointer]: '10'
+                            - generic [ref=e309]:
+                                - generic [ref=e310]: 权重总和
+                                - generic [ref=e311]: 100.0%
+                            - paragraph [ref=e313]:
+                                - strong [ref=e314]: 默认值：
+                                - text: 正确率 40%、 速度 30%、 稳定性 20%、 熟练度 10%
+                        - generic [ref=e315]:
+                            - generic [ref=e316]:
+                                - heading "答题速度评分标准" [level=2] [ref=e317]
+                                - paragraph [ref=e318]: 配置不同速度等级的时间阈值（单位：毫秒）
+                            - generic [ref=e319]:
+                                - generic [ref=e320]:
+                                    - generic [ref=e322]: 优秀
+                                    - generic [ref=e323]: <
+                                    - spinbutton [ref=e324]: '3000'
+                                    - generic [ref=e325]: 毫秒
+                                    - generic [ref=e326]: (3.0 秒)
+                                - generic [ref=e327]:
+                                    - generic [ref=e329]: 良好
+                                    - generic [ref=e330]: <
+                                    - spinbutton [ref=e331]: '5000'
+                                    - generic [ref=e332]: 毫秒
+                                    - generic [ref=e333]: (5.0 秒)
+                                - generic [ref=e334]:
+                                    - generic [ref=e336]: 一般
+                                    - generic [ref=e337]: <
+                                    - spinbutton [ref=e338]: '10000'
+                                    - generic [ref=e339]: 毫秒
+                                    - generic [ref=e340]: (10.0 秒)
+                                - generic [ref=e341]:
+                                    - generic [ref=e343]: 较慢
+                                    - generic [ref=e344]: ≥
+                                    - spinbutton [ref=e345]: '15000'
+                                    - generic [ref=e346]: 毫秒
+                                    - generic [ref=e347]: (15.0 秒)
+                            - paragraph [ref=e349]:
+                                - strong [ref=e350]: 默认值：
+                                - text: 优秀 < 3000ms、 良好 < 5000ms、 一般 < 10000ms、 较慢 ≥ 15000ms
+                    - generic [ref=e351]:
+                        - button "恢复默认值" [active] [ref=e352] [cursor=pointer]:
+                            - img [ref=e353]
+                            - text: 恢复默认值
+                        - button "保存配置" [ref=e355] [cursor=pointer]:
+                            - img [ref=e356]
+                            - text: 保存配置
+                    - generic [ref=e359]:
+                        - generic [ref=e360]:
+                            - img [ref=e361]
+                            - heading "确认重置" [level=3] [ref=e364]
+                            - paragraph [ref=e365]: 确定要将所有配置恢复为默认值吗？此操作不可撤销。
+                        - generic [ref=e366]:
+                            - button "取消" [ref=e367] [cursor=pointer]
+                            - button "确认重置" [ref=e368] [cursor=pointer]
+```

@@ -1,0 +1,111 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+    - banner [ref=e4]:
+        - generic [ref=e6]:
+            - link "返回首页" [ref=e7] [cursor=pointer]:
+                - /url: /
+                - heading "词汇学习" [level=1] [ref=e8]
+            - navigation "主导航" [ref=e9]:
+                - link "学习" [ref=e10] [cursor=pointer]:
+                    - /url: /
+                - link "词库管理" [ref=e11] [cursor=pointer]:
+                    - /url: /vocabulary
+                - link "学习设置" [ref=e12] [cursor=pointer]:
+                    - /url: /study-settings
+                - link "学习历史" [ref=e13] [cursor=pointer]:
+                    - /url: /history
+                - button "学习洞察" [ref=e15] [cursor=pointer]:
+                    - text: 学习洞察
+                    - img [ref=e17]
+                - link "管理后台" [ref=e19] [cursor=pointer]:
+                    - /url: /admin
+                - link "个人资料 - admin" [ref=e20] [cursor=pointer]:
+                    - /url: /profile
+                    - text: admin
+                - button "Toggle theme" [ref=e21] [cursor=pointer]:
+                    - generic [ref=e22]:
+                        - img [ref=e24]
+                        - generic:
+                            - img
+    - main [ref=e26]:
+        - generic [ref=e27]:
+            - complementary [ref=e28]:
+                - generic [ref=e29]:
+                    - heading "管理后台" [level=1] [ref=e30]
+                    - paragraph [ref=e31]: admin
+                - navigation [ref=e32]:
+                    - link "仪表盘" [ref=e33] [cursor=pointer]:
+                        - /url: /admin
+                        - img [ref=e34]
+                        - text: 仪表盘
+                    - link "用户管理" [ref=e36] [cursor=pointer]:
+                        - /url: /admin/users
+                        - img [ref=e37]
+                        - text: 用户管理
+                    - link "系统词库" [ref=e39] [cursor=pointer]:
+                        - /url: /admin/wordbooks
+                        - img [ref=e40]
+                        - text: 系统词库
+                    - link "词库质量" [ref=e42] [cursor=pointer]:
+                        - /url: /admin/word-quality
+                        - img [ref=e43]
+                        - text: 词库质量
+                    - link "算法配置" [ref=e45] [cursor=pointer]:
+                        - /url: /admin/algorithm-config
+                        - img [ref=e46]
+                        - text: 算法配置
+                    - link "配置历史" [ref=e48] [cursor=pointer]:
+                        - /url: /admin/config-history
+                        - img [ref=e49]
+                        - text: 配置历史
+                    - link "优化分析" [ref=e51] [cursor=pointer]:
+                        - /url: /admin/optimization
+                        - img [ref=e52]
+                        - text: 优化分析
+                    - link "因果分析" [ref=e54] [cursor=pointer]:
+                        - /url: /admin/causal-analysis
+                        - img [ref=e55]
+                        - text: 因果分析
+                    - link "LLM 顾问" [ref=e57] [cursor=pointer]:
+                        - /url: /admin/llm-advisor
+                        - img [ref=e58]
+                        - text: LLM 顾问
+                    - link "LLM 任务" [ref=e60] [cursor=pointer]:
+                        - /url: /admin/llm-tasks
+                        - img [ref=e61]
+                        - text: LLM 任务
+                    - link "AMAS 监控" [ref=e63] [cursor=pointer]:
+                        - /url: /admin/amas-monitoring
+                        - img [ref=e64]
+                        - text: AMAS 监控
+                    - link "AMAS 可解释性" [ref=e66] [cursor=pointer]:
+                        - /url: /admin/amas-explainability
+                        - img [ref=e67]
+                        - text: AMAS 可解释性
+                    - link "运营周报" [ref=e69] [cursor=pointer]:
+                        - /url: /admin/weekly-report
+                        - img [ref=e70]
+                        - text: 运营周报
+                    - link "系统日志" [ref=e72] [cursor=pointer]:
+                        - /url: /admin/logs
+                        - img [ref=e73]
+                        - text: 系统日志
+                    - link "告警规则" [ref=e75] [cursor=pointer]:
+                        - /url: /admin/log-alerts
+                        - img [ref=e76]
+                        - text: 告警规则
+                    - link "系统调试" [ref=e78] [cursor=pointer]:
+                        - /url: /admin/system-debug
+                        - img [ref=e79]
+                        - text: 系统调试
+                - link "返回主页" [ref=e82] [cursor=pointer]:
+                    - /url: /
+                    - img [ref=e83]
+                    - text: 返回主页
+            - main [ref=e85]:
+                - generic [ref=e87]:
+                    - img [ref=e88]
+                    - status [ref=e90]: 加载配置中...
+```
