@@ -189,11 +189,11 @@ const mockFeatureFlags = {
 };
 
 vi.mock('../../../services/aboutApi', () => ({
-  getPipelineLayerStatus: vi.fn(),
-  getAlgorithmStatus: vi.fn(),
-  getUserStateStatus: vi.fn(),
-  getMemoryStatus: vi.fn(),
-  getFeatureFlags: vi.fn(),
+  getPipelineLayerStatusWithSource: vi.fn(),
+  getAlgorithmStatusWithSource: vi.fn(),
+  getUserStateStatusWithSource: vi.fn(),
+  getMemoryStatusWithSource: vi.fn(),
+  getModuleHealthWithSource: vi.fn(),
   getOverviewStatsWithSource: vi.fn(),
 }));
 
@@ -213,22 +213,37 @@ vi.mock('../../../utils/animations', () => ({
 }));
 
 import {
-  getPipelineLayerStatus,
-  getAlgorithmStatus,
-  getUserStateStatus,
-  getMemoryStatus,
-  getFeatureFlags,
+  getPipelineLayerStatusWithSource,
+  getAlgorithmStatusWithSource,
+  getUserStateStatusWithSource,
+  getMemoryStatusWithSource,
+  getModuleHealthWithSource,
   getOverviewStatsWithSource,
 } from '../../../services/aboutApi';
 
 describe('SystemStatusPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getPipelineLayerStatus as any).mockResolvedValue(mockPipelineStatus);
-    (getAlgorithmStatus as any).mockResolvedValue(mockAlgorithmStatus);
-    (getUserStateStatus as any).mockResolvedValue(mockUserStateStatus);
-    (getMemoryStatus as any).mockResolvedValue(mockMemoryStatus);
-    (getFeatureFlags as any).mockResolvedValue(mockFeatureFlags);
+    (getPipelineLayerStatusWithSource as any).mockResolvedValue({
+      data: mockPipelineStatus,
+      source: 'virtual',
+    });
+    (getAlgorithmStatusWithSource as any).mockResolvedValue({
+      data: mockAlgorithmStatus,
+      source: 'virtual',
+    });
+    (getUserStateStatusWithSource as any).mockResolvedValue({
+      data: mockUserStateStatus,
+      source: 'virtual',
+    });
+    (getMemoryStatusWithSource as any).mockResolvedValue({
+      data: mockMemoryStatus,
+      source: 'virtual',
+    });
+    (getModuleHealthWithSource as any).mockResolvedValue({
+      data: mockFeatureFlags,
+      source: 'virtual',
+    });
     (getOverviewStatsWithSource as any).mockResolvedValue({
       data: { todayDecisions: 0, activeUsers: 0, totalWords: 0, avgAccuracy: 0 },
       source: 'virtual',
@@ -303,9 +318,10 @@ describe('SystemStatusPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('感知层')).toBeInTheDocument();
-        expect(screen.getByText('建模层')).toBeInTheDocument();
+        // 建模层、决策层在多个地方出现，使用 getAllByText
+        expect(screen.getAllByText('建模层').length).toBeGreaterThan(0);
         expect(screen.getByText('学习层')).toBeInTheDocument();
-        expect(screen.getByText('决策层')).toBeInTheDocument();
+        expect(screen.getAllByText('决策层').length).toBeGreaterThan(0);
         expect(screen.getByText('评估层')).toBeInTheDocument();
         expect(screen.getByText('优化层')).toBeInTheDocument();
       });
@@ -529,11 +545,11 @@ describe('SystemStatusPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(getPipelineLayerStatus).toHaveBeenCalled();
-        expect(getAlgorithmStatus).toHaveBeenCalled();
-        expect(getUserStateStatus).toHaveBeenCalled();
-        expect(getMemoryStatus).toHaveBeenCalled();
-        expect(getFeatureFlags).toHaveBeenCalled();
+        expect(getPipelineLayerStatusWithSource).toHaveBeenCalled();
+        expect(getAlgorithmStatusWithSource).toHaveBeenCalled();
+        expect(getUserStateStatusWithSource).toHaveBeenCalled();
+        expect(getMemoryStatusWithSource).toHaveBeenCalled();
+        expect(getModuleHealthWithSource).toHaveBeenCalled();
       });
     });
 
@@ -544,14 +560,14 @@ describe('SystemStatusPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(getPipelineLayerStatus).toHaveBeenCalledTimes(1);
+        expect(getPipelineLayerStatusWithSource).toHaveBeenCalledTimes(1);
       });
 
       // Advance timers by 5 seconds (pipeline refresh interval)
       vi.advanceTimersByTime(5000);
 
       await waitFor(() => {
-        expect(getPipelineLayerStatus).toHaveBeenCalledTimes(2);
+        expect(getPipelineLayerStatusWithSource).toHaveBeenCalledTimes(2);
       });
 
       vi.useRealTimers();
@@ -564,14 +580,14 @@ describe('SystemStatusPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(getAlgorithmStatus).toHaveBeenCalledTimes(1);
+        expect(getAlgorithmStatusWithSource).toHaveBeenCalledTimes(1);
       });
 
       // Advance timers by 10 seconds
       vi.advanceTimersByTime(10000);
 
       await waitFor(() => {
-        expect(getAlgorithmStatus).toHaveBeenCalledTimes(2);
+        expect(getAlgorithmStatusWithSource).toHaveBeenCalledTimes(2);
       });
 
       vi.useRealTimers();
@@ -602,7 +618,7 @@ describe('SystemStatusPage', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      (getPipelineLayerStatus as any).mockRejectedValue(new Error('API Error'));
+      (getPipelineLayerStatusWithSource as any).mockRejectedValue(new Error('API Error'));
 
       renderComponent();
 

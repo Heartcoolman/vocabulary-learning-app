@@ -64,7 +64,7 @@ describe('AboutLayout', () => {
     it('should highlight active link for about home', () => {
       renderComponent('/about');
       const overviewLink = screen.getByText('概览').closest('a');
-      expect(overviewLink).toHaveClass('bg-gradient-to-r');
+      expect(overviewLink).toHaveClass('bg-white');
     });
 
     it('should render correct content for simulation route', () => {
@@ -140,9 +140,9 @@ describe('AboutLayout', () => {
     it('should have correct sidebar width', () => {
       renderComponent();
 
-      // The sidebar should have w-64 class
+      // The sidebar should have w-72 class
       const sidebar = screen.getByText('AMAS').closest('aside');
-      expect(sidebar).toHaveClass('w-64');
+      expect(sidebar).toHaveClass('w-72');
     });
   });
 
