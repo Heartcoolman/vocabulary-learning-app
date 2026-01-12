@@ -12,12 +12,6 @@
   <img src="https://img.shields.io/badge/Build-Turborepo-000000?style=flat-square&logo=turborepo" alt="Turborepo">
 </p>
 
-<p align="center">
-  <a href="https://zeabur.com/templates/DANCI">
-    <img src="https://zeabur.com/button.svg" alt="Deploy on Zeabur" height="32">
-  </a>
-</p>
-
 ---
 
 ## 目录
@@ -140,9 +134,16 @@ Danci 是一个现代化的智能单词学习系统，采用先进的 **AMAS (Ad
 
 ### Zeabur 一键部署（最简单）
 
-点击下方按钮，一键部署到 Zeabur：
+1. 登录 [Zeabur](https://zeabur.com)
+2. 点击 **New Project** → **Deploy from GitHub**
+3. 选择本仓库 `vocabulary-learning-app`
+4. Zeabur 会自动检测 `zeabur.yaml` 配置并创建所有服务
 
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/DANCI)
+或使用 CLI：
+
+```bash
+npx zeabur@latest template deploy -f zeabur.yaml
+```
 
 部署时需要配置：
 
