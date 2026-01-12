@@ -436,6 +436,15 @@ jobs:
           name: frontend-build
           path: packages/frontend/dist/
 
+      - name: Initialize Database Schema
+        env:
+          PGPASSWORD: danci_test
+        run: |
+          for sql_file in packages/backend-rust/sql/*.sql; do
+            echo "Executing: $(basename $sql_file)"
+            psql -h localhost -U danci -d danci_test -f "$sql_file" 2>/dev/null || true
+          done
+
       - name: Run E2E Tests
         run: pnpm test:e2e
         env:
