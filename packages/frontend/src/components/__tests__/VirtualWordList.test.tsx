@@ -3,17 +3,23 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import VirtualWordList, {
-  WordWithState,
-  ROW_HEIGHT,
-  ITEM_HEIGHT,
-  ITEM_GAP,
-} from '../VirtualWordList';
+import VirtualWordList from '../VirtualWordList';
+import { type WordWithState, ROW_HEIGHT, ITEM_HEIGHT, ITEM_GAP } from '../virtualWordList.types';
+
+interface MockListProps {
+  rowCount: number;
+  rowComponent: React.ComponentType<{
+    index: number;
+    style: React.CSSProperties;
+    ariaAttributes: Record<string, unknown>;
+  }>;
+  style?: React.CSSProperties;
+  rowHeight?: number;
+}
 
 // Mock react-window
 vi.mock('react-window', () => ({
-  List: ({ rowCount, rowComponent: Row, ...props }: any) => {
-    // 渲染所有行以便测试
+  List: ({ rowCount, rowComponent: Row, ...props }: MockListProps) => {
     return (
       <div data-testid="virtual-list" style={props.style}>
         {Array.from({ length: Math.min(rowCount, 5) }, (_, index) => (
@@ -23,7 +29,6 @@ vi.mock('react-window', () => ({
     );
   },
   useListRef: () => ({ current: { scrollToRow: vi.fn() } }),
-  // useListCallbackRef 返回 [listRef, setListRef]，listRef 直接有 scrollToRow 方法（不是 .current）
   useListCallbackRef: () => [{ scrollToRow: vi.fn() }, vi.fn()],
 }));
 

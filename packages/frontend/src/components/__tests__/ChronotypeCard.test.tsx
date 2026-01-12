@@ -6,31 +6,36 @@ import { render, screen } from '@testing-library/react';
 import ChronotypeCard, { ChronotypeProfile } from '../ChronotypeCard';
 
 // Mock Icon components
+interface MockIconProps {
+  size?: number;
+  weight?: string;
+}
+
 vi.mock('../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../Icon')>();
   return {
     ...actual,
-    Sun: ({ size, weight }: any) => (
+    Sun: ({ size, weight }: MockIconProps) => (
       <span data-testid="sun-icon" data-size={size} data-weight={weight}>
         Sun
       </span>
     ),
-    Moon: ({ size, weight }: any) => (
+    Moon: ({ size, weight }: MockIconProps) => (
       <span data-testid="moon-icon" data-size={size} data-weight={weight}>
         Moon
       </span>
     ),
-    SunHorizon: ({ size, weight }: any) => (
+    SunHorizon: ({ size, weight }: MockIconProps) => (
       <span data-testid="sun-horizon-icon" data-size={size} data-weight={weight}>
         SunHorizon
       </span>
     ),
-    TrendUp: ({ size, weight }: any) => (
+    TrendUp: ({ size, weight }: MockIconProps) => (
       <span data-testid="trend-up-icon" data-size={size} data-weight={weight}>
         TrendUp
       </span>
     ),
-    Sparkle: ({ size, weight }: any) => (
+    Sparkle: ({ size, weight }: MockIconProps) => (
       <span data-testid="sparkle-icon" data-size={size} data-weight={weight}>
         Sparkle
       </span>

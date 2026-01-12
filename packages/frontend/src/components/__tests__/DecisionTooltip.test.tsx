@@ -9,13 +9,17 @@ import { DecisionTooltip } from '../DecisionTooltip';
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, onClick, ...props }: any) => (
+    div: ({
+      children,
+      onClick,
+      ...props
+    }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) => (
       <div onClick={onClick} {...props}>
         {children}
       </div>
     ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock phosphor-icons
