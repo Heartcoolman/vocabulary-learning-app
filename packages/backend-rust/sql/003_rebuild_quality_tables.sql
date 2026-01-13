@@ -19,8 +19,8 @@ CREATE TABLE "quality_tasks" (
     "issuesFound" INTEGER NOT NULL DEFAULT 0,
     "currentItem" TEXT,
     "createdBy" TEXT NOT NULL,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "completedAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "completedAt" TIMESTAMP,
     CONSTRAINT "fk_quality_task_wordbook" FOREIGN KEY ("wordbookId") REFERENCES "word_books"("id") ON DELETE CASCADE
 );
 
@@ -39,8 +39,8 @@ CREATE TABLE "word_issues" (
     "suggestion" JSONB,
     "status" TEXT NOT NULL DEFAULT 'open' CHECK ("status" IN ('open', 'fixed', 'ignored')),
     "resolvedBy" TEXT,
-    "resolvedAt" TIMESTAMPTZ,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "resolvedAt" TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT "fk_word_issue_wordbook" FOREIGN KEY ("wordbookId") REFERENCES "word_books"("id") ON DELETE CASCADE,
     CONSTRAINT "fk_word_issue_word" FOREIGN KEY ("wordId") REFERENCES "words"("id") ON DELETE CASCADE
 );

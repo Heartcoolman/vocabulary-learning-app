@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS "amas_user_models" (
     "modelData" TEXT,
     "parameters" JSONB DEFAULT '{}',
     "version" INTEGER DEFAULT 1,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "modelType")
 );
 

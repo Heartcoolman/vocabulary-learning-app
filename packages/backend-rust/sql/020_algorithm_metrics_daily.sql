@@ -4,9 +4,9 @@ CREATE TABLE IF NOT EXISTS "algorithm_metrics_daily" (
     "callCount" BIGINT NOT NULL DEFAULT 0,
     "totalLatencyUs" BIGINT NOT NULL DEFAULT 0,
     "errorCount" BIGINT NOT NULL DEFAULT 0,
-    "lastCalledAt" TIMESTAMPTZ,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "lastCalledAt" TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY ("algorithmId", "day")
 );
 

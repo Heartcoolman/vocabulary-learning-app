@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS "tracking_events" (
     "eventType" TEXT NOT NULL,
     "timestamp" BIGINT NOT NULL,
     "data" JSONB,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_tracking_events_user" ON "tracking_events"("userId");

@@ -34,11 +34,11 @@ CREATE TABLE IF NOT EXISTS "study_plans" (
     "wordBookId" TEXT NOT NULL,
     "dailyNewWords" INTEGER NOT NULL DEFAULT 20,
     "dailyReviewWords" INTEGER NOT NULL DEFAULT 50,
-    "startDate" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "endDate" TIMESTAMPTZ,
+    "startDate" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "endDate" TIMESTAMP,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "wordBookId")
 );
 CREATE INDEX IF NOT EXISTS "idx_study_plans_user" ON "study_plans"("userId");
@@ -52,9 +52,9 @@ CREATE TABLE IF NOT EXISTS "user_word_book_progress" (
     "learnedCount" INTEGER NOT NULL DEFAULT 0,
     "masteredCount" INTEGER NOT NULL DEFAULT 0,
     "totalWords" INTEGER NOT NULL DEFAULT 0,
-    "lastStudyAt" TIMESTAMPTZ,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "lastStudyAt" TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "wordBookId")
 );
 CREATE INDEX IF NOT EXISTS "idx_uwbp_user" ON "user_word_book_progress"("userId");
@@ -80,8 +80,8 @@ CREATE TABLE IF NOT EXISTS "user_learning_profiles" (
     "optimalBatchSize" INTEGER DEFAULT 10,
     "fatigueThreshold" DOUBLE PRECISION DEFAULT 0.7,
     "recoveryRate" DOUBLE PRECISION DEFAULT 0.1,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_ulp_user" ON "user_learning_profiles"("userId");
 
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS "user_state_history" (
     "trendState" TEXT,
     "stateSnapshot" JSONB,
     "triggerEvent" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "date")
 );
 CREATE INDEX IF NOT EXISTS "idx_ush_user" ON "user_state_history"("userId");
@@ -114,28 +114,28 @@ CREATE TABLE IF NOT EXISTS "user_interaction_stats" (
     "pageSwitchCount" INTEGER DEFAULT 0,
     "totalInteractions" INTEGER DEFAULT 0,
     "totalSessionDuration" BIGINT DEFAULT 0,
-    "lastActivityTime" TIMESTAMPTZ DEFAULT NOW(),
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "lastActivityTime" TIMESTAMP DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_uis_user" ON "user_interaction_stats"("userId");
 
 -- 6. llm_advisor_suggestions table (Rust llm_advisor.rs:1793)
 CREATE TABLE IF NOT EXISTS "llm_advisor_suggestions" (
     "id" TEXT PRIMARY KEY,
-    "weekStart" TIMESTAMPTZ NOT NULL,
-    "weekEnd" TIMESTAMPTZ NOT NULL,
+    "weekStart" TIMESTAMP NOT NULL,
+    "weekEnd" TIMESTAMP NOT NULL,
     "statsSnapshot" JSONB NOT NULL,
     "rawResponse" TEXT,
     "parsedSuggestion" JSONB,
     "status" TEXT DEFAULT 'pending',
     "reviewedBy" TEXT,
-    "reviewedAt" TIMESTAMPTZ,
+    "reviewedAt" TIMESTAMP,
     "reviewNotes" TEXT,
     "appliedItems" JSONB,
     "skippedItems" JSONB,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_las_status" ON "llm_advisor_suggestions"("status");
 CREATE INDEX IF NOT EXISTS "idx_las_created" ON "llm_advisor_suggestions"("createdAt");
@@ -169,8 +169,8 @@ CREATE TABLE IF NOT EXISTS "algorithm_configs" (
     "masteryThresholds" JSONB,
     "isDefault" BOOLEAN DEFAULT false,
     "createdBy" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_ac_default" ON "algorithm_configs"("isDefault");
 
@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS "config_history" (
     "changeReason" TEXT,
     "previousValue" JSONB NOT NULL,
     "newValue" JSONB NOT NULL,
-    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "timestamp" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_ch_config" ON "config_history"("configId");
 CREATE INDEX IF NOT EXISTS "idx_ch_changed_by" ON "config_history"("changedBy");
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS "badge_definitions" (
     "category" TEXT NOT NULL,
     "tier" INTEGER DEFAULT 1,
     "condition" JSONB NOT NULL,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("name", "tier")
 );
 
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS "user_badges" (
     "userId" TEXT NOT NULL,
     "badgeId" TEXT NOT NULL,
     "tier" INTEGER DEFAULT 1,
-    "unlockedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "unlockedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "badgeId", "tier")
 );
 CREATE INDEX IF NOT EXISTS "idx_ub_user" ON "user_badges"("userId");
@@ -218,13 +218,13 @@ CREATE TABLE IF NOT EXISTS "learning_plans" (
     "id" TEXT PRIMARY KEY,
     "userId" TEXT NOT NULL UNIQUE,
     "dailyTarget" INTEGER NOT NULL,
-    "estimatedCompletionDate" TIMESTAMPTZ NOT NULL,
+    "estimatedCompletionDate" TIMESTAMP NOT NULL,
     "wordbookDistribution" JSONB NOT NULL,
     "weeklyMilestones" JSONB NOT NULL,
     "isActive" BOOLEAN DEFAULT true,
     "totalWords" INTEGER DEFAULT 0,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_lp_user" ON "learning_plans"("userId");
 
@@ -240,8 +240,8 @@ CREATE TABLE IF NOT EXISTS "user_learning_objectives" (
     "weightShortTerm" DOUBLE PRECISION DEFAULT 0.4,
     "weightLongTerm" DOUBLE PRECISION DEFAULT 0.4,
     "weightEfficiency" DOUBLE PRECISION DEFAULT 0.2,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_ulo_user" ON "user_learning_objectives"("userId");
 
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS "objective_history" (
     "reason" TEXT NOT NULL,
     "beforeMetrics" JSONB NOT NULL,
     "afterMetrics" JSONB NOT NULL,
-    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "timestamp" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_oh_user" ON "objective_history"("userId");
 CREATE INDEX IF NOT EXISTS "idx_oh_objective" ON "objective_history"("objectiveId");
@@ -272,8 +272,8 @@ CREATE TABLE IF NOT EXISTS "log_alert_rules" (
     "windowMinutes" INTEGER NOT NULL,
     "webhookUrl" TEXT,
     "cooldownMinutes" INTEGER DEFAULT 30,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_lar_enabled" ON "log_alert_rules"("enabled");
 
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS "system_logs" (
     "userAgent" TEXT,
     "app" TEXT,
     "env" TEXT,
-    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "timestamp" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_sl_timestamp" ON "system_logs"("timestamp");
 CREATE INDEX IF NOT EXISTS "idx_sl_level" ON "system_logs"("level");
@@ -310,12 +310,12 @@ CREATE TABLE IF NOT EXISTS "anomaly_flags" (
     "flaggedBy" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
     "notes" TEXT,
-    "flaggedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "flaggedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     "resolved" BOOLEAN DEFAULT false,
-    "resolvedAt" TIMESTAMPTZ,
+    "resolvedAt" TIMESTAMP,
     "resolvedBy" TEXT,
     "status" TEXT NOT NULL DEFAULT 'active',
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "wordId")
 );
 CREATE INDEX IF NOT EXISTS "idx_af_user" ON "anomaly_flags"("userId");
@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS "feature_vectors" (
     "labels" JSONB,
     "features" JSONB,
     "normMethod" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("answerRecordId", "featureVersion")
 );
 CREATE INDEX IF NOT EXISTS "idx_fv_user" ON "feature_vectors"("userId");
@@ -347,13 +347,13 @@ CREATE TABLE IF NOT EXISTS "reward_queue" (
     "sessionId" TEXT,
     "userId" TEXT NOT NULL,
     "answerRecordId" TEXT,
-    "dueTs" TIMESTAMPTZ NOT NULL,
+    "dueTs" TIMESTAMP NOT NULL,
     "reward" DOUBLE PRECISION NOT NULL,
     "status" TEXT DEFAULT 'PENDING',
     "idempotencyKey" TEXT UNIQUE,
     "lastError" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "idx_rq_due_status" ON "reward_queue"("dueTs", "status");
 CREATE INDEX IF NOT EXISTS "idx_rq_user" ON "reward_queue"("userId");
@@ -368,9 +368,9 @@ CREATE INDEX IF NOT EXISTS "idx_rq_answer" ON "reward_queue"("answerRecordId");
 -- suggestion_effect_tracking (covered by 013, but ensure completeness)
 DO $$ BEGIN
     ALTER TABLE "suggestion_effect_tracking"
-    ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     ADD COLUMN IF NOT EXISTS "effectEvaluated" BOOLEAN NOT NULL DEFAULT false,
-    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW();
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- amas_user_states
@@ -390,13 +390,13 @@ EXCEPTION WHEN undefined_table THEN NULL; END $$;
 DO $$ BEGIN
     ALTER TABLE "decision_records"
     ADD COLUMN IF NOT EXISTS "actionRationale" TEXT,
-    ADD COLUMN IF NOT EXISTS "timestamp" TIMESTAMPTZ DEFAULT NOW();
+    ADD COLUMN IF NOT EXISTS "timestamp" TIMESTAMP DEFAULT NOW();
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- user_preferences
 DO $$ BEGIN
     ALTER TABLE "user_preferences"
-    ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP NOT NULL DEFAULT NOW();
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- llm_analysis_tasks
@@ -408,13 +408,13 @@ EXCEPTION WHEN undefined_table THEN NULL; END $$;
 -- notifications
 DO $$ BEGIN
     ALTER TABLE "notifications"
-    ADD COLUMN IF NOT EXISTS "readAt" TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS "readAt" TIMESTAMP;
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- forgetting_alerts
 DO $$ BEGIN
     ALTER TABLE "forgetting_alerts"
-    ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMP;
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- system_weekly_reports
@@ -428,7 +428,7 @@ EXCEPTION WHEN undefined_table THEN NULL; END $$;
 DO $$ BEGIN
     ALTER TABLE "alert_root_cause_analyses"
     ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'open',
-    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- ============================================================================

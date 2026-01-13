@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS "amas_monitoring_events" (
     "userId" TEXT NOT NULL,
     "sessionId" TEXT,
     "eventType" TEXT NOT NULL DEFAULT 'process_event',
-    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "timestamp" TIMESTAMP NOT NULL DEFAULT NOW(),
     "latencyMs" INTEGER NOT NULL,
     "isAnomaly" BOOLEAN NOT NULL DEFAULT FALSE,
     "invariantViolations" JSONB DEFAULT '[]',
@@ -26,8 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_ame_anomaly ON "amas_monitoring_events"("isAnomal
 -- 2. 15-minute aggregates
 CREATE TABLE IF NOT EXISTS "amas_monitoring_aggregates_15m" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "periodStart" TIMESTAMPTZ NOT NULL,
-    "periodEnd" TIMESTAMPTZ NOT NULL,
+    "periodStart" TIMESTAMP NOT NULL,
+    "periodEnd" TIMESTAMP NOT NULL,
     "eventCount" INTEGER NOT NULL DEFAULT 0,
     "uniqueUsers" INTEGER NOT NULL DEFAULT 0,
     "anomalyCount" INTEGER NOT NULL DEFAULT 0,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS "amas_monitoring_aggregates_15m" (
     "coldStartClassifyCount" INTEGER DEFAULT 0,
     "alertLevel" TEXT NOT NULL DEFAULT 'ok',
     "alertReasons" TEXT[] DEFAULT '{}',
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ama15_period ON "amas_monitoring_aggregates_15m"("periodStart");
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS "amas_monitoring_aggregates_daily" (
     "coldStartFunnel" JSONB NOT NULL DEFAULT '{}',
     "warnPeriods" INTEGER NOT NULL DEFAULT 0,
     "criticalPeriods" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_amad_date ON "amas_monitoring_aggregates_daily"("date");
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS "amas_monitoring_aggregates_weekly" (
     "dailyTrend" JSONB NOT NULL DEFAULT '[]',
     "healthScore" DOUBLE PRECISION,
     "healthStatus" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_amaw_week ON "amas_monitoring_aggregates_weekly"("weekStart");
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS "amas_health_reports" (
     "recommendations" JSONB NOT NULL DEFAULT '[]',
     "inputSnapshot" JSONB NOT NULL DEFAULT '{}',
     "tokensUsed" INTEGER,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ahr_week ON "amas_health_reports"("weekStart" DESC);

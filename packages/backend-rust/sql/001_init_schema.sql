@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS "users" (
     "username" TEXT NOT NULL,
     "role" "UserRole" NOT NULL DEFAULT 'USER',
     "rewardProfile" TEXT DEFAULT 'standard',
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_users_email" ON "users"("email");
@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS "sessions" (
     "id" TEXT PRIMARY KEY,
     "userId" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "token" TEXT UNIQUE NOT NULL,
-    "expiresAt" TIMESTAMPTZ NOT NULL,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "expiresAt" TIMESTAMP NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_sessions_userId" ON "sessions"("userId");
@@ -60,8 +60,8 @@ CREATE TABLE IF NOT EXISTS "word_books" (
     "isPublic" BOOLEAN DEFAULT false,
     "wordCount" INTEGER DEFAULT 0,
     "coverImage" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_word_books_userId" ON "word_books"("userId");
@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS "words" (
     "examples" JSONB NOT NULL,
     "audioUrl" TEXT,
     "wordBookId" TEXT NOT NULL REFERENCES "word_books"("id") ON DELETE CASCADE,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("wordBookId", "spelling")
 );
 
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS "answer_records" (
     "selectedAnswer" TEXT NOT NULL,
     "correctAnswer" TEXT NOT NULL,
     "isCorrect" BOOLEAN NOT NULL,
-    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "timestamp" TIMESTAMP NOT NULL DEFAULT NOW(),
     "dwellTime" INTEGER,
     "masteryLevelAfter" INTEGER,
     "masteryLevelBefore" INTEGER,
@@ -114,8 +114,8 @@ CREATE TABLE IF NOT EXISTS "user_study_configs" (
     "dailyWordCount" INTEGER DEFAULT 20,
     "studyMode" TEXT DEFAULT 'sequential',
     "dailyMasteryTarget" INTEGER DEFAULT 20,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS "word_learning_states" (
@@ -126,15 +126,15 @@ CREATE TABLE IF NOT EXISTS "word_learning_states" (
     "masteryLevel" INTEGER DEFAULT 0,
     "easeFactor" DOUBLE PRECISION DEFAULT 2.5,
     "reviewCount" INTEGER DEFAULT 0,
-    "lastReviewDate" TIMESTAMPTZ,
-    "nextReviewDate" TIMESTAMPTZ,
+    "lastReviewDate" TIMESTAMP,
+    "nextReviewDate" TIMESTAMP,
     "currentInterval" INTEGER DEFAULT 1,
     "consecutiveCorrect" INTEGER DEFAULT 0,
     "consecutiveWrong" INTEGER DEFAULT 0,
     "halfLife" DOUBLE PRECISION DEFAULT 1.0,
     "version" INTEGER DEFAULT 0,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "wordId")
 );
 
@@ -149,8 +149,8 @@ CREATE INDEX IF NOT EXISTS "idx_word_learning_states_state" ON "word_learning_st
 CREATE TABLE IF NOT EXISTS "learning_sessions" (
     "id" TEXT PRIMARY KEY,
     "userId" TEXT NOT NULL,
-    "startedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "endedAt" TIMESTAMPTZ,
+    "startedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "endedAt" TIMESTAMP,
     "actualMasteryCount" INTEGER,
     "targetMasteryCount" INTEGER,
     "totalQuestions" INTEGER,
@@ -158,8 +158,8 @@ CREATE TABLE IF NOT EXISTS "learning_sessions" (
     "flowPeakScore" DOUBLE PRECISION,
     "avgCognitiveLoad" DOUBLE PRECISION,
     "contextShifts" INTEGER DEFAULT 0,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_learning_sessions_userId" ON "learning_sessions"("userId");
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS "decision_records" (
     "decisionId" TEXT NOT NULL,
     "answerRecordId" TEXT,
     "sessionId" TEXT,
-    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "timestamp" TIMESTAMP NOT NULL DEFAULT NOW(),
     "decisionSource" TEXT NOT NULL,
     "coldstartPhase" TEXT,
     "weightsSnapshot" JSONB,
@@ -188,8 +188,8 @@ CREATE TABLE IF NOT EXISTS "decision_records" (
     "emotionLabel" TEXT,
     "flowScore" DOUBLE PRECISION,
     "actionRationale" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY ("id", "timestamp")
 );
 
@@ -212,8 +212,8 @@ CREATE TABLE IF NOT EXISTS "amas_user_states" (
     "trendState" TEXT,
     "coldStartState" TEXT,
     "lastUpdateTs" BIGINT DEFAULT 0,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_amas_user_states_userId" ON "amas_user_states"("userId");
@@ -226,9 +226,9 @@ CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     "id" TEXT PRIMARY KEY,
     "userId" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "token" TEXT NOT NULL,
-    "expiresAt" TIMESTAMPTZ NOT NULL,
+    "expiresAt" TIMESTAMP NOT NULL,
     "used" BOOLEAN DEFAULT false,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_password_reset_tokens_token" ON "password_reset_tokens"("token");
