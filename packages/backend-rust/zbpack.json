@@ -1,5 +1,6 @@
 {
   "dockerfile": {
-    "path": "packages/backend-rust/Dockerfile"
+    "path": "../../Dockerfile.zeabur-backend",
+    "context": "../.."
   }
 }

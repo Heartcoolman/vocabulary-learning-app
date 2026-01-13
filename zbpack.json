@@ -1,1 +1,5 @@
-{}
+{
+  "dockerfile": {
+    "path": "Dockerfile.zeabur-backend"
+  }
+}

@@ -1,5 +1,6 @@
 {
   "dockerfile": {
-    "path": "Dockerfile.frontend"
+    "path": "../../Dockerfile.zeabur-frontend",
+    "context": "../.."
   }
 }
