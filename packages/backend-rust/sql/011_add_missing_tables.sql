@@ -172,5 +172,4 @@ CREATE TABLE IF NOT EXISTS "word_frequencies" (
 -- 12. Create view/alias for table name differences (word_frequency -> word_frequencies)
 CREATE OR REPLACE VIEW "word_frequency" AS SELECT "word_id", "frequency_score" FROM "word_frequencies";
 
--- 12. algorithm_config view (singular alias for algorithm_configs)
-CREATE OR REPLACE VIEW "algorithm_config" AS SELECT * FROM "algorithm_configs";
+-- 13. algorithm_config view moved to 014_complete_schema_sync.sql
