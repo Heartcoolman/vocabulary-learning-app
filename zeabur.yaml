@@ -86,7 +86,7 @@ spec:
           source: GITHUB
           repo: 1100646679
           branch: dev
-          subPath: packages/backend-rust
+        dockerfile: packages/backend-rust/Dockerfile
         ports:
           - id: web
             port: 3000
