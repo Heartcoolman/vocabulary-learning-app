@@ -86,7 +86,7 @@ spec:
           source: GITHUB
           repo: 1100646679
           branch: dev
-        dockerfile: packages/backend-rust/Dockerfile
+        dockerfile: Dockerfile.zeabur-backend
         ports:
           - id: web
             port: 3000
