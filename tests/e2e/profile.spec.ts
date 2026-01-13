@@ -51,7 +51,7 @@ test.describe('Profile', () => {
     test('should display user avatar or placeholder', async ({ page }) => {
       // Avatar, placeholder, or user icon should be visible in profile section
       const profileIdentifier = page.locator(
-        'img[alt*="avatar"], img[alt*="头像"], .rounded-full, [data-testid="user-avatar"], svg'
+        'img[alt*="avatar"], img[alt*="头像"], .rounded-full, [data-testid="user-avatar"], svg',
       );
       await expect(profileIdentifier.first()).toBeVisible({ timeout: 10000 });
     });

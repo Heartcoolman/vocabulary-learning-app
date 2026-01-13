@@ -86,7 +86,10 @@ test.describe('Authentication', () => {
       await submitForm(page);
 
       // Check for either JS alert or HTML5 validation
-      const hasAlert = await page.locator('[role="alert"]').isVisible().catch(() => false);
+      const hasAlert = await page
+        .locator('[role="alert"]')
+        .isVisible()
+        .catch(() => false);
       const emailInput = page.locator('#email');
       const isInvalid = await emailInput.evaluate((el: HTMLInputElement) => !el.validity.valid);
 
@@ -267,7 +270,10 @@ test.describe('Authentication', () => {
       await submitForm(page);
 
       // Check for either JS alert or HTML5 validation or stayed on login page
-      const hasAlert = await page.locator('[role="alert"]').isVisible().catch(() => false);
+      const hasAlert = await page
+        .locator('[role="alert"]')
+        .isVisible()
+        .catch(() => false);
       const emailInput = page.locator('#email');
       const isInvalid = await emailInput.evaluate((el: HTMLInputElement) => !el.validity.valid);
       const stayedOnLogin = page.url().includes('/login');

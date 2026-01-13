@@ -225,7 +225,10 @@ test.describe('Study Settings', () => {
       if (!isDisabled) {
         await saveButton.click();
         // Should show error or stay on page
-        const hasAlert = await page.locator('[role="alert"], .text-red-700').isVisible().catch(() => false);
+        const hasAlert = await page
+          .locator('[role="alert"], .text-red-700')
+          .isVisible()
+          .catch(() => false);
         const stayedOnPage = page.url().includes('study-settings');
         expect(hasAlert || stayedOnPage || isDisabled).toBeTruthy();
       } else {

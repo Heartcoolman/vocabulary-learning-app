@@ -431,7 +431,9 @@ test.describe('Learning Flow', () => {
       const mainContent = page.locator('main');
 
       // One of these should be visible (including main content as fallback)
-      await expect(errorMessage.or(wordCard).or(noWordsMessage).or(mainContent).first()).toBeVisible({
+      await expect(
+        errorMessage.or(wordCard).or(noWordsMessage).or(mainContent).first(),
+      ).toBeVisible({
         timeout: 10000,
       });
     });

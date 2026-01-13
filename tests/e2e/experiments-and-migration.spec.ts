@@ -328,7 +328,11 @@ test.describe('Data Migration Verification', () => {
         await page.waitForTimeout(1000);
 
         // 页面应该正常显示或重定向，不崩溃
-        const mainVisible = await page.locator('main, body').first().isVisible().catch(() => false);
+        const mainVisible = await page
+          .locator('main, body')
+          .first()
+          .isVisible()
+          .catch(() => false);
         const isRedirected = page.url().includes('/login');
         expect(mainVisible || isRedirected).toBeTruthy();
       }
