@@ -148,6 +148,10 @@ jobs:
         working-directory: packages/native
         run: cargo test --no-default-features
 
+      - name: Validate SQL Migrations
+        working-directory: packages/backend-rust
+        run: ./scripts/validate-migrations.sh
+
       - name: Check Backend Rust
         working-directory: packages/backend-rust
         run: cargo check

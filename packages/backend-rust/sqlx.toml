@@ -1,0 +1,5 @@
+[sqlx]
+offline = true
+
+[migrations]
+path = "sql"
