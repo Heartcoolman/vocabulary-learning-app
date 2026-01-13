@@ -112,6 +112,20 @@ jobs:
   rust:
     name: Rust Check & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: danci
+          POSTGRES_PASSWORD: danci_test
+          POSTGRES_DB: danci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -135,6 +149,30 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres || true
+
+      - name: Initialize Database Schema
+        env:
+          PGPASSWORD: danci_test
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -U danci -d danci_test; then
+              break
+            fi
+            sleep 1
+          done
+          for sql_file in packages/backend-rust/sql/*.sql; do
+            psql -h localhost -U danci -d danci_test -f "$sql_file" || true
+          done
+
+      - name: SQLx Prepare Check
+        working-directory: packages/backend-rust
+        env:
+          DATABASE_URL: postgres://danci:danci_test@localhost:5432/danci_test
+        run: cargo sqlx prepare --check -- --bin danci-backend-rust || echo "::warning::SQLx prepare check failed - .sqlx/ may need regeneration"
 
       - name: Check Native Package (no napi)
         working-directory: packages/native
