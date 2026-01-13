@@ -110,7 +110,7 @@ CREATE INDEX IF NOT EXISTS "idx_answer_records_timestamp" ON "answer_records"("t
 CREATE TABLE IF NOT EXISTS "user_study_configs" (
     "id" TEXT PRIMARY KEY,
     "userId" TEXT UNIQUE NOT NULL,
-    "selectedWordBookIds" JSONB NOT NULL,
+    "selectedWordBookIds" TEXT[] NOT NULL DEFAULT '{}',
     "dailyWordCount" INTEGER DEFAULT 20,
     "studyMode" TEXT DEFAULT 'sequential',
     "dailyMasteryTarget" INTEGER DEFAULT 20,
