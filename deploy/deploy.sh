@@ -62,11 +62,11 @@ REDIS_PORT=6379
 JWT_SECRET=${JWT_SECRET}
 RUST_LOG=info
 
-BACKEND_RUST_PORT=3001
-BACKEND_PORT=3002
-FRONTEND_PORT=80
+BACKEND_RUST_PORT=3000
+BACKEND_PORT=3000
+FRONTEND_PORT=5173
 
-CORS_ORIGIN=http://$(curl -s ifconfig.me)
+CORS_ORIGIN=http://$(curl -s ifconfig.me):5173
 
 SQLITE_FALLBACK_ENABLED=true
 DB_FENCING_ENABLED=false
@@ -95,8 +95,8 @@ echo ""
 docker compose ps
 echo ""
 echo "Service URLs:"
-echo "  Frontend: http://$(curl -s ifconfig.me)"
-echo "  Backend:  http://$(curl -s ifconfig.me):3001"
+echo "  Frontend: http://$(curl -s ifconfig.me):5173"
+echo "  Backend:  http://$(curl -s ifconfig.me):3000"
 echo ""
 echo "Useful commands:"
 echo "  View logs:     cd $DEPLOY_DIR && docker compose logs -f"
