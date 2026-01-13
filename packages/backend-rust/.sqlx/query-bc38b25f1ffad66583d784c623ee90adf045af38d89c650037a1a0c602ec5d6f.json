@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO \"user_behavior_insights\" (\n            \"id\", \"analysisDate\", \"userSegment\", \"patterns\", \"insights\",\n            \"recommendations\", \"userCount\", \"dataPoints\", \"createdAt\"\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n        ON CONFLICT (\"analysisDate\", \"userSegment\") DO UPDATE SET\n            \"patterns\" = EXCLUDED.\"patterns\",\n            \"insights\" = EXCLUDED.\"insights\",\n            \"recommendations\" = EXCLUDED.\"recommendations\",\n            \"userCount\" = EXCLUDED.\"userCount\",\n            \"dataPoints\" = EXCLUDED.\"dataPoints\"\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Uuid", "Date", "Text", "Jsonb", "Jsonb", "Jsonb", "Int4", "Int4", "Timestamp"]
+    },
+    "nullable": []
+  },
+  "hash": "bc38b25f1ffad66583d784c623ee90adf045af38d89c650037a1a0c602ec5d6f"
+}

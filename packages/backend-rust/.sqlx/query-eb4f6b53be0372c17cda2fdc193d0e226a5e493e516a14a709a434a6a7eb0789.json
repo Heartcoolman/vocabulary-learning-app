@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT * FROM \"user_state_history\"\n        WHERE \"userId\" = $1\n        ORDER BY \"createdAt\" DESC\n        LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "userId",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 3,
+        "name": "attention",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "fatigue",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "motivation",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 6,
+        "name": "memory",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 7,
+        "name": "speed",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 8,
+        "name": "stability",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 9,
+        "name": "trendState",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "stateSnapshot",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
+        "name": "triggerEvent",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "createdAt",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": [false, false, true, true, true, true, true, true, true, true, true, true, false]
+  },
+  "hash": "eb4f6b53be0372c17cda2fdc193d0e226a5e493e516a14a709a434a6a7eb0789"
+}

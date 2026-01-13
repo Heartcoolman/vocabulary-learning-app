@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM \"user_interaction_stats\" WHERE \"userId\" = $1 LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "userId",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "pronunciationClicks",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "pauseCount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "pageSwitchCount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "totalInteractions",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "totalSessionDuration",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "lastActivityTime",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 8,
+        "name": "createdAt",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 9,
+        "name": "updatedAt",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false, false, true, true, true, true, true, true, false, false]
+  },
+  "hash": "b2d701fbe70c4be5cec47fa66d39a4c3375e80c98e673c7e80b65d4914feea16"
+}

@@ -42,9 +42,9 @@ pub async fn upsert_user_behavior_insight(
     user_count: i32,
     data_points: i32,
 ) -> Result<String, sqlx::Error> {
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4();
     let now = Utc::now().naive_utc();
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO "user_behavior_insights" (
             "id", "analysisDate", "userSegment", "patterns", "insights",
@@ -57,19 +57,19 @@ pub async fn upsert_user_behavior_insight(
             "userCount" = EXCLUDED."userCount",
             "dataPoints" = EXCLUDED."dataPoints"
         "#,
+        id,
+        analysis_date,
+        user_segment,
+        patterns,
+        insights,
+        recommendations,
+        user_count,
+        data_points,
+        now,
     )
-    .bind(&id)
-    .bind(analysis_date)
-    .bind(user_segment)
-    .bind(patterns)
-    .bind(insights)
-    .bind(recommendations)
-    .bind(user_count)
-    .bind(data_points)
-    .bind(now)
     .execute(proxy.pool())
     .await?;
-    Ok(id)
+    Ok(id.to_string())
 }
 
 pub async fn insert_alert_root_cause_analysis(
@@ -81,27 +81,27 @@ pub async fn insert_alert_root_cause_analysis(
     related_metrics: &serde_json::Value,
     confidence: f64,
 ) -> Result<String, sqlx::Error> {
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4();
     let now = Utc::now().naive_utc();
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO "alert_root_cause_analyses" (
             "id", "alertRuleId", "severity", "rootCause", "suggestedFixes",
             "relatedMetrics", "confidence", "status", "createdAt", "updatedAt"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8, $8)
         "#,
+        id,
+        alert_rule_id,
+        severity,
+        root_cause,
+        suggested_fixes,
+        related_metrics,
+        confidence,
+        now,
     )
-    .bind(&id)
-    .bind(alert_rule_id)
-    .bind(severity)
-    .bind(root_cause)
-    .bind(suggested_fixes)
-    .bind(related_metrics)
-    .bind(confidence)
-    .bind(now)
     .execute(proxy.pool())
     .await?;
-    Ok(id)
+    Ok(id.to_string())
 }
 
 pub async fn update_alert_root_cause_resolved(
@@ -111,7 +111,8 @@ pub async fn update_alert_root_cause_resolved(
     resolution: &str,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
-    sqlx::query(
+    let uuid = uuid::Uuid::parse_str(analysis_id).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    sqlx::query!(
         r#"
         UPDATE "alert_root_cause_analyses" SET
             "status" = 'resolved',
@@ -121,11 +122,11 @@ pub async fn update_alert_root_cause_resolved(
             "updatedAt" = $2
         WHERE "id" = $4
         "#,
+        resolved_by,
+        now,
+        resolution,
+        uuid,
     )
-    .bind(resolved_by)
-    .bind(now)
-    .bind(resolution)
-    .bind(analysis_id)
     .execute(proxy.pool())
     .await?;
     Ok(())

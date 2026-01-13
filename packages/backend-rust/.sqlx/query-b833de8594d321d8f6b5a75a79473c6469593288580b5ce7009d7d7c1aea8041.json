@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO \"user_interaction_stats\" (\n            \"id\", \"userId\", \"pronunciationClicks\", \"pauseCount\", \"pageSwitchCount\",\n            \"totalInteractions\", \"totalSessionDuration\", \"lastActivityTime\",\n            \"createdAt\", \"updatedAt\"\n        ) VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $7, $7)\n        ON CONFLICT (\"userId\") DO UPDATE SET\n            \"pronunciationClicks\" = \"user_interaction_stats\".\"pronunciationClicks\" + EXCLUDED.\"pronunciationClicks\",\n            \"pauseCount\" = \"user_interaction_stats\".\"pauseCount\" + EXCLUDED.\"pauseCount\",\n            \"pageSwitchCount\" = \"user_interaction_stats\".\"pageSwitchCount\" + EXCLUDED.\"pageSwitchCount\",\n            \"totalInteractions\" = \"user_interaction_stats\".\"totalInteractions\" + EXCLUDED.\"totalInteractions\",\n            \"lastActivityTime\" = EXCLUDED.\"lastActivityTime\",\n            \"updatedAt\" = EXCLUDED.\"updatedAt\"\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Int4", "Int4", "Int4", "Int4", "Timestamp"]
+    },
+    "nullable": []
+  },
+  "hash": "b833de8594d321d8f6b5a75a79473c6469593288580b5ce7009d7d7c1aea8041"
+}

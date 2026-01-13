@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO \"user_state_history\" (\n            \"id\", \"userId\", \"stateSnapshot\", \"triggerEvent\", \"createdAt\"\n        ) VALUES ($1, $2, $3, $4, $5)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Jsonb", "Text", "Timestamp"]
+    },
+    "nullable": []
+  },
+  "hash": "4a41bd167fb566df4855311760663811112ae3f8c4949226cb5d2ca52b5fbeac"
+}
