@@ -205,7 +205,7 @@ fn calculate_retention(state: &LearningState, now: chrono::DateTime<Utc>) -> f64
         return 0.0;
     }
 
-    let decay_rate = 0.693147 / half_life_secs;
+    let decay_rate = std::f64::consts::LN_2 / half_life_secs;
     (-decay_rate * elapsed_secs).exp()
 }
 
@@ -226,7 +226,7 @@ async fn upsert_forgetting_alert(
     let safe_retention = retention.clamp(0.0001, 0.9999);
     let predicted_forget_at = now
         + chrono::Duration::seconds(
-            (state.half_life * (1.0 - safe_retention).ln().abs() / 0.693147) as i64,
+            (state.half_life * (1.0 - safe_retention).ln().abs() / std::f64::consts::LN_2) as i64,
         );
 
     let result = sqlx::query(

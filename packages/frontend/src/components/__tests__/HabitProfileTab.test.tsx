@@ -136,13 +136,13 @@ vi.mock('../HabitHeatmap', () => ({
 }));
 
 vi.mock('../ChronotypeCard', () => ({
-  default: ({ data }: { data: any }) => (
+  default: ({ data }: { data: { type?: string } | null }) => (
     <div data-testid="chronotype-card">ChronotypeCard (type: {data?.type})</div>
   ),
 }));
 
 vi.mock('../LearningStyleCard', () => ({
-  default: ({ data }: { data: any }) => (
+  default: ({ data }: { data: { style?: string } | null }) => (
     <div data-testid="learning-style-card">LearningStyleCard (style: {data?.style})</div>
   ),
 }));
@@ -260,9 +260,11 @@ describe('HabitProfileTab', () => {
     it('should show generic error when no profile data', async () => {
       vi.mocked(apiClient.getHabitProfile).mockResolvedValue({
         stored: null,
-        realtime: null as any,
+        realtime: null as unknown as HabitProfile,
       });
-      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(null as any);
+      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(
+        null as unknown as ReturnType<typeof createMockCognitiveProfile>,
+      );
 
       render(<HabitProfileTab />);
 
@@ -413,7 +415,9 @@ describe('HabitProfileTab', () => {
         stored: null,
         realtime: createMockProfile(),
       });
-      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(null as any);
+      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(
+        null as unknown as ReturnType<typeof createMockCognitiveProfile>,
+      );
 
       render(<HabitProfileTab />);
 
@@ -682,12 +686,12 @@ describe('HabitProfileTab', () => {
   // ==================== Component Unmount Tests ====================
   describe('unmount handling', () => {
     it('should not update state after unmount', async () => {
-      let resolvePromise: (value: any) => void;
-      const promise = new Promise((resolve) => {
+      let resolvePromise: (value: { stored: null; realtime: HabitProfile }) => void;
+      const promise = new Promise<{ stored: null; realtime: HabitProfile }>((resolve) => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(apiClient.getHabitProfile).mockReturnValue(promise as any);
+      vi.mocked(apiClient.getHabitProfile).mockReturnValue(promise);
       vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(createMockCognitiveProfile());
 
       const { unmount } = render(<HabitProfileTab />);

@@ -10,10 +10,20 @@ import { LearningModeSelector } from '../LearningModeSelector';
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    div: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement>>) => (
+      <div {...props}>{children}</div>
+    ),
+    button: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<React.ButtonHTMLAttributes<HTMLButtonElement>>) => (
+      <button {...props}>{children}</button>
+    ),
   },
-  AnimatePresence: ({ children }: any) => children,
+  AnimatePresence: ({ children }: React.PropsWithChildren<object>) => children,
 }));
 
 // Mock phosphor icons
@@ -65,7 +75,7 @@ const mockModes = [
 ];
 
 describe('LearningModeSelector', () => {
-  const renderWithRouter = (ui: any) => render(<MemoryRouter>{ui}</MemoryRouter>);
+  const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
   beforeEach(() => {
     vi.clearAllMocks();

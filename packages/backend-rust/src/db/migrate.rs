@@ -18,30 +18,82 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
     .map_err(MigrationError::Sqlx)?;
 
     // Get list of applied migrations
-    let applied: Vec<String> = sqlx::query_scalar(r#"SELECT "name" FROM "_migrations" ORDER BY "id""#)
-        .fetch_all(pool)
-        .await
-        .map_err(MigrationError::Sqlx)?;
+    let applied: Vec<String> =
+        sqlx::query_scalar(r#"SELECT "name" FROM "_migrations" ORDER BY "id""#)
+            .fetch_all(pool)
+            .await
+            .map_err(MigrationError::Sqlx)?;
 
     // List of migration files in order
     let migrations = [
-        ("001_init_schema", include_str!("../../sql/001_init_schema.sql")),
-        ("003_rebuild_quality_tables", include_str!("../../sql/003_rebuild_quality_tables.sql")),
-        ("004_tracking_events", include_str!("../../sql/004_tracking_events.sql")),
-        ("005_drop_deprecated_tables", include_str!("../../sql/005_drop_deprecated_tables.sql")),
-        ("006_llm_analytics_tables", include_str!("../../sql/006_llm_analytics_tables.sql")),
-        ("007_optimization_causal_tables", include_str!("../../sql/007_optimization_causal_tables.sql")),
-        ("008_add_session_type_column", include_str!("../../sql/008_add_session_type_column.sql")),
-        ("009_add_context_shifts_column", include_str!("../../sql/009_add_context_shifts_column.sql")),
-        ("010_add_amas_missing_columns", include_str!("../../sql/010_add_amas_missing_columns.sql")),
-        ("011_add_missing_tables", include_str!("../../sql/011_add_missing_tables.sql")),
-        ("012_fix_missing_columns", include_str!("../../sql/012_fix_missing_columns.sql")),
-        ("013_fix_suggestion_effect_tracking", include_str!("../../sql/013_fix_suggestion_effect_tracking.sql")),
-        ("014_complete_schema_sync", include_str!("../../sql/014_complete_schema_sync.sql")),
-        ("015_add_fsrs_columns", include_str!("../../sql/015_add_fsrs_columns.sql")),
-        ("016_add_morphemes", include_str!("../../sql/016_add_morphemes.sql")),
-        ("017_amas_monitoring", include_str!("../../sql/017_amas_monitoring.sql")),
-        ("018_visual_fatigue_session", include_str!("../../sql/018_visual_fatigue_session.sql")),
+        (
+            "001_init_schema",
+            include_str!("../../sql/001_init_schema.sql"),
+        ),
+        (
+            "003_rebuild_quality_tables",
+            include_str!("../../sql/003_rebuild_quality_tables.sql"),
+        ),
+        (
+            "004_tracking_events",
+            include_str!("../../sql/004_tracking_events.sql"),
+        ),
+        (
+            "005_drop_deprecated_tables",
+            include_str!("../../sql/005_drop_deprecated_tables.sql"),
+        ),
+        (
+            "006_llm_analytics_tables",
+            include_str!("../../sql/006_llm_analytics_tables.sql"),
+        ),
+        (
+            "007_optimization_causal_tables",
+            include_str!("../../sql/007_optimization_causal_tables.sql"),
+        ),
+        (
+            "008_add_session_type_column",
+            include_str!("../../sql/008_add_session_type_column.sql"),
+        ),
+        (
+            "009_add_context_shifts_column",
+            include_str!("../../sql/009_add_context_shifts_column.sql"),
+        ),
+        (
+            "010_add_amas_missing_columns",
+            include_str!("../../sql/010_add_amas_missing_columns.sql"),
+        ),
+        (
+            "011_add_missing_tables",
+            include_str!("../../sql/011_add_missing_tables.sql"),
+        ),
+        (
+            "012_fix_missing_columns",
+            include_str!("../../sql/012_fix_missing_columns.sql"),
+        ),
+        (
+            "013_fix_suggestion_effect_tracking",
+            include_str!("../../sql/013_fix_suggestion_effect_tracking.sql"),
+        ),
+        (
+            "014_complete_schema_sync",
+            include_str!("../../sql/014_complete_schema_sync.sql"),
+        ),
+        (
+            "015_add_fsrs_columns",
+            include_str!("../../sql/015_add_fsrs_columns.sql"),
+        ),
+        (
+            "016_add_morphemes",
+            include_str!("../../sql/016_add_morphemes.sql"),
+        ),
+        (
+            "017_amas_monitoring",
+            include_str!("../../sql/017_amas_monitoring.sql"),
+        ),
+        (
+            "018_visual_fatigue_session",
+            include_str!("../../sql/018_visual_fatigue_session.sql"),
+        ),
     ];
 
     let mut applied_count = 0;
