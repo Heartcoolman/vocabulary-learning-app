@@ -362,54 +362,74 @@ CREATE INDEX IF NOT EXISTS "idx_rq_user_status_due" ON "reward_queue"("userId", 
 CREATE INDEX IF NOT EXISTS "idx_rq_answer" ON "reward_queue"("answerRecordId");
 
 -- ============================================================================
--- PART 3: ADD MISSING COLUMNS TO EXISTING TABLES
+-- PART 3: ADD MISSING COLUMNS TO EXISTING TABLES (with graceful handling)
 -- ============================================================================
 
 -- suggestion_effect_tracking (covered by 013, but ensure completeness)
-ALTER TABLE "suggestion_effect_tracking"
-ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-ADD COLUMN IF NOT EXISTS "effectEvaluated" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+DO $$ BEGIN
+    ALTER TABLE "suggestion_effect_tracking"
+    ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS "effectEvaluated" BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- amas_user_states
-ALTER TABLE "amas_user_states"
-ADD COLUMN IF NOT EXISTS "confidence" DOUBLE PRECISION DEFAULT 0.5;
+DO $$ BEGIN
+    ALTER TABLE "amas_user_states"
+    ADD COLUMN IF NOT EXISTS "confidence" DOUBLE PRECISION DEFAULT 0.5;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- amas_user_models
-ALTER TABLE "amas_user_models"
-ADD COLUMN IF NOT EXISTS "parameters" JSONB DEFAULT '{}',
-ADD COLUMN IF NOT EXISTS "version" INTEGER DEFAULT 1;
+DO $$ BEGIN
+    ALTER TABLE "amas_user_models"
+    ADD COLUMN IF NOT EXISTS "parameters" JSONB DEFAULT '{}',
+    ADD COLUMN IF NOT EXISTS "version" INTEGER DEFAULT 1;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- decision_records
-ALTER TABLE "decision_records"
-ADD COLUMN IF NOT EXISTS "actionRationale" TEXT,
-ADD COLUMN IF NOT EXISTS "timestamp" TIMESTAMPTZ DEFAULT NOW();
+DO $$ BEGIN
+    ALTER TABLE "decision_records"
+    ADD COLUMN IF NOT EXISTS "actionRationale" TEXT,
+    ADD COLUMN IF NOT EXISTS "timestamp" TIMESTAMPTZ DEFAULT NOW();
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- user_preferences
-ALTER TABLE "user_preferences"
-ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+DO $$ BEGIN
+    ALTER TABLE "user_preferences"
+    ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- llm_analysis_tasks
-ALTER TABLE "llm_analysis_tasks"
-ADD COLUMN IF NOT EXISTS "retryCount" INTEGER DEFAULT 0;
+DO $$ BEGIN
+    ALTER TABLE "llm_analysis_tasks"
+    ADD COLUMN IF NOT EXISTS "retryCount" INTEGER DEFAULT 0;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- notifications
-ALTER TABLE "notifications"
-ADD COLUMN IF NOT EXISTS "readAt" TIMESTAMPTZ;
+DO $$ BEGIN
+    ALTER TABLE "notifications"
+    ADD COLUMN IF NOT EXISTS "readAt" TIMESTAMPTZ;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- forgetting_alerts
-ALTER TABLE "forgetting_alerts"
-ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMPTZ;
+DO $$ BEGIN
+    ALTER TABLE "forgetting_alerts"
+    ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMPTZ;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- system_weekly_reports
-ALTER TABLE "system_weekly_reports"
-ADD COLUMN IF NOT EXISTS "rawLLMResponse" TEXT,
-ADD COLUMN IF NOT EXISTS "tokensUsed" INTEGER;
+DO $$ BEGIN
+    ALTER TABLE "system_weekly_reports"
+    ADD COLUMN IF NOT EXISTS "rawLLMResponse" TEXT,
+    ADD COLUMN IF NOT EXISTS "tokensUsed" INTEGER;
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- alert_root_cause_analyses
-ALTER TABLE "alert_root_cause_analyses"
-ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'open',
-ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+DO $$ BEGIN
+    ALTER TABLE "alert_root_cause_analyses"
+    ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'open',
+    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- ============================================================================
 -- PART 4: CREATE VIEWS AND ALIASES

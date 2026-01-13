@@ -1,13 +1,15 @@
 -- Migration: 013_fix_suggestion_effect_tracking.sql
 -- Fix missing columns and tables for AMAS pipeline
 
--- 1. Fix suggestion_effect_tracking missing columns
-ALTER TABLE "suggestion_effect_tracking"
-ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-ADD COLUMN IF NOT EXISTS "effectEvaluated" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+-- 1. Fix suggestion_effect_tracking missing columns (table created in 006)
+DO $$ BEGIN
+    ALTER TABLE "suggestion_effect_tracking"
+    ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS "effectEvaluated" BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW();
+EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
--- 2. Create decision_insights table if not exists (defined in Prisma but missing in SQL migrations)
+-- 2. Create decision_insights table if not exists
 CREATE TABLE IF NOT EXISTS "decision_insights" (
     "id" TEXT PRIMARY KEY,
     "decision_id" TEXT NOT NULL UNIQUE,
@@ -23,7 +25,7 @@ CREATE INDEX IF NOT EXISTS "idx_decision_insights_user_decision" ON "decision_in
 CREATE INDEX IF NOT EXISTS "idx_decision_insights_hash" ON "decision_insights"("feature_vector_hash");
 CREATE INDEX IF NOT EXISTS "idx_decision_insights_created" ON "decision_insights"("created_at");
 
--- 3. Create pipeline_stages table if not exists (Rust code uses TEXT, not enum)
+-- 3. Create pipeline_stages table if not exists
 CREATE TABLE IF NOT EXISTS "pipeline_stages" (
     "id" TEXT PRIMARY KEY,
     "decisionRecordId" TEXT NOT NULL,
