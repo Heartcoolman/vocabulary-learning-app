@@ -160,7 +160,16 @@ CREATE TABLE IF NOT EXISTS "optimization_event" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Create view/alias for table name differences (word_frequency -> word_frequencies)
+-- 11. word_frequencies table (required for word_frequency view)
+CREATE TABLE IF NOT EXISTS "word_frequencies" (
+    "word_id" TEXT PRIMARY KEY,
+    "frequency_rank" INTEGER NOT NULL DEFAULT 0,
+    "frequency_score" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    "corpus_source" TEXT NOT NULL DEFAULT 'default',
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Create view/alias for table name differences (word_frequency -> word_frequencies)
 CREATE OR REPLACE VIEW "word_frequency" AS SELECT "word_id", "frequency_score" FROM "word_frequencies";
 
 -- 12. algorithm_config view (singular alias for algorithm_configs)
