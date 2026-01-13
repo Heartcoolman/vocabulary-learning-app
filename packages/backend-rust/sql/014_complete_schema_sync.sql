@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS "reward_queue" (
     "answerRecordId" TEXT,
     "dueTs" TIMESTAMP NOT NULL,
     "reward" DOUBLE PRECISION NOT NULL,
-    "status" TEXT DEFAULT 'PENDING',
+    "status" "RewardStatus" DEFAULT 'PENDING',
     "idempotencyKey" TEXT UNIQUE,
     "lastError" TEXT,
     "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),

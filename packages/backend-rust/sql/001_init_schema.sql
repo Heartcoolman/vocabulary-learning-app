@@ -17,6 +17,14 @@ DO $$ BEGIN
     CREATE TYPE "SessionType" AS ENUM ('NORMAL', 'REVIEW', 'QUICK', 'TEST');
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 
+DO $$ BEGIN
+    CREATE TYPE "WordBookType" AS ENUM ('SYSTEM', 'USER', 'SHARED', 'IMPORTED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE "RewardStatus" AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
 -- ============================================
 -- 用户与认证
 -- ============================================
@@ -55,7 +63,7 @@ CREATE TABLE IF NOT EXISTS "word_books" (
     "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "description" TEXT,
-    "type" TEXT NOT NULL,
+    "type" "WordBookType" NOT NULL DEFAULT 'USER',
     "userId" TEXT,
     "isPublic" BOOLEAN DEFAULT false,
     "wordCount" INTEGER DEFAULT 0,
