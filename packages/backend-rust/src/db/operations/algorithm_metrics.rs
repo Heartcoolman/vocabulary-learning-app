@@ -22,7 +22,7 @@ pub async fn upsert_algorithm_metrics_daily(
     error_count_delta: u64,
     last_called_at: Option<DateTime<Utc>>,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO "algorithm_metrics_daily"
             ("algorithmId","day","callCount","totalLatencyUs","errorCount","lastCalledAt","createdAt","updatedAt")
@@ -40,13 +40,13 @@ pub async fn upsert_algorithm_metrics_daily(
             END,
             "updatedAt" = NOW()
         "#,
-        algorithm_id,
-        day,
-        call_count_delta as i64,
-        total_latency_us_delta as i64,
-        error_count_delta as i64,
-        last_called_at.map(|dt| dt.naive_utc()),
     )
+    .bind(algorithm_id)
+    .bind(day)
+    .bind(call_count_delta as i64)
+    .bind(total_latency_us_delta as i64)
+    .bind(error_count_delta as i64)
+    .bind(last_called_at.map(|dt| dt.naive_utc()))
     .execute(proxy.pool())
     .await?;
 

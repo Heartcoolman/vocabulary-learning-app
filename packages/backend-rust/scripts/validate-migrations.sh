@@ -33,6 +33,20 @@ for sql_file in "$SQL_DIR"/*.sql; do
     fi
 done
 
+# Check migrate.rs registration consistency
+MIGRATE_RS="$(dirname "$0")/../src/db/migrate.rs"
+if [ -f "$MIGRATE_RS" ]; then
+    echo "Checking migrate.rs registration consistency..."
+
+    for sql_file in "$SQL_DIR"/[0-9]*.sql; do
+        filename=$(basename "$sql_file" .sql)
+        if ! grep -q "\"$filename\"" "$MIGRATE_RS"; then
+            echo "❌ $filename.sql: Not registered in migrate.rs"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+fi
+
 if [ $ERRORS -gt 0 ]; then
     echo ""
     echo "Found $ERRORS validation error(s)"

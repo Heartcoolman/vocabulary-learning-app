@@ -9,7 +9,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
         CREATE TABLE IF NOT EXISTS "_migrations" (
             "id" SERIAL PRIMARY KEY,
             "name" TEXT NOT NULL UNIQUE,
-            "applied_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            "applied_at" TIMESTAMP NOT NULL DEFAULT NOW()
         )
         "#,
     )
@@ -93,6 +93,18 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
         (
             "018_visual_fatigue_session",
             include_str!("../../sql/018_visual_fatigue_session.sql"),
+        ),
+        (
+            "019_add_reward_columns",
+            include_str!("../../sql/019_add_reward_columns.sql"),
+        ),
+        (
+            "020_algorithm_metrics_daily",
+            include_str!("../../sql/020_algorithm_metrics_daily.sql"),
+        ),
+        (
+            "021_word_review_traces",
+            include_str!("../../sql/021_word_review_traces.sql"),
         ),
     ];
 

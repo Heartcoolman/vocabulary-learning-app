@@ -331,13 +331,14 @@ jobs:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
           echo "Running SQL migrations..."
-          for sql_file in packages/backend-rust/sql/*.sql; do
+          # Skip sqlite fallback schema
+          for sql_file in packages/backend-rust/sql/[0-9]*.sql; do
             if [ -f "$sql_file" ]; then
               echo "Executing: $(basename $sql_file)"
-              psql "$DATABASE_URL" -f "$sql_file" || true
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$sql_file"
             fi
           done
-          echo "Migrations completed"
+          echo "Migrations completed successfully"
 
   # ============================================
   # 部署通知

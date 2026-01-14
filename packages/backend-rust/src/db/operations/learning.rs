@@ -4,21 +4,62 @@ use sqlx::Row;
 
 use crate::db::DatabaseProxy;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WordState {
+    #[default]
+    New,
+    Learning,
+    Reviewing,
+    Mastered,
+    Forgotten,
+}
+
+impl WordState {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_uppercase().as_str() {
+            "LEARNING" => Self::Learning,
+            "REVIEWING" => Self::Reviewing,
+            "MASTERED" => Self::Mastered,
+            "FORGOTTEN" => Self::Forgotten,
+            _ => Self::New,
+        }
+    }
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::New => "NEW",
+            Self::Learning => "LEARNING",
+            Self::Reviewing => "REVIEWING",
+            Self::Mastered => "MASTERED",
+            Self::Forgotten => "FORGOTTEN",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WordLearningState {
     pub id: String,
     pub user_id: String,
     pub word_id: String,
-    pub mastery_level: f64,
-    pub familiarity: f64,
-    pub last_review_at: Option<String>,
-    pub next_review_at: Option<String>,
+    pub state: WordState,
+    pub mastery_level: i32,
+    pub ease_factor: f64,
     pub review_count: i32,
-    pub correct_count: i32,
-    pub streak: i32,
-    pub easiness_factor: f64,
-    pub interval_days: f64,
+    pub last_review_date: Option<String>,
+    pub next_review_date: Option<String>,
+    pub current_interval: i32,
+    pub consecutive_correct: i32,
+    pub consecutive_wrong: i32,
+    pub half_life: f64,
+    pub version: i32,
+    pub stability: f64,
+    pub difficulty: f64,
+    pub desired_retention: f64,
+    pub lapses: i32,
+    pub reps: i32,
+    pub scheduled_days: f64,
+    pub elapsed_days: f64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -100,8 +141,8 @@ pub async fn get_due_words_for_review(
     let rows = sqlx::query(
         r#"
         SELECT * FROM "word_learning_states"
-        WHERE "userId" = $1 AND ("nextReviewAt" IS NULL OR "nextReviewAt" <= $2)
-        ORDER BY "nextReviewAt" ASC NULLS FIRST
+        WHERE "userId" = $1 AND ("nextReviewDate" IS NULL OR "nextReviewDate" <= $2)
+        ORDER BY "nextReviewDate" ASC NULLS FIRST
         LIMIT $3
         "#,
     )
@@ -119,12 +160,12 @@ pub async fn upsert_word_learning_state(
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
     let last_review = wls
-        .last_review_at
+        .last_review_date
         .as_ref()
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.naive_utc());
     let next_review = wls
-        .next_review_at
+        .next_review_date
         .as_ref()
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.naive_utc());
@@ -132,35 +173,55 @@ pub async fn upsert_word_learning_state(
     sqlx::query(
         r#"
         INSERT INTO "word_learning_states" (
-            "id", "userId", "wordId", "masteryLevel", "familiarity",
-            "lastReviewAt", "nextReviewAt", "reviewCount", "correctCount",
-            "streak", "easinessFactor", "intervalDays", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            "id", "userId", "wordId", "state", "masteryLevel", "easeFactor",
+            "reviewCount", "lastReviewDate", "nextReviewDate", "currentInterval",
+            "consecutiveCorrect", "consecutiveWrong", "halfLife", "version",
+            "stability", "difficulty", "desiredRetention", "lapses", "reps",
+            "scheduledDays", "elapsedDays", "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4::"WordLearningState", $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         ON CONFLICT ("userId", "wordId") DO UPDATE SET
+            "state" = EXCLUDED."state",
             "masteryLevel" = EXCLUDED."masteryLevel",
-            "familiarity" = EXCLUDED."familiarity",
-            "lastReviewAt" = EXCLUDED."lastReviewAt",
-            "nextReviewAt" = EXCLUDED."nextReviewAt",
+            "easeFactor" = EXCLUDED."easeFactor",
             "reviewCount" = EXCLUDED."reviewCount",
-            "correctCount" = EXCLUDED."correctCount",
-            "streak" = EXCLUDED."streak",
-            "easinessFactor" = EXCLUDED."easinessFactor",
-            "intervalDays" = EXCLUDED."intervalDays",
+            "lastReviewDate" = EXCLUDED."lastReviewDate",
+            "nextReviewDate" = EXCLUDED."nextReviewDate",
+            "currentInterval" = EXCLUDED."currentInterval",
+            "consecutiveCorrect" = EXCLUDED."consecutiveCorrect",
+            "consecutiveWrong" = EXCLUDED."consecutiveWrong",
+            "halfLife" = EXCLUDED."halfLife",
+            "version" = EXCLUDED."version",
+            "stability" = EXCLUDED."stability",
+            "difficulty" = EXCLUDED."difficulty",
+            "desiredRetention" = EXCLUDED."desiredRetention",
+            "lapses" = EXCLUDED."lapses",
+            "reps" = EXCLUDED."reps",
+            "scheduledDays" = EXCLUDED."scheduledDays",
+            "elapsedDays" = EXCLUDED."elapsedDays",
             "updatedAt" = EXCLUDED."updatedAt"
         "#,
     )
     .bind(&wls.id)
     .bind(&wls.user_id)
     .bind(&wls.word_id)
+    .bind(wls.state.as_str())
     .bind(wls.mastery_level)
-    .bind(wls.familiarity)
+    .bind(wls.ease_factor)
+    .bind(wls.review_count)
     .bind(last_review)
     .bind(next_review)
-    .bind(wls.review_count)
-    .bind(wls.correct_count)
-    .bind(wls.streak)
-    .bind(wls.easiness_factor)
-    .bind(wls.interval_days)
+    .bind(wls.current_interval)
+    .bind(wls.consecutive_correct)
+    .bind(wls.consecutive_wrong)
+    .bind(wls.half_life)
+    .bind(wls.version)
+    .bind(wls.stability)
+    .bind(wls.difficulty)
+    .bind(wls.desired_retention)
+    .bind(wls.lapses)
+    .bind(wls.reps)
+    .bind(wls.scheduled_days)
+    .bind(wls.elapsed_days)
     .bind(now)
     .bind(now)
     .execute(proxy.pool())
@@ -259,21 +320,30 @@ fn map_word_learning_state(row: &sqlx::postgres::PgRow) -> WordLearningState {
     let updated_at: NaiveDateTime = row
         .try_get("updatedAt")
         .unwrap_or_else(|_| Utc::now().naive_utc());
-    let last_review_at: Option<NaiveDateTime> = row.try_get("lastReviewAt").ok();
-    let next_review_at: Option<NaiveDateTime> = row.try_get("nextReviewAt").ok();
+    let last_review_date: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
+    let next_review_date: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
     WordLearningState {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
         word_id: row.try_get("wordId").unwrap_or_default(),
-        mastery_level: row.try_get("masteryLevel").unwrap_or(0.0),
-        familiarity: row.try_get("familiarity").unwrap_or(0.0),
-        last_review_at: last_review_at.map(format_naive_iso),
-        next_review_at: next_review_at.map(format_naive_iso),
+        state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
+        mastery_level: row.try_get("masteryLevel").unwrap_or(0),
+        ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
         review_count: row.try_get("reviewCount").unwrap_or(0),
-        correct_count: row.try_get("correctCount").unwrap_or(0),
-        streak: row.try_get("streak").unwrap_or(0),
-        easiness_factor: row.try_get("easinessFactor").unwrap_or(2.5),
-        interval_days: row.try_get("intervalDays").unwrap_or(1.0),
+        last_review_date: last_review_date.map(format_naive_iso),
+        next_review_date: next_review_date.map(format_naive_iso),
+        current_interval: row.try_get("currentInterval").unwrap_or(1),
+        consecutive_correct: row.try_get("consecutiveCorrect").unwrap_or(0),
+        consecutive_wrong: row.try_get("consecutiveWrong").unwrap_or(0),
+        half_life: row.try_get("halfLife").unwrap_or(1.0),
+        version: row.try_get("version").unwrap_or(0),
+        stability: row.try_get("stability").unwrap_or(1.0),
+        difficulty: row.try_get("difficulty").unwrap_or(0.3),
+        desired_retention: row.try_get("desiredRetention").unwrap_or(0.9),
+        lapses: row.try_get("lapses").unwrap_or(0),
+        reps: row.try_get("reps").unwrap_or(0),
+        scheduled_days: row.try_get("scheduledDays").unwrap_or(0.0),
+        elapsed_days: row.try_get("elapsedDays").unwrap_or(0.0),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),
     }
