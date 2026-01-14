@@ -118,6 +118,8 @@ fn is_exempt_path(path: &str) -> bool {
         // so CSRF header validation cannot be satisfied.
         "/api/habit-profile/end-session",
         "/api/tracking/events",
+        // Frontend logging endpoint (batch logs via fetch without custom headers)
+        "/api/logs",
         // About/simulation endpoints for development
         "/api/about/simulate",
         "/auth/login",
