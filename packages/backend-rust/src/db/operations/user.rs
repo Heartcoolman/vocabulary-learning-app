@@ -63,8 +63,12 @@ pub async fn get_user_learning_profile(
         .fetch_optional(proxy.pool())
         .await?;
     Ok(row.map(|r| {
-        let created_at: NaiveDateTime = r.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let updated_at: NaiveDateTime = r.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let created_at: NaiveDateTime = r
+            .try_get("createdAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
+        let updated_at: NaiveDateTime = r
+            .try_get("updatedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         UserLearningProfile {
             id: r.try_get("id").unwrap_or_default(),
             user_id: r.try_get("userId").unwrap_or_default(),
@@ -155,16 +159,23 @@ pub async fn get_recent_user_state_history(
     .bind(limit)
     .fetch_all(proxy.pool())
     .await?;
-    Ok(rows.iter().map(|r| {
-        let created_at: NaiveDateTime = r.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        UserStateHistory {
-            id: r.try_get("id").unwrap_or_default(),
-            user_id: r.try_get("userId").unwrap_or_default(),
-            state_snapshot: r.try_get("stateSnapshot").unwrap_or(serde_json::Value::Null),
-            trigger_event: r.try_get("triggerEvent").unwrap_or_default(),
-            created_at: format_naive_iso(created_at),
-        }
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|r| {
+            let created_at: NaiveDateTime = r
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            UserStateHistory {
+                id: r.try_get("id").unwrap_or_default(),
+                user_id: r.try_get("userId").unwrap_or_default(),
+                state_snapshot: r
+                    .try_get("stateSnapshot")
+                    .unwrap_or(serde_json::Value::Null),
+                trigger_event: r.try_get("triggerEvent").unwrap_or_default(),
+                created_at: format_naive_iso(created_at),
+            }
+        })
+        .collect())
 }
 
 fn format_naive_iso(value: NaiveDateTime) -> String {
@@ -247,8 +258,12 @@ pub async fn get_valid_password_reset_token(
     .fetch_optional(proxy.pool())
     .await?;
     Ok(row.map(|r| {
-        let expires_at: NaiveDateTime = r.try_get("expiresAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let created_at: NaiveDateTime = r.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let expires_at: NaiveDateTime = r
+            .try_get("expiresAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
+        let created_at: NaiveDateTime = r
+            .try_get("createdAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         PasswordResetToken {
             id: r.try_get("id").unwrap_or_default(),
             user_id: r.try_get("userId").unwrap_or_default(),
@@ -280,8 +295,12 @@ pub async fn get_user_interaction_stats(
         .fetch_optional(proxy.pool())
         .await?;
     Ok(row.map(|r| {
-        let created_at: NaiveDateTime = r.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let updated_at: NaiveDateTime = r.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let created_at: NaiveDateTime = r
+            .try_get("createdAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
+        let updated_at: NaiveDateTime = r
+            .try_get("updatedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         UserInteractionStats {
             id: r.try_get("id").unwrap_or_default(),
             user_id: r.try_get("userId").unwrap_or_default(),

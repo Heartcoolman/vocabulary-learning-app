@@ -111,7 +111,8 @@ pub async fn update_alert_root_cause_resolved(
     resolution: &str,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
-    let uuid = uuid::Uuid::parse_str(analysis_id).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    let uuid =
+        uuid::Uuid::parse_str(analysis_id).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
     sqlx::query(
         r#"
         UPDATE "alert_root_cause_analyses" SET

@@ -294,10 +294,11 @@ pub async fn count_words_in_book(
     proxy: &DatabaseProxy,
     word_book_id: &str,
 ) -> Result<i64, sqlx::Error> {
-    let result: Option<i64> = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
-        .bind(word_book_id)
-        .fetch_one(proxy.pool())
-        .await?;
+    let result: Option<i64> =
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
+            .bind(word_book_id)
+            .fetch_one(proxy.pool())
+            .await?;
     Ok(result.unwrap_or(0))
 }
 

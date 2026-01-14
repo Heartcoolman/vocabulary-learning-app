@@ -326,7 +326,11 @@ fn map_word_learning_state(row: &sqlx::postgres::PgRow) -> WordLearningState {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
         word_id: row.try_get("wordId").unwrap_or_default(),
-        state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
+        state: WordState::from_str(
+            row.try_get::<String, _>("state")
+                .unwrap_or_default()
+                .as_str(),
+        ),
         mastery_level: row.try_get("masteryLevel").unwrap_or(0),
         ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
         review_count: row.try_get("reviewCount").unwrap_or(0),
