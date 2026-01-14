@@ -1620,7 +1620,7 @@ async fn system_algorithm_status(State(state): State<AppState>) -> Response {
                 "algorithms": algorithms,
                 "byLayer": by_layer,
                 "ensembleConsensusRate": 0.8,
-                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
+                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0, "userTypeDistribution": { "fast": 0.33, "stable": 0.34, "cautious": 0.33 } }
             }),
             "runtime",
         );
@@ -1633,7 +1633,7 @@ async fn system_algorithm_status(State(state): State<AppState>) -> Response {
                 "algorithms": algorithms,
                 "byLayer": by_layer,
                 "ensembleConsensusRate": 0.8,
-                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
+                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0, "userTypeDistribution": { "fast": 0.33, "stable": 0.34, "cautious": 0.33 } }
             }),
             "runtime",
         );
@@ -1654,7 +1654,7 @@ async fn system_algorithm_status(State(state): State<AppState>) -> Response {
                 "algorithms": algorithms,
                 "byLayer": by_layer,
                 "ensembleConsensusRate": 0.8,
-                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0 }
+                "coldstartStats": { "classifyCount": 0, "exploreCount": 0, "normalCount": 0, "userTypeDistribution": { "fast": 0.33, "stable": 0.34, "cautious": 0.33 } }
             }),
             "runtime",
         ),
