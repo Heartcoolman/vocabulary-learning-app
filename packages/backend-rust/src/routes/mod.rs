@@ -571,13 +571,7 @@ pub fn router(state: AppState) -> Router {
     app = app.nest("/api/visual-fatigue", visual_fatigue::router());
     app = app.nest("/api/word-contexts", word_contexts::router());
     app = app.nest("/api/word-mastery", word_mastery::router());
-    app = app.nest(
-        "/api/wordbook-center",
-        wordbook_center::router().layer(middleware::from_fn_with_state(
-            middleware_state.clone(),
-            admin::require_admin,
-        )),
-    );
+    app = app.nest("/api/wordbook-center", wordbook_center::router());
 
     let mut health_paths: Vec<String> = Vec::new();
     health_paths.push("/health".to_string());

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CenterWordBookDetail as DetailType, wordBookCenterClient } from '../../services/client';
+import { useAuth } from '../../contexts/AuthContext';
 import { Modal, useToast } from '../ui';
 import { Books, Download, Tag, X, Check } from '../Icon';
 
@@ -16,8 +17,10 @@ export function CenterWordBookDetail({
   onClose,
   onImportSuccess,
 }: CenterWordBookDetailProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [importing, setImporting] = useState(false);
-  const [targetType, setTargetType] = useState<'SYSTEM' | 'USER'>('SYSTEM');
+  const [targetType, setTargetType] = useState<'SYSTEM' | 'USER'>(isAdmin ? 'SYSTEM' : 'USER');
   const { showToast } = useToast();
 
   if (!detail) return null;
@@ -109,17 +112,19 @@ export function CenterWordBookDetail({
             导入类型
           </label>
           <div className="flex gap-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="targetType"
-                value="SYSTEM"
-                checked={targetType === 'SYSTEM'}
-                onChange={() => setTargetType('SYSTEM')}
-                className="mr-2"
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300">系统词书</span>
-            </label>
+            {isAdmin && (
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="targetType"
+                  value="SYSTEM"
+                  checked={targetType === 'SYSTEM'}
+                  onChange={() => setTargetType('SYSTEM')}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">系统词书</span>
+              </label>
+            )}
             <label className="flex items-center">
               <input
                 type="radio"
@@ -129,7 +134,9 @@ export function CenterWordBookDetail({
                 onChange={() => setTargetType('USER')}
                 className="mr-2"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">用户词书</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {isAdmin ? '用户词书' : '我的词书'}
+              </span>
             </label>
           </div>
         </div>

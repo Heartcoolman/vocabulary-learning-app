@@ -161,6 +161,14 @@ function NavigationComponent() {
               词库管理
             </Link>
             <Link
+              to="/wordbook-center"
+              className={linkClass('/wordbook-center')}
+              aria-current={isActive('/wordbook-center') ? 'page' : undefined}
+              onMouseEnter={() => handlePrefetch('/wordbook-center')}
+            >
+              词库中心
+            </Link>
+            <Link
               to="/study-settings"
               className={linkClass('/study-settings')}
               aria-current={isActive('/study-settings') ? 'page' : undefined}
@@ -282,6 +290,13 @@ function NavigationComponent() {
                 onTouchStart={() => handlePrefetch('/vocabulary')}
               >
                 词库管理
+              </Link>
+              <Link
+                to="/wordbook-center"
+                className={mobileLinkClass('/wordbook-center')}
+                onTouchStart={() => handlePrefetch('/wordbook-center')}
+              >
+                词库中心
               </Link>
               <Link
                 to="/study-settings"

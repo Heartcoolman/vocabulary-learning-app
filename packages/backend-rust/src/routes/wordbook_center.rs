@@ -1,14 +1,53 @@
+use axum::body::Body;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{Request, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use std::net::IpAddr;
+use std::sync::Arc;
 
+use crate::auth::AuthUser;
+use crate::db::DatabaseProxy;
 use crate::response::json_error;
 use crate::state::AppState;
+
+async fn authenticate(
+    state: &AppState,
+    req: Request<Body>,
+) -> Result<(Arc<DatabaseProxy>, AuthUser, Request<Body>), Response> {
+    let token = crate::auth::extract_token(req.headers());
+    let Some(token) = token else {
+        return Err(
+            json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response(),
+        );
+    };
+
+    let Some(proxy) = state.db_proxy() else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_ERROR",
+            "数据库不可用",
+        )
+        .into_response());
+    };
+
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return Err(json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response());
+        }
+    };
+
+    Ok((proxy, auth_user, req))
+}
 
 fn is_safe_url(url: &str) -> Result<(), &'static str> {
     let parsed = reqwest::Url::parse(url).map_err(|_| "无效的URL格式")?;
@@ -127,10 +166,10 @@ pub fn router() -> Router<AppState> {
         .route("/import/{id}", post(import_wordbook))
 }
 
-async fn get_config(State(state): State<AppState>) -> Response {
-    let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
-            .into_response();
+async fn get_config(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, _user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
     };
 
     let row = sqlx::query(
@@ -182,10 +221,32 @@ async fn get_config(State(state): State<AppState>) -> Response {
     }
 }
 
-async fn update_config(
-    State(state): State<AppState>,
-    Json(input): Json<UpdateConfigInput>,
-) -> Response {
+async fn update_config(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, user, req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    if user.role != "ADMIN" {
+        return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "仅管理员可修改配置")
+            .into_response();
+    }
+
+    let body = match axum::body::to_bytes(req.into_body(), 1024 * 16).await {
+        Ok(b) => b,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求体")
+                .into_response();
+        }
+    };
+    let input: UpdateConfigInput = match serde_json::from_slice(&body) {
+        Ok(v) => v,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效JSON格式")
+                .into_response();
+        }
+    };
+
     if input.center_url.trim().is_empty() {
         return json_error(
             StatusCode::BAD_REQUEST,
@@ -208,11 +269,6 @@ async fn update_config(
     if let Err(msg) = is_safe_url(url) {
         return json_error(StatusCode::BAD_REQUEST, "SSRF_BLOCKED", msg).into_response();
     }
-
-    let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
-            .into_response();
-    };
 
     let result = sqlx::query(
         r#"INSERT INTO "wordbook_center_config" ("id", "centerUrl", "updatedAt")
@@ -249,10 +305,10 @@ async fn update_config(
     }
 }
 
-async fn browse_wordbooks(State(state): State<AppState>) -> Response {
-    let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
-            .into_response();
+async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, _user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
     };
 
     let config_row = sqlx::query(
@@ -338,10 +394,11 @@ async fn browse_wordbooks(State(state): State<AppState>) -> Response {
 async fn get_wordbook_detail(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    req: Request<Body>,
 ) -> Response {
-    let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
-            .into_response();
+    let (proxy, _user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
     };
 
     let config_row = sqlx::query(
@@ -432,8 +489,28 @@ async fn get_wordbook_detail(
 async fn import_wordbook(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    Json(input): Json<ImportRequest>,
+    req: Request<Body>,
 ) -> Response {
+    let (proxy, user, req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    let body = match axum::body::to_bytes(req.into_body(), 1024 * 16).await {
+        Ok(b) => b,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求体")
+                .into_response();
+        }
+    };
+    let input: ImportRequest = match serde_json::from_slice(&body) {
+        Ok(v) => v,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效JSON格式")
+                .into_response();
+        }
+    };
+
     let target_type = input.target_type.to_uppercase();
     if target_type != "SYSTEM" && target_type != "USER" {
         return json_error(
@@ -444,10 +521,14 @@ async fn import_wordbook(
         .into_response();
     }
 
-    let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
-            .into_response();
-    };
+    if target_type == "SYSTEM" && user.role != "ADMIN" {
+        return json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "仅管理员可导入到系统词库",
+        )
+        .into_response();
+    }
 
     let config_row = sqlx::query(
         r#"SELECT "centerUrl" FROM "wordbook_center_config" WHERE "id" = 'default'"#,
@@ -569,15 +650,24 @@ async fn import_wordbook(
         }
     };
 
+    let is_public = target_type == "SYSTEM";
+    let user_id: Option<&str> = if target_type == "USER" {
+        Some(&user.id)
+    } else {
+        None
+    };
+
     let insert_result = sqlx::query(
         r#"INSERT INTO "word_books"
-           ("id", "name", "description", "type", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "importedAt", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4::"WordBookType", true, 0, $5, $6, $7, $8, NOW(), NOW(), NOW())"#,
+           ("id", "name", "description", "type", "userId", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "importedAt", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4::"WordBookType", $5, $6, 0, $7, $8, $9, $10, NOW(), NOW(), NOW())"#,
     )
     .bind(&wordbook_id)
     .bind(&detail.wordbook.name)
     .bind(&detail.wordbook.description)
     .bind(&target_type)
+    .bind(user_id)
+    .bind(is_public)
     .bind(&detail.wordbook.cover_image)
     .bind(&tags_json)
     .bind(&source_url)
