@@ -56,6 +56,42 @@ export interface WordBook extends BaseEntity {
   isPublic: boolean;
   wordCount: number;
   coverImage?: string | null;
+  tags?: string[];
+  sourceUrl?: string | null;
+  sourceVersion?: string | null;
+  importedAt?: Timestamp | null;
+}
+
+/**
+ * 词库中心配置
+ */
+export interface WordBookCenterConfig {
+  id: string;
+  centerUrl: string;
+  updatedAt: string;
+  updatedBy?: string | null;
+}
+
+/**
+ * 词库中心词书（远程）
+ */
+export interface CenterWordBook {
+  id: string;
+  name: string;
+  description?: string | null;
+  wordCount: number;
+  coverImage?: string | null;
+  tags: string[];
+  version: string;
+  author?: string | null;
+  downloadCount?: number;
+}
+
+/**
+ * 导入词书请求
+ */
+export interface ImportWordBookRequest {
+  targetType: 'SYSTEM' | 'USER';
 }
 
 /**

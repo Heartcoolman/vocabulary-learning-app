@@ -110,6 +110,14 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "022_add_habit_profiles",
             include_str!("../../sql/022_add_habit_profiles.sql"),
         ),
+        (
+            "023_fix_schema_issues",
+            include_str!("../../sql/023_fix_schema_issues.sql"),
+        ),
+        (
+            "024_wordbook_tags_and_import",
+            include_str!("../../sql/024_wordbook_tags_and_import.sql"),
+        ),
     ];
 
     let mut applied_count = 0;
