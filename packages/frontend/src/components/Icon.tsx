@@ -109,7 +109,9 @@ export {
   ArrowsClockwise,
   Scales,
   DownloadSimple,
+  Download,
   PencilSimple,
+  Tag,
   DotsThreeVertical,
   // LLM Advisor 页面图标
   ShieldCheck,
