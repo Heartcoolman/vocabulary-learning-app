@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { CenterWordBookDetail as DetailType, wordBookCenterClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal, useToast } from '../ui';
-import { Books, Download, Tag, X, Check } from '../Icon';
+import { Books, Download, Tag, CircleNotch, Warning } from '../Icon';
 
 interface CenterWordBookDetailProps {
   detail: DetailType | null;
   isOpen: boolean;
+  isLoading: boolean;
+  error: string | null;
   onClose: () => void;
   onImportSuccess: () => void;
 }
@@ -14,6 +16,8 @@ interface CenterWordBookDetailProps {
 export function CenterWordBookDetail({
   detail,
   isOpen,
+  isLoading,
+  error,
   onClose,
   onImportSuccess,
 }: CenterWordBookDetailProps) {
@@ -23,25 +27,56 @@ export function CenterWordBookDetail({
   const [targetType, setTargetType] = useState<'SYSTEM' | 'USER'>(isAdmin ? 'SYSTEM' : 'USER');
   const { showToast } = useToast();
 
-  if (!detail) return null;
+  if (!isOpen) return null;
 
   const handleImport = async () => {
+    if (!detail) return;
     setImporting(true);
     try {
       const result = await wordBookCenterClient.importWordBook(detail.id, targetType);
-      showToast(result.message, 'success');
+      showToast('success', result.message);
       onImportSuccess();
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : '导入失败';
-      showToast(msg, 'error');
+      showToast('error', msg);
     } finally {
       setImporting(false);
     }
   };
 
+  if (!detail) {
+    if (error) {
+      return (
+        <Modal isOpen={isOpen} onClose={onClose} title="加载失败" maxWidth="lg">
+          <div className="flex flex-col items-center justify-center py-12">
+            <Warning className="h-12 w-12 text-red-500" />
+            <p className="mt-4 text-gray-600 dark:text-gray-400">{error}</p>
+            <button
+              onClick={onClose}
+              className="mt-6 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
+            >
+              关闭
+            </button>
+          </div>
+        </Modal>
+      );
+    }
+    if (isLoading) {
+      return (
+        <Modal isOpen={isOpen} onClose={onClose} title="加载中..." maxWidth="lg">
+          <div className="flex items-center justify-center py-12">
+            <CircleNotch className="h-8 w-8 animate-spin text-indigo-600" />
+            <span className="ml-3 text-gray-500 dark:text-gray-400">正在加载词书详情...</span>
+          </div>
+        </Modal>
+      );
+    }
+    return null;
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={detail.name} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={detail.name} maxWidth="lg">
       <div className="space-y-4">
         <div className="flex gap-4">
           {detail.coverImage ? (

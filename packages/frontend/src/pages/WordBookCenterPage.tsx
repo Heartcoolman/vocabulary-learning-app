@@ -50,7 +50,11 @@ export default function WordBookCenterPage() {
     enabled: !!config?.centerUrl,
   });
 
-  const { data: wordbookDetail, isLoading: detailLoading } = useQuery({
+  const {
+    data: wordbookDetail,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useQuery({
     queryKey: ['wordbook-center', 'detail', selectedWordbook?.id],
     queryFn: () =>
       selectedWordbook ? wordBookCenterClient.getWordBookDetail(selectedWordbook.id) : null,
@@ -60,12 +64,12 @@ export default function WordBookCenterPage() {
   const updateConfigMutation = useMutation({
     mutationFn: (url: string) => wordBookCenterClient.updateConfig(url),
     onSuccess: () => {
-      showToast('词库中心配置已更新', 'success');
+      showToast('success', '词库中心配置已更新');
       queryClient.invalidateQueries({ queryKey: ['wordbook-center'] });
       setShowConfigModal(false);
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : '配置更新失败', 'error');
+      showToast('error', error instanceof Error ? error.message : '配置更新失败');
     },
   });
 
@@ -212,6 +216,8 @@ export default function WordBookCenterPage() {
       <CenterWordBookDetail
         detail={wordbookDetail ?? null}
         isOpen={!!selectedWordbook}
+        isLoading={detailLoading}
+        error={detailError instanceof Error ? detailError.message : null}
         onClose={() => setSelectedWordbook(null)}
         onImportSuccess={handleImportSuccess}
       />
