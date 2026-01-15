@@ -66,7 +66,7 @@ export function CenterWordBookDetail({
       return (
         <Modal isOpen={isOpen} onClose={onClose} title="加载中..." maxWidth="lg">
           <div className="flex items-center justify-center py-12">
-            <CircleNotch className="h-8 w-8 animate-spin text-indigo-600" />
+            <CircleNotch className="h-8 w-8 animate-spin text-blue-500" />
             <span className="ml-3 text-gray-500 dark:text-gray-400">正在加载词书详情...</span>
           </div>
         </Modal>
@@ -86,8 +86,8 @@ export function CenterWordBookDetail({
               className="h-24 w-24 rounded-lg object-cover"
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600">
-              <Books className="h-10 w-10 text-white/80" />
+            <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Books className="h-10 w-10 text-blue-400 dark:text-blue-500" />
             </div>
           )}
           <div className="flex-1">
@@ -186,7 +186,7 @@ export function CenterWordBookDetail({
           <button
             onClick={handleImport}
             disabled={importing}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {importing ? (
               <>

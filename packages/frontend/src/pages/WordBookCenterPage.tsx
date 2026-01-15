@@ -114,152 +114,184 @@ export default function WordBookCenterPage() {
   const needsConfig = !configLoading && (!config?.centerUrl || config.centerUrl === '');
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-              <Books className="h-7 w-7 text-indigo-600" />
-              词库中心
-            </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">浏览和导入外部词书</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowConfigModal(true)}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
-        >
-          <Gear className="h-4 w-4" />
-          配置
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="mx-auto max-w-7xl animate-g3-fade-in px-4 py-6">
+        <header className="mb-6">
+          <nav className="mb-4 flex items-center justify-between">
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center rounded-button px-3 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" weight="bold" />
+              返回
+            </button>
+            <button
+              onClick={() => setShowConfigModal(true)}
+              className="flex items-center gap-2 rounded-button px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
+            >
+              <Gear className="h-4 w-4" />
+              配置
+            </button>
+          </nav>
+          <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
+            <Books className="h-8 w-8 text-blue-500" weight="duotone" />
+            词库中心
+          </h1>
+          <p className="mt-1 text-base text-gray-600 dark:text-gray-400">浏览和导入外部词书</p>
+        </header>
 
-      {needsConfig ? (
-        <div className="py-16 text-center">
-          <Warning className="mx-auto mb-4 h-16 w-16 text-yellow-500" />
-          <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
-            词库中心未配置
-          </h2>
-          <p className="mb-6 text-gray-500 dark:text-gray-400">请先配置词库中心的URL</p>
-          <button
-            onClick={() => setShowConfigModal(true)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700"
-          >
-            配置词库中心
-          </button>
-        </div>
-      ) : browseLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <CircleNotch className="h-8 w-8 animate-spin text-indigo-600" />
-        </div>
-      ) : browseError ? (
-        <div className="py-16 text-center">
-          <Warning className="mx-auto mb-4 h-16 w-16 text-red-500" />
-          <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">加载失败</h2>
-          <p className="mb-6 text-gray-500 dark:text-gray-400">
-            {browseError instanceof Error ? browseError.message : '无法连接词库中心'}
-          </p>
-          <button
-            onClick={() => refetchBrowse()}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700"
-          >
-            重试
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="mb-6">
-            <div className="relative">
-              <MagnifyingGlass className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="搜索词书..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-          </div>
-
-          <TagFilter
-            allTags={allTags}
-            selectedTags={selectedTags}
-            onTagToggle={handleTagToggle}
-            onClearAll={() => setSelectedTags([])}
-          />
-
-          {filteredWordbooks.length === 0 ? (
-            <div className="py-12 text-center">
-              <Books className="mx-auto mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
-              <p className="text-gray-500 dark:text-gray-400">没有找到匹配的词书</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredWordbooks.map((wordbook) => (
-                <CenterWordBookCard
-                  key={wordbook.id}
-                  wordbook={wordbook}
-                  onSelect={setSelectedWordbook}
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      <CenterWordBookDetail
-        detail={wordbookDetail ?? null}
-        isOpen={!!selectedWordbook}
-        isLoading={detailLoading}
-        error={detailError instanceof Error ? detailError.message : null}
-        onClose={() => setSelectedWordbook(null)}
-        onImportSuccess={handleImportSuccess}
-      />
-
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-slate-800">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-              配置词库中心
+        {needsConfig ? (
+          <div className="animate-g3-slide-up py-16 text-center">
+            <Warning
+              className="mx-auto mb-6 animate-pulse"
+              size={96}
+              weight="thin"
+              color="#eab308"
+            />
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
+              词库中心未配置
             </h2>
+            <p className="mb-6 text-base text-gray-600 dark:text-gray-400">
+              请先配置词库中心的 URL 以浏览和导入词书
+            </p>
+            <button
+              onClick={() => setShowConfigModal(true)}
+              className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-soft transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <Gear className="h-5 w-5" weight="bold" />
+              配置词库中心
+            </button>
+          </div>
+        ) : browseLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <CircleNotch className="h-8 w-8 animate-spin text-blue-500" />
+          </div>
+        ) : browseError ? (
+          <div className="animate-g3-slide-up py-16 text-center">
+            <Warning
+              className="mx-auto mb-6 animate-pulse"
+              size={96}
+              weight="thin"
+              color="#ef4444"
+            />
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
+            <p className="mb-6 text-base text-gray-600 dark:text-gray-400">
+              {browseError instanceof Error ? browseError.message : '无法连接词库中心'}
+            </p>
+            <button
+              onClick={() => refetchBrowse()}
+              className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-soft transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              重试
+            </button>
+          </div>
+        ) : (
+          <>
             <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                词库中心 URL
-              </label>
-              <input
-                type="url"
-                value={configUrl}
-                onChange={(e) => setConfigUrl(e.target.value)}
-                placeholder="https://example.com/wordbook-center"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
+              <div className="relative">
+                <MagnifyingGlass className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="搜索词书..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="搜索词书"
+                  className="w-full rounded-button border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-gray-900 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
             </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowConfigModal(false)}
-                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
+
+            <TagFilter
+              allTags={allTags}
+              selectedTags={selectedTags}
+              onTagToggle={handleTagToggle}
+              onClearAll={() => setSelectedTags([])}
+            />
+
+            {filteredWordbooks.length === 0 ? (
+              <div className="animate-g3-slide-up py-12 text-center">
+                <Books className="mx-auto mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
+                <p className="text-gray-500 dark:text-gray-400">没有找到匹配的词书</p>
+              </div>
+            ) : (
+              <main>
+                <div
+                  className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+                  aria-label="词书列表"
+                >
+                  {filteredWordbooks.map((wordbook) => (
+                    <CenterWordBookCard
+                      key={wordbook.id}
+                      wordbook={wordbook}
+                      onSelect={setSelectedWordbook}
+                    />
+                  ))}
+                </div>
+              </main>
+            )}
+          </>
+        )}
+
+        <CenterWordBookDetail
+          detail={wordbookDetail ?? null}
+          isOpen={!!selectedWordbook}
+          isLoading={detailLoading}
+          error={detailError instanceof Error ? detailError.message : null}
+          onClose={() => setSelectedWordbook(null)}
+          onImportSuccess={handleImportSuccess}
+        />
+
+        {showConfigModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="config-modal-title"
+          >
+            <div className="mx-4 w-full max-w-md animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/95 p-6 shadow-elevated backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+              <h2
+                id="config-modal-title"
+                className="mb-4 text-lg font-bold text-gray-900 dark:text-white"
               >
-                取消
-              </button>
-              <button
-                onClick={() => updateConfigMutation.mutate(configUrl)}
-                disabled={updateConfigMutation.isPending}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {updateConfigMutation.isPending ? '保存中...' : '保存'}
-              </button>
+                配置词库中心
+              </h2>
+              <div className="mb-4">
+                <label
+                  htmlFor="config-url-input"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  词库中心 URL
+                </label>
+                <input
+                  id="config-url-input"
+                  type="url"
+                  value={configUrl}
+                  onChange={(e) => setConfigUrl(e.target.value)}
+                  placeholder="https://example.com/wordbook-center"
+                  className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 text-gray-900 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowConfigModal(false)}
+                  className="rounded-button bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => updateConfigMutation.mutate(configUrl)}
+                  disabled={updateConfigMutation.isPending}
+                  className="rounded-button bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {updateConfigMutation.isPending ? '保存中...' : '保存'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <ImportProgress status={importStatus.status} message={importStatus.message} />
+        <ImportProgress status={importStatus.status} message={importStatus.message} />
+      </div>
     </div>
   );
 }

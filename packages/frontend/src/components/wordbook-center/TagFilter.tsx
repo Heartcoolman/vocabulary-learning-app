@@ -20,7 +20,7 @@ export function TagFilter({ allTags, selectedTags, onTagToggle, onClearAll }: Ta
         {selectedTags.length > 0 && (
           <button
             onClick={onClearAll}
-            className="flex items-center text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+            className="flex items-center text-xs text-blue-500 transition-colors hover:text-blue-600 dark:text-blue-400"
           >
             <X className="mr-0.5 h-3 w-3" />
             清除筛选
@@ -34,9 +34,10 @@ export function TagFilter({ allTags, selectedTags, onTagToggle, onClearAll }: Ta
             <button
               key={tag}
               onClick={() => onTagToggle(tag)}
-              className={`rounded-full px-3 py-1 text-sm transition-colors ${
+              aria-pressed={isSelected}
+              className={`rounded-full px-3 py-1.5 text-sm transition-all duration-g3-fast ${
                 isSelected
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-blue-500 text-white shadow-soft'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
               }`}
             >
