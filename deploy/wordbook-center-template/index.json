@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "id": "cet4-core",
+      "name": "大学英语四级核心词汇",
+      "description": "精选CET4高频核心词汇，适合备考四级考试的同学",
+      "wordCount": 50,
+      "coverImage": null,
+      "tags": ["CET4", "大学英语", "核心词汇"],
+      "version": "1.0.0",
+      "author": "Danci Team",
+      "downloadCount": 0
+    },
+    {
+      "id": "daily-english",
+      "name": "日常英语100词",
+      "description": "日常生活中最常用的100个英语单词",
+      "wordCount": 20,
+      "coverImage": null,
+      "tags": ["日常", "入门", "基础"],
+      "version": "1.0.0",
+      "author": "Danci Team",
+      "downloadCount": 0
+    }
+  ]
+}

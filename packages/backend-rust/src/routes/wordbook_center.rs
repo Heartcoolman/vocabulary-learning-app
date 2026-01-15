@@ -83,6 +83,38 @@ fn is_safe_url(url: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+fn is_static_hosting(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    lower.contains("jsdelivr.net")
+        || lower.contains("github.io")
+        || lower.contains("raw.githubusercontent.com")
+        || lower.ends_with(".json")
+}
+
+fn static_index_url(center_url: &str) -> String {
+    let trimmed = center_url.trim_end_matches('/');
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.ends_with(".json") {
+        trimmed.to_string()
+    } else {
+        format!("{}/index.json", trimmed)
+    }
+}
+
+fn static_wordbook_url(center_url: &str, id: &str) -> String {
+    let trimmed = center_url.trim_end_matches('/');
+    let lower = trimmed.to_ascii_lowercase();
+    let base = if lower.ends_with(".json") {
+        match trimmed.rfind('/') {
+            Some(idx) if idx > 0 => &trimmed[..idx],
+            _ => trimmed,
+        }
+    } else {
+        trimmed
+    };
+    format!("{}/wordbooks/{}.json", base, id)
+}
+
 #[derive(Serialize)]
 struct SuccessResponse<T> {
     success: bool,
@@ -397,7 +429,12 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
     }
 
     let client = reqwest::Client::new();
-    let url = format!("{}/api/wordbooks", center_url.trim_end_matches('/'));
+    let base_url = center_url.trim_end_matches('/');
+    let url = if is_static_hosting(base_url) {
+        static_index_url(base_url)
+    } else {
+        format!("{}/api/wordbooks", base_url)
+    };
 
     match client.get(&url).timeout(std::time::Duration::from_secs(30)).send().await {
         Ok(resp) => {
@@ -411,11 +448,14 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
             }
             match resp.json::<serde_json::Value>().await {
                 Ok(data) => {
-                    let wordbooks: Vec<CenterWordBook> = data
+                    let wordbooks_value = data
                         .get("data")
                         .or(data.get("wordbooks"))
-                        .and_then(|v| serde_json::from_value(v.clone()).ok())
-                        .unwrap_or_default();
+                        .or(data.get("wordBooks"))
+                        .cloned()
+                        .unwrap_or(data);
+                    let wordbooks: Vec<CenterWordBook> =
+                        serde_json::from_value(wordbooks_value).unwrap_or_default();
                     let total = wordbooks.len() as i64;
                     Json(SuccessResponse {
                         success: true,
@@ -488,6 +528,63 @@ async fn get_wordbook_detail(
 
     let client = reqwest::Client::new();
     let base_url = center_url.trim_end_matches('/');
+    let is_static = is_static_hosting(base_url);
+
+    if is_static {
+        let detail_url = static_wordbook_url(base_url, &id);
+        let detail_resp = match client
+            .get(&detail_url)
+            .timeout(std::time::Duration::from_secs(60))
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
+                    .into_response();
+            }
+        };
+
+        if !detail_resp.status().is_success() {
+            return json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_ERROR",
+                &format!("词库中心返回错误: {}", detail_resp.status()),
+            )
+            .into_response();
+        }
+
+        let detail_value: serde_json::Value = match detail_resp.json().await {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to parse wordbook detail");
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response();
+            }
+        };
+
+        let detail_inner = detail_value
+            .get("data")
+            .or(detail_value.get("wordbook"))
+            .or(detail_value.get("wordBook"))
+            .cloned()
+            .unwrap_or(detail_value);
+
+        let detail: CenterWordBookDetail = match serde_json::from_value(detail_inner) {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to deserialize wordbook detail");
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response();
+            }
+        };
+
+        return Json(SuccessResponse {
+            success: true,
+            data: detail,
+        })
+        .into_response();
+    }
 
     // Step 1: Fetch wordbook metadata
     let meta_url = format!("{}/api/wordbooks/{}", base_url, id);
@@ -682,7 +779,12 @@ async fn import_wordbook(
     }
 
     let base_url = center_url.trim_end_matches('/');
-    let source_url_to_check = format!("{}/api/wordbooks/{}", base_url, id);
+    let is_static = is_static_hosting(base_url);
+    let source_url_to_check = if is_static {
+        static_wordbook_url(base_url, &id)
+    } else {
+        format!("{}/api/wordbooks/{}", base_url, id)
+    };
     let existing = sqlx::query(
         r#"SELECT "id" FROM "word_books" WHERE "sourceUrl" = $1"#,
     )
@@ -700,6 +802,186 @@ async fn import_wordbook(
     }
 
     let client = reqwest::Client::new();
+
+    if is_static {
+        let detail_url = static_wordbook_url(base_url, &id);
+        let detail_resp = match client
+            .get(&detail_url)
+            .timeout(std::time::Duration::from_secs(60))
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
+                    .into_response();
+            }
+        };
+
+        if !detail_resp.status().is_success() {
+            return json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_ERROR",
+                &format!("词库中心返回错误: {}", detail_resp.status()),
+            )
+            .into_response();
+        }
+
+        let detail_value: serde_json::Value = match detail_resp.json().await {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to parse wordbook detail");
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response();
+            }
+        };
+
+        let detail_inner = detail_value
+            .get("data")
+            .or(detail_value.get("wordbook"))
+            .or(detail_value.get("wordBook"))
+            .cloned()
+            .unwrap_or(detail_value);
+
+        let detail: CenterWordBookDetail = match serde_json::from_value(detail_inner) {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to deserialize wordbook detail");
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response();
+            }
+        };
+
+        let wordbook_id = uuid::Uuid::new_v4().to_string();
+        let source_url = detail_url.clone();
+
+        let mut tx = match proxy.pool().begin().await {
+            Ok(tx) => tx,
+            Err(_) => {
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "TX_ERROR",
+                    "数据库操作失败",
+                )
+                .into_response();
+            }
+        };
+
+        let is_public = target_type == "SYSTEM";
+        let user_id: Option<&str> = if target_type == "USER" {
+            Some(&user.id)
+        } else {
+            None
+        };
+
+        let insert_result = sqlx::query(
+            r#"INSERT INTO "word_books"
+           ("id", "name", "description", "type", "userId", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "importedAt", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4::"WordBookType", $5, $6, 0, $7, $8, $9, $10, NOW(), NOW(), NOW())"#,
+        )
+        .bind(&wordbook_id)
+        .bind(&detail.name)
+        .bind(&detail.description)
+        .bind(&target_type)
+        .bind(user_id)
+        .bind(is_public)
+        .bind(&detail.cover_image)
+        .bind(&detail.tags)
+        .bind(&source_url)
+        .bind(&detail.version)
+        .execute(&mut *tx)
+        .await;
+
+        if let Err(e) = insert_result {
+            tracing::error!(error = %e, "Failed to create wordbook");
+            let _ = tx.rollback().await;
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "WRITE_ERROR",
+                &format!("创建词书失败: {}", e),
+            )
+            .into_response();
+        }
+
+        let mut imported_count: i64 = 0;
+        const STATIC_BATCH_SIZE: usize = 100;
+
+        for chunk in detail.words.chunks(STATIC_BATCH_SIZE) {
+            if chunk.is_empty() {
+                continue;
+            }
+
+            let mut query_builder: sqlx::QueryBuilder<sqlx::Postgres> = sqlx::QueryBuilder::new(
+                r#"INSERT INTO "words" ("id", "spelling", "phonetic", "meanings", "examples", "audioUrl", "wordBookId", "createdAt", "updatedAt") "#,
+            );
+
+            query_builder.push_values(chunk, |mut b, word| {
+                let word_id = uuid::Uuid::new_v4().to_string();
+                let phonetic = word.phonetic.as_deref().unwrap_or("");
+                b.push_bind(word_id)
+                    .push_bind(&word.spelling)
+                    .push_bind(phonetic)
+                    .push_bind(&word.meanings)
+                    .push_bind(&word.examples)
+                    .push_bind(&word.audio_url)
+                    .push_bind(&wordbook_id)
+                    .push("NOW()")
+                    .push("NOW()");
+            });
+
+            match query_builder.build().execute(&mut *tx).await {
+                Ok(result) => {
+                    imported_count += result.rows_affected() as i64;
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to insert words batch");
+                    let _ = tx.rollback().await;
+                    return json_error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "IMPORT_ERROR",
+                        &format!("导入单词失败: {}", e),
+                    )
+                    .into_response();
+                }
+            }
+        }
+
+        if let Err(_) = sqlx::query(
+            r#"UPDATE "word_books" SET "wordCount" = $1, "updatedAt" = NOW() WHERE "id" = $2"#,
+        )
+        .bind(imported_count)
+        .bind(&wordbook_id)
+        .execute(&mut *tx)
+        .await
+        {
+            let _ = tx.rollback().await;
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "IMPORT_ERROR",
+                "更新词书统计失败",
+            )
+            .into_response();
+        }
+
+        if let Err(_) = tx.commit().await {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "TX_COMMIT_ERROR",
+                "保存数据失败",
+            )
+            .into_response();
+        }
+
+        return Json(SuccessResponse {
+            success: true,
+            data: ImportResult {
+                wordbook_id,
+                imported_count,
+                message: format!("成功导入{}个单词", imported_count),
+            },
+        })
+        .into_response();
+    }
 
     // Step 1: Fetch wordbook metadata
     let meta_url = format!("{}/api/wordbooks/{}", base_url, id);

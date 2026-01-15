@@ -1,0 +1,363 @@
+{
+  "id": "cet4-core",
+  "name": "大学英语四级核心词汇",
+  "description": "精选CET4高频核心词汇，适合备考四级考试的同学",
+  "wordCount": 50,
+  "coverImage": null,
+  "tags": ["CET4", "大学英语", "核心词汇"],
+  "version": "1.0.0",
+  "author": "Danci Team",
+  "downloadCount": 0,
+  "words": [
+    {
+      "spelling": "abandon",
+      "phonetic": "/əˈbændən/",
+      "meanings": ["放弃", "抛弃", "遗弃"],
+      "examples": ["He abandoned his car in the snow.", "Don't abandon your dreams."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "ability",
+      "phonetic": "/əˈbɪləti/",
+      "meanings": ["能力", "才能"],
+      "examples": ["She has the ability to solve complex problems."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "abroad",
+      "phonetic": "/əˈbrɔːd/",
+      "meanings": ["在国外", "到国外"],
+      "examples": ["He went abroad to study.", "She lived abroad for five years."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "absence",
+      "phonetic": "/ˈæbsəns/",
+      "meanings": ["缺席", "不在", "缺乏"],
+      "examples": ["His absence was noticed by everyone."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "absolute",
+      "phonetic": "/ˈæbsəluːt/",
+      "meanings": ["绝对的", "完全的"],
+      "examples": ["That's absolute nonsense.", "I have absolute confidence in you."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "absorb",
+      "phonetic": "/əbˈsɔːrb/",
+      "meanings": ["吸收", "理解", "使全神贯注"],
+      "examples": ["Plants absorb carbon dioxide.", "She was absorbed in her book."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "abstract",
+      "phonetic": "/ˈæbstrækt/",
+      "meanings": ["抽象的", "摘要"],
+      "examples": ["Abstract art can be difficult to understand."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "abundant",
+      "phonetic": "/əˈbʌndənt/",
+      "meanings": ["丰富的", "充裕的"],
+      "examples": ["The country has abundant natural resources."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "abuse",
+      "phonetic": "/əˈbjuːz/",
+      "meanings": ["滥用", "虐待", "辱骂"],
+      "examples": ["Drug abuse is a serious problem.", "She suffered years of abuse."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "academic",
+      "phonetic": "/ˌækəˈdemɪk/",
+      "meanings": ["学术的", "学院的"],
+      "examples": ["He has excellent academic achievements."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accelerate",
+      "phonetic": "/əkˈseləreɪt/",
+      "meanings": ["加速", "促进"],
+      "examples": ["The car accelerated rapidly."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accept",
+      "phonetic": "/əkˈsept/",
+      "meanings": ["接受", "承认"],
+      "examples": ["Please accept my apology.", "I accept your offer."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "access",
+      "phonetic": "/ˈækses/",
+      "meanings": ["进入", "通道", "访问"],
+      "examples": ["You need a password to access the system."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accident",
+      "phonetic": "/ˈæksɪdənt/",
+      "meanings": ["事故", "意外"],
+      "examples": ["He was injured in a car accident."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accommodate",
+      "phonetic": "/əˈkɒmədeɪt/",
+      "meanings": ["容纳", "提供住宿", "适应"],
+      "examples": ["The hotel can accommodate 500 guests."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accompany",
+      "phonetic": "/əˈkʌmpəni/",
+      "meanings": ["陪伴", "伴随"],
+      "examples": ["She accompanied me to the hospital."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accomplish",
+      "phonetic": "/əˈkʌmplɪʃ/",
+      "meanings": ["完成", "实现"],
+      "examples": ["She accomplished her goal.", "What do you hope to accomplish?"],
+      "audioUrl": null
+    },
+    {
+      "spelling": "according",
+      "phonetic": "/əˈkɔːrdɪŋ/",
+      "meanings": ["根据", "按照"],
+      "examples": ["According to the report, sales increased."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "account",
+      "phonetic": "/əˈkaʊnt/",
+      "meanings": ["账户", "描述", "解释"],
+      "examples": ["I opened a bank account.", "Can you account for your actions?"],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accurate",
+      "phonetic": "/ˈækjərət/",
+      "meanings": ["准确的", "精确的"],
+      "examples": ["The information is accurate.", "An accurate description."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "accuse",
+      "phonetic": "/əˈkjuːz/",
+      "meanings": ["指控", "控告"],
+      "examples": ["He was accused of theft."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "achieve",
+      "phonetic": "/əˈtʃiːv/",
+      "meanings": ["实现", "达到", "取得"],
+      "examples": ["She achieved her dream of becoming a doctor."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "acknowledge",
+      "phonetic": "/əkˈnɒlɪdʒ/",
+      "meanings": ["承认", "确认", "感谢"],
+      "examples": ["He acknowledged his mistake."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "acquire",
+      "phonetic": "/əˈkwaɪər/",
+      "meanings": ["获得", "学到"],
+      "examples": ["She acquired a new skill.", "The company acquired its competitor."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "across",
+      "phonetic": "/əˈkrɒs/",
+      "meanings": ["穿过", "横跨"],
+      "examples": ["He walked across the street.", "The bridge spans across the river."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "action",
+      "phonetic": "/ˈækʃən/",
+      "meanings": ["行动", "行为", "作用"],
+      "examples": ["We need to take action.", "Actions speak louder than words."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "active",
+      "phonetic": "/ˈæktɪv/",
+      "meanings": ["积极的", "活跃的"],
+      "examples": ["She leads an active lifestyle.", "He is very active in politics."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "actual",
+      "phonetic": "/ˈæktʃuəl/",
+      "meanings": ["实际的", "真实的"],
+      "examples": ["The actual cost was higher than expected."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "adapt",
+      "phonetic": "/əˈdæpt/",
+      "meanings": ["适应", "改编"],
+      "examples": ["You must adapt to the new environment."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "add",
+      "phonetic": "/æd/",
+      "meanings": ["添加", "增加", "补充"],
+      "examples": ["Add some sugar to the coffee.", "He added a few comments."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "address",
+      "phonetic": "/əˈdres/",
+      "meanings": ["地址", "演说", "处理"],
+      "examples": ["What's your address?", "We need to address this problem."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "adequate",
+      "phonetic": "/ˈædɪkwət/",
+      "meanings": ["足够的", "适当的"],
+      "examples": ["The food supply is adequate for our needs."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "adjust",
+      "phonetic": "/əˈdʒʌst/",
+      "meanings": ["调整", "适应"],
+      "examples": ["Please adjust the volume.", "It took time to adjust to the new job."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "administration",
+      "phonetic": "/ədˌmɪnɪˈstreɪʃən/",
+      "meanings": ["管理", "行政"],
+      "examples": ["The hospital administration made changes."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "admire",
+      "phonetic": "/ədˈmaɪər/",
+      "meanings": ["钦佩", "欣赏"],
+      "examples": ["I admire her courage.", "He admired the beautiful scenery."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "admit",
+      "phonetic": "/ədˈmɪt/",
+      "meanings": ["承认", "准许进入"],
+      "examples": ["He admitted his guilt.", "The ticket admits one person."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "adopt",
+      "phonetic": "/əˈdɒpt/",
+      "meanings": ["采用", "收养"],
+      "examples": ["They adopted a new policy.", "She was adopted as a baby."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "adult",
+      "phonetic": "/ˈædʌlt/",
+      "meanings": ["成年人", "成年的"],
+      "examples": ["Only adults are allowed.", "Adult education programs."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "advance",
+      "phonetic": "/ədˈvɑːns/",
+      "meanings": ["前进", "进步", "预付"],
+      "examples": ["Technology has advanced rapidly.", "Book in advance."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "advantage",
+      "phonetic": "/ədˈvɑːntɪdʒ/",
+      "meanings": ["优势", "好处"],
+      "examples": ["What are the advantages of this plan?", "Take advantage of this opportunity."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "adventure",
+      "phonetic": "/ədˈventʃər/",
+      "meanings": ["冒险", "奇遇"],
+      "examples": ["Life is an adventure.", "They had many adventures."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "advertise",
+      "phonetic": "/ˈædvətaɪz/",
+      "meanings": ["做广告", "宣传"],
+      "examples": ["The company advertises on TV."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "advice",
+      "phonetic": "/ədˈvaɪs/",
+      "meanings": ["建议", "忠告"],
+      "examples": ["Can you give me some advice?", "Follow my advice."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "advise",
+      "phonetic": "/ədˈvaɪz/",
+      "meanings": ["建议", "劝告"],
+      "examples": ["I advise you to be careful.", "The doctor advised rest."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "affair",
+      "phonetic": "/əˈfeər/",
+      "meanings": ["事务", "事情", "婚外情"],
+      "examples": ["That's my own affair.", "Current affairs."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "affect",
+      "phonetic": "/əˈfekt/",
+      "meanings": ["影响", "感动"],
+      "examples": ["The weather affects my mood.", "His words deeply affected her."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "afford",
+      "phonetic": "/əˈfɔːrd/",
+      "meanings": ["负担得起", "提供"],
+      "examples": ["I can't afford a new car.", "We can't afford to wait."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "afraid",
+      "phonetic": "/əˈfreɪd/",
+      "meanings": ["害怕的", "恐怕"],
+      "examples": ["Don't be afraid.", "I'm afraid I can't help you."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "agent",
+      "phonetic": "/ˈeɪdʒənt/",
+      "meanings": ["代理人", "经纪人"],
+      "examples": ["A real estate agent.", "He works as a travel agent."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "aggressive",
+      "phonetic": "/əˈɡresɪv/",
+      "meanings": ["好斗的", "进取的"],
+      "examples": ["An aggressive marketing strategy.", "The dog became aggressive."],
+      "audioUrl": null
+    }
+  ]
+}
