@@ -30,6 +30,7 @@ redis = { version = "0.27", features = ["tokio-comp"] }
 bytes = "1"
 http-body-util = "0.1"
 hyper = "1"
+http = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 base64 = "0.22"
 hmac = "0.12"
