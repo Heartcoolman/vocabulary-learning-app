@@ -182,8 +182,11 @@ export class WordBookClient extends BaseClient {
   /**
    * 获取词书中的单词列表
    */
-  async getWordBookWords(wordBookId: string): Promise<Word[]> {
-    const apiWords = await this.request<ApiWord[]>(`/api/wordbooks/${wordBookId}/words`);
+  async getWordBookWords(wordBookId: string, fetchAll = true): Promise<Word[]> {
+    const url = fetchAll
+      ? `/api/wordbooks/${wordBookId}/words?all=true`
+      : `/api/wordbooks/${wordBookId}/words`;
+    const apiWords = await this.request<ApiWord[]>(url);
     return apiWords.map(convertApiWord);
   }
 

@@ -617,6 +617,9 @@ pub async fn get_wordbook_words(State(state): State<AppState>, req: Request<Body
     let word_book_id = segments[2].to_string();
 
     let query_string = req.uri().query().unwrap_or("");
+    let fetch_all = get_query_param(query_string, "all")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
     let page = get_query_param(query_string, "page")
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(1)
@@ -648,7 +651,20 @@ pub async fn get_wordbook_words(State(state): State<AppState>, req: Request<Body
             .into_response();
     }
 
-    let words =
+    let words = if fetch_all {
+        match select_all_words_in_word_book(proxy.as_ref(), &word_book_id).await {
+            Ok(words) => words,
+            Err(err) => {
+                tracing::warn!(error = %err, "wordbook words query failed");
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response();
+            }
+        }
+    } else {
         match select_words_in_word_book_paginated(proxy.as_ref(), &word_book_id, page_size, offset)
             .await
         {
@@ -662,7 +678,8 @@ pub async fn get_wordbook_words(State(state): State<AppState>, req: Request<Body
                 )
                 .into_response();
             }
-        };
+        }
+    };
 
     Json(SuccessResponse {
         success: true,
@@ -1182,6 +1199,28 @@ async fn select_word_book_by_id(
 }
 
 async fn select_words_in_word_book(
+    proxy: &crate::db::DatabaseProxy,
+    word_book_id: &str,
+) -> Result<Vec<WordResponse>, sqlx::Error> {
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+        FROM "words"
+        WHERE "wordBookId" = $1
+        ORDER BY "createdAt" DESC
+        "#,
+    )
+    .bind(word_book_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| map_postgres_word_row(&row))
+        .collect())
+}
+
+async fn select_all_words_in_word_book(
     proxy: &crate::db::DatabaseProxy,
     word_book_id: &str,
 ) -> Result<Vec<WordResponse>, sqlx::Error> {
