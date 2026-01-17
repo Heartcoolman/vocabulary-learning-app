@@ -27,6 +27,8 @@ export type { StudyProgress, TodayWordsResponse } from './wordbook/WordBookClien
 export { WordBookCenterClient } from './wordbook-center/WordBookCenterClient';
 export type {
   CenterConfig,
+  PersonalCenterConfig,
+  CenterConfigResponse,
   CenterWordBook,
   CenterWord,
   CenterWordBookDetail,

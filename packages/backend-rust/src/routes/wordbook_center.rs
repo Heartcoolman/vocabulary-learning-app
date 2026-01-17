@@ -2,7 +2,7 @@ use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{Request, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
@@ -13,6 +13,8 @@ use crate::auth::AuthUser;
 use crate::db::DatabaseProxy;
 use crate::response::json_error;
 use crate::state::AppState;
+
+const DEFAULT_CENTER_URL: &str = "https://cdn.jsdelivr.net/gh/Heartcoolman/wordbook-center@main";
 
 async fn authenticate(
     state: &AppState,
@@ -115,6 +117,113 @@ fn static_wordbook_url(center_url: &str, id: &str) -> String {
     format!("{}/wordbooks/{}.json", base, id)
 }
 
+async fn fetch_global_config(proxy: &DatabaseProxy) -> Result<CenterConfig, Response> {
+    let row = sqlx::query(
+        r#"SELECT "id", "centerUrl", "updatedAt", "updatedBy" FROM "wordbook_center_config" WHERE "id" = 'default'"#,
+    )
+    .fetch_optional(proxy.pool())
+    .await;
+
+    match row {
+        Ok(Some(r)) => {
+            let updated_at: chrono::NaiveDateTime = r
+                .try_get("updatedAt")
+                .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+            let center_url: String = r.try_get("centerUrl").unwrap_or_default();
+            let center_url = if center_url.trim().is_empty() {
+                DEFAULT_CENTER_URL.to_string()
+            } else {
+                center_url
+            };
+            Ok(CenterConfig {
+                id: r.try_get("id").unwrap_or_else(|_| "default".to_string()),
+                center_url,
+                updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+                    updated_at,
+                    chrono::Utc,
+                )
+                .to_rfc3339(),
+                updated_by: r.try_get::<Option<String>, _>("updatedBy").ok().flatten(),
+            })
+        }
+        Ok(None) => Ok(CenterConfig {
+            id: "default".to_string(),
+            center_url: DEFAULT_CENTER_URL.to_string(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
+            updated_by: None,
+        }),
+        Err(e) => {
+            tracing::error!(error = %e, "config query failed");
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                "查询配置失败",
+            )
+            .into_response())
+        }
+    }
+}
+
+async fn fetch_personal_config(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<Option<PersonalCenterConfig>, Response> {
+    let row = sqlx::query(
+        r#"SELECT "centerUrl", "updatedAt" FROM "wordbook_center_user_config" WHERE "userId" = $1"#,
+    )
+    .bind(user_id)
+    .fetch_optional(proxy.pool())
+    .await;
+
+    match row {
+        Ok(Some(r)) => {
+            let updated_at: chrono::NaiveDateTime = r
+                .try_get("updatedAt")
+                .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+            Ok(Some(PersonalCenterConfig {
+                center_url: r.try_get("centerUrl").unwrap_or_default(),
+                updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+                    updated_at,
+                    chrono::Utc,
+                )
+                .to_rfc3339(),
+            }))
+        }
+        Ok(None) => Ok(None),
+        Err(e) => {
+            tracing::error!(error = %e, "personal config query failed");
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                "查询个人配置失败",
+            )
+            .into_response())
+        }
+    }
+}
+
+fn resolve_effective_url(
+    personal: Option<&PersonalCenterConfig>,
+    global: &CenterConfig,
+) -> (String, &'static str) {
+    if let Some(cfg) = personal {
+        if !cfg.center_url.trim().is_empty() {
+            return (cfg.center_url.clone(), "personal");
+        }
+    }
+    (global.center_url.clone(), "global")
+}
+
+async fn fetch_effective_center_url(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<String, Response> {
+    let global = fetch_global_config(proxy).await?;
+    let personal = fetch_personal_config(proxy, user_id).await?;
+    let (url, _) = resolve_effective_url(personal.as_ref(), &global);
+    Ok(url)
+}
+
 #[derive(Serialize)]
 struct SuccessResponse<T> {
     success: bool,
@@ -129,6 +238,23 @@ struct CenterConfig {
     updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     updated_by: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PersonalCenterConfig {
+    center_url: String,
+    updated_at: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CenterConfigResponse {
+    global: CenterConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    personal: Option<PersonalCenterConfig>,
+    effective_url: String,
+    source: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -242,64 +368,41 @@ struct BrowseResponse {
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/config", get(get_config).put(update_config))
+        .route(
+            "/config/personal",
+            put(update_personal_config).delete(clear_personal_config),
+        )
         .route("/browse", get(browse_wordbooks))
         .route("/browse/:id", get(get_wordbook_detail))
         .route("/import/:id", post(import_wordbook))
 }
 
 async fn get_config(State(state): State<AppState>, req: Request<Body>) -> Response {
-    let (proxy, _user, _req) = match authenticate(&state, req).await {
+    let (proxy, user, _req) = match authenticate(&state, req).await {
         Ok(v) => v,
         Err(e) => return e,
     };
 
-    let row = sqlx::query(
-        r#"SELECT "id", "centerUrl", "updatedAt", "updatedBy" FROM "wordbook_center_config" WHERE "id" = 'default'"#,
-    )
-    .fetch_optional(proxy.pool())
-    .await;
+    let global = match fetch_global_config(proxy.as_ref()).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let personal = match fetch_personal_config(proxy.as_ref(), &user.id).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let (effective_url, source) = resolve_effective_url(personal.as_ref(), &global);
 
-    match row {
-        Ok(Some(r)) => {
-            let updated_at: chrono::NaiveDateTime = r
-                .try_get("updatedAt")
-                .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
-            let config = CenterConfig {
-                id: r.try_get("id").unwrap_or_else(|_| "default".to_string()),
-                center_url: r.try_get("centerUrl").unwrap_or_default(),
-                updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-                    updated_at,
-                    chrono::Utc,
-                )
-                .to_rfc3339(),
-                updated_by: r.try_get::<Option<String>, _>("updatedBy").ok().flatten(),
-            };
-            Json(SuccessResponse {
-                success: true,
-                data: config,
-            })
-            .into_response()
-        }
-        Ok(None) => Json(SuccessResponse {
-            success: true,
-            data: CenterConfig {
-                id: "default".to_string(),
-                center_url: String::new(),
-                updated_at: chrono::Utc::now().to_rfc3339(),
-                updated_by: None,
-            },
-        })
-        .into_response(),
-        Err(e) => {
-            tracing::error!(error = %e, "config query failed");
-            json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "QUERY_ERROR",
-                "查询配置失败",
-            )
-            .into_response()
-        }
-    }
+    Json(SuccessResponse {
+        success: true,
+        data: CenterConfigResponse {
+            global,
+            personal,
+            effective_url,
+            source: source.to_string(),
+        },
+    })
+    .into_response()
 }
 
 async fn update_config(State(state): State<AppState>, req: Request<Body>) -> Response {
@@ -352,11 +455,12 @@ async fn update_config(State(state): State<AppState>, req: Request<Body>) -> Res
     }
 
     let result = sqlx::query(
-        r#"INSERT INTO "wordbook_center_config" ("id", "centerUrl", "updatedAt")
-           VALUES ('default', $1, NOW())
-           ON CONFLICT ("id") DO UPDATE SET "centerUrl" = $1, "updatedAt" = NOW()"#,
+        r#"INSERT INTO "wordbook_center_config" ("id", "centerUrl", "updatedAt", "updatedBy")
+           VALUES ('default', $1, NOW(), $2)
+           ON CONFLICT ("id") DO UPDATE SET "centerUrl" = $1, "updatedAt" = NOW(), "updatedBy" = $2"#,
     )
     .bind(url)
+    .bind(&user.id)
     .execute(proxy.pool())
     .await;
 
@@ -366,7 +470,7 @@ async fn update_config(State(state): State<AppState>, req: Request<Body>) -> Res
                 id: "default".to_string(),
                 center_url: url.to_string(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
-                updated_by: None,
+                updated_by: Some(user.id.clone()),
             };
             Json(SuccessResponse {
                 success: true,
@@ -386,47 +490,127 @@ async fn update_config(State(state): State<AppState>, req: Request<Body>) -> Res
     }
 }
 
-async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> Response {
-    let (proxy, _user, _req) = match authenticate(&state, req).await {
+async fn update_personal_config(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, user, req) = match authenticate(&state, req).await {
         Ok(v) => v,
         Err(e) => return e,
     };
 
-    let config_row = sqlx::query(
-        r#"SELECT "centerUrl" FROM "wordbook_center_config" WHERE "id" = 'default'"#,
-    )
-    .fetch_optional(proxy.pool())
-    .await;
-
-    let center_url: String = match config_row {
-        Ok(Some(r)) => r.try_get("centerUrl").unwrap_or_default(),
-        Ok(None) => {
-            return json_error(
-                StatusCode::NOT_FOUND,
-                "CONFIG_NOT_FOUND",
-                "词库中心未配置",
-            )
-            .into_response();
+    let body = match axum::body::to_bytes(req.into_body(), 1024 * 16).await {
+        Ok(b) => b,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求体")
+                .into_response();
         }
-        Err(e) => {
-            tracing::error!(error = %e, "query config failed");
-            return json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "QUERY_ERROR",
-                "查询配置失败",
-            )
-            .into_response();
+    };
+    let input: UpdateConfigInput = match serde_json::from_slice(&body) {
+        Ok(v) => v,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效JSON格式")
+                .into_response();
         }
     };
 
-    if center_url.is_empty() {
+    if input.center_url.trim().is_empty() {
         return json_error(
-            StatusCode::NOT_FOUND,
-            "CONFIG_NOT_FOUND",
-            "词库中心未配置",
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "词库中心URL不能为空",
         )
         .into_response();
     }
+
+    let url = input.center_url.trim();
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "词库中心URL必须以http://或https://开头",
+        )
+        .into_response();
+    }
+
+    if let Err(msg) = is_safe_url(url) {
+        return json_error(StatusCode::BAD_REQUEST, "SSRF_BLOCKED", msg).into_response();
+    }
+
+    let config_id = uuid::Uuid::new_v4().to_string();
+    let result = sqlx::query(
+        r#"INSERT INTO "wordbook_center_user_config" ("id", "userId", "centerUrl", "updatedAt")
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT ("userId") DO UPDATE SET "centerUrl" = $3, "updatedAt" = NOW()"#,
+    )
+    .bind(&config_id)
+    .bind(&user.id)
+    .bind(url)
+    .execute(proxy.pool())
+    .await;
+
+    match result {
+        Ok(_) => {
+            let config = PersonalCenterConfig {
+                center_url: url.to_string(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            };
+            Json(SuccessResponse {
+                success: true,
+                data: config,
+            })
+            .into_response()
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "personal config update failed");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "WRITE_ERROR",
+                "更新个人配置失败",
+            )
+            .into_response()
+        }
+    }
+}
+
+async fn clear_personal_config(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    let result = sqlx::query(
+        r#"DELETE FROM "wordbook_center_user_config" WHERE "userId" = $1"#,
+    )
+    .bind(&user.id)
+    .execute(proxy.pool())
+    .await;
+
+    match result {
+        Ok(_) => Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "message": "个人配置已清除" }),
+        })
+        .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "personal config delete failed");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DELETE_ERROR",
+                "清除个人配置失败",
+            )
+            .into_response()
+        }
+    }
+}
+
+async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    let center_url = match fetch_effective_center_url(proxy.as_ref(), &user.id).await {
+        Ok(url) => url,
+        Err(e) => return e,
+    };
 
     let client = reqwest::Client::new();
     let base_url = center_url.trim_end_matches('/');
@@ -485,46 +669,15 @@ async fn get_wordbook_detail(
     Path(id): Path<String>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, _user, _req) = match authenticate(&state, req).await {
+    let (proxy, user, _req) = match authenticate(&state, req).await {
         Ok(v) => v,
         Err(e) => return e,
     };
 
-    let config_row = sqlx::query(
-        r#"SELECT "centerUrl" FROM "wordbook_center_config" WHERE "id" = 'default'"#,
-    )
-    .fetch_optional(proxy.pool())
-    .await;
-
-    let center_url: String = match config_row {
-        Ok(Some(r)) => r.try_get("centerUrl").unwrap_or_default(),
-        Ok(None) => {
-            return json_error(
-                StatusCode::NOT_FOUND,
-                "CONFIG_NOT_FOUND",
-                "词库中心未配置",
-            )
-            .into_response();
-        }
-        Err(e) => {
-            tracing::error!(error = %e, "query config failed");
-            return json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "QUERY_ERROR",
-                "查询配置失败",
-            )
-            .into_response();
-        }
+    let center_url = match fetch_effective_center_url(proxy.as_ref(), &user.id).await {
+        Ok(url) => url,
+        Err(e) => return e,
     };
-
-    if center_url.is_empty() {
-        return json_error(
-            StatusCode::NOT_FOUND,
-            "CONFIG_NOT_FOUND",
-            "词库中心未配置",
-        )
-        .into_response();
-    }
 
     let client = reqwest::Client::new();
     let base_url = center_url.trim_end_matches('/');
@@ -742,41 +895,10 @@ async fn import_wordbook(
         .into_response();
     }
 
-    let config_row = sqlx::query(
-        r#"SELECT "centerUrl" FROM "wordbook_center_config" WHERE "id" = 'default'"#,
-    )
-    .fetch_optional(proxy.pool())
-    .await;
-
-    let center_url: String = match config_row {
-        Ok(Some(r)) => r.try_get("centerUrl").unwrap_or_default(),
-        Ok(None) => {
-            return json_error(
-                StatusCode::NOT_FOUND,
-                "CONFIG_NOT_FOUND",
-                "词库中心未配置",
-            )
-            .into_response();
-        }
-        Err(e) => {
-            tracing::error!(error = %e, "query config failed");
-            return json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "QUERY_ERROR",
-                "查询配置失败",
-            )
-            .into_response();
-        }
+    let center_url = match fetch_effective_center_url(proxy.as_ref(), &user.id).await {
+        Ok(url) => url,
+        Err(e) => return e,
     };
-
-    if center_url.is_empty() {
-        return json_error(
-            StatusCode::NOT_FOUND,
-            "CONFIG_NOT_FOUND",
-            "词库中心未配置",
-        )
-        .into_response();
-    }
 
     let base_url = center_url.trim_end_matches('/');
     let is_static = is_static_hosting(base_url);
@@ -792,13 +914,25 @@ async fn import_wordbook(
     .fetch_optional(proxy.pool())
     .await;
 
-    if let Ok(Some(_)) = existing {
-        return json_error(
-            StatusCode::CONFLICT,
-            "ALREADY_IMPORTED",
-            "该词书已导入过",
-        )
-        .into_response();
+    match existing {
+        Ok(Some(_)) => {
+            return json_error(
+                StatusCode::CONFLICT,
+                "ALREADY_IMPORTED",
+                "该词书已导入过",
+            )
+            .into_response();
+        }
+        Ok(None) => {}
+        Err(e) => {
+            tracing::error!(error = %e, "sourceUrl lookup failed");
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                "查询词书失败",
+            )
+            .into_response();
+        }
     }
 
     let client = reqwest::Client::new();

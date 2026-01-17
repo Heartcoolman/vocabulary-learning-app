@@ -7,11 +7,16 @@ export interface CenterConfig {
   updatedBy?: string | null;
 }
 
-interface ApiCenterConfig {
-  id: string;
+export interface PersonalCenterConfig {
   centerUrl: string;
   updatedAt: string;
-  updatedBy?: string | null;
+}
+
+export interface CenterConfigResponse {
+  global: CenterConfig;
+  personal?: PersonalCenterConfig | null;
+  effectiveUrl: string;
+  source: 'personal' | 'global';
 }
 
 export interface CenterWordBook {
@@ -50,14 +55,27 @@ export interface ImportResult {
 }
 
 export class WordBookCenterClient extends BaseClient {
-  async getConfig(): Promise<CenterConfig> {
-    return this.request<CenterConfig>('/api/wordbook-center/config');
+  async getConfig(): Promise<CenterConfigResponse> {
+    return this.request<CenterConfigResponse>('/api/wordbook-center/config');
   }
 
   async updateConfig(centerUrl: string): Promise<CenterConfig> {
     return this.request<CenterConfig>('/api/wordbook-center/config', {
       method: 'PUT',
       body: JSON.stringify({ centerUrl }),
+    });
+  }
+
+  async updatePersonalConfig(centerUrl: string): Promise<PersonalCenterConfig> {
+    return this.request<PersonalCenterConfig>('/api/wordbook-center/config/personal', {
+      method: 'PUT',
+      body: JSON.stringify({ centerUrl }),
+    });
+  }
+
+  async clearPersonalConfig(): Promise<void> {
+    await this.request('/api/wordbook-center/config/personal', {
+      method: 'DELETE',
     });
   }
 

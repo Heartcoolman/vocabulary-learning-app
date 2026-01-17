@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   wordBookCenterClient,
   CenterWordBook,
   CenterWordBookDetail as DetailType,
+  authClient,
 } from '../services/client';
 import {
   CenterWordBookCard,
@@ -12,7 +13,15 @@ import {
   ImportProgress,
 } from '../components/wordbook-center';
 import { useToast } from '../components/ui';
-import { Books, CircleNotch, Gear, MagnifyingGlass, Warning, ArrowLeft } from '../components/Icon';
+import {
+  Books,
+  CircleNotch,
+  Gear,
+  MagnifyingGlass,
+  Warning,
+  ArrowLeft,
+  Trash,
+} from '../components/Icon';
 import { useNavigate } from 'react-router-dom';
 
 export default function WordBookCenterPage() {
@@ -24,11 +33,19 @@ export default function WordBookCenterPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWordbook, setSelectedWordbook] = useState<CenterWordBook | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [configUrl, setConfigUrl] = useState('');
+  const [personalUrl, setPersonalUrl] = useState('');
+  const [globalUrl, setGlobalUrl] = useState('');
   const [importStatus, setImportStatus] = useState<{
     status: 'idle' | 'importing' | 'success' | 'error';
     message?: string;
   }>({ status: 'idle' });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => authClient.getCurrentUser(),
+  });
+
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   const {
     data: config,
@@ -47,7 +64,7 @@ export default function WordBookCenterPage() {
   } = useQuery({
     queryKey: ['wordbook-center', 'browse'],
     queryFn: () => wordBookCenterClient.browse(),
-    enabled: !!config?.centerUrl,
+    enabled: !!config?.effectiveUrl,
   });
 
   const {
@@ -61,10 +78,10 @@ export default function WordBookCenterPage() {
     enabled: !!selectedWordbook,
   });
 
-  const updateConfigMutation = useMutation({
+  const updateGlobalConfigMutation = useMutation({
     mutationFn: (url: string) => wordBookCenterClient.updateConfig(url),
     onSuccess: () => {
-      showToast('success', '词库中心配置已更新');
+      showToast('success', '全局配置已更新');
       queryClient.invalidateQueries({ queryKey: ['wordbook-center'] });
       setShowConfigModal(false);
     },
@@ -73,11 +90,37 @@ export default function WordBookCenterPage() {
     },
   });
 
-  useEffect(() => {
-    if (config?.centerUrl) {
-      setConfigUrl(config.centerUrl);
+  const updatePersonalConfigMutation = useMutation({
+    mutationFn: (url: string) => wordBookCenterClient.updatePersonalConfig(url),
+    onSuccess: () => {
+      showToast('success', '个人配置已更新');
+      queryClient.invalidateQueries({ queryKey: ['wordbook-center'] });
+      setShowConfigModal(false);
+    },
+    onError: (error) => {
+      showToast('error', error instanceof Error ? error.message : '配置更新失败');
+    },
+  });
+
+  const clearPersonalConfigMutation = useMutation({
+    mutationFn: () => wordBookCenterClient.clearPersonalConfig(),
+    onSuccess: () => {
+      showToast('success', '个人配置已清除，将使用全局配置');
+      queryClient.invalidateQueries({ queryKey: ['wordbook-center'] });
+      setPersonalUrl('');
+    },
+    onError: (error) => {
+      showToast('error', error instanceof Error ? error.message : '清除失败');
+    },
+  });
+
+  const handleOpenConfig = () => {
+    if (config) {
+      setGlobalUrl(config.global.centerUrl);
+      setPersonalUrl(config.personal?.centerUrl || '');
     }
-  }, [config]);
+    setShowConfigModal(true);
+  };
 
   const allTags = useMemo(() => {
     if (!browseData?.wordbooks) return [];
@@ -111,7 +154,7 @@ export default function WordBookCenterPage() {
     queryClient.invalidateQueries({ queryKey: ['wordbooks'] });
   };
 
-  const needsConfig = !configLoading && (!config?.centerUrl || config.centerUrl === '');
+  const needsConfig = !configLoading && (!config?.effectiveUrl || config.effectiveUrl === '');
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -126,7 +169,7 @@ export default function WordBookCenterPage() {
               返回
             </button>
             <button
-              onClick={() => setShowConfigModal(true)}
+              onClick={handleOpenConfig}
               className="flex items-center gap-2 rounded-button px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
             >
               <Gear className="h-4 w-4" />
@@ -155,7 +198,7 @@ export default function WordBookCenterPage() {
               请先配置词库中心的 URL 以浏览和导入词书
             </p>
             <button
-              onClick={() => setShowConfigModal(true)}
+              onClick={handleOpenConfig}
               className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-soft transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <Gear className="h-5 w-5" weight="bold" />
@@ -255,22 +298,82 @@ export default function WordBookCenterPage() {
               >
                 配置词库中心
               </h2>
+
+              {config && (
+                <div className="mb-4 rounded-lg bg-gray-50 p-3 text-sm dark:bg-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 dark:text-gray-400">当前使用:</span>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${
+                        config.source === 'personal'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                          : 'bg-gray-200 text-gray-700 dark:bg-slate-600 dark:text-gray-300'
+                      }`}
+                    >
+                      {config.source === 'personal' ? '个人配置' : '全局配置'}
+                    </span>
+                  </div>
+                  <p
+                    className="mt-1 truncate text-gray-600 dark:text-gray-300"
+                    title={config.effectiveUrl}
+                  >
+                    {config.effectiveUrl}
+                  </p>
+                </div>
+              )}
+
               <div className="mb-4">
                 <label
-                  htmlFor="config-url-input"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  htmlFor="personal-url-input"
+                  className="mb-2 flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  词库中心 URL
+                  <span>个人词库中心 URL</span>
+                  {config?.personal && (
+                    <button
+                      onClick={() => clearPersonalConfigMutation.mutate()}
+                      disabled={clearPersonalConfigMutation.isPending}
+                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                    >
+                      <Trash className="h-3 w-3" />
+                      清除
+                    </button>
+                  )}
                 </label>
                 <input
-                  id="config-url-input"
+                  id="personal-url-input"
                   type="url"
-                  value={configUrl}
-                  onChange={(e) => setConfigUrl(e.target.value)}
-                  placeholder="https://example.com/wordbook-center"
+                  value={personalUrl}
+                  onChange={(e) => setPersonalUrl(e.target.value)}
+                  placeholder="留空则使用全局配置"
                   className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 text-gray-900 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  设置后将覆盖全局配置，仅对你生效
+                </p>
               </div>
+
+              {isAdmin && (
+                <div className="mb-4 border-t border-gray-200 pt-4 dark:border-slate-600">
+                  <label
+                    htmlFor="global-url-input"
+                    className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    全局词库中心 URL（管理员）
+                  </label>
+                  <input
+                    id="global-url-input"
+                    type="url"
+                    value={globalUrl}
+                    onChange={(e) => setGlobalUrl(e.target.value)}
+                    placeholder="https://example.com/wordbook-center"
+                    className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 text-gray-900 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    修改将影响所有用户的默认配置
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowConfigModal(false)}
@@ -278,12 +381,21 @@ export default function WordBookCenterPage() {
                 >
                   取消
                 </button>
+                {isAdmin && globalUrl !== config?.global.centerUrl && (
+                  <button
+                    onClick={() => updateGlobalConfigMutation.mutate(globalUrl)}
+                    disabled={updateGlobalConfigMutation.isPending}
+                    className="rounded-button bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+                  >
+                    {updateGlobalConfigMutation.isPending ? '保存中...' : '保存全局'}
+                  </button>
+                )}
                 <button
-                  onClick={() => updateConfigMutation.mutate(configUrl)}
-                  disabled={updateConfigMutation.isPending}
+                  onClick={() => updatePersonalConfigMutation.mutate(personalUrl)}
+                  disabled={updatePersonalConfigMutation.isPending || !personalUrl.trim()}
                   className="rounded-button bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
                 >
-                  {updateConfigMutation.isPending ? '保存中...' : '保存'}
+                  {updatePersonalConfigMutation.isPending ? '保存中...' : '保存个人'}
                 </button>
               </div>
             </div>

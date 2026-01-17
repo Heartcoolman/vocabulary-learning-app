@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use http::{header, Method};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use danci_backend_rust::cache::RedisCache;
@@ -73,9 +74,24 @@ async fn main() {
 
     let state = AppState::new(db_proxy, amas_engine, cache);
 
+    let cors = match std::env::var("CORS_ORIGIN") {
+        Ok(origin) if !origin.is_empty() => {
+            tracing::info!(origin = %origin, "CORS configured with specific origin");
+            CorsLayer::new()
+                .allow_origin(origin.parse::<header::HeaderValue>().expect("invalid CORS_ORIGIN"))
+                .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
+                .allow_credentials(true)
+        }
+        _ => {
+            tracing::info!("CORS configured as permissive");
+            CorsLayer::permissive()
+        }
+    };
+
     let app = routes::router(state)
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive());
+        .layer(cors);
 
     let addr = config.bind_addr();
     tracing::info!(%addr, "backend-rust listening");
