@@ -132,9 +132,9 @@ export default function VocabularyPage() {
         )}
 
         {book.sourceAuthor?.trim() && (
-          <p className="mb-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
-            <User aria-hidden="true" className="mr-1 h-3 w-3" />
-            {book.sourceAuthor.trim()}
+          <p className="mb-2 flex items-center truncate text-sm text-gray-500 dark:text-gray-400">
+            <User aria-hidden="true" className="mr-1 h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{book.sourceAuthor.trim()}</span>
           </p>
         )}
 
