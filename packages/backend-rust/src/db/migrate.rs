@@ -118,6 +118,14 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "024_wordbook_tags_and_import",
             include_str!("../../sql/024_wordbook_tags_and_import.sql"),
         ),
+        (
+            "025_wordbook_center_user_config",
+            include_str!("../../sql/025_wordbook_center_user_config.sql"),
+        ),
+        (
+            "026_fix_wordbook_center_default_url",
+            include_str!("../../sql/026_fix_wordbook_center_default_url.sql"),
+        ),
     ];
 
     let mut applied_count = 0;

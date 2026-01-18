@@ -655,12 +655,15 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
                 .into_response(),
             }
         }
-        Err(_) => json_error(
-            StatusCode::BAD_GATEWAY,
-            "CENTER_UNREACHABLE",
-            "无法连接词库中心",
-        )
-        .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, url = %url, "Failed to fetch wordbook center");
+            json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_UNREACHABLE",
+                &format!("无法连接词库中心: {}", e),
+            )
+            .into_response()
+        }
     }
 }
 
