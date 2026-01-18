@@ -1,0 +1,7 @@
+name = "wordbook-counter"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "DOWNLOAD_COUNTS"
+id = "46526139f7934fa486925512a123dae3"

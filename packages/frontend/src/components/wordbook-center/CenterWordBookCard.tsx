@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { CenterWordBook } from '../../services/client';
-import { Books, Download, Tag } from '../Icon';
+import { Books, Download, Tag, User } from '../Icon';
 
 interface CenterWordBookCardProps {
   wordbook: CenterWordBook;
@@ -46,6 +46,13 @@ export function CenterWordBookCard({ wordbook, onSelect }: CenterWordBookCardPro
           {wordbook.name}
         </h3>
 
+        {wordbook.author?.trim() && (
+          <p className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+            <User aria-hidden="true" className="mr-1 h-3 w-3" />
+            {wordbook.author.trim()}
+          </p>
+        )}
+
         {wordbook.description && (
           <p className="mt-1 line-clamp-2 text-base text-gray-600 dark:text-gray-400">
             {wordbook.description}
@@ -54,7 +61,7 @@ export function CenterWordBookCard({ wordbook, onSelect }: CenterWordBookCardPro
 
         <div className="mt-2 flex items-center justify-between text-base">
           <span className="font-medium text-gray-700 dark:text-gray-300">
-            {wordbook.wordCount} 词
+            {wordbook.wordCount} 词{wordbook.version != null && ` · v${wordbook.version}`}
           </span>
           {wordbook.downloadCount !== undefined && (
             <span className="flex items-center text-gray-500 dark:text-gray-400">

@@ -15,6 +15,17 @@ use crate::response::json_error;
 use crate::state::AppState;
 
 const DEFAULT_CENTER_URL: &str = "https://cdn.jsdelivr.net/gh/Heartcoolman/wordbook-center@main";
+const DEFAULT_COUNTER_WORKER_URL: &str = "https://wordbook-counter.lijiccc.workers.dev";
+
+fn get_counter_worker_url() -> Option<String> {
+    std::env::var("WORDBOOK_COUNTER_WORKER_URL")
+        .ok()
+        .or_else(|| Some(DEFAULT_COUNTER_WORKER_URL.to_string()))
+}
+
+fn get_counter_worker_secret() -> Option<String> {
+    std::env::var("WORDBOOK_COUNTER_WORKER_SECRET").ok()
+}
 
 async fn authenticate(
     state: &AppState,
@@ -638,8 +649,23 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
                         .or(data.get("wordBooks"))
                         .cloned()
                         .unwrap_or(data);
-                    let wordbooks: Vec<CenterWordBook> =
+                    let mut wordbooks: Vec<CenterWordBook> =
                         serde_json::from_value(wordbooks_value).unwrap_or_default();
+
+                    let ids: Vec<String> = wordbooks.iter().map(|wb| wb.id.clone()).collect();
+                    let (local_counts, worker_counts) = tokio::join!(
+                        get_local_download_counts_batch(proxy.as_ref(), base_url, &ids),
+                        worker_get_counts(base_url, &ids)
+                    );
+
+                    for wb in &mut wordbooks {
+                        let local_count = local_counts.get(&wb.id).copied().unwrap_or(0);
+                        let worker_count = worker_counts.get(&wb.id).copied().unwrap_or(0);
+                        let remote_count = wb.download_count.unwrap_or(0);
+                        let additional_count = std::cmp::max(local_count, worker_count);
+                        wb.download_count = Some(remote_count + additional_count);
+                    }
+
                     let total = wordbooks.len() as i64;
                     Json(SuccessResponse {
                         success: true,
@@ -726,7 +752,7 @@ async fn get_wordbook_detail(
             .cloned()
             .unwrap_or(detail_value);
 
-        let detail: CenterWordBookDetail = match serde_json::from_value(detail_inner) {
+        let mut detail: CenterWordBookDetail = match serde_json::from_value(detail_inner) {
             Ok(d) => d,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to deserialize wordbook detail");
@@ -734,6 +760,16 @@ async fn get_wordbook_detail(
                     .into_response();
             }
         };
+
+        let ids_for_worker = [id.clone()];
+        let (local_count, worker_counts) = tokio::join!(
+            get_local_download_count(proxy.as_ref(), base_url, &id),
+            worker_get_counts(base_url, &ids_for_worker)
+        );
+        let worker_count = worker_counts.get(&id).copied().unwrap_or(0);
+        let remote_count = detail.download_count.unwrap_or(0);
+        let additional_count = std::cmp::max(local_count, worker_count);
+        detail.download_count = Some(remote_count + additional_count);
 
         return Json(SuccessResponse {
             success: true,
@@ -834,6 +870,15 @@ async fn get_wordbook_detail(
         }
     }
 
+    let ids_for_worker = [id.clone()];
+    let (local_count, worker_counts) = tokio::join!(
+        get_local_download_count(proxy.as_ref(), base_url, &id),
+        worker_get_counts(base_url, &ids_for_worker)
+    );
+    let worker_count = worker_counts.get(&id).copied().unwrap_or(0);
+    let remote_count = meta.download_count.unwrap_or(0);
+    let additional_count = std::cmp::max(local_count, worker_count);
+
     let detail = CenterWordBookDetail {
         id: meta.id,
         name: meta.name,
@@ -843,7 +888,7 @@ async fn get_wordbook_detail(
         tags: meta.tags,
         version: meta.version,
         author: meta.author,
-        download_count: meta.download_count,
+        download_count: Some(remote_count + additional_count),
         words: all_words,
     };
 
@@ -1109,6 +1154,9 @@ async fn import_wordbook(
             .into_response();
         }
 
+        increment_download_count(proxy.as_ref(), base_url, &id).await;
+        worker_increment_count(base_url, &id).await;
+
         return Json(SuccessResponse {
             success: true,
             data: ImportResult {
@@ -1332,6 +1380,9 @@ async fn import_wordbook(
         .into_response();
     }
 
+    increment_download_count(proxy.as_ref(), base_url, &id).await;
+    worker_increment_count(base_url, &id).await;
+
     Json(SuccessResponse {
         success: true,
         data: ImportResult {
@@ -1341,4 +1392,157 @@ async fn import_wordbook(
         },
     })
     .into_response()
+}
+
+async fn increment_download_count(
+    proxy: &DatabaseProxy,
+    center_url: &str,
+    center_wordbook_id: &str,
+) {
+    let id = uuid::Uuid::new_v4().to_string();
+    let result = sqlx::query(
+        r#"INSERT INTO "wordbook_center_downloads" ("id", "centerUrl", "centerWordbookId", "importCount", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, 1, NOW(), NOW())
+           ON CONFLICT ("centerUrl", "centerWordbookId")
+           DO UPDATE SET "importCount" = "wordbook_center_downloads"."importCount" + 1, "updatedAt" = NOW()"#,
+    )
+    .bind(&id)
+    .bind(center_url)
+    .bind(center_wordbook_id)
+    .execute(proxy.pool())
+    .await;
+
+    if let Err(e) = result {
+        tracing::warn!(error = %e, "Failed to increment download count");
+    }
+}
+
+async fn get_local_download_count(
+    proxy: &DatabaseProxy,
+    center_url: &str,
+    center_wordbook_id: &str,
+) -> i64 {
+    let result = sqlx::query(
+        r#"SELECT "importCount" FROM "wordbook_center_downloads" WHERE "centerUrl" = $1 AND "centerWordbookId" = $2"#,
+    )
+    .bind(center_url)
+    .bind(center_wordbook_id)
+    .fetch_optional(proxy.pool())
+    .await;
+
+    match result {
+        Ok(Some(row)) => row.try_get::<i64, _>("importCount").unwrap_or(0),
+        _ => 0,
+    }
+}
+
+async fn get_local_download_counts_batch(
+    proxy: &DatabaseProxy,
+    center_url: &str,
+    wordbook_ids: &[String],
+) -> std::collections::HashMap<String, i64> {
+    use std::collections::HashMap;
+
+    if wordbook_ids.is_empty() {
+        return HashMap::new();
+    }
+
+    let result = sqlx::query(
+        r#"SELECT "centerWordbookId", "importCount" FROM "wordbook_center_downloads" WHERE "centerUrl" = $1 AND "centerWordbookId" = ANY($2)"#,
+    )
+    .bind(center_url)
+    .bind(wordbook_ids)
+    .fetch_all(proxy.pool())
+    .await;
+
+    match result {
+        Ok(rows) => {
+            let mut map = HashMap::new();
+            for row in rows {
+                if let (Ok(id), Ok(count)) = (
+                    row.try_get::<String, _>("centerWordbookId"),
+                    row.try_get::<i64, _>("importCount"),
+                ) {
+                    map.insert(id, count);
+                }
+            }
+            map
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to fetch batch download counts");
+            HashMap::new()
+        }
+    }
+}
+
+async fn worker_increment_count(center_id: &str, wordbook_id: &str) {
+    let Some(worker_url) = get_counter_worker_url() else {
+        return;
+    };
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/increment", worker_url.trim_end_matches('/'));
+
+    let mut req = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "centerId": center_id,
+            "wordbookId": wordbook_id
+        }))
+        .timeout(std::time::Duration::from_secs(5));
+
+    if let Some(secret) = get_counter_worker_secret() {
+        req = req.header("X-API-Secret", secret);
+    }
+
+    if let Err(e) = req.send().await {
+        tracing::warn!(error = %e, "Failed to call counter worker increment");
+    }
+}
+
+async fn worker_get_counts(center_id: &str, wordbook_ids: &[String]) -> std::collections::HashMap<String, i64> {
+    use std::collections::HashMap;
+
+    let Some(worker_url) = get_counter_worker_url() else {
+        return HashMap::new();
+    };
+
+    if wordbook_ids.is_empty() {
+        return HashMap::new();
+    }
+
+    let client = reqwest::Client::new();
+    let ids_param = wordbook_ids.join(",");
+    let url = format!(
+        "{}/counts?centerId={}&ids={}",
+        worker_url.trim_end_matches('/'),
+        urlencoding::encode(center_id),
+        urlencoding::encode(&ids_param)
+    );
+
+    let resp = match client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to call counter worker get counts");
+            return HashMap::new();
+        }
+    };
+
+    #[derive(Deserialize)]
+    struct WorkerResponse {
+        counts: HashMap<String, i64>,
+    }
+
+    match resp.json::<WorkerResponse>().await {
+        Ok(data) => data.counts,
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to parse counter worker response");
+            HashMap::new()
+        }
+    }
 }
