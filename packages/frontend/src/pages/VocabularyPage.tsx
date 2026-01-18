@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Word, WordBook } from '../types/models';
-import { Books, CircleNotch, MagnifyingGlass, X } from '../components/Icon';
+import { Books, CircleNotch, MagnifyingGlass, X, User } from '../components/Icon';
 import { useToast, Modal } from '../components/ui';
 import { ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
@@ -131,10 +131,17 @@ export default function VocabularyPage() {
           </p>
         )}
 
+        {book.sourceAuthor?.trim() && (
+          <p className="mb-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
+            <User aria-hidden="true" className="mr-1 h-3 w-3" />
+            {book.sourceAuthor.trim()}
+          </p>
+        )}
+
         <div className="mb-3 flex items-center gap-2 text-base text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1">
             <Books size={16} weight="bold" />
-            {book.wordCount} 个单词
+            {book.wordCount} 个单词{book.sourceVersion && ` · v${book.sourceVersion}`}
           </span>
         </div>
       </div>

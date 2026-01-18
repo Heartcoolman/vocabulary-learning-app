@@ -1058,8 +1058,8 @@ async fn import_wordbook(
 
         let insert_result = sqlx::query(
             r#"INSERT INTO "word_books"
-           ("id", "name", "description", "type", "userId", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "importedAt", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4::"WordBookType", $5, $6, 0, $7, $8, $9, $10, NOW(), NOW(), NOW())"#,
+           ("id", "name", "description", "type", "userId", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "sourceAuthor", "importedAt", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4::"WordBookType", $5, $6, 0, $7, $8, $9, $10, $11, NOW(), NOW(), NOW())"#,
         )
         .bind(&wordbook_id)
         .bind(&detail.name)
@@ -1071,6 +1071,7 @@ async fn import_wordbook(
         .bind(&detail.tags)
         .bind(&source_url)
         .bind(&detail.version)
+        .bind(&detail.author)
         .execute(&mut *tx)
         .await;
 
@@ -1225,8 +1226,8 @@ async fn import_wordbook(
 
     let insert_result = sqlx::query(
         r#"INSERT INTO "word_books"
-           ("id", "name", "description", "type", "userId", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "importedAt", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4::"WordBookType", $5, $6, 0, $7, $8, $9, $10, NOW(), NOW(), NOW())"#,
+           ("id", "name", "description", "type", "userId", "isPublic", "wordCount", "coverImage", "tags", "sourceUrl", "sourceVersion", "sourceAuthor", "importedAt", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4::"WordBookType", $5, $6, 0, $7, $8, $9, $10, $11, NOW(), NOW(), NOW())"#,
     )
     .bind(&wordbook_id)
     .bind(&meta.name)
@@ -1238,6 +1239,7 @@ async fn import_wordbook(
     .bind(&meta.tags)
     .bind(&source_url)
     .bind(&meta.version)
+    .bind(&meta.author)
     .execute(&mut *tx)
     .await;
 

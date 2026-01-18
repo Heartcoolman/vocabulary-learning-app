@@ -43,6 +43,8 @@ struct WordBookResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    source_author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     imported_at: Option<String>,
     created_at: String,
     updated_at: String,
@@ -328,6 +330,7 @@ pub async fn create_wordbook(State(state): State<AppState>, req: Request<Body>) 
                 tags: None,
                 source_url: None,
                 source_version: None,
+                source_author: None,
                 imported_at: None,
                 created_at: now_iso.clone(),
                 updated_at: now_iso,
@@ -1123,7 +1126,7 @@ async fn select_word_books(
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
-                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."importedAt",
+                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1137,7 +1140,7 @@ async fn select_word_books(
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
-                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."importedAt",
+                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1151,7 +1154,7 @@ async fn select_word_books(
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
-                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."importedAt",
+                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1183,7 +1186,7 @@ async fn select_word_book_by_id(
         r#"
         SELECT wb."id", wb."name", wb."description", wb."coverImage",
                wb."type"::text as "type", wb."userId", wb."isPublic",
-               wb."tags", wb."sourceUrl", wb."sourceVersion", wb."importedAt",
+               wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
         FROM "word_books" wb
         LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1475,6 +1478,7 @@ fn map_postgres_word_book_row(row: &sqlx::postgres::PgRow) -> WordBookResponse {
         tags: row.try_get::<Option<Vec<String>>, _>("tags").ok().flatten(),
         source_url: row.try_get::<Option<String>, _>("sourceUrl").ok().flatten(),
         source_version: row.try_get::<Option<String>, _>("sourceVersion").ok().flatten(),
+        source_author: row.try_get::<Option<String>, _>("sourceAuthor").ok().flatten(),
         imported_at: imported_at.map(format_naive_iso),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),

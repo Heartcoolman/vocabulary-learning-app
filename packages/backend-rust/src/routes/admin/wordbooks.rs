@@ -44,6 +44,8 @@ struct WordBook {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    source_author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     imported_at: Option<String>,
     created_at: String,
     updated_at: String,
@@ -137,7 +139,7 @@ async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQ
     let offset = (page - 1) * page_size;
 
     let rows = sqlx::query(
-        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","tags","sourceUrl","sourceVersion","importedAt","createdAt","updatedAt"
+        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","tags","sourceUrl","sourceVersion","sourceAuthor","importedAt","createdAt","updatedAt"
            FROM "word_books" WHERE "type" = 'SYSTEM' ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2"#,
     )
     .bind(page_size)
@@ -227,6 +229,7 @@ async fn create_wordbook(
         tags: None,
         source_url: None,
         source_version: None,
+        source_author: None,
         imported_at: None,
         created_at: now_str.clone(),
         updated_at: now_str,
@@ -249,7 +252,7 @@ async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> 
     };
 
     let wb_row = sqlx::query(
-        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","tags","sourceUrl","sourceVersion","importedAt","createdAt","updatedAt"
+        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","tags","sourceUrl","sourceVersion","sourceAuthor","importedAt","createdAt","updatedAt"
            FROM "word_books" WHERE "id" = $1"#,
     )
     .bind(&id)
@@ -595,6 +598,7 @@ fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
         tags: row.try_get::<Option<Vec<String>>, _>("tags").ok().flatten(),
         source_url: row.try_get::<Option<String>, _>("sourceUrl").ok().flatten(),
         source_version: row.try_get::<Option<String>, _>("sourceVersion").ok().flatten(),
+        source_author: row.try_get::<Option<String>, _>("sourceAuthor").ok().flatten(),
         imported_at: imported_at.map(|t| chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(t, chrono::Utc).to_rfc3339()),
         created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
             created_at,

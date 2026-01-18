@@ -59,6 +59,7 @@ export interface WordBook extends BaseEntity {
   tags?: string[];
   sourceUrl?: string | null;
   sourceVersion?: string | null;
+  sourceAuthor?: string | null;
   importedAt?: Timestamp | null;
 }
 
