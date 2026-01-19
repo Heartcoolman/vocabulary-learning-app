@@ -1,0 +1,123 @@
+# ==============================================================================
+# Production Docker Compose - Uses pre-built images from ghcr.io
+# No compilation required on target server
+# ==============================================================================
+
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: danci-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-danci}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-danci_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-vocabulary_db}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-danci} -d ${POSTGRES_DB:-vocabulary_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - danci-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: danci-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - danci-network
+
+  backend-rust:
+    image: ${BACKEND_IMAGE:-ghcr.io/heartcoolman/vocabulary-learning-app/backend:latest}
+    container_name: danci-backend-rust
+    restart: unless-stopped
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-danci}:${POSTGRES_PASSWORD:-danci_secret_2024}@postgres:5432/${POSTGRES_DB:-vocabulary_db}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production_use_random_64_chars}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      WORKER_LEADER: 'true'
+      SQLITE_FALLBACK_ENABLED: ${SQLITE_FALLBACK_ENABLED:-true}
+      SQLITE_FALLBACK_PATH: /app/data/fallback.db
+      DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
+    ports:
+      - '${BACKEND_RUST_PORT:-3001}:3000'
+    volumes:
+      - rust_backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - danci-network
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/heartcoolman/vocabulary-learning-app/backend:latest}
+    container_name: danci-backend
+    restart: unless-stopped
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-danci}:${POSTGRES_PASSWORD:-danci_secret_2024}@postgres:5432/${POSTGRES_DB:-vocabulary_db}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production_use_random_64_chars}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      WORKER_LEADER: 'false'
+      SQLITE_FALLBACK_ENABLED: ${SQLITE_FALLBACK_ENABLED:-true}
+      SQLITE_FALLBACK_PATH: /app/data/fallback.db
+      DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
+    ports:
+      - '${BACKEND_PORT:-3002}:3000'
+    volumes:
+      - rust_backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - danci-network
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/heartcoolman/vocabulary-learning-app/frontend:latest}
+    container_name: danci-frontend
+    restart: unless-stopped
+    ports:
+      - '${FRONTEND_PORT:-5173}:80'
+    depends_on:
+      - backend-rust
+    networks:
+      - danci-network
+
+volumes:
+  postgres_data:
+    name: danci-postgres-data
+  redis_data:
+    name: danci-redis-data
+  rust_backend_data:
+    name: danci-rust-backend-data
+
+networks:
+  danci-network:
+    name: danci-network
+    driver: bridge
