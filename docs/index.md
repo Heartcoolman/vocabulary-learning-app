@@ -14,16 +14,20 @@ hero:
       link: https://github.com/Heartcoolman/vocabulary-learning-app
 
 features:
-  - icon: 🧠
+  - icon:
+      src: /icons/brain.svg
     title: AMAS 智能引擎
     details: 四维状态监测 + LinUCB 算法 + Thompson 采样 + FSRS 调度器，智能优化学习策略
-  - icon: 👁️
+  - icon:
+      src: /icons/eye.svg
     title: 视觉疲劳检测
     details: Rust WASM 加速，EAR/PERCLOS 计算，实时监测眨眼与哈欠，保护学习者健康
-  - icon: 📚
+  - icon:
+      src: /icons/books.svg
     title: 词汇学习功能
     details: 智能单词卡片、词源词根分析、掌握度追踪、学习会话管理
-  - icon: ⚡
+  - icon:
+      src: /icons/lightning.svg
     title: 现代技术栈
     details: React 18 + Rust + PostgreSQL，高性能、类型安全、可扩展
 ---
