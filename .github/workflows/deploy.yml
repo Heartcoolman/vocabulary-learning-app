@@ -75,7 +75,6 @@ jobs:
       - name: Build Frontend
         run: pnpm --filter @danci/frontend build
         env:
-          VITE_API_URL: ${{ secrets.PREVIEW_API_URL }}
           NODE_ENV: production
 
       - name: Deploy to Preview Environment
@@ -209,7 +208,6 @@ jobs:
       - name: Build all packages
         run: pnpm build
         env:
-          VITE_API_URL: ${{ secrets.PRODUCTION_API_URL }}
           NODE_ENV: production
 
       - name: Log in to Container Registry
@@ -262,7 +260,6 @@ jobs:
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           build-args: |
-            VITE_API_URL=${{ secrets.PRODUCTION_API_URL }}
             VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
             VITE_APP_VERSION=${{ github.sha }}
           cache-from: type=gha

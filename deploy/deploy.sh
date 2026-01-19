@@ -70,11 +70,7 @@ JWT_SECRET=${JWT_SECRET}
 RUST_LOG=info
 
 # 端口配置
-BACKEND_PORT=3000
 FRONTEND_PORT=5173
-
-# 跨域配置（根据实际域名修改）
-CORS_ORIGIN=http://${SERVER_IP}:5173
 
 # Docker镜像（默认使用最新版）
 BACKEND_IMAGE=ghcr.io/${GITHUB_REPO}/backend:latest
@@ -118,7 +114,7 @@ sleep 5
 MAX_RETRIES=30
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-  if curl -s http://localhost:3000/health &>/dev/null; then
+  if curl -s http://localhost:5173/health &>/dev/null; then
     echo "✅ 后端服务已就绪"
     break
   fi
@@ -127,13 +123,13 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-  echo "⚠️ 后端启动超时，请检查日志: docker compose logs backend"
+  echo "⚠️ 后端启动超时，请检查日志: docker compose logs backend-rust"
 fi
 
 # 显示迁移日志
 echo ""
 echo "📋 数据库迁移日志："
-docker compose logs backend 2>&1 | grep -E "(migration|Migration|migrat)" | tail -10 || echo "   (无迁移日志)"
+docker compose logs backend-rust 2>&1 | grep -E "(migration|Migration|migrat)" | tail -10 || echo "   (无迁移日志)"
 
 # 校验数据库迁移完成
 echo ""
@@ -157,7 +153,7 @@ done
 
 if [ "$MIGRATION_COUNT" -ne "$EXPECTED_MIGRATIONS" ]; then
   echo "❌ 数据库迁移未完成（${MIGRATION_COUNT}/${EXPECTED_MIGRATIONS}）"
-  echo "   请检查后端日志: docker compose logs backend"
+  echo "   请检查后端日志: docker compose logs backend-rust"
   echo ""
   echo "最近的迁移记录："
   docker compose exec -T postgres psql -U danci -d vocabulary_db -c "SELECT name, applied_at FROM _migrations ORDER BY id DESC LIMIT 5" 2>/dev/null || true
@@ -194,7 +190,6 @@ echo ""
 
 echo "📍 访问地址："
 echo "   前端界面: http://${SERVER_IP}:5173"
-echo "   后端API:  http://${SERVER_IP}:3000"
 echo ""
 echo "📋 常用命令："
 echo "   查看日志:  cd $DEPLOY_DIR && docker compose logs -f"
