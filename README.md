@@ -144,6 +144,35 @@ Danci 是一个现代化的智能单词学习系统，采用先进的 **AMAS (Ad
 
 Zeabur 会自动创建 PostgreSQL、Redis、后端、前端四个服务。
 
+### 服务器一键部署（推荐）
+
+在全新 Linux 服务器上，只需一条命令即可完成部署：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/heartcoolman/vocabulary-learning-app/main/deploy/deploy.sh | sudo bash
+```
+
+此脚本会自动：
+
+- 安装 Docker 和 Docker Compose
+- 下载生产环境配置文件
+- 生成安全的随机密钥（JWT、数据库密码）
+- 拉取预构建的 Docker 镜像
+- 启动所有服务并执行数据库迁移
+- 校验迁移完成状态
+
+部署完成后，访问 `http://服务器IP:5173` 即可使用。
+
+**部署后管理：**
+
+```bash
+cd /opt/danci
+docker compose ps          # 查看状态
+docker compose logs -f     # 查看日志
+docker compose down        # 停止服务
+docker compose pull && docker compose up -d  # 更新版本
+```
+
 ### Docker 部署（推荐）
 
 #### 1. 配置环境变量
@@ -497,6 +526,30 @@ docs: 更新 README 文档
 ## 更新时间轴
 
 ### 2026 年 1 月
+
+#### 2026-01-19 - 一键部署脚本与 CI/CD 优化
+
+**一键部署脚本**
+
+- 新增 `deploy/deploy.sh` 中文一键部署脚本
+- 自动安装 Docker 和 Docker Compose
+- 自动生成安全密钥（JWT、数据库密码）
+- 使用 GitHub 预构建镜像，无需本地编译
+- 等待数据库就绪并校验迁移完成状态
+
+**CI/CD 优化**
+
+- 移除 CI 中的数据库迁移步骤（迁移在后端启动时自动执行）
+- 修复 SQLite 文件在 PostgreSQL 环境执行的问题
+- 修复 Windows 构建时文件名包含冒号的问题
+- 添加 pnpm overrides 解决 zod 版本冲突
+
+**文档更新**
+
+- 更新 `docs/DOCKER.md` 添加一键部署说明
+- 更新 README 添加服务器一键部署指南
+
+---
 
 #### 2026-01-08 - CI/CD 增强与 Native 模块升级 ([PR #52](https://github.com/Heartcoolman/vocabulary-learning-app/pull/52))
 
