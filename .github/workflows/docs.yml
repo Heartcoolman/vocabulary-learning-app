@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'mkdocs.yml'
 
 permissions:
   contents: read
@@ -24,16 +23,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-      - run: pip install mkdocs-material
-      - run: mkdocs build
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm add -D vitepress
+        working-directory: docs
+      - run: pnpm vitepress build
+        working-directory: docs
       - uses: actions/configure-pages@v4
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: docs/.vitepress/dist
       - id: deployment
         uses: actions/deploy-pages@v4
