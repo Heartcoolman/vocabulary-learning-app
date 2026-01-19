@@ -138,13 +138,30 @@ docker compose logs backend 2>&1 | grep -E "(migration|Migration|migrat)" | tail
 # 校验数据库迁移完成
 echo ""
 echo "🔍 校验数据库迁移状态..."
-MIGRATION_COUNT=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM _migrations" 2>/dev/null | tr -d ' ' || echo "0")
+EXPECTED_MIGRATIONS=29
+MAX_RETRIES=30
+RETRY_COUNT=0
 
-if [ "$MIGRATION_COUNT" -ge 20 ]; then
-  echo "✅ 数据库迁移完成（已应用 ${MIGRATION_COUNT} 个迁移）"
-else
-  echo "⚠️ 数据库迁移可能未完成（当前 ${MIGRATION_COUNT} 个迁移）"
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  MIGRATION_COUNT=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM _migrations" 2>/dev/null | tr -d ' ' || echo "0")
+
+  if [ "$MIGRATION_COUNT" -eq "$EXPECTED_MIGRATIONS" ]; then
+    echo "✅ 数据库迁移完成（${MIGRATION_COUNT}/${EXPECTED_MIGRATIONS}）"
+    break
+  fi
+
+  echo "   等待迁移完成... (${MIGRATION_COUNT}/${EXPECTED_MIGRATIONS})"
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  sleep 2
+done
+
+if [ "$MIGRATION_COUNT" -ne "$EXPECTED_MIGRATIONS" ]; then
+  echo "❌ 数据库迁移未完成（${MIGRATION_COUNT}/${EXPECTED_MIGRATIONS}）"
   echo "   请检查后端日志: docker compose logs backend"
+  echo ""
+  echo "最近的迁移记录："
+  docker compose exec -T postgres psql -U danci -d vocabulary_db -c "SELECT name, applied_at FROM _migrations ORDER BY id DESC LIMIT 5" 2>/dev/null || true
+  exit 1
 fi
 
 # 显示结果
