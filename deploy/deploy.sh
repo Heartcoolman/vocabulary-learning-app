@@ -164,6 +164,25 @@ if [ "$MIGRATION_COUNT" -ne "$EXPECTED_MIGRATIONS" ]; then
   exit 1
 fi
 
+# 获取服务器IP
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
+
+# 创建默认管理员账户
+echo ""
+echo "👤 检查管理员账户..."
+ADMIN_EXISTS=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM users WHERE role = 'ADMIN'" 2>/dev/null | tr -d ' ' || echo "0")
+
+if [ "$ADMIN_EXISTS" -eq "0" ]; then
+  echo "   ℹ️  暂无管理员账户"
+  echo ""
+  echo "   📝 创建管理员步骤："
+  echo "   1. 访问 http://${SERVER_IP}:5173 注册新账户"
+  echo "   2. 运行以下命令升级为管理员："
+  echo "      cd $DEPLOY_DIR && docker compose exec postgres psql -U danci -d vocabulary_db -c \"UPDATE users SET role = 'ADMIN' WHERE email = '你的邮箱';\""
+else
+  echo "   ✅ 管理员账户已存在（共 ${ADMIN_EXISTS} 个）"
+fi
+
 # 显示结果
 echo ""
 echo "╔════════════════════════════════════════════╗"
@@ -173,7 +192,6 @@ echo ""
 docker compose ps
 echo ""
 
-SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
 echo "📍 访问地址："
 echo "   前端界面: http://${SERVER_IP}:5173"
 echo "   后端API:  http://${SERVER_IP}:3000"
