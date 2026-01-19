@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm add -D vitepress
+      - run: pnpm install
         working-directory: docs
       - run: pnpm vitepress build
         working-directory: docs

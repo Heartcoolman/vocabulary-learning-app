@@ -1,6 +1,20 @@
 import { defineConfig } from 'vitepress'
+import { getThemeConfig } from '@sugarat/theme/node'
+
+const blogTheme = getThemeConfig({
+  author: 'Danci Team',
+  comment: false,
+  popover: false,
+  friend: false,
+  recommend: false,
+  authorList: false,
+  article: {
+    readingTime: true,
+  },
+})
 
 export default defineConfig({
+  extends: blogTheme,
   title: 'Danci 文档',
   description: '智能单词学习系统 - 基于 AMAS 自适应学习引擎',
   lang: 'zh-CN',
