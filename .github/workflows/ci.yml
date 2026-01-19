@@ -165,6 +165,10 @@ jobs:
             sleep 1
           done
           for sql_file in packages/backend-rust/sql/*.sql; do
+            # Skip SQLite-specific schema file
+            if [[ "$sql_file" == *"sqlite"* ]]; then
+              continue
+            fi
             psql -h localhost -U danci -d danci_test -f "$sql_file" || true
           done
 
