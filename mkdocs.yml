@@ -10,14 +10,14 @@ theme:
   language: zh
   palette:
     - scheme: default
-      primary: teal
-      accent: amber
+      primary: blue
+      accent: blue
       toggle:
         icon: material/brightness-7
         name: 切换到暗黑模式
     - scheme: slate
-      primary: teal
-      accent: amber
+      primary: blue
+      accent: blue
       toggle:
         icon: material/brightness-4
         name: 切换到明亮模式
