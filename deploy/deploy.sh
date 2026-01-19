@@ -18,22 +18,22 @@ fi
 
 # 安装Docker
 if ! command -v docker &> /dev/null; then
-  echo "[1/5] 正在安装 Docker..."
+  echo "[1/6] 正在安装 Docker..."
   curl -fsSL https://get.docker.com | sh
   systemctl enable docker
   systemctl start docker
   echo "✅ Docker 安装完成"
 else
-  echo "[1/5] ✅ Docker 已安装"
+  echo "[1/6] ✅ Docker 已安装"
 fi
 
 # 安装Docker Compose
 if ! docker compose version &> /dev/null; then
-  echo "[2/5] 正在安装 Docker Compose..."
+  echo "[2/6] 正在安装 Docker Compose..."
   apt-get update && apt-get install -y docker-compose-plugin
   echo "✅ Docker Compose 安装完成"
 else
-  echo "[2/5] ✅ Docker Compose 已安装"
+  echo "[2/6] ✅ Docker Compose 已安装"
 fi
 
 # 创建部署目录
@@ -41,12 +41,12 @@ mkdir -p "$DEPLOY_DIR"
 cd "$DEPLOY_DIR"
 
 # 下载配置文件
-echo "[3/5] 正在下载配置文件..."
+echo "[3/6] 正在下载配置文件..."
 curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPO}/main/docker-compose.prod.yml" -o docker-compose.yml
 echo "✅ 配置文件下载完成"
 
 # 生成环境变量
-echo "[4/5] 正在配置环境变量..."
+echo "[4/6] 正在配置环境变量..."
 if [ ! -f .env ]; then
   JWT_SECRET=$(openssl rand -hex 32)
   DB_PASSWORD=$(openssl rand -hex 16)
@@ -76,10 +76,6 @@ FRONTEND_PORT=5173
 # 跨域配置（根据实际域名修改）
 CORS_ORIGIN=http://${SERVER_IP}:5173
 
-# 数据库回退配置
-SQLITE_FALLBACK_ENABLED=true
-DB_FENCING_ENABLED=false
-
 # Docker镜像（默认使用最新版）
 BACKEND_IMAGE=ghcr.io/${GITHUB_REPO}/backend:latest
 FRONTEND_IMAGE=ghcr.io/${GITHUB_REPO}/frontend:latest
@@ -90,15 +86,54 @@ else
 fi
 
 # 拉取镜像并启动
-echo "[5/5] 正在拉取镜像并启动服务..."
+echo "[5/6] 正在拉取镜像并启动服务..."
 docker compose pull
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose up -d
 
-# 等待服务启动
+# 等待数据库就绪
 echo ""
-echo "⏳ 等待服务启动..."
-sleep 10
+echo "[6/6] 正在初始化数据库..."
+echo "⏳ 等待 PostgreSQL 启动..."
+
+MAX_RETRIES=30
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if docker compose exec -T postgres pg_isready -U danci -d vocabulary_db &>/dev/null; then
+    echo "✅ PostgreSQL 已就绪"
+    break
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  sleep 2
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+  echo "⚠️ PostgreSQL 启动超时，请检查日志: docker compose logs postgres"
+fi
+
+# 等待后端完成数据库迁移
+echo "⏳ 等待后端服务启动并执行数据库迁移..."
+sleep 5
+
+MAX_RETRIES=30
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if curl -s http://localhost:3000/health &>/dev/null; then
+    echo "✅ 后端服务已就绪"
+    break
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  sleep 2
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+  echo "⚠️ 后端启动超时，请检查日志: docker compose logs backend"
+fi
+
+# 显示迁移日志
+echo ""
+echo "📋 数据库迁移日志："
+docker compose logs backend 2>&1 | grep -E "(migration|Migration|migrat)" | tail -10 || echo "   (无迁移日志)"
 
 # 显示结果
 echo ""
