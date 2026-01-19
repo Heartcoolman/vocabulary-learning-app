@@ -1,0 +1,71 @@
+site_name: Danci 文档
+site_url: https://heartcoolman.github.io/vocabulary-learning-app/
+site_description: 智能单词学习系统 - 基于 AMAS 自适应学习引擎
+site_author: Danci Team
+repo_name: vocabulary-learning-app
+repo_url: https://github.com/Heartcoolman/vocabulary-learning-app
+
+theme:
+  name: material
+  language: zh
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换到暗黑模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换到明亮模式
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: zh
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - 首页: index.md
+  - 快速开始:
+      - Docker 部署: DOCKER.md
+      - 本地开发: DEVELOPMENT.md
+  - 技术文档:
+      - 系统架构: ARCHITECTURE.md
+      - API 接口: API.md
+      - 组件文档: COMPONENTS.md
+  - 核心算法:
+      - AMAS 引擎: AMAS.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Heartcoolman/vocabulary-learning-app
