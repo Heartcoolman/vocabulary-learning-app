@@ -311,62 +311,19 @@ jobs:
             });
 
   # ============================================
-  # 数据库迁移
-  # ============================================
-  database-migration:
-    name: Database Migration
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: production
-    environment:
-      name: production
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Run database migrations
-        env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-        run: |
-          echo "Running SQL migrations..."
-          # Skip sqlite fallback schema
-          for sql_file in packages/backend-rust/sql/[0-9]*.sql; do
-            if [ -f "$sql_file" ]; then
-              echo "Executing: $(basename $sql_file)"
-              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$sql_file"
-            fi
-          done
-          echo "Migrations completed successfully"
-
-  # ============================================
   # 部署通知
   # ============================================
   notify:
     name: Deployment Notification
     runs-on: ubuntu-latest
-    needs: [production, database-migration]
+    needs: [production]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Send Deployment Notification
         run: |
-          STATUS="success"
-          if [ "${{ needs.production.result }}" == "failure" ] || [ "${{ needs.database-migration.result }}" == "failure" ]; then
-            STATUS="failure"
-          fi
-
+          STATUS="${{ needs.production.result }}"
           echo "Deployment status: $STATUS"
-
-          # 发送通知到 Slack/Discord/飞书等
-          # curl -X POST -H 'Content-type: application/json' \
-          #   --data '{"text":"Production deployment '$STATUS' for commit ${{ github.sha }}"}' \
-          #   ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Create Release Tag (on success)
         if: needs.production.result == 'success'
