@@ -1,273 +1,303 @@
 /* ========================================
- * Danci 文档自定义样式
- * 与项目 G3 设计系统保持一致
+ * Danci 文档自定义样式 - Cloudreve 风格复刻
  * ======================================== */
 
 :root {
-  /* 主色调 - 与项目 blue-500/600 一致 */
-  --md-primary-fg-color: #3b82f6;
-  --md-primary-fg-color--light: #60a5fa;
-  --md-primary-fg-color--dark: #2563eb;
-  --md-accent-fg-color: #3b82f6;
+  /* Cloudreve 风格主色调 - Indigo/Blue */
+  --md-primary-fg-color: #3f51b5;
+  --md-primary-fg-color--light: #7986cb;
+  --md-primary-fg-color--dark: #303f9f;
+  --md-accent-fg-color: #3f51b5;
 
-  /* 字体系统 - 与项目一致 */
+  /* 字体系统 - 清晰易读 */
   --md-text-font:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
-    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  --md-code-font:
-    'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', 'Source Code Pro', monospace;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
+    'Helvetica Neue', sans-serif;
+  --md-code-font: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, 'Roboto Mono', monospace;
 
-  /* 圆角 - G3 设计规范 */
-  --md-border-radius: 0.75rem;
-}
-
-/* 浅色模式背景 */
-[data-md-color-scheme='default'] {
-  --md-default-bg-color: #f9fafb;
-  --md-default-bg-color--light: #ffffff;
-}
-
-/* 深色模式背景 - 与项目 slate 色系一致 */
-[data-md-color-scheme='slate'] {
-  --md-default-bg-color: #0f172a;
-  --md-default-bg-color--light: #1e293b;
-  --md-primary-fg-color: #60a5fa;
-  --md-accent-fg-color: #60a5fa;
+  /* 全局圆角 */
+  --md-border-radius: 8px;
 }
 
 /* ========================================
- * 卡片样式 - G3 阴影系统
+ * 全局背景与布局
  * ======================================== */
 
-.md-content {
-  background: var(--md-default-bg-color--light);
-  border-radius: 1rem;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    0 4px 16px rgba(0, 0, 0, 0.04);
-  margin: 1rem;
-  padding: 1.5rem;
+/* 浅色模式 */
+[data-md-color-scheme='default'] {
+  --md-default-bg-color: #f5f7fa; /* 略带灰色的背景，突出卡片 */
+  --md-default-fg-color--lightest: #e0e0e0;
 }
 
-[data-md-color-scheme='slate'] .md-content {
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    0 4px 16px rgba(0, 0, 0, 0.2);
+/* 深色模式 */
+[data-md-color-scheme='slate'] {
+  --md-default-bg-color: #1a1b26; /* 现代深色编辑器风格背景 */
+  --md-default-bg-color--light: #24283b;
+  --md-primary-fg-color: #7aa2f7;
+  --md-accent-fg-color: #7aa2f7;
+}
+
+/* 内容卡片化 */
+.md-content {
+  margin-top: 1.5rem;
+}
+
+/* 仅在宽屏下启用卡片效果 */
+@media screen and (min-width: 76.25em) {
+  .md-content {
+    background-color: var(--md-default-bg-color--light);
+    border-radius: var(--md-border-radius);
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 2rem;
+  }
+
+  [data-md-color-scheme='default'] .md-content {
+    background-color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
 }
 
 /* ========================================
- * 导航栏样式
+ * 导航栏 (Header)
  * ======================================== */
 
 .md-header {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+  background-color: #fff;
+  color: #333;
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+[data-md-color-scheme='default'] .md-header {
+  background: #3f51b5; /* Cloudreve 经典蓝 */
+  color: #fff;
 }
 
 [data-md-color-scheme='slate'] .md-header {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  background-color: #1a1b26;
+  border-bottom: 1px solid #2f334d;
 }
 
-/* ========================================
- * 按钮样式 - G3 按钮规范
- * ======================================== */
+/* 顶部 Tabs 导航 */
+.md-tabs {
+  background-color: #3f51b5;
+  color: #fff;
+}
 
-.md-button {
-  border-radius: 0.75rem;
+[data-md-color-scheme='slate'] .md-tabs {
+  background-color: #1a1b26;
+  border-bottom: 1px solid #2f334d;
+}
+
+.md-tabs__link {
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.md-tabs__link:hover,
+.md-tabs__link--active {
+  opacity: 1;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-}
-
-.md-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.md-button:active {
-  transform: scale(0.98);
-}
-
-.md-button--primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border: none;
-}
-
-.md-button--primary:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 /* ========================================
- * 代码块样式
+ * 侧边栏
  * ======================================== */
 
-.highlight code,
-code {
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.md-typeset pre {
-  border-radius: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-[data-md-color-scheme='slate'] .md-typeset pre {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* ========================================
- * 表格样式
- * ======================================== */
-
-.md-typeset table:not([class]) {
-  border-radius: 0.75rem;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.md-typeset table:not([class]) th {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  font-weight: 600;
-}
-
-[data-md-color-scheme='slate'] .md-typeset table:not([class]) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-[data-md-color-scheme='slate'] .md-typeset table:not([class]) th {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-}
-
-/* ========================================
- * 侧边栏样式
- * ======================================== */
-
-.md-nav__link {
-  border-radius: 0.5rem;
-  transition: all 0.15s ease;
-}
-
-.md-nav__link:hover {
-  background: rgba(59, 130, 246, 0.08);
+.md-sidebar--primary {
+  padding-top: 1rem;
 }
 
 .md-nav__link--active {
-  background: rgba(59, 130, 246, 0.12);
+  font-weight: 600;
   color: var(--md-primary-fg-color);
+}
+
+.md-nav__item .md-nav__link--active::before {
+  background-color: var(--md-primary-fg-color);
+}
+
+/* ========================================
+ * 按钮与交互元素
+ * ======================================== */
+
+.md-button {
+  border-radius: 4px;
   font-weight: 500;
+  transition: all 0.2s;
+}
+
+.md-button--primary {
+  background-color: var(--md-primary-fg-color);
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.md-button--primary:hover {
+  background-color: var(--md-primary-fg-color--dark);
+  border-color: var(--md-primary-fg-color--dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
 
 /* ========================================
- * 搜索框样式
+ * Admonitions (提示框)
  * ======================================== */
 
-.md-search__input {
-  border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
+.md-typeset .admonition {
+  border-radius: var(--md-border-radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid transparent;
+  border-left-width: 4px;
 }
 
-.md-search__input:focus {
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-}
-
-/* ========================================
- * Admonition 样式 (提示框)
- * ======================================== */
-
-.md-typeset .admonition,
-.md-typeset details {
-  border-radius: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: none;
-  border-left: 4px solid;
-}
-
-.md-typeset .admonition-title,
-.md-typeset summary {
-  border-radius: 0.75rem 0.75rem 0 0;
+.md-typeset .admonition-title {
+  border-top-left-radius: var(--md-border-radius);
+  border-top-right-radius: var(--md-border-radius);
   font-weight: 600;
 }
 
-/* ========================================
- * 页脚样式
- * ======================================== */
+/* Note/Info 蓝色 */
+.md-typeset .admonition.note,
+.md-typeset .admonition.info {
+  border-color: rgba(63, 81, 181, 0.2);
+  border-left-color: #3f51b5;
+  background-color: rgba(63, 81, 181, 0.05);
+}
 
-.md-footer {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+.md-typeset .admonition.note .admonition-title,
+.md-typeset .admonition.info .admonition-title {
+  background-color: rgba(63, 81, 181, 0.1);
+  color: #303f9f;
+}
+
+/* Tip/Success 绿色 */
+.md-typeset .admonition.tip,
+.md-typeset .admonition.success {
+  border-color: rgba(76, 175, 80, 0.2);
+  border-left-color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+.md-typeset .admonition.tip .admonition-title,
+.md-typeset .admonition.success .admonition-title {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #2e7d32;
+}
+
+/* Warning/Attention 橙色 */
+.md-typeset .admonition.warning,
+.md-typeset .admonition.attention {
+  border-color: rgba(255, 152, 0, 0.2);
+  border-left-color: #ff9800;
+  background-color: rgba(255, 152, 0, 0.05);
+}
+
+.md-typeset .admonition.warning .admonition-title,
+.md-typeset .admonition.attention .admonition-title {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #ef6c00;
+}
+
+/* Danger/Error 红色 */
+.md-typeset .admonition.danger,
+.md-typeset .admonition.error,
+.md-typeset .admonition.failure {
+  border-color: rgba(244, 67, 54, 0.2);
+  border-left-color: #f44336;
+  background-color: rgba(244, 67, 54, 0.05);
+}
+
+.md-typeset .admonition.danger .admonition-title,
+.md-typeset .admonition.error .admonition-title,
+.md-typeset .admonition.failure .admonition-title {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #c62828;
 }
 
 /* ========================================
- * 滚动条样式 - 与项目一致
+ * 代码块
+ * ======================================== */
+
+.md-typeset pre > code {
+  font-family: var(--md-code-font);
+  border-radius: var(--md-border-radius);
+}
+
+/* 行内代码 */
+.md-typeset code {
+  color: #e91e63; /* Pink for inline code, stands out */
+  background-color: rgba(233, 30, 99, 0.08);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+[data-md-color-scheme='slate'] .md-typeset code {
+  color: #ff7597;
+  background-color: rgba(255, 117, 151, 0.1);
+}
+
+/* ========================================
+ * 表格
+ * ======================================== */
+
+.md-typeset table:not([class]) {
+  border-radius: var(--md-border-radius);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: inline-block;
+  max-width: 100%;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: #f5f5f5;
+  color: #333;
+  font-weight: 600;
+}
+
+[data-md-color-scheme='slate'] .md-typeset table:not([class]) th {
+  background-color: #24283b;
+  color: #e0e0e0;
+}
+
+/* ========================================
+ * 滚动条优化
  * ======================================== */
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.3);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5);
-}
-
-[data-md-color-scheme='slate']::-webkit-scrollbar-thumb {
-  background: rgba(96, 165, 250, 0.3);
-}
-
-[data-md-color-scheme='slate']::-webkit-scrollbar-thumb:hover {
-  background: rgba(96, 165, 250, 0.5);
+[data-md-color-scheme='slate'] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* ========================================
- * 选中文字样式
+ * 页脚
  * ======================================== */
 
-::selection {
-  background: rgba(59, 130, 246, 0.2);
-  color: inherit;
+.md-footer {
+  background-color: #f5f5f5;
 }
 
-/* ========================================
- * 链接样式
- * ======================================== */
-
-.md-typeset a {
-  transition: color 0.15s ease;
+[data-md-color-scheme='default'] .md-footer-meta {
+  background-color: #f5f5f5;
+  color: #666;
 }
 
-.md-typeset a:hover {
-  color: var(--md-primary-fg-color--dark);
-}
-
-/* ========================================
- * Tab 标签样式
- * ======================================== */
-
-.md-typeset .tabbed-labels > label {
-  border-radius: 0.5rem 0.5rem 0 0;
-  font-weight: 500;
-}
-
-/* ========================================
- * 目录样式 (TOC)
- * ======================================== */
-
-.md-nav--secondary .md-nav__link {
-  font-size: 0.8125rem;
-}
-
-.md-nav--secondary .md-nav__link--active {
-  border-left: 2px solid var(--md-primary-fg-color);
-  padding-left: calc(0.6rem - 2px);
+[data-md-color-scheme='slate'] .md-footer {
+  background-color: #1a1b26;
 }

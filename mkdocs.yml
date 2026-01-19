@@ -4,6 +4,7 @@ site_description: 智能单词学习系统 - 基于 AMAS 自适应学习引擎
 site_author: Danci Team
 repo_name: vocabulary-learning-app
 repo_url: https://github.com/Heartcoolman/vocabulary-learning-app
+copyright: Copyright &copy; 2024 Danci Team
 
 theme:
   name: material
@@ -11,14 +12,14 @@ theme:
   font: false
   palette:
     - scheme: default
-      primary: blue
-      accent: blue
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/brightness-7
         name: 切换到暗黑模式
     - scheme: slate
-      primary: blue
-      accent: blue
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/brightness-4
         name: 切换到明亮模式
@@ -26,14 +27,17 @@ theme:
     - navigation.instant
     - navigation.tracking
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
     - navigation.top
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.code.annotate
   icon:
+    logo: material/library
     repo: fontawesome/brands/github
 
 extra_css:
@@ -54,23 +58,28 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - tables
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
   - toc:
       permalink: true
 
 nav:
   - 首页: index.md
   - 快速开始:
+      - 概览: GUIDE.md
       - Docker 部署: DOCKER.md
       - 本地开发: DEVELOPMENT.md
       - 部署配置: DEPLOY.md
-  - 使用教程: GUIDE.md
   - 技术文档:
       - 系统架构: ARCHITECTURE.md
       - API 接口: API.md
       - 组件文档: COMPONENTS.md
   - 核心算法:
       - AMAS 引擎: AMAS.md
-  - 更新日志: CHANGELOG.md
+  - 关于:
+      - 更新日志: CHANGELOG.md
+      - 计划: PLAN_CURRENT_PROJECT.md
 
 extra:
   social:
