@@ -1,273 +1,43 @@
-/* ========================================
- * Danci 文档自定义样式
- * 与项目 G3 设计系统保持一致
- * ======================================== */
-
 :root {
-  /* 主色调 - 与项目 blue-500/600 一致 */
   --vp-c-brand-1: #3b82f6;
   --vp-c-brand-2: #2563eb;
   --vp-c-brand-3: #1d4ed8;
   --vp-c-brand-soft: rgba(59, 130, 246, 0.14);
-
-  /* 字体系统 - 与项目一致 */
-  --vp-font-family-base:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
-    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  --vp-font-family-mono:
-    'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', 'Source Code Pro', monospace;
-
-  /* 圆角 - G3 设计规范 */
-  --vp-border-radius: 12px;
 }
 
-/* 深色模式 - 与项目 slate 色系一致 */
 .dark {
   --vp-c-bg: #0f172a;
   --vp-c-bg-soft: #1e293b;
   --vp-c-bg-mute: #334155;
-  --vp-c-brand-1: #60a5fa;
-  --vp-c-brand-2: #3b82f6;
-  --vp-c-brand-3: #2563eb;
 }
-
-/* ========================================
- * 导航栏样式
- * ======================================== */
-
-.VPNav {
-  background: linear-gradient(
-    135deg,
-    rgba(59, 130, 246, 0.95) 0%,
-    rgba(37, 99, 235, 0.95) 100%
-  ) !important;
-  backdrop-filter: blur(12px);
-}
-
-.dark .VPNav {
-  background: linear-gradient(
-    135deg,
-    rgba(30, 58, 138, 0.95) 0%,
-    rgba(30, 64, 175, 0.95) 100%
-  ) !important;
-}
-
-.VPNavBarTitle .title {
-  color: white !important;
-}
-
-.VPNavBarMenuLink {
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-.VPNavBarMenuLink:hover {
-  color: white !important;
-}
-
-/* ========================================
- * 按钮样式 - G3 按钮规范
- * ======================================== */
-
-.VPButton.brand {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.VPButton.brand:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
-}
-
-.VPButton.alt {
-  border-radius: 12px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.VPButton.alt:hover {
-  transform: translateY(-2px);
-}
-
-/* ========================================
- * 卡片样式 - G3 阴影系统
- * ======================================== */
-
-.VPFeature {
-  border-radius: 16px !important;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    0 4px 16px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.VPFeature:hover {
-  transform: translateY(-4px);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.08),
-    0 16px 48px rgba(0, 0, 0, 0.08);
-}
-
-.dark .VPFeature {
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.dark .VPFeature:hover {
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.3),
-    0 16px 48px rgba(0, 0, 0, 0.3);
-}
-
-/* ========================================
- * 侧边栏样式
- * ======================================== */
-
-.VPSidebarItem .link {
-  border-radius: 8px;
-  transition: all 0.15s ease;
-}
-
-.VPSidebarItem .link:hover {
-  background: rgba(59, 130, 246, 0.08);
-}
-
-.VPSidebarItem .link.active {
-  background: rgba(59, 130, 246, 0.12);
-  color: var(--vp-c-brand-1);
-  font-weight: 500;
-}
-
-/* ========================================
- * 代码块样式
- * ======================================== */
-
-.vp-code-group .tabs label {
-  border-radius: 8px 8px 0 0;
-}
-
-div[class*='language-'] {
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.dark div[class*='language-'] {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* ========================================
- * 表格样式
- * ======================================== */
-
-.vp-doc table {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.vp-doc th {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  font-weight: 600;
-}
-
-.dark .vp-doc table {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.dark .vp-doc th {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-}
-
-/* ========================================
- * 搜索框样式
- * ======================================== */
-
-.VPNavBarSearch .search-button {
-  border-radius: 10px;
-}
-
-/* ========================================
- * Hero 区域样式
- * ======================================== */
 
 .VPHero .name {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.VPHero .tagline {
-  color: var(--vp-c-text-2);
+.VPButton.brand {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
 }
 
-/* ========================================
- * 滚动条样式
- * ======================================== */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.VPButton.brand:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+.VPFeature {
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.3);
-  border-radius: 4px;
+.VPFeature:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(96, 165, 250, 0.3);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(96, 165, 250, 0.5);
-}
-
-/* ========================================
- * 选中文字样式
- * ======================================== */
-
-::selection {
-  background: rgba(59, 130, 246, 0.2);
-  color: inherit;
-}
-
-/* ========================================
- * 提示框样式 (custom containers)
- * ======================================== */
-
-.custom-block {
-  border-radius: 12px;
-}
-
-.custom-block.tip {
-  border-color: var(--vp-c-brand-1);
-}
-
-.custom-block.warning {
-  border-color: #f59e0b;
-}
-
-.custom-block.danger {
-  border-color: #ef4444;
-}
-
-/* ========================================
- * 页脚样式
- * ======================================== */
-
-.VPFooter {
-  border-top: 1px solid var(--vp-c-divider);
+.dark .VPFeature:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
 }
