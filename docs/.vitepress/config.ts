@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitepress'
-import { getThemeConfig } from '@sugarat/theme/node'
+import { defineConfig } from 'vitepress';
+import { getThemeConfig } from '@sugarat/theme/node';
 
 const blogTheme = getThemeConfig({
   author: 'Danci Team',
@@ -11,7 +11,7 @@ const blogTheme = getThemeConfig({
   article: {
     readingTime: true,
   },
-})
+});
 
 export default defineConfig({
   extends: blogTheme,
@@ -19,9 +19,7 @@ export default defineConfig({
   description: '智能单词学习系统 - 基于 AMAS 自适应学习引擎',
   lang: 'zh-CN',
   base: '/vocabulary-learning-app/',
-  ignoreDeadLinks: [
-    /^https?:\/\/localhost/,
-  ],
+  ignoreDeadLinks: [/^https?:\/\/localhost/],
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/vocabulary-learning-app/logo.svg' }],
@@ -50,9 +48,7 @@ export default defineConfig({
       },
       {
         text: '使用教程',
-        items: [
-          { text: '用户指南', link: '/GUIDE' },
-        ],
+        items: [{ text: '用户指南', link: '/GUIDE' }],
       },
       {
         text: '技术文档',
@@ -64,15 +60,11 @@ export default defineConfig({
       },
       {
         text: '核心算法',
-        items: [
-          { text: 'AMAS 引擎', link: '/AMAS' },
-        ],
+        items: [{ text: 'AMAS 引擎', link: '/AMAS' }],
       },
       {
         text: '更新日志',
-        items: [
-          { text: '变更记录', link: '/CHANGELOG' },
-        ],
+        items: [{ text: '变更记录', link: '/CHANGELOG' }],
       },
     ],
 
@@ -123,4 +115,4 @@ export default defineConfig({
     sidebarMenuLabel: '菜单',
     returnToTopLabel: '回到顶部',
   },
-})
+});
