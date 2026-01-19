@@ -135,6 +135,18 @@ echo ""
 echo "📋 数据库迁移日志："
 docker compose logs backend 2>&1 | grep -E "(migration|Migration|migrat)" | tail -10 || echo "   (无迁移日志)"
 
+# 校验数据库迁移完成
+echo ""
+echo "🔍 校验数据库迁移状态..."
+MIGRATION_COUNT=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM _migrations" 2>/dev/null | tr -d ' ' || echo "0")
+
+if [ "$MIGRATION_COUNT" -ge 20 ]; then
+  echo "✅ 数据库迁移完成（已应用 ${MIGRATION_COUNT} 个迁移）"
+else
+  echo "⚠️ 数据库迁移可能未完成（当前 ${MIGRATION_COUNT} 个迁移）"
+  echo "   请检查后端日志: docker compose logs backend"
+fi
+
 # 显示结果
 echo ""
 echo "╔════════════════════════════════════════════╗"
