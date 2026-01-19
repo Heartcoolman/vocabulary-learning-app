@@ -30,6 +30,11 @@
     "preview": "pnpm --filter @danci/frontend preview",
     "prepare": "husky"
   },
+  "pnpm": {
+    "overrides": {
+      "zod": "3.25.76"
+    }
+  },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
