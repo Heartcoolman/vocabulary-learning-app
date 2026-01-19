@@ -493,7 +493,7 @@ jobs:
           done
 
           echo "Executing SQL migrations..."
-          for sql_file in packages/backend-rust/sql/*.sql; do
+          for sql_file in packages/backend-rust/sql/[0-9]*.sql; do
             echo "Executing: $(basename $sql_file)"
             psql -h localhost -U danci -d danci_test -f "$sql_file" -v ON_ERROR_STOP=1
           done
