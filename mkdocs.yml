@@ -8,6 +8,7 @@ repo_url: https://github.com/Heartcoolman/vocabulary-learning-app
 theme:
   name: material
   language: zh
+  font: false
   palette:
     - scheme: default
       primary: blue
@@ -34,6 +35,9 @@ theme:
     - content.code.annotate
   icon:
     repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/custom.css
 
 plugins:
   - search:
