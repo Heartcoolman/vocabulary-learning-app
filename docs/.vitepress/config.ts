@@ -5,6 +5,9 @@ export default defineConfig({
   description: '智能单词学习系统 - 基于 AMAS 自适应学习引擎',
   lang: 'zh-CN',
   base: '/vocabulary-learning-app/',
+  ignoreDeadLinks: [
+    /^https?:\/\/localhost/,
+  ],
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/vocabulary-learning-app/logo.svg' }],
