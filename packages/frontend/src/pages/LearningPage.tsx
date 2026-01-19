@@ -24,6 +24,7 @@ import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
 import { useTestOptionsGenerator } from '../hooks/useTestOptions';
+import { useStudyConfig } from '../hooks/queries/useStudyConfig';
 import { trackingService } from '../services/TrackingService';
 import { apiLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
@@ -55,6 +56,10 @@ export default function LearningPage() {
       isExplainabilityOpen,
       isFatigueAlertOpen,
     ]);
+
+  // 获取用户学习配置
+  const { data: studyConfig } = useStudyConfig();
+  const targetWordCount = studyConfig?.dailyWordCount ?? 20;
 
   // 视觉疲劳状态
   const { enabled: fatigueEnabled, metrics: fatigueMetrics } = useVisualFatigueStore();
@@ -110,7 +115,7 @@ export default function LearningPage() {
     error,
     latestAmasResult,
   } = useMasteryLearning({
-    targetMasteryCount: 20,
+    targetMasteryCount: targetWordCount,
     getDialogPausedTime,
     resetDialogPausedTime,
   });

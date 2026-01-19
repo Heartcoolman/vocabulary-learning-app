@@ -138,11 +138,13 @@ vi.mock('../../hooks/queries/useWordBooks', () => ({
   useSystemWordBooks: () => mockUseSystemWordBooks(),
   useUserWordBooks: () => mockUseUserWordBooks(),
   useSearchWords: (query: string) => mockUseSearchWords(query),
+  useWordBookUpdates: () => ({ data: [], isLoading: false }),
 }));
 
 vi.mock('../../hooks/mutations/useWordBookMutations', () => ({
   useCreateWordBook: () => mockUseCreateWordBook(),
   useDeleteWordBook: () => mockUseDeleteWordBook(),
+  useSyncWordBook: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 // 创建测试用的 QueryClient

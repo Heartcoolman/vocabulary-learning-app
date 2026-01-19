@@ -54,6 +54,21 @@ export interface ImportResult {
   message: string;
 }
 
+export interface UpdateInfo {
+  id: string;
+  name: string;
+  currentVersion: string | null;
+  newVersion: string;
+  hasUpdate: boolean;
+}
+
+export interface SyncResult {
+  wordbookId: string;
+  upsertedCount: number;
+  deletedCount: number;
+  message: string;
+}
+
 export class WordBookCenterClient extends BaseClient {
   async getConfig(): Promise<CenterConfigResponse> {
     return this.request<CenterConfigResponse>('/api/wordbook-center/config');
@@ -91,6 +106,16 @@ export class WordBookCenterClient extends BaseClient {
     return this.request<ImportResult>(`/api/wordbook-center/import/${id}`, {
       method: 'POST',
       body: JSON.stringify({ targetType }),
+    });
+  }
+
+  async getUpdates(): Promise<UpdateInfo[]> {
+    return this.request<UpdateInfo[]>('/api/wordbook-center/updates');
+  }
+
+  async syncWordBook(id: string): Promise<SyncResult> {
+    return this.request<SyncResult>(`/api/wordbook-center/updates/${id}/sync`, {
+      method: 'POST',
     });
   }
 }

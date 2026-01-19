@@ -126,6 +126,18 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "026_fix_wordbook_center_default_url",
             include_str!("../../sql/026_fix_wordbook_center_default_url.sql"),
         ),
+        (
+            "027_wordbook_center_downloads",
+            include_str!("../../sql/027_wordbook_center_downloads.sql"),
+        ),
+        (
+            "028_wordbook_source_author",
+            include_str!("../../sql/028_wordbook_source_author.sql"),
+        ),
+        (
+            "029_words_soft_delete",
+            include_str!("../../sql/029_words_soft_delete.sql"),
+        ),
     ];
 
     let mut applied_count = 0;

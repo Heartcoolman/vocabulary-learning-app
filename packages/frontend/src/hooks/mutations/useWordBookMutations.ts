@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '../../lib/queryKeys';
-import { wordBookClient, wordClient } from '../../services/client';
+import { wordBookClient, wordClient, wordBookCenterClient } from '../../services/client';
+import type { SyncResult } from '../../services/client';
 
 import type { WordBook } from '../../types/models';
 
@@ -208,6 +209,30 @@ export function useBatchImportWords() {
       // 使词书详情失效
       queryClient.invalidateQueries({
         queryKey: queryKeys.wordbooks.detail(variables.wordBookId),
+      });
+    },
+  });
+}
+
+/**
+ * 同步词书更新的 Mutation Hook
+ */
+export function useSyncWordBook() {
+  const queryClient = useQueryClient();
+
+  return useMutation<SyncResult, Error, string>({
+    mutationFn: (wordbookId: string) => wordBookCenterClient.syncWordBook(wordbookId),
+    onSuccess: (result) => {
+      // 使更新列表失效
+      queryClient.invalidateQueries({ queryKey: ['wordbook-center', 'updates'] });
+      // 使词书列表失效
+      queryClient.invalidateQueries({ queryKey: queryKeys.wordbooks.lists() });
+      // 使特定词书详情失效
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.wordbooks.detail(result.wordbookId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.wordbooks.detail(result.wordbookId), 'words'],
       });
     },
   });

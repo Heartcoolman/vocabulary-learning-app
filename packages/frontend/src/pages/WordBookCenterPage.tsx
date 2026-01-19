@@ -258,10 +258,7 @@ export default function WordBookCenterPage() {
               </div>
             ) : (
               <main>
-                <div
-                  className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-                  aria-label="词书列表"
-                >
+                <div className="flex flex-col gap-2" aria-label="词书列表">
                   {filteredWordbooks.map((wordbook) => (
                     <CenterWordBookCard
                       key={wordbook.id}

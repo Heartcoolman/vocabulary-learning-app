@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Word, WordBook } from '../types/models';
 import { Books, CircleNotch, MagnifyingGlass, X, User } from '../components/Icon';
@@ -9,8 +9,15 @@ import {
   useSystemWordBooks,
   useUserWordBooks,
   useSearchWords,
+  useWordBookUpdates,
 } from '../hooks/queries/useWordBooks';
-import { useCreateWordBook, useDeleteWordBook } from '../hooks/mutations/useWordBookMutations';
+import {
+  useCreateWordBook,
+  useDeleteWordBook,
+  useSyncWordBook,
+} from '../hooks/mutations/useWordBookMutations';
+import { UpdateBadge, UpdateConfirmModal } from '../components/wordbook-center';
+import type { UpdateInfo } from '../services/client';
 
 // 搜索结果类型
 type SearchResult = Word & { wordBook?: { id: string; name: string; type: string } };
@@ -35,6 +42,12 @@ export default function VocabularyPage() {
     },
   );
 
+  // 更新弹窗状态
+  const [updateModal, setUpdateModal] = useState<{ isOpen: boolean; update: UpdateInfo | null }>({
+    isOpen: false,
+    update: null,
+  });
+
   // 搜索相关状态
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -54,6 +67,17 @@ export default function VocabularyPage() {
 
   const createWordBookMutation = useCreateWordBook();
   const deleteWordBookMutation = useDeleteWordBook();
+  const syncWordBookMutation = useSyncWordBook();
+
+  // 获取更新信息
+  const { data: updates = [] } = useWordBookUpdates();
+
+  // 构建更新映射表
+  const updateMap = useMemo(() => {
+    const map = new Map<string, UpdateInfo>();
+    updates.filter((u) => u.hasUpdate).forEach((u) => map.set(u.id, u));
+    return map;
+  }, [updates]);
 
   const isLoading = isLoadingSystem || isLoadingUser;
   const error = systemError || userError;
@@ -109,66 +133,101 @@ export default function VocabularyPage() {
     }
   };
 
-  const renderWordBookCard = (book: WordBook, isUserBook: boolean) => (
-    <div
-      key={book.id}
-      className="animate-g3-fade-in cursor-pointer rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-elevated dark:border-slate-700/60 dark:bg-slate-800/80"
-    >
-      {/* 词书信息 */}
-      <div onClick={() => navigate(`/wordbooks/${book.id}`)}>
-        <div className="mb-2 flex items-start justify-between">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">{book.name}</h3>
-          {!isUserBook && (
-            <span className="rounded bg-blue-100 px-2 py-1 text-sm text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-              系统词库
+  const handleSyncWordBook = async () => {
+    if (!updateModal.update) return;
+    try {
+      const result = await syncWordBookMutation.mutateAsync(updateModal.update.id);
+      toast.success(
+        `更新成功：新增/更新 ${result.upsertedCount} 词，移除 ${result.deletedCount} 词`,
+      );
+      setUpdateModal({ isOpen: false, update: null });
+    } catch (err) {
+      uiLogger.error({ err, wordbookId: updateModal.update.id }, '同步词书失败');
+      toast.error(err instanceof Error ? err.message : '同步失败');
+    }
+  };
+
+  const renderWordBookCard = (book: WordBook, isUserBook: boolean) => {
+    const update = updateMap.get(book.id);
+    return (
+      <div
+        key={book.id}
+        className="flex h-full animate-g3-fade-in cursor-pointer flex-col rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-elevated dark:border-slate-700/60 dark:bg-slate-800/80"
+      >
+        {/* 词书信息 */}
+        <div onClick={() => navigate(`/wordbooks/${book.id}`)} className="flex flex-1 flex-col">
+          <div className="mb-2 flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{book.name}</h3>
+              {update && (
+                <UpdateBadge
+                  currentVersion={update.currentVersion}
+                  newVersion={update.newVersion}
+                />
+              )}
+            </div>
+            {!isUserBook && (
+              <span className="flex-shrink-0 rounded bg-blue-100 px-2 py-1 text-sm text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                系统词库
+              </span>
+            )}
+          </div>
+
+          <p className="mb-3 line-clamp-2 min-h-[2.5rem] text-base text-gray-600 dark:text-gray-400">
+            {book.description || '\u00A0'}
+          </p>
+
+          {book.sourceAuthor?.trim() && (
+            <p className="mb-2 flex items-center truncate text-sm text-gray-500 dark:text-gray-400">
+              <User aria-hidden="true" className="mr-1 h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{book.sourceAuthor.trim()}</span>
+            </p>
+          )}
+
+          <div className="mb-3 mt-auto flex items-center gap-2 text-base text-gray-500 dark:text-gray-400">
+            <span className="flex items-center gap-1">
+              <Books size={16} weight="bold" />
+              {book.wordCount} 个单词{book.sourceVersion && ` · v${book.sourceVersion}`}
             </span>
+          </div>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/wordbooks/${book.id}`)}
+            className="flex-1 rounded-button bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
+          >
+            查看详情
+          </button>
+
+          {update && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setUpdateModal({ isOpen: true, update });
+              }}
+              className="rounded-button bg-green-50 px-4 py-2 text-green-600 transition-all duration-g3-fast hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+            >
+              更新
+            </button>
+          )}
+
+          {isUserBook && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openDeleteConfirm(book.id, book.name);
+              }}
+              className="rounded-button bg-red-50 px-4 py-2 text-red-600 transition-all duration-g3-fast hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+            >
+              删除
+            </button>
           )}
         </div>
-
-        {book.description && (
-          <p className="mb-3 line-clamp-2 text-base text-gray-600 dark:text-gray-400">
-            {book.description}
-          </p>
-        )}
-
-        {book.sourceAuthor?.trim() && (
-          <p className="mb-2 flex items-center truncate text-sm text-gray-500 dark:text-gray-400">
-            <User aria-hidden="true" className="mr-1 h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{book.sourceAuthor.trim()}</span>
-          </p>
-        )}
-
-        <div className="mb-3 flex items-center gap-2 text-base text-gray-500 dark:text-gray-400">
-          <span className="flex items-center gap-1">
-            <Books size={16} weight="bold" />
-            {book.wordCount} 个单词{book.sourceVersion && ` · v${book.sourceVersion}`}
-          </span>
-        </div>
       </div>
-
-      {/* 操作按钮 */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => navigate(`/wordbooks/${book.id}`)}
-          className="flex-1 rounded-button bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
-        >
-          查看详情
-        </button>
-
-        {isUserBook && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openDeleteConfirm(book.id, book.name);
-            }}
-            className="rounded-button bg-red-50 px-4 py-2 text-red-600 transition-all duration-g3-fast hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-          >
-            删除
-          </button>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   if (isLoading) {
     return (
@@ -407,6 +466,15 @@ export default function VocabularyPage() {
           cancelText="取消"
           variant="danger"
           isLoading={deleteWordBookMutation.isPending}
+        />
+
+        {/* 更新确认弹窗 */}
+        <UpdateConfirmModal
+          isOpen={updateModal.isOpen}
+          onClose={() => setUpdateModal({ isOpen: false, update: null })}
+          onConfirm={handleSyncWordBook}
+          update={updateModal.update}
+          isLoading={syncWordBookMutation.isPending}
         />
       </div>
     </div>

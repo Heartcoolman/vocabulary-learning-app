@@ -34,6 +34,8 @@ export type {
   CenterWordBookDetail,
   BrowseResponse,
   ImportResult,
+  UpdateInfo,
+  SyncResult,
 } from './wordbook-center/WordBookCenterClient';
 
 // ==================== Learning 模块 ====================

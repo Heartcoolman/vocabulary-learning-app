@@ -104,8 +104,13 @@ fn is_static_hosting(url: &str) -> bool {
         || lower.ends_with(".json")
 }
 
+fn normalize_jsdelivr_url(url: &str) -> String {
+    url.to_string()
+}
+
 fn static_index_url(center_url: &str) -> String {
-    let trimmed = center_url.trim_end_matches('/');
+    let normalized = normalize_jsdelivr_url(center_url);
+    let trimmed = normalized.trim_end_matches('/');
     let lower = trimmed.to_ascii_lowercase();
     if lower.ends_with(".json") {
         trimmed.to_string()
@@ -115,7 +120,8 @@ fn static_index_url(center_url: &str) -> String {
 }
 
 fn static_wordbook_url(center_url: &str, id: &str) -> String {
-    let trimmed = center_url.trim_end_matches('/');
+    let normalized = normalize_jsdelivr_url(center_url);
+    let trimmed = normalized.trim_end_matches('/');
     let lower = trimmed.to_ascii_lowercase();
     let base = if lower.ends_with(".json") {
         match trimmed.rfind('/') {
@@ -376,6 +382,25 @@ struct BrowseResponse {
     total: i64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateInfo {
+    id: String,
+    name: String,
+    current_version: Option<String>,
+    new_version: String,
+    has_update: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncResult {
+    wordbook_id: String,
+    upserted_count: i64,
+    deleted_count: i64,
+    message: String,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/config", get(get_config).put(update_config))
@@ -386,6 +411,8 @@ pub fn router() -> Router<AppState> {
         .route("/browse", get(browse_wordbooks))
         .route("/browse/:id", get(get_wordbook_detail))
         .route("/import/:id", post(import_wordbook))
+        .route("/updates", get(check_updates))
+        .route("/updates/:id/sync", post(sync_wordbook))
 }
 
 async fn get_config(State(state): State<AppState>, req: Request<Body>) -> Response {
@@ -1547,4 +1574,456 @@ async fn worker_get_counts(center_id: &str, wordbook_ids: &[String]) -> std::col
             HashMap::new()
         }
     }
+}
+
+async fn check_updates(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (proxy, user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    let center_url = match fetch_effective_center_url(proxy.as_ref(), &user.id).await {
+        Ok(url) => url,
+        Err(e) => return e,
+    };
+
+    let base_url = center_url.trim_end_matches('/');
+
+    let rows = sqlx::query(
+        r#"SELECT "id", "name", "sourceUrl", "sourceVersion"
+           FROM "word_books"
+           WHERE "sourceUrl" IS NOT NULL AND "sourceUrl" <> ''
+             AND ("type" = 'SYSTEM' OR ("type" = 'USER' AND "userId" = $1))"#,
+    )
+    .bind(&user.id)
+    .fetch_all(proxy.pool())
+    .await;
+
+    let rows = match rows {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(error = %e, "update check query failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", "查询词书失败")
+                .into_response();
+        }
+    };
+
+    let client = reqwest::Client::new();
+    let browse_url = if is_static_hosting(base_url) {
+        static_index_url(base_url)
+    } else {
+        format!("{}/api/wordbooks", base_url)
+    };
+
+    let remote_books: Vec<CenterWordBook> = match client
+        .get(&browse_url)
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            match resp.json::<serde_json::Value>().await {
+                Ok(data) => {
+                    let books_value = data
+                        .get("data")
+                        .or(data.get("wordbooks"))
+                        .or(data.get("wordBooks"))
+                        .cloned()
+                        .unwrap_or(data);
+                    serde_json::from_value(books_value).unwrap_or_default()
+                }
+                Err(_) => vec![],
+            }
+        }
+        _ => vec![],
+    };
+
+    let remote_map: std::collections::HashMap<String, &CenterWordBook> = remote_books
+        .iter()
+        .map(|b| (b.id.clone(), b))
+        .collect();
+
+    let mut updates: Vec<UpdateInfo> = Vec::new();
+
+    for row in rows {
+        let id: String = row.try_get("id").unwrap_or_default();
+        let name: String = row.try_get("name").unwrap_or_default();
+        let source_url: String = row.try_get("sourceUrl").unwrap_or_default();
+        let current_version: Option<String> = row.try_get::<Option<String>, _>("sourceVersion").ok().flatten();
+
+        let remote_id = extract_remote_id(&source_url);
+        if let Some(remote) = remote_id.and_then(|rid| remote_map.get(&rid)) {
+            let new_version = remote.version.clone();
+            let has_update = current_version.as_deref() != Some(&new_version);
+            if has_update {
+                updates.push(UpdateInfo {
+                    id,
+                    name,
+                    current_version,
+                    new_version,
+                    has_update,
+                });
+            }
+        }
+    }
+
+    Json(SuccessResponse {
+        success: true,
+        data: updates,
+    })
+    .into_response()
+}
+
+fn extract_remote_id(source_url: &str) -> Option<String> {
+    if source_url.ends_with(".json") {
+        let parts: Vec<&str> = source_url.split('/').collect();
+        if let Some(filename) = parts.last() {
+            return Some(filename.trim_end_matches(".json").to_string());
+        }
+    }
+    if let Some(idx) = source_url.find("/api/wordbooks/") {
+        let id_part = &source_url[idx + "/api/wordbooks/".len()..];
+        let id = id_part.split(['/', '?']).next().unwrap_or("");
+        if !id.is_empty() {
+            return Some(id.to_string());
+        }
+    }
+    None
+}
+
+async fn sync_wordbook(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    req: Request<Body>,
+) -> Response {
+    let (proxy, user, _req) = match authenticate(&state, req).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    let row = match sqlx::query(
+        r#"SELECT "id", "type"::text, "userId", "sourceUrl" FROM "word_books" WHERE "id" = $1"#,
+    )
+    .bind(&id)
+    .fetch_optional(proxy.pool())
+    .await
+    {
+        Ok(Some(row)) => row,
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response()
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "wordbook lookup failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", "查询词书失败")
+                .into_response();
+        }
+    };
+
+    let wb_type: String = row.try_get("type").unwrap_or_default();
+    let wb_user_id: Option<String> = row.try_get::<Option<String>, _>("userId").ok().flatten();
+
+    if wb_type == "SYSTEM" && user.role != "ADMIN" {
+        return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "仅管理员可同步系统词书")
+            .into_response();
+    }
+    if wb_type == "USER" && wb_user_id.as_deref() != Some(&user.id) {
+        return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "无权同步此词书").into_response();
+    }
+
+    let source_url: String = match row.try_get::<Option<String>, _>("sourceUrl").ok().flatten() {
+        Some(url) if !url.trim().is_empty() => url,
+        _ => {
+            return json_error(StatusCode::BAD_REQUEST, "NOT_IMPORTED", "词书无导入来源")
+                .into_response()
+        }
+    };
+
+    if let Err(msg) = is_safe_url(&source_url) {
+        return json_error(StatusCode::BAD_REQUEST, "SSRF_BLOCKED", msg).into_response();
+    }
+
+    let fetch_url = normalize_jsdelivr_url(&source_url);
+    let client = reqwest::Client::new();
+    let is_static = is_static_hosting(&source_url);
+
+    let (meta, words) = if is_static {
+        let detail_resp = match client
+            .get(&fetch_url)
+            .timeout(std::time::Duration::from_secs(60))
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
+                    .into_response()
+            }
+        };
+
+        if !detail_resp.status().is_success() {
+            return json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_ERROR",
+                &format!("词库中心返回错误: {}", detail_resp.status()),
+            )
+            .into_response();
+        }
+
+        let detail_value: serde_json::Value = match detail_resp.json().await {
+            Ok(v) => v,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response()
+            }
+        };
+
+        let detail_inner = detail_value
+            .get("data")
+            .or(detail_value.get("wordbook"))
+            .or(detail_value.get("wordBook"))
+            .cloned()
+            .unwrap_or(detail_value);
+
+        let detail: CenterWordBookDetail = match serde_json::from_value(detail_inner) {
+            Ok(d) => d,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response()
+            }
+        };
+
+        let meta = RemoteWordBookMeta {
+            id: detail.id.clone(),
+            name: detail.name.clone(),
+            description: detail.description.clone(),
+            word_count: detail.word_count,
+            cover_image: detail.cover_image.clone(),
+            tags: detail.tags.clone(),
+            version: detail.version.clone(),
+            author: detail.author.clone(),
+            download_count: detail.download_count,
+        };
+        (meta, detail.words)
+    } else {
+        let meta_resp = match client
+            .get(&fetch_url)
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
+                    .into_response()
+            }
+        };
+
+        if !meta_resp.status().is_success() {
+            return json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_ERROR",
+                &format!("词库中心返回错误: {}", meta_resp.status()),
+            )
+            .into_response();
+        }
+
+        let meta: RemoteWordBookMeta = match meta_resp.json().await {
+            Ok(m) => m,
+            Err(_) => {
+                return json_error(StatusCode::BAD_GATEWAY, "PARSE_ERROR", "解析词书详情失败")
+                    .into_response()
+            }
+        };
+
+        let base_url = source_url
+            .find("/api/wordbooks/")
+            .map(|idx| &source_url[..idx])
+            .unwrap_or(&source_url);
+
+        let remote_id = extract_remote_id(&source_url).unwrap_or_default();
+        let mut all_words: Vec<CenterWord> = Vec::new();
+        let page_size = 500;
+        let mut page = 1;
+
+        loop {
+            let words_url = format!(
+                "{}/api/wordbooks/{}/words?page={}&pageSize={}",
+                base_url, remote_id, page, page_size
+            );
+
+            let words_resp = match client
+                .get(&words_url)
+                .timeout(std::time::Duration::from_secs(60))
+                .send()
+                .await
+            {
+                Ok(r) if r.status().is_success() => r,
+                _ => break,
+            };
+
+            let words_page: RemoteWordsPage = match words_resp.json().await {
+                Ok(p) => p,
+                Err(_) => break,
+            };
+
+            let fetched = words_page.data.len();
+            all_words.extend(words_page.data);
+
+            if fetched < page_size as usize || all_words.len() >= meta.word_count as usize {
+                break;
+            }
+            page += 1;
+            if page > 100 {
+                break;
+            }
+        }
+
+        (meta, all_words)
+    };
+
+    let mut tx = match proxy.pool().begin().await {
+        Ok(tx) => tx,
+        Err(_) => {
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "TX_ERROR", "数据库操作失败")
+                .into_response()
+        }
+    };
+
+    let mut upserted_count: i64 = 0;
+    const BATCH_SIZE: usize = 100;
+
+    for chunk in words.chunks(BATCH_SIZE) {
+        if chunk.is_empty() {
+            continue;
+        }
+
+        let mut query_builder: sqlx::QueryBuilder<sqlx::Postgres> = sqlx::QueryBuilder::new(
+            r#"INSERT INTO "words" ("id", "spelling", "phonetic", "meanings", "examples", "audioUrl", "wordBookId", "createdAt", "updatedAt", "deletedAt") "#,
+        );
+
+        query_builder.push_values(chunk, |mut b, word| {
+            let word_id = uuid::Uuid::new_v4().to_string();
+            let phonetic = word.phonetic.as_deref().unwrap_or("");
+            b.push_bind(word_id)
+                .push_bind(&word.spelling)
+                .push_bind(phonetic)
+                .push_bind(&word.meanings)
+                .push_bind(&word.examples)
+                .push_bind(&word.audio_url)
+                .push_bind(&id)
+                .push("NOW()")
+                .push("NOW()")
+                .push_bind(None::<chrono::NaiveDateTime>);
+        });
+
+        query_builder.push(
+            r#" ON CONFLICT ("wordBookId", "spelling")
+               DO UPDATE SET "phonetic" = EXCLUDED."phonetic",
+                             "meanings" = EXCLUDED."meanings",
+                             "examples" = EXCLUDED."examples",
+                             "audioUrl" = EXCLUDED."audioUrl",
+                             "updatedAt" = NOW(),
+                             "deletedAt" = NULL"#,
+        );
+
+        match query_builder.build().execute(&mut *tx).await {
+            Ok(result) => {
+                upserted_count += result.rows_affected() as i64;
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to upsert words batch");
+                let _ = tx.rollback().await;
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "SYNC_ERROR",
+                    &format!("同步单词失败: {}", e),
+                )
+                .into_response();
+            }
+        }
+    }
+
+    let spellings: Vec<String> = words.iter().map(|w| w.spelling.clone()).collect();
+    let deleted_count = if spellings.is_empty() {
+        sqlx::query(
+            r#"UPDATE "words" SET "deletedAt" = NOW(), "updatedAt" = NOW()
+               WHERE "wordBookId" = $1 AND "deletedAt" IS NULL"#,
+        )
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .map(|r| r.rows_affected() as i64)
+        .unwrap_or(0)
+    } else {
+        sqlx::query(
+            r#"UPDATE "words" SET "deletedAt" = NOW(), "updatedAt" = NOW()
+               WHERE "wordBookId" = $1 AND "deletedAt" IS NULL AND NOT ("spelling" = ANY($2))"#,
+        )
+        .bind(&id)
+        .bind(&spellings)
+        .execute(&mut *tx)
+        .await
+        .map(|r| r.rows_affected() as i64)
+        .unwrap_or(0)
+    };
+
+    let active_count = sqlx::query_scalar::<_, i64>(
+        r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1 AND "deletedAt" IS NULL"#,
+    )
+    .bind(&id)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap_or(0);
+
+    if let Err(e) = sqlx::query(
+        r#"UPDATE "word_books"
+           SET "name" = $1,
+               "description" = $2,
+               "wordCount" = $3,
+               "coverImage" = $4,
+               "tags" = $5,
+               "sourceVersion" = $6,
+               "sourceAuthor" = $7,
+               "updatedAt" = NOW()
+           WHERE "id" = $8"#,
+    )
+    .bind(&meta.name)
+    .bind(&meta.description)
+    .bind(active_count)
+    .bind(&meta.cover_image)
+    .bind(&meta.tags)
+    .bind(&meta.version)
+    .bind(&meta.author)
+    .bind(&id)
+    .execute(&mut *tx)
+    .await
+    {
+        tracing::error!(error = %e, "Failed to update wordbook metadata");
+        let _ = tx.rollback().await;
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "SYNC_ERROR",
+            "更新词书信息失败",
+        )
+        .into_response();
+    }
+
+    if let Err(_) = tx.commit().await {
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "TX_COMMIT_ERROR", "保存数据失败")
+            .into_response();
+    }
+
+    Json(SuccessResponse {
+        success: true,
+        data: SyncResult {
+            wordbook_id: id,
+            upserted_count,
+            deleted_count,
+            message: format!(
+                "同步完成，更新{}个单词，移除{}个单词",
+                upserted_count, deleted_count
+            ),
+        },
+    })
+    .into_response()
 }

@@ -136,6 +136,7 @@ pub async fn update_user_study_config(
           "selectedWordBookIds" = EXCLUDED."selectedWordBookIds",
           "dailyWordCount" = EXCLUDED."dailyWordCount",
           "studyMode" = EXCLUDED."studyMode",
+          "dailyMasteryTarget" = EXCLUDED."dailyMasteryTarget",
           "updatedAt" = EXCLUDED."updatedAt"
         "#,
     )
@@ -144,7 +145,7 @@ pub async fn update_user_study_config(
     .bind(&input.selected_word_book_ids)
     .bind(input.daily_word_count as i32)
     .bind(&input.study_mode)
-    .bind(20_i32)
+    .bind(input.daily_word_count as i32)
     .bind(now)
     .bind(now)
     .execute(pool)
