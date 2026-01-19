@@ -1477,8 +1477,14 @@ fn map_postgres_word_book_row(row: &sqlx::postgres::PgRow) -> WordBookResponse {
         word_count: row.try_get::<i64, _>("wordCount").unwrap_or(0),
         tags: row.try_get::<Option<Vec<String>>, _>("tags").ok().flatten(),
         source_url: row.try_get::<Option<String>, _>("sourceUrl").ok().flatten(),
-        source_version: row.try_get::<Option<String>, _>("sourceVersion").ok().flatten(),
-        source_author: row.try_get::<Option<String>, _>("sourceAuthor").ok().flatten(),
+        source_version: row
+            .try_get::<Option<String>, _>("sourceVersion")
+            .ok()
+            .flatten(),
+        source_author: row
+            .try_get::<Option<String>, _>("sourceAuthor")
+            .ok()
+            .flatten(),
         imported_at: imported_at.map(format_naive_iso),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),

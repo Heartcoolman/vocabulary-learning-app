@@ -597,9 +597,17 @@ fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
         cover_image: row.try_get("coverImage").ok(),
         tags: row.try_get::<Option<Vec<String>>, _>("tags").ok().flatten(),
         source_url: row.try_get::<Option<String>, _>("sourceUrl").ok().flatten(),
-        source_version: row.try_get::<Option<String>, _>("sourceVersion").ok().flatten(),
-        source_author: row.try_get::<Option<String>, _>("sourceAuthor").ok().flatten(),
-        imported_at: imported_at.map(|t| chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(t, chrono::Utc).to_rfc3339()),
+        source_version: row
+            .try_get::<Option<String>, _>("sourceVersion")
+            .ok()
+            .flatten(),
+        source_author: row
+            .try_get::<Option<String>, _>("sourceAuthor")
+            .ok()
+            .flatten(),
+        imported_at: imported_at.map(|t| {
+            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(t, chrono::Utc).to_rfc3339()
+        }),
         created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
             created_at,
             chrono::Utc,

@@ -78,8 +78,18 @@ async fn main() {
         Ok(origin) if !origin.is_empty() => {
             tracing::info!(origin = %origin, "CORS configured with specific origin");
             CorsLayer::new()
-                .allow_origin(origin.parse::<header::HeaderValue>().expect("invalid CORS_ORIGIN"))
-                .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+                .allow_origin(
+                    origin
+                        .parse::<header::HeaderValue>()
+                        .expect("invalid CORS_ORIGIN"),
+                )
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
                 .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
                 .allow_credentials(true)
         }

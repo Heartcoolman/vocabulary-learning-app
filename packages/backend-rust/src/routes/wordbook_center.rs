@@ -39,12 +39,9 @@ async fn authenticate(
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "DB_ERROR",
-            "数据库不可用",
-        )
-        .into_response());
+        return Err(
+            json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response(),
+        );
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
@@ -79,8 +76,12 @@ fn is_safe_url(url: &str) -> Result<(), &'static str> {
         if let Ok(ip) = host.parse::<IpAddr>() {
             match ip {
                 IpAddr::V4(v4) => {
-                    if v4.is_loopback() || v4.is_private() || v4.is_link_local()
-                       || v4.is_broadcast() || v4.is_unspecified() {
+                    if v4.is_loopback()
+                        || v4.is_private()
+                        || v4.is_link_local()
+                        || v4.is_broadcast()
+                        || v4.is_unspecified()
+                    {
                         return Err("不允许访问内部IP地址");
                     }
                 }
@@ -614,12 +615,10 @@ async fn clear_personal_config(State(state): State<AppState>, req: Request<Body>
         Err(e) => return e,
     };
 
-    let result = sqlx::query(
-        r#"DELETE FROM "wordbook_center_user_config" WHERE "userId" = $1"#,
-    )
-    .bind(&user.id)
-    .execute(proxy.pool())
-    .await;
+    let result = sqlx::query(r#"DELETE FROM "wordbook_center_user_config" WHERE "userId" = $1"#)
+        .bind(&user.id)
+        .execute(proxy.pool())
+        .await;
 
     match result {
         Ok(_) => Json(SuccessResponse {
@@ -658,7 +657,12 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
         format!("{}/api/wordbooks", base_url)
     };
 
-    match client.get(&url).timeout(std::time::Duration::from_secs(30)).send().await {
+    match client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
+    {
         Ok(resp) => {
             if !resp.status().is_success() {
                 return json_error(
@@ -749,8 +753,12 @@ async fn get_wordbook_detail(
         {
             Ok(r) => r,
             Err(_) => {
-                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
-                    .into_response();
+                return json_error(
+                    StatusCode::BAD_GATEWAY,
+                    "CENTER_UNREACHABLE",
+                    "无法连接词库中心",
+                )
+                .into_response();
             }
         };
 
@@ -815,8 +823,12 @@ async fn get_wordbook_detail(
     {
         Ok(r) => r,
         Err(_) => {
-            return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
-                .into_response();
+            return json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_UNREACHABLE",
+                "无法连接词库中心",
+            )
+            .into_response();
         }
     };
 
@@ -982,21 +994,15 @@ async fn import_wordbook(
     } else {
         format!("{}/api/wordbooks/{}", base_url, id)
     };
-    let existing = sqlx::query(
-        r#"SELECT "id" FROM "word_books" WHERE "sourceUrl" = $1"#,
-    )
-    .bind(&source_url_to_check)
-    .fetch_optional(proxy.pool())
-    .await;
+    let existing = sqlx::query(r#"SELECT "id" FROM "word_books" WHERE "sourceUrl" = $1"#)
+        .bind(&source_url_to_check)
+        .fetch_optional(proxy.pool())
+        .await;
 
     match existing {
         Ok(Some(_)) => {
-            return json_error(
-                StatusCode::CONFLICT,
-                "ALREADY_IMPORTED",
-                "该词书已导入过",
-            )
-            .into_response();
+            return json_error(StatusCode::CONFLICT, "ALREADY_IMPORTED", "该词书已导入过")
+                .into_response();
         }
         Ok(None) => {}
         Err(e) => {
@@ -1022,8 +1028,12 @@ async fn import_wordbook(
         {
             Ok(r) => r,
             Err(_) => {
-                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
-                    .into_response();
+                return json_error(
+                    StatusCode::BAD_GATEWAY,
+                    "CENTER_UNREACHABLE",
+                    "无法连接词库中心",
+                )
+                .into_response();
             }
         };
 
@@ -1206,8 +1216,12 @@ async fn import_wordbook(
     {
         Ok(r) => r,
         Err(_) => {
-            return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
-                .into_response();
+            return json_error(
+                StatusCode::BAD_GATEWAY,
+                "CENTER_UNREACHABLE",
+                "无法连接词库中心",
+            )
+            .into_response();
         }
     };
 
@@ -1529,7 +1543,10 @@ async fn worker_increment_count(center_id: &str, wordbook_id: &str) {
     }
 }
 
-async fn worker_get_counts(center_id: &str, wordbook_ids: &[String]) -> std::collections::HashMap<String, i64> {
+async fn worker_get_counts(
+    center_id: &str,
+    wordbook_ids: &[String],
+) -> std::collections::HashMap<String, i64> {
     use std::collections::HashMap;
 
     let Some(worker_url) = get_counter_worker_url() else {
@@ -1603,8 +1620,12 @@ async fn check_updates(State(state): State<AppState>, req: Request<Body>) -> Res
         Ok(r) => r,
         Err(e) => {
             tracing::error!(error = %e, "update check query failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", "查询词书失败")
-                .into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                "查询词书失败",
+            )
+            .into_response();
         }
     };
 
@@ -1621,27 +1642,23 @@ async fn check_updates(State(state): State<AppState>, req: Request<Body>) -> Res
         .send()
         .await
     {
-        Ok(resp) if resp.status().is_success() => {
-            match resp.json::<serde_json::Value>().await {
-                Ok(data) => {
-                    let books_value = data
-                        .get("data")
-                        .or(data.get("wordbooks"))
-                        .or(data.get("wordBooks"))
-                        .cloned()
-                        .unwrap_or(data);
-                    serde_json::from_value(books_value).unwrap_or_default()
-                }
-                Err(_) => vec![],
+        Ok(resp) if resp.status().is_success() => match resp.json::<serde_json::Value>().await {
+            Ok(data) => {
+                let books_value = data
+                    .get("data")
+                    .or(data.get("wordbooks"))
+                    .or(data.get("wordBooks"))
+                    .cloned()
+                    .unwrap_or(data);
+                serde_json::from_value(books_value).unwrap_or_default()
             }
-        }
+            Err(_) => vec![],
+        },
         _ => vec![],
     };
 
-    let remote_map: std::collections::HashMap<String, &CenterWordBook> = remote_books
-        .iter()
-        .map(|b| (b.id.clone(), b))
-        .collect();
+    let remote_map: std::collections::HashMap<String, &CenterWordBook> =
+        remote_books.iter().map(|b| (b.id.clone(), b)).collect();
 
     let mut updates: Vec<UpdateInfo> = Vec::new();
 
@@ -1649,7 +1666,10 @@ async fn check_updates(State(state): State<AppState>, req: Request<Body>) -> Res
         let id: String = row.try_get("id").unwrap_or_default();
         let name: String = row.try_get("name").unwrap_or_default();
         let source_url: String = row.try_get("sourceUrl").unwrap_or_default();
-        let current_version: Option<String> = row.try_get::<Option<String>, _>("sourceVersion").ok().flatten();
+        let current_version: Option<String> = row
+            .try_get::<Option<String>, _>("sourceVersion")
+            .ok()
+            .flatten();
 
         let remote_id = extract_remote_id(&source_url);
         if let Some(remote) = remote_id.and_then(|rid| remote_map.get(&rid)) {
@@ -1714,8 +1734,12 @@ async fn sync_wordbook(
         }
         Err(e) => {
             tracing::error!(error = %e, "wordbook lookup failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", "查询词书失败")
-                .into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                "查询词书失败",
+            )
+            .into_response();
         }
     };
 
@@ -1755,8 +1779,12 @@ async fn sync_wordbook(
         {
             Ok(r) => r,
             Err(_) => {
-                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
-                    .into_response()
+                return json_error(
+                    StatusCode::BAD_GATEWAY,
+                    "CENTER_UNREACHABLE",
+                    "无法连接词库中心",
+                )
+                .into_response()
             }
         };
 
@@ -1813,8 +1841,12 @@ async fn sync_wordbook(
         {
             Ok(r) => r,
             Err(_) => {
-                return json_error(StatusCode::BAD_GATEWAY, "CENTER_UNREACHABLE", "无法连接词库中心")
-                    .into_response()
+                return json_error(
+                    StatusCode::BAD_GATEWAY,
+                    "CENTER_UNREACHABLE",
+                    "无法连接词库中心",
+                )
+                .into_response()
             }
         };
 
@@ -1884,8 +1916,12 @@ async fn sync_wordbook(
     let mut tx = match proxy.pool().begin().await {
         Ok(tx) => tx,
         Err(_) => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "TX_ERROR", "数据库操作失败")
-                .into_response()
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "TX_ERROR",
+                "数据库操作失败",
+            )
+            .into_response()
         }
     };
 
@@ -2009,8 +2045,12 @@ async fn sync_wordbook(
     }
 
     if let Err(_) = tx.commit().await {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "TX_COMMIT_ERROR", "保存数据失败")
-            .into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "TX_COMMIT_ERROR",
+            "保存数据失败",
+        )
+        .into_response();
     }
 
     Json(SuccessResponse {
