@@ -50,7 +50,7 @@ echo "[4/6] 正在配置环境变量..."
 if [ ! -f .env ]; then
   JWT_SECRET=$(openssl rand -hex 32)
   DB_PASSWORD=$(openssl rand -hex 16)
-  SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
+  SERVER_IP=$(curl -s -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
 
   cat > .env << EOF
 # 生产环境配置 - 自动生成于 $(date +"%Y-%m-%d %H:%M:%S")
@@ -164,8 +164,8 @@ if [ "$MIGRATION_COUNT" -ne "$EXPECTED_MIGRATIONS" ]; then
   exit 1
 fi
 
-# 获取服务器IP
-SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
+# 获取服务器IP (强制使用IPv4)
+SERVER_IP=$(curl -s -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
 
 # 创建默认管理员账户
 echo ""
