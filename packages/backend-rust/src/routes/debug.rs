@@ -7,9 +7,12 @@ use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::sync::atomic::Ordering;
 use tokio::sync::RwLock;
 
+use crate::amas::config::FeatureFlags;
 use crate::response::{json_error, AppError};
+use crate::services::llm_provider::{set_llm_runtime_enabled, set_llm_runtime_mock};
 use crate::state::AppState;
 
 const MAX_AUDIT_LOG_SIZE: usize = 100;
@@ -399,6 +402,22 @@ fn default_feature_flags() -> Map<String, Value> {
     map
 }
 
+fn debug_flag_bool(flags: &Map<String, Value>, key: &str, default: bool) -> bool {
+    flags.get(key).and_then(|v| v.as_bool()).unwrap_or(default)
+}
+
+fn debug_flags_to_feature_flags(flags: &Map<String, Value>) -> FeatureFlags {
+    FeatureFlags {
+        ensemble_enabled: debug_flag_bool(flags, "enableEnsemble", true),
+        thompson_enabled: debug_flag_bool(flags, "enableThompsonSampling", true),
+        linucb_enabled: debug_flag_bool(flags, "enableNativeLinUCB", true),
+        heuristic_enabled: debug_flag_bool(flags, "enableHeuristicBaseline", true),
+        causal_inference_enabled: debug_flag_bool(flags, "enableCausalInference", false),
+        bayesian_optimizer_enabled: debug_flag_bool(flags, "enableBayesianOptimizer", false),
+        actr_memory_enabled: debug_flag_bool(flags, "enableACTRMemory", true),
+    }
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/status", get(get_status))
@@ -478,6 +497,10 @@ async fn get_status(
     guard.expire_simulation_if_needed(now_ms);
 
     let db_connected = test_database_connection(proxy.as_ref()).await;
+    let redis_connected = match state.cache() {
+        Some(cache) => cache.is_connected().await,
+        None => false,
+    };
 
     let status = SystemStatus {
         debug_enabled: debug_available(),
@@ -486,7 +509,7 @@ async fn get_status(
         infrastructure: InfrastructureStatus {
             redis: RedisStatus {
                 enabled: guard.infrastructure.redis_enabled,
-                connected: false,
+                connected: redis_connected,
             },
             database: DatabaseStatus {
                 connected: db_connected,
@@ -520,11 +543,13 @@ async fn get_health(
     let (proxy, _user) = require_admin(&state, &headers).await?;
 
     let (db_healthy, db_latency, db_error) = test_database_health(proxy.as_ref()).await;
+    let (redis_healthy, redis_latency, redis_error) = test_redis_health(&state).await;
+
     let result = HealthCheckResult {
         redis: HealthItem {
-            healthy: false,
-            latency_ms: None,
-            error: Some("Redis未接入Rust后端".to_string()),
+            healthy: redis_healthy,
+            latency_ms: redis_latency,
+            error: redis_error,
         },
         database: HealthItem {
             healthy: db_healthy,
@@ -547,6 +572,11 @@ async fn toggle_redis(
 ) -> Result<impl IntoResponse, AppError> {
     let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
+
+    state
+        .runtime()
+        .redis_enabled
+        .store(payload.enabled, Ordering::Relaxed);
 
     let store = store();
     let mut guard = store.inner.write().await;
@@ -572,6 +602,16 @@ async fn simulate_db(
 ) -> Result<impl IntoResponse, AppError> {
     let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
+
+    let runtime = state.runtime();
+    if let Some(value) = payload.simulate_slow_query {
+        runtime.db_slow_enabled.store(value, Ordering::Relaxed);
+    }
+    if let Some(value) = payload.slow_query_delay_ms {
+        runtime
+            .db_slow_delay_ms
+            .store(value.max(0) as u64, Ordering::Relaxed);
+    }
 
     let store = store();
     let mut guard = store.inner.write().await;
@@ -621,6 +661,16 @@ async fn toggle_llm(
 ) -> Result<impl IntoResponse, AppError> {
     let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
+
+    let runtime = state.runtime();
+    if let Some(value) = payload.enabled {
+        runtime.llm_enabled.store(value, Ordering::Relaxed);
+        set_llm_runtime_enabled(value);
+    }
+    if let Some(value) = payload.mock_response {
+        runtime.llm_mock.store(value, Ordering::Relaxed);
+        set_llm_runtime_mock(value);
+    }
 
     let store = store();
     let mut guard = store.inner.write().await;
@@ -679,29 +729,40 @@ async fn update_feature_flags(
 
     let now_ms = Utc::now().timestamp_millis();
     let store = store();
-    let mut guard = store.inner.write().await;
-    guard.expire_simulation_if_needed(now_ms);
 
-    let mut applied = Map::new();
-    for (key, value) in updates {
-        let Some(flag) = value.as_bool() else {
-            continue;
-        };
-        if guard.feature_flags.contains_key(key) {
-            guard.feature_flags.insert(key.clone(), Value::Bool(flag));
-            applied.insert(key.clone(), Value::Bool(flag));
+    let (flags, result_flags) = {
+        let mut guard = store.inner.write().await;
+        guard.expire_simulation_if_needed(now_ms);
+
+        let mut applied = Map::new();
+        for (key, value) in updates {
+            let Some(flag) = value.as_bool() else {
+                continue;
+            };
+            if guard.feature_flags.contains_key(key) {
+                guard.feature_flags.insert(key.clone(), Value::Bool(flag));
+                applied.insert(key.clone(), Value::Bool(flag));
+            }
         }
-    }
 
-    guard.push_audit_log(
-        "amas.featureFlags.update",
-        Value::Object(applied),
-        Some(user.id),
-    );
+        let flags = debug_flags_to_feature_flags(&guard.feature_flags);
+        let result_flags = guard.feature_flags.clone();
+
+        guard.push_audit_log(
+            "amas.featureFlags.update",
+            Value::Object(applied),
+            Some(user.id),
+        );
+
+        (flags, result_flags)
+    };
+
+    state.runtime().set_amas_flags(flags.clone()).await;
+    state.amas_engine().set_feature_flags(flags).await;
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: Value::Object(guard.feature_flags.clone()),
+        data: Value::Object(result_flags),
     }))
 }
 
@@ -713,15 +774,26 @@ async fn reset_feature_flags(
 
     let now_ms = Utc::now().timestamp_millis();
     let store = store();
-    let mut guard = store.inner.write().await;
-    guard.expire_simulation_if_needed(now_ms);
 
-    guard.reset_feature_flags();
-    guard.push_audit_log("amas.featureFlags.reset", Value::Null, Some(user.id));
+    let (flags, result_flags) = {
+        let mut guard = store.inner.write().await;
+        guard.expire_simulation_if_needed(now_ms);
+        guard.reset_feature_flags();
+
+        let flags = debug_flags_to_feature_flags(&guard.feature_flags);
+        let result_flags = guard.feature_flags.clone();
+
+        guard.push_audit_log("amas.featureFlags.reset", Value::Null, Some(user.id));
+
+        (flags, result_flags)
+    };
+
+    state.runtime().set_amas_flags(flags.clone()).await;
+    state.amas_engine().set_feature_flags(flags).await;
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: Value::Object(guard.feature_flags.clone()),
+        data: Value::Object(result_flags),
     }))
 }
 
@@ -926,6 +998,19 @@ async fn reset_all(
     let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
+    let runtime = state.runtime();
+    runtime.redis_enabled.store(true, Ordering::Relaxed);
+    runtime.llm_enabled.store(true, Ordering::Relaxed);
+    runtime.llm_mock.store(false, Ordering::Relaxed);
+    runtime.db_slow_enabled.store(false, Ordering::Relaxed);
+    runtime.db_slow_delay_ms.store(0, Ordering::Relaxed);
+    set_llm_runtime_enabled(true);
+    set_llm_runtime_mock(false);
+
+    let default_flags = FeatureFlags::default();
+    runtime.set_amas_flags(default_flags.clone()).await;
+    state.amas_engine().set_feature_flags(default_flags).await;
+
     let store = store();
     let mut guard = store.inner.write().await;
     guard.expire_simulation_if_needed(now_ms);
@@ -948,6 +1033,15 @@ async fn stop_simulations(
 ) -> Result<impl IntoResponse, AppError> {
     let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
+
+    let runtime = state.runtime();
+    runtime.redis_enabled.store(true, Ordering::Relaxed);
+    runtime.llm_enabled.store(true, Ordering::Relaxed);
+    runtime.llm_mock.store(false, Ordering::Relaxed);
+    runtime.db_slow_enabled.store(false, Ordering::Relaxed);
+    runtime.db_slow_delay_ms.store(0, Ordering::Relaxed);
+    set_llm_runtime_enabled(true);
+    set_llm_runtime_mock(false);
 
     let store = store();
     let mut guard = store.inner.write().await;
@@ -1006,7 +1100,7 @@ async fn clear_audit_log(
 }
 
 async fn test_database_connection(proxy: &crate::db::DatabaseProxy) -> bool {
-    sqlx::query_scalar::<_, i64>("SELECT 1")
+    sqlx::query_scalar::<_, i32>("SELECT 1")
         .fetch_one(proxy.pool())
         .await
         .is_ok()
@@ -1022,6 +1116,22 @@ async fn test_database_health(
         (true, Some(latency), None)
     } else {
         (false, None, Some("数据库不可用".to_string()))
+    }
+}
+
+async fn test_redis_health(state: &AppState) -> (bool, Option<i64>, Option<String>) {
+    let Some(cache) = state.cache() else {
+        return (false, None, Some("Redis未配置".to_string()));
+    };
+
+    let start = std::time::Instant::now();
+    let ok = cache.is_connected().await;
+    let latency = start.elapsed().as_millis().min(i64::MAX as u128) as i64;
+
+    if ok {
+        (true, Some(latency), None)
+    } else {
+        (false, None, Some("Redis连接失败".to_string()))
     }
 }
 

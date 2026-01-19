@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
-import { apiClient } from '../../services/client';
+import { apiClient, wordBookCenterClient } from '../../services/client';
+import type { UpdateInfo } from '../../services/client';
 import type { WordBook, Word } from '../../types/models';
 
 // ==================== 类型定义 ====================
@@ -266,4 +267,18 @@ export function invalidateWordBooksCache(
   if (wordBookId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.wordbooks.detail(wordBookId) });
   }
+}
+
+/**
+ * 获取词书更新信息的 Query Hook
+ * 检查已导入的词书是否有新版本可用
+ */
+export function useWordBookUpdates(options?: UseWordBooksOptions) {
+  return useQuery<UpdateInfo[]>({
+    queryKey: ['wordbook-center', 'updates'],
+    queryFn: () => wordBookCenterClient.getUpdates(),
+    enabled: options?.enabled ?? true,
+    staleTime: options?.staleTime ?? 5 * 60 * 1000, // 5分钟
+    gcTime: options?.gcTime ?? 10 * 60 * 1000,
+  });
 }

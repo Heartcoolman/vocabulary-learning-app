@@ -71,7 +71,15 @@ impl ColdStartManager {
             return Some(StrategyParams::for_user_type(self.state.user_type.unwrap()));
         }
 
-        None
+        // 分类完成前也返回临时策略，实现从第1题开始个性化
+        let provisional_type = if response_time < 2000 && accuracy > 0.8 {
+            UserType::Fast
+        } else if response_time > 4000 || accuracy < 0.6 {
+            UserType::Cautious
+        } else {
+            UserType::Stable
+        };
+        Some(StrategyParams::for_user_type(provisional_type))
     }
 
     fn handle_explore(&mut self, accuracy: f64) -> Option<StrategyParams> {

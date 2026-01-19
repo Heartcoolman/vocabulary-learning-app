@@ -569,6 +569,7 @@ describe('mastery', () => {
       getUserId: vi.fn().mockReturnValue('user-1'),
       getQueueManager: vi.fn().mockReturnValue({
         recordAnswer: vi.fn().mockReturnValue({ mastered: false }),
+        getConfig: vi.fn().mockReturnValue({ maxActiveWords: 6 }),
         getCurrentWordIds: vi.fn().mockReturnValue(['word-1']),
         getMasteredWordIds: vi.fn().mockReturnValue([]),
       }),
@@ -687,7 +688,12 @@ describe('mastery', () => {
 
       const newWords = await result.current.fetchMoreWordsIfNeeded(1, 1, false);
 
-      expect(mockLearningClient.getNextWords).toHaveBeenCalled();
+      expect(mockLearningClient.getNextWords).toHaveBeenCalledWith({
+        currentWordIds: ['word-1'],
+        masteredWordIds: [],
+        sessionId: 'session-1',
+        count: 4,
+      });
       expect(newWords.length).toBeGreaterThanOrEqual(0);
     });
 

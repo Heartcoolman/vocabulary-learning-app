@@ -1,5 +1,8 @@
 packages:
   - 'packages/*'
+  # This Cloudflare Worker is managed with npm (has its own package-lock.json),
+  # so excluding it avoids pnpm workspace/lockfile mismatches in CI.
+  - '!packages/wordbook-counter-worker'
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'

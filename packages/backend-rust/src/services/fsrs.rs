@@ -84,7 +84,8 @@ pub fn fsrs_retrievability(stability: f64, elapsed_days: f64) -> f64 {
     if stability <= 0.0 {
         return 0.0;
     }
-    (1.0 + FACTOR * elapsed_days / stability).powf(DECAY)
+    let safe_elapsed = elapsed_days.max(0.0);
+    (1.0 + FACTOR * safe_elapsed / stability).powf(DECAY)
 }
 
 pub fn fsrs_next_interval(
@@ -189,8 +190,9 @@ fn next_forget_stability(w: &[f64; 17], d: f64, s: f64, r: f64) -> f64 {
 }
 
 fn next_interval(stability: f64, desired_retention: f64) -> f64 {
-    let interval = stability / FACTOR * (desired_retention.powf(1.0 / DECAY) - 1.0);
-    interval.max(1.0).min(36500.0)
+    let safe_retention = desired_retention.clamp(0.0001, 0.9999);
+    let interval = stability / FACTOR * (safe_retention.powf(1.0 / DECAY) - 1.0);
+    interval.clamp(1.0, 36500.0)
 }
 
 pub fn fsrs_next_interval_with_root(

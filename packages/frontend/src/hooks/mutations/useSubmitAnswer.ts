@@ -87,6 +87,8 @@ export interface UseSubmitAnswerOptions {
     variables: SubmitAnswerParams,
     context: OptimisticContext | undefined,
   ) => void;
+  /** 队列回滚回调（错误时恢复WordQueueManager状态） */
+  onQueueRollback?: () => void;
   /** 是否启用乐观更新（默认：true） */
   enableOptimisticUpdate?: boolean;
   /** 重试次数（默认：3） */
@@ -128,6 +130,7 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
     onAmasResult,
     onError,
     onSuccess,
+    onQueueRollback,
     enableOptimisticUpdate = true,
     retryCount = 3,
     retryDelay = 1000,
@@ -136,8 +139,14 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
   const queryClient = useQueryClient();
 
   // 使用 ref 避免闭包陷阱
-  const callbacksRef = useRef({ onOptimisticUpdate, onAmasResult, onError, onSuccess });
-  callbacksRef.current = { onOptimisticUpdate, onAmasResult, onError, onSuccess };
+  const callbacksRef = useRef({
+    onOptimisticUpdate,
+    onAmasResult,
+    onError,
+    onSuccess,
+    onQueueRollback,
+  });
+  callbacksRef.current = { onOptimisticUpdate, onAmasResult, onError, onSuccess, onQueueRollback };
 
   /**
    * 执行乐观更新
@@ -243,6 +252,9 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
           context.previousAmasResult,
         );
       }
+
+      // 回滚队列状态
+      callbacksRef.current.onQueueRollback?.();
 
       // 触发错误回调
       callbacksRef.current.onError?.(error);

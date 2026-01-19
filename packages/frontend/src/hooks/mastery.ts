@@ -93,6 +93,13 @@ interface SessionCacheData {
   };
   timestamp: number;
   userId: string | null;
+  // AMAS 策略参数（用于跨会话恢复）
+  amasStrategy?: {
+    batchSize?: number;
+    difficulty?: string;
+    hintLevel?: number;
+    intervalScale?: number;
+  };
 }
 
 const SESSION_CACHE_KEY = 'mastery_session_cache';
@@ -380,16 +387,27 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
   }, []);
 
   /**
-   * 恢复已掌握单词计数（用于会话恢复时更新进度显示）
-   * 注意：这只更新进度状态，不影响队列中的单词
+   * 恢复会话进度（用于页面刷新/返回时恢复进度）
+   * - 写入 WordQueueManager 的 masteredWords/totalQuestions
+   * - 同步更新前端 progress 显示
    */
-  const restoreMasteredCount = useCallback((masteredCount: number, totalQuestions: number) => {
-    setProgress((prev) => ({
-      ...prev,
-      masteredCount,
-      totalQuestions,
-    }));
-  }, []);
+  const restoreProgressSnapshot = useCallback(
+    (masteredWordIds: string[], totalQuestions: number) => {
+      const manager = queueManagerRef.current;
+      if (manager) {
+        manager.restoreProgressSnapshot(masteredWordIds, totalQuestions);
+        setProgress(manager.getProgress());
+        return;
+      }
+
+      setProgress((prev) => ({
+        ...prev,
+        masteredCount: masteredWordIds.length,
+        totalQuestions,
+      }));
+    },
+    [],
+  );
 
   const applyStrategy = useCallback(
     (strategy: {
@@ -431,7 +449,7 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     skipWord,
     resetQueue,
     resetAdaptiveCounter,
-    restoreMasteredCount,
+    restoreProgressSnapshot,
     applyStrategy,
     updateMasteryFromBackend,
   };
@@ -533,22 +551,25 @@ export function useMasterySync(options: UseMasterySyncOptions) {
     ): Promise<WordItem[]> => {
       if (isCompleted) return [];
 
-      const threshold = 3;
-      if (activeCount + pendingCount >= threshold) return [];
+      const manager = getQueueManager();
+      const desiredPoolSize = Math.min(Math.max(manager?.getConfig?.().maxActiveWords ?? 6, 3), 20);
+      const threshold = Math.max(3, desiredPoolSize - 2);
+      const totalAvailable = activeCount + pendingCount;
+      if (totalAvailable >= threshold) return [];
 
       const sessionId = getSessionId();
       if (!sessionId) return [];
 
       try {
-        const manager = getQueueManager();
         const currentWordIds = manager?.getCurrentWordIds() ?? [];
         const masteredWordIds = manager?.getMasteredWordIds() ?? [];
+        const fetchCount = Math.min(Math.max(desiredPoolSize - totalAvailable, 1), 20);
 
         const result = await getNextWords({
           currentWordIds,
           masteredWordIds,
           sessionId,
-          count: 5,
+          count: fetchCount,
         });
 
         return result.words.map((w) => ({
@@ -575,6 +596,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
     async (
       reason: 'fatigue' | 'struggling' | 'excelling' | 'periodic',
       recentPerformance: { accuracy: number; avgResponseTime: number; consecutiveWrong?: number },
+      userState?: { fatigue: number; attention: number; motivation: number },
     ) => {
       const sessionId = getSessionId();
       if (!sessionId) return;
@@ -589,6 +611,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
           currentWordIds,
           masteredWordIds,
           adjustReason: reason,
+          userState,
           recentPerformance: {
             accuracy: recentPerformance.accuracy,
             avgResponseTime: recentPerformance.avgResponseTime,
@@ -635,7 +658,7 @@ class AdaptiveQueueManager {
   private recentAnswers: Array<{ isCorrect: boolean; responseTime: number }> = [];
   private counter = 0;
   private readonly windowSize = 10;
-  private readonly adjustmentInterval = 5;
+  private readonly adjustmentInterval = 3;
 
   onAnswerSubmitted(
     isCorrect: boolean,
@@ -660,7 +683,12 @@ class AdaptiveQueueManager {
       return { should: true, reason: 'struggling' };
     }
 
+    // 疲劳检测：优先使用后端 AMAS 状态，否则使用本地启发式规则
     if (amasState && amasState.fatigue > 0.7) {
+      return { should: true, reason: 'fatigue' };
+    }
+    // 备用疲劳检测：响应时间持续变慢（可能表示疲劳）
+    if (this.recentAnswers.length >= 5 && performance.avgResponseTime > 8000) {
       return { should: true, reason: 'fatigue' };
     }
 

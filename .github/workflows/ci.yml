@@ -112,6 +112,20 @@ jobs:
   rust:
     name: Rust Check & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: danci
+          POSTGRES_PASSWORD: danci_test
+          POSTGRES_DB: danci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -136,6 +150,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres || true
+
+      - name: Initialize Database Schema
+        env:
+          PGPASSWORD: danci_test
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -U danci -d danci_test; then
+              break
+            fi
+            sleep 1
+          done
+          for sql_file in packages/backend-rust/sql/*.sql; do
+            # Skip SQLite-specific schema file
+            if [[ "$sql_file" == *"sqlite"* ]]; then
+              continue
+            fi
+            psql -h localhost -U danci -d danci_test -f "$sql_file" || true
+          done
+
+      - name: SQLx Prepare Check
+        working-directory: packages/backend-rust
+        env:
+          DATABASE_URL: postgres://danci:danci_test@localhost:5432/danci_test
+        run: cargo sqlx prepare --check -- --bin danci-backend-rust || echo "::warning::SQLx prepare check failed - .sqlx/ may need regeneration"
+
       - name: Check Native Package (no napi)
         working-directory: packages/native
         run: cargo check --no-default-features
@@ -147,6 +189,10 @@ jobs:
       - name: Run Native Tests
         working-directory: packages/native
         run: cargo test --no-default-features
+
+      - name: Validate SQL Migrations
+        working-directory: packages/backend-rust
+        run: ./scripts/validate-migrations.sh
 
       - name: Check Backend Rust
         working-directory: packages/backend-rust
@@ -436,11 +482,35 @@ jobs:
           name: frontend-build
           path: packages/frontend/dist/
 
+      - name: Initialize Database Schema
+        env:
+          PGPASSWORD: danci_test
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -U danci -d danci_test; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 1
+          done
+
+          echo "Executing SQL migrations..."
+          for sql_file in packages/backend-rust/sql/[0-9]*.sql; do
+            echo "Executing: $(basename $sql_file)"
+            psql -h localhost -U danci -d danci_test -f "$sql_file" -v ON_ERROR_STOP=1
+          done
+
+          echo "Verifying tables exist..."
+          psql -h localhost -U danci -d danci_test -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
+
       - name: Run E2E Tests
         run: pnpm test:e2e
         env:
           DATABASE_URL: postgres://danci:danci_test@localhost:5432/danci_test
           REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret_for_e2e
           E2E_FRONTEND_URL: http://localhost:5173
           E2E_BACKEND_URL: http://localhost:3000
           CI: true

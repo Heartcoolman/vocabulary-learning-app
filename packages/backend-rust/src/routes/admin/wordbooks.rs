@@ -37,6 +37,16 @@ struct WordBook {
     word_count: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     cover_image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    imported_at: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -129,7 +139,7 @@ async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQ
     let offset = (page - 1) * page_size;
 
     let rows = sqlx::query(
-        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
+        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","tags","sourceUrl","sourceVersion","sourceAuthor","importedAt","createdAt","updatedAt"
            FROM "word_books" WHERE "type" = 'SYSTEM' ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2"#,
     )
     .bind(page_size)
@@ -216,6 +226,11 @@ async fn create_wordbook(
         is_public: true,
         word_count: 0,
         cover_image: input.cover_image.map(|c| c.trim().to_string()),
+        tags: None,
+        source_url: None,
+        source_version: None,
+        source_author: None,
+        imported_at: None,
         created_at: now_str.clone(),
         updated_at: now_str,
     };
@@ -237,7 +252,7 @@ async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> 
     };
 
     let wb_row = sqlx::query(
-        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
+        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","tags","sourceUrl","sourceVersion","sourceAuthor","importedAt","createdAt","updatedAt"
            FROM "word_books" WHERE "id" = $1"#,
     )
     .bind(&id)
@@ -569,6 +584,7 @@ fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
     let updated_at: chrono::NaiveDateTime = row
         .try_get("updatedAt")
         .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let imported_at: Option<chrono::NaiveDateTime> = row.try_get("importedAt").ok().flatten();
 
     WordBook {
         id: row.try_get("id").unwrap_or_default(),
@@ -579,6 +595,19 @@ fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
         is_public: row.try_get("isPublic").unwrap_or(true),
         word_count: row.try_get("wordCount").unwrap_or(0),
         cover_image: row.try_get("coverImage").ok(),
+        tags: row.try_get::<Option<Vec<String>>, _>("tags").ok().flatten(),
+        source_url: row.try_get::<Option<String>, _>("sourceUrl").ok().flatten(),
+        source_version: row
+            .try_get::<Option<String>, _>("sourceVersion")
+            .ok()
+            .flatten(),
+        source_author: row
+            .try_get::<Option<String>, _>("sourceAuthor")
+            .ok()
+            .flatten(),
+        imported_at: imported_at.map(|t| {
+            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(t, chrono::Utc).to_rfc3339()
+        }),
         created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
             created_at,
             chrono::Utc,

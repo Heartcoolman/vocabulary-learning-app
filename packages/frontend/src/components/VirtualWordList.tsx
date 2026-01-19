@@ -8,31 +8,13 @@ import { memo, useEffect, createContext, useContext, CSSProperties } from 'react
 import { List, useListCallbackRef, RowComponentProps } from 'react-window';
 import { Star, Target, Clock, CheckCircle, Warning, ArrowClockwise } from './Icon';
 import { IconColor } from '../utils/iconColors';
-
-interface WordWithState {
-  id: string;
-  spelling: string;
-  phonetic: string;
-  meanings: string[];
-  masteryLevel: number;
-  score: number;
-  nextReviewDate: string;
-  accuracy: number;
-  studyCount: number;
-}
-
-interface VirtualWordListProps {
-  words: WordWithState[];
-  onAdjustWord: (word: WordWithState, action: 'mastered' | 'needsPractice' | 'reset') => void;
-  containerHeight?: number;
-}
-
-// 每个单词项的高度（包含内边距和边距）
-const ITEM_HEIGHT = 160;
-// 列表项之间的间距
-const ITEM_GAP = 16;
-// 总高度 = 内容高度 + 间距
-const ROW_HEIGHT = ITEM_HEIGHT + ITEM_GAP;
+import {
+  ITEM_HEIGHT,
+  ITEM_GAP,
+  ROW_HEIGHT,
+  type WordWithState,
+  type VirtualWordListProps,
+} from './virtualWordList.types';
 
 // 创建 Context 来传递数据给 Row 组件
 interface WordListContextValue {
@@ -218,7 +200,3 @@ export default function VirtualWordList({
     </WordListContext.Provider>
   );
 }
-
-// 导出常量供外部使用
-export { ITEM_HEIGHT, ITEM_GAP, ROW_HEIGHT };
-export type { WordWithState, VirtualWordListProps };

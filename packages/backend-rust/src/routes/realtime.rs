@@ -222,6 +222,8 @@ struct RealtimeStatsDto {
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/sessions/:sessionId/stream", get(session_stream))
+        .route("/users/:userId/stream", get(user_stream))
+        .route("/lookup-user", get(lookup_user_by_email))
         .route("/stats", get(get_stats))
         .route("/test", post(send_test_event))
 }
@@ -266,6 +268,7 @@ fn allowed_event_types() -> HashSet<String> {
         "quality-task-progress",
         "ping",
         "error",
+        "amas-flow",
     ]
     .into_iter()
     .map(|v| v.to_string())
@@ -320,6 +323,130 @@ async fn session_stream(
                     }
                     if let Some(event_session_id) = &msg.session_id {
                         if event_session_id != &session_id {
+                            return None;
+                        }
+                    }
+
+                    let data =
+                        serde_json::to_string(&msg.event).unwrap_or_else(|_| "{}".to_string());
+                    let sse = Event::default()
+                        .id(uuid::Uuid::new_v4().to_string())
+                        .event(msg.event.r#type.clone())
+                        .data(data);
+                    Some(Ok::<Event, Infallible>(sse))
+                }
+                Err(_) => None,
+            }
+        }
+    });
+
+    let ping_event = || {
+        let payload = serde_json::json!({ "timestamp": chrono::Utc::now().to_rfc3339() });
+        let event = RealtimeEventDto {
+            r#type: "ping".to_string(),
+            payload,
+        };
+        let data = serde_json::to_string(&event).unwrap_or_else(|_| "{}".to_string());
+        Event::default()
+            .id(uuid::Uuid::new_v4().to_string())
+            .event("ping")
+            .data(data)
+    };
+
+    let initial = stream::once(async move { Ok::<Event, Infallible>(ping_event()) });
+    let pings = IntervalStream::new(tokio::time::interval(std::time::Duration::from_secs(30)))
+        .map(move |_| Ok::<Event, Infallible>(ping_event()));
+
+    let stream = initial.chain(stream::select(events, pings));
+
+    Ok(Sse::new(stream))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LookupQuery {
+    email: String,
+    token: Option<String>,
+}
+
+async fn lookup_user_by_email(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<LookupQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let (proxy, _user) = require_user(&state, &headers, query.token).await?;
+
+    let email = query.email.trim().to_lowercase();
+    if email.is_empty() {
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "邮箱不能为空",
+        ));
+    }
+
+    let row: Option<(String,)> =
+        sqlx::query_as(r#"SELECT "id" FROM "users" WHERE LOWER("email") = $1 LIMIT 1"#)
+            .bind(&email)
+            .fetch_optional(proxy.pool())
+            .await
+            .map_err(|_| {
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "DB_ERROR",
+                    "数据库查询失败",
+                )
+            })?;
+
+    match row {
+        Some((user_id,)) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "userId": user_id }),
+        })),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "未找到该邮箱对应的用户",
+        )),
+    }
+}
+
+async fn user_stream(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(target_user_id): Path<String>,
+    Query(query): Query<StreamQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let (_proxy, _user) = require_user(&state, &headers, query.token.clone()).await?;
+
+    let allowed = allowed_event_types();
+    let event_types = query.event_types.as_ref().map(|raw| {
+        raw.split(',')
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+            .filter(|v| allowed.contains(*v))
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>()
+    });
+
+    let hub = hub();
+    let (receiver, guard) = hub
+        .subscribe(target_user_id.clone(), None, event_types.clone())
+        .await;
+
+    let events = BroadcastStream::new(receiver).filter_map(move |msg| {
+        let _guard = &guard;
+        let event_types = event_types.clone();
+        let target_user_id = target_user_id.clone();
+
+        async move {
+            match msg {
+                Ok(msg) => {
+                    if msg.user_id != target_user_id {
+                        return None;
+                    }
+                    if let Some(event_types) = &event_types {
+                        if !event_types.contains(&msg.event.r#type) {
                             return None;
                         }
                     }

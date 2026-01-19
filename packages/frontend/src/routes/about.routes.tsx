@@ -3,62 +3,31 @@ import { AppRoute } from './types';
 import { PageLoader } from './components';
 
 // 懒加载 - AMAS 公开展示页面（About）
-const AboutLayout = lazy(() => import('../pages/about/AboutLayout'));
-const AboutHomePage = lazy(() => import('../pages/about/AboutHomePage'));
-const SimulationPage = lazy(() => import('../pages/about/SimulationPage'));
-const DashboardPage = lazy(() => import('../pages/about/DashboardPage'));
-const StatsPage = lazy(() => import('../pages/about/StatsPage'));
 const SystemStatusPage = lazy(() => import('../pages/about/SystemStatusPage'));
 
-/**
- * 懒加载包装组件
- */
+// 六个设计方案
+const AboutGlassStack = lazy(() => import('../pages/about/AboutGlassStack'));
+const AboutNeuralHub = lazy(() => import('../pages/about/AboutNeuralHub'));
+const AboutPipeline = lazy(() => import('../pages/about/AboutPipeline'));
+const AboutCascade = lazy(() => import('../pages/about/AboutCascade'));
+const AboutLens = lazy(() => import('../pages/about/AboutLens'));
+const AboutRibbon = lazy(() => import('../pages/about/AboutRibbon'));
+
+// 实时数据流可视化
+const AboutDataFlow = lazy(() => import('../pages/about/AboutDataFlow'));
+
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );
 
 /**
- * About 子路由配置
+ * About 页面路由配置
+ * 公开访问的 AMAS 展示页面
  */
-const aboutChildren: AppRoute[] = [
+export const aboutRoutes: AppRoute[] = [
+  // 系统状态（独立页面）
   {
-    index: true,
-    element: (
-      <LazyWrapper>
-        <AboutHomePage />
-      </LazyWrapper>
-    ),
-    meta: { title: '关于AMAS', requireAuth: false },
-  },
-  {
-    path: 'simulation',
-    element: (
-      <LazyWrapper>
-        <SimulationPage />
-      </LazyWrapper>
-    ),
-    meta: { title: '算法模拟', requireAuth: false },
-  },
-  {
-    path: 'dashboard',
-    element: (
-      <LazyWrapper>
-        <DashboardPage />
-      </LazyWrapper>
-    ),
-    meta: { title: '仪表盘', requireAuth: false },
-  },
-  {
-    path: 'stats',
-    element: (
-      <LazyWrapper>
-        <StatsPage />
-      </LazyWrapper>
-    ),
-    meta: { title: '统计', requireAuth: false },
-  },
-  {
-    path: 'system-status',
+    path: '/system-status',
     element: (
       <LazyWrapper>
         <SystemStatusPage />
@@ -66,21 +35,69 @@ const aboutChildren: AppRoute[] = [
     ),
     meta: { title: '系统状态', requireAuth: false },
   },
-];
-
-/**
- * About 页面路由配置
- * 公开访问的 AMAS 展示页面
- */
-export const aboutRoutes: AppRoute[] = [
+  // 六个设计方案（独立页面）
+  {
+    path: '/about/v1',
+    element: (
+      <LazyWrapper>
+        <AboutGlassStack />
+      </LazyWrapper>
+    ),
+    meta: { title: '方案一：玻璃卡片堆叠', requireAuth: false },
+  },
+  {
+    path: '/about/v2',
+    element: (
+      <LazyWrapper>
+        <AboutNeuralHub />
+      </LazyWrapper>
+    ),
+    meta: { title: '方案二：神经中枢', requireAuth: false },
+  },
+  {
+    path: '/about/v3',
+    element: (
+      <LazyWrapper>
+        <AboutPipeline />
+      </LazyWrapper>
+    ),
+    meta: { title: '方案三：动态流水线', requireAuth: false },
+  },
+  {
+    path: '/about/v4',
+    element: (
+      <LazyWrapper>
+        <AboutCascade />
+      </LazyWrapper>
+    ),
+    meta: { title: '方案四：斜轴级联', requireAuth: false },
+  },
+  {
+    path: '/about/v5',
+    element: (
+      <LazyWrapper>
+        <AboutLens />
+      </LazyWrapper>
+    ),
+    meta: { title: '方案五：四象限透镜', requireAuth: false },
+  },
+  {
+    path: '/about/v6',
+    element: (
+      <LazyWrapper>
+        <AboutRibbon />
+      </LazyWrapper>
+    ),
+    meta: { title: '方案六：电路丝带', requireAuth: false },
+  },
+  // About 主页（数据流可视化）
   {
     path: '/about',
     element: (
       <LazyWrapper>
-        <AboutLayout />
+        <AboutDataFlow />
       </LazyWrapper>
     ),
-    meta: { title: '关于', requireAuth: false },
-    children: aboutChildren,
+    meta: { title: 'AMAS 数据流可视化', requireAuth: false },
   },
 ];

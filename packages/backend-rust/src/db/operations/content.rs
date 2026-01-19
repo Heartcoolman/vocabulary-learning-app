@@ -130,7 +130,7 @@ pub async fn insert_word_book(proxy: &DatabaseProxy, book: &WordBook) -> Result<
         INSERT INTO "word_books" (
             "id", "name", "description", "coverImage", "type", "userId",
             "isPublic", "wordCount", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ) VALUES ($1, $2, $3, $4, $5::"WordBookType", $6, $7, $8, $9, $10)
         "#,
     )
     .bind(&book.id)
@@ -140,7 +140,7 @@ pub async fn insert_word_book(proxy: &DatabaseProxy, book: &WordBook) -> Result<
     .bind(&book.r#type)
     .bind(&book.user_id)
     .bind(book.is_public)
-    .bind(book.word_count)
+    .bind(book.word_count as i32)
     .bind(now)
     .bind(now)
     .execute(proxy.pool())
@@ -264,19 +264,17 @@ pub async fn insert_word(proxy: &DatabaseProxy, word: &Word) -> Result<(), sqlx:
         r#"
         INSERT INTO "words" (
             "id", "wordBookId", "spelling", "phonetic", "meanings", "examples",
-            "audioUrl", "difficulty", "frequency", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            "audioUrl", "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#,
     )
     .bind(&word.id)
     .bind(&word.word_book_id)
     .bind(&word.spelling)
     .bind(&word.phonetic)
-    .bind(&word.meanings)
-    .bind(&word.examples)
+    .bind(serde_json::to_value(&word.meanings).unwrap_or_default())
+    .bind(serde_json::to_value(&word.examples).unwrap_or_default())
     .bind(&word.audio_url)
-    .bind(word.difficulty)
-    .bind(word.frequency)
     .bind(now)
     .bind(now)
     .execute(proxy.pool())
@@ -296,10 +294,12 @@ pub async fn count_words_in_book(
     proxy: &DatabaseProxy,
     word_book_id: &str,
 ) -> Result<i64, sqlx::Error> {
-    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
-        .bind(word_book_id)
-        .fetch_one(proxy.pool())
-        .await
+    let result: Option<i64> =
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
+            .bind(word_book_id)
+            .fetch_one(proxy.pool())
+            .await?;
+    Ok(result.unwrap_or(0))
 }
 
 pub async fn get_study_plan(

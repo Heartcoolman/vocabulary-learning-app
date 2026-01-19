@@ -178,7 +178,7 @@ pub async fn insert_amas_user_model(
         INSERT INTO "amas_user_models" (
             "id", "userId", "modelType", "parameters", "version", "createdAt", "updatedAt"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT ("id") DO UPDATE SET
+        ON CONFLICT ("userId", "modelType") DO UPDATE SET
             "parameters" = EXCLUDED."parameters",
             "version" = EXCLUDED."version",
             "updatedAt" = EXCLUDED."updatedAt"
@@ -251,6 +251,82 @@ pub async fn get_recent_decision_records(
     .fetch_all(proxy.pool())
     .await?;
     Ok(rows.iter().map(map_decision_record).collect())
+}
+
+pub async fn get_global_recent_decisions(
+    proxy: &DatabaseProxy,
+    limit: i64,
+) -> Result<Vec<DecisionRecord>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT * FROM "decision_records"
+        WHERE "isSimulation" = false
+        ORDER BY "createdAt" DESC
+        LIMIT $1
+        "#,
+    )
+    .bind(limit)
+    .fetch_all(proxy.pool())
+    .await?;
+    Ok(rows.iter().map(map_decision_record).collect())
+}
+
+pub async fn get_today_decision_count(proxy: &DatabaseProxy) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = sqlx::query_as(
+        r#"
+        SELECT COUNT(*)::bigint FROM "decision_records"
+        WHERE "createdAt" >= CURRENT_DATE
+        AND "isSimulation" = false
+        "#,
+    )
+    .fetch_one(proxy.pool())
+    .await?;
+    Ok(row.0)
+}
+
+pub async fn get_algorithm_distribution(
+    proxy: &DatabaseProxy,
+) -> Result<std::collections::HashMap<String, f64>, sqlx::Error> {
+    let rows: Vec<(String, i64)> = sqlx::query_as(
+        r#"
+        SELECT "decisionSource", COUNT(*)::bigint
+        FROM "decision_records"
+        WHERE "createdAt" >= CURRENT_DATE - INTERVAL '7 days'
+        AND "isSimulation" = false
+        GROUP BY "decisionSource"
+        "#,
+    )
+    .fetch_all(proxy.pool())
+    .await?;
+
+    let total: i64 = rows.iter().map(|(_, c)| c).sum();
+    let mut dist = std::collections::HashMap::new();
+    for (source, count) in rows {
+        let ratio = if total > 0 {
+            count as f64 / total as f64
+        } else {
+            0.0
+        };
+        dist.insert(source, ratio);
+    }
+    Ok(dist)
+}
+
+pub async fn get_decision_by_id(
+    proxy: &DatabaseProxy,
+    decision_id: &str,
+) -> Result<Option<DecisionRecord>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        SELECT * FROM "decision_records"
+        WHERE "decisionId" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(decision_id)
+    .fetch_optional(proxy.pool())
+    .await?;
+    Ok(row.as_ref().map(map_decision_record))
 }
 
 pub async fn insert_feature_vector(

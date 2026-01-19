@@ -2,6 +2,17 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { execSync } from 'child_process';
+
+function getGitVersion(): string {
+  try {
+    const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return `${date}-${hash}`;
+  } catch {
+    return '0.0.0';
+  }
+}
 
 function resolveApiConnectionTargets(
   apiUrl: string,
@@ -30,6 +41,7 @@ function resolveApiConnectionTargets(
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
+  const appVersion = getGitVersion();
 
   // Vite 配置文件运行在 Node 侧，需显式加载 packages/frontend/.env* 供此处使用
   const env = loadEnv(mode, __dirname, 'VITE_');
@@ -46,6 +58,11 @@ export default defineConfig(({ mode }) => {
   const preconnectTargets = apiUrlRaw ? resolveApiConnectionTargets(apiUrlRaw, isProduction) : null;
 
   return {
+    // 定义环境变量（构建时注入）
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    },
+
     plugins: [
       react(),
       // Bundle 分析可视化

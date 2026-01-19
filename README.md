@@ -132,26 +132,88 @@ Danci 是一个现代化的智能单词学习系统，采用先进的 **AMAS (Ad
 - **Redis**: >= 6
 - **Docker** (可选，推荐用于部署)
 
+### Zeabur 一键部署（最简单）
+
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/2K1A1P)
+
+点击按钮后：
+
+1. 填写 **应用域名**（自动分配或绑定自定义）
+2. 填写 **JWT 密钥**（64+ 字符）
+3. 点击部署，等待完成
+
+Zeabur 会自动创建 PostgreSQL、Redis、后端、前端四个服务。
+
 ### Docker 部署（推荐）
 
-最简单的部署方式是使用 Docker Compose：
+#### 1. 配置环境变量
 
 ```bash
-# 克隆项目
-git clone https://github.com/Heartcoolman/vocabulary-learning-app.git
-cd vocabulary-learning-app
-
-# 启动所有服务
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
+cp infrastructure/docker/.env.docker .env
 ```
 
-服务启动后：
+编辑 `.env` 文件，**生产环境必须修改**：
 
-- 前端: http://localhost:3000
-- 后端 API: http://localhost:8080
+```env
+# 数据库密码（改为强密码）
+POSTGRES_PASSWORD=your_secure_password
+
+# JWT 密钥（64+ 字符随机串）
+JWT_SECRET=your_random_64_char_secret
+
+# 前端域名（生产环境改为实际域名）
+CORS_ORIGIN=https://your-domain.com
+```
+
+#### 2. 启动服务
+
+```bash
+# 构建并启动
+docker compose up -d
+
+# 查看状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f
+```
+
+#### 3. 访问服务
+
+| 服务     | 地址                      |
+| -------- | ------------------------- |
+| 前端     | http://localhost:5173     |
+| API      | http://localhost:5173/api |
+| 后端直连 | http://localhost:3001     |
+
+#### 4. 常用命令
+
+```bash
+# 停止服务
+docker compose down
+
+# 重建镜像
+docker compose build --no-cache
+
+# 重启后端
+docker compose restart backend-rust
+
+# 进入数据库
+docker compose exec postgres psql -U danci -d vocabulary_db
+
+# 备份数据库
+docker compose exec postgres pg_dump -U danci vocabulary_db > backup.sql
+```
+
+#### 5. 服务架构
+
+```
+Nginx (:5173) → Rust Backend (:3000) → PostgreSQL + Redis
+     ↓
+前端静态资源 + API 反向代理 (/api)
+```
+
+详细配置说明见 [docs/DOCKER.md](docs/DOCKER.md)
 
 ### 本地开发
 

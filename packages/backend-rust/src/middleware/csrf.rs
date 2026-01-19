@@ -114,7 +114,14 @@ fn is_exempt_path(path: &str) -> bool {
         "/api/auth/refresh",
         "/api/auth/password/request",
         "/api/auth/password/reset",
-        "/api/v1/auth/refresh_token",
+        // These endpoints are called via `navigator.sendBeacon` (no custom headers),
+        // so CSRF header validation cannot be satisfied.
+        "/api/habit-profile/end-session",
+        "/api/tracking/events",
+        // Frontend logging endpoint (batch logs via fetch without custom headers)
+        "/api/logs",
+        // About/simulation endpoints for development
+        "/api/about/simulate",
         "/auth/login",
         "/auth/register",
         "/auth/refresh",

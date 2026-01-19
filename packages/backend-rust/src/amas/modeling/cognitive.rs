@@ -70,6 +70,10 @@ impl CognitiveProfiler {
         self.profile = CognitiveProfile::default();
         self.accuracy_history.clear();
     }
+
+    pub fn set_profile(&mut self, profile: CognitiveProfile) {
+        self.profile = profile;
+    }
 }
 
 impl Default for CognitiveProfiler {

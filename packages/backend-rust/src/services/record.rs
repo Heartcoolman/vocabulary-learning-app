@@ -747,7 +747,7 @@ async fn get_paginated_records(
     options: PaginationOptions,
 ) -> Result<PaginatedResult<AnswerRecordWithWord>, sqlx::Error> {
     let page = options.page.unwrap_or(1).max(1);
-    let page_size = options.page_size.unwrap_or(50).max(1).min(100);
+    let page_size = options.page_size.unwrap_or(50).clamp(1, 100);
     let offset = (page - 1) * page_size;
 
     let pool = proxy.pool();

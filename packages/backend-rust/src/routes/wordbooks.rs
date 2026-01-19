@@ -36,6 +36,16 @@ struct WordBookResponse {
     user_id: Option<String>,
     is_public: bool,
     word_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    imported_at: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -317,6 +327,11 @@ pub async fn create_wordbook(State(state): State<AppState>, req: Request<Body>) 
                 user_id: Some(auth_user.id),
                 is_public: false,
                 word_count: 0,
+                tags: None,
+                source_url: None,
+                source_version: None,
+                source_author: None,
+                imported_at: None,
                 created_at: now_iso.clone(),
                 updated_at: now_iso,
             },
@@ -605,6 +620,9 @@ pub async fn get_wordbook_words(State(state): State<AppState>, req: Request<Body
     let word_book_id = segments[2].to_string();
 
     let query_string = req.uri().query().unwrap_or("");
+    let fetch_all = get_query_param(query_string, "all")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
     let page = get_query_param(query_string, "page")
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(1)
@@ -636,7 +654,20 @@ pub async fn get_wordbook_words(State(state): State<AppState>, req: Request<Body
             .into_response();
     }
 
-    let words =
+    let words = if fetch_all {
+        match select_all_words_in_word_book(proxy.as_ref(), &word_book_id).await {
+            Ok(words) => words,
+            Err(err) => {
+                tracing::warn!(error = %err, "wordbook words query failed");
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response();
+            }
+        }
+    } else {
         match select_words_in_word_book_paginated(proxy.as_ref(), &word_book_id, page_size, offset)
             .await
         {
@@ -650,7 +681,8 @@ pub async fn get_wordbook_words(State(state): State<AppState>, req: Request<Body
                 )
                 .into_response();
             }
-        };
+        }
+    };
 
     Json(SuccessResponse {
         success: true,
@@ -1094,6 +1126,7 @@ async fn select_word_books(
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
+                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1107,6 +1140,7 @@ async fn select_word_books(
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
+                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1120,6 +1154,7 @@ async fn select_word_books(
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
+                   wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1151,6 +1186,7 @@ async fn select_word_book_by_id(
         r#"
         SELECT wb."id", wb."name", wb."description", wb."coverImage",
                wb."type"::text as "type", wb."userId", wb."isPublic",
+               wb."tags", wb."sourceUrl", wb."sourceVersion", wb."sourceAuthor", wb."importedAt",
                COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
         FROM "word_books" wb
         LEFT JOIN "words" w ON w."wordBookId" = wb."id"
@@ -1166,6 +1202,28 @@ async fn select_word_book_by_id(
 }
 
 async fn select_words_in_word_book(
+    proxy: &crate::db::DatabaseProxy,
+    word_book_id: &str,
+) -> Result<Vec<WordResponse>, sqlx::Error> {
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+        FROM "words"
+        WHERE "wordBookId" = $1
+        ORDER BY "createdAt" DESC
+        "#,
+    )
+    .bind(word_book_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| map_postgres_word_row(&row))
+        .collect())
+}
+
+async fn select_all_words_in_word_book(
     proxy: &crate::db::DatabaseProxy,
     word_book_id: &str,
 ) -> Result<Vec<WordResponse>, sqlx::Error> {
@@ -1403,6 +1461,7 @@ fn map_postgres_word_book_row(row: &sqlx::postgres::PgRow) -> WordBookResponse {
     let updated_at: NaiveDateTime = row
         .try_get("updatedAt")
         .unwrap_or_else(|_| Utc::now().naive_utc());
+    let imported_at: Option<NaiveDateTime> = row.try_get("importedAt").ok().flatten();
 
     WordBookResponse {
         id: row.try_get("id").unwrap_or_default(),
@@ -1416,6 +1475,17 @@ fn map_postgres_word_book_row(row: &sqlx::postgres::PgRow) -> WordBookResponse {
         user_id: row.try_get::<Option<String>, _>("userId").ok().flatten(),
         is_public: row.try_get::<bool, _>("isPublic").unwrap_or(false),
         word_count: row.try_get::<i64, _>("wordCount").unwrap_or(0),
+        tags: row.try_get::<Option<Vec<String>>, _>("tags").ok().flatten(),
+        source_url: row.try_get::<Option<String>, _>("sourceUrl").ok().flatten(),
+        source_version: row
+            .try_get::<Option<String>, _>("sourceVersion")
+            .ok()
+            .flatten(),
+        source_author: row
+            .try_get::<Option<String>, _>("sourceAuthor")
+            .ok()
+            .flatten(),
+        imported_at: imported_at.map(format_naive_iso),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),
     }

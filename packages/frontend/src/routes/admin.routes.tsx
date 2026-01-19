@@ -24,6 +24,7 @@ const SystemDebugPage = lazy(() => import('../pages/admin/SystemDebugPage'));
 const WeeklyReportPage = lazy(() => import('../pages/admin/WeeklyReportPage'));
 const WordQualityPage = lazy(() => import('../pages/admin/WordQualityPage'));
 const LLMTasksPage = lazy(() => import('../pages/admin/LLMTasksPage'));
+const AMASMonitoringPage = lazy(() => import('../pages/admin/AMASMonitoringPage'));
 
 /**
  * 懒加载包装组件
@@ -206,6 +207,15 @@ const adminChildren: AppRoute[] = [
       </LazyWrapper>
     ),
     meta: { title: 'LLM任务', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'amas-monitoring',
+    element: (
+      <LazyWrapper>
+        <AMASMonitoringPage />
+      </LazyWrapper>
+    ),
+    meta: { title: 'AMAS监控', requireAuth: true, requireAdmin: true },
   },
 ];
 

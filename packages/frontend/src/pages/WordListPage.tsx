@@ -6,7 +6,8 @@ import LearningService from '../services/LearningService';
 import StorageService from '../services/StorageService';
 import { useToast } from '../components/ui';
 import { uiLogger } from '../utils/logger';
-import VirtualWordList, { type WordWithState } from '../components/VirtualWordList';
+import VirtualWordList from '../components/VirtualWordList';
+import { type WordWithState } from '../components/virtualWordList.types';
 
 type SortField = 'score' | 'accuracy' | 'studyCount' | 'masteryLevel';
 type SortOrder = 'asc' | 'desc';

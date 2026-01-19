@@ -287,7 +287,7 @@ interface ApiResponse<T> {
 /** 带数据源的响应类型 */
 export interface WithSource<T> {
   data: T;
-  source: 'real' | 'virtual' | 'mixed';
+  source: 'real' | 'virtual' | 'mixed' | 'computed';
 }
 
 // ==================== 辅助函数 ====================
@@ -711,11 +711,15 @@ export interface PipelineStatusResponse {
 export interface AlgorithmStatus {
   id: string;
   name: string;
+  layer: string;
   weight: number;
   callCount: number;
   avgLatencyMs: number;
   explorationRate: number;
-  lastCalledAt: string | null;
+  errorCount: number;
+  lastCalledAt: number | null;
+  isActive: boolean;
+  status: string;
 }
 
 /** 冷启动统计 */
@@ -851,10 +855,86 @@ export async function getMemoryStatus(options?: RequestOptions): Promise<MemoryS
   return parseJsonResponse<MemoryStatusResponse>(response, '获取记忆状态失败');
 }
 
+/**
+ * 获取 Pipeline 各层实时运行状态（带数据源信息）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getPipelineLayerStatusWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<PipelineStatusResponse>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/system/pipeline-status`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<PipelineStatusResponse>(response, '获取 Pipeline 状态失败');
+}
+
+/**
+ * 获取算法实时运行状态（带数据源信息）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getAlgorithmStatusWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<AlgorithmStatusResponse>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/system/algorithm-status`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<AlgorithmStatusResponse>(response, '获取算法状态失败');
+}
+
+/**
+ * 获取用户状态分布实时监控数据（带数据源信息）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getUserStateStatusWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<UserStateStatusResponse>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/system/user-state-status`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<UserStateStatusResponse>(response, '获取用户状态监控数据失败');
+}
+
+/**
+ * 获取记忆状态分布（带数据源信息）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getMemoryStatusWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<MemoryStatusResponse>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/system/memory-status`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<MemoryStatusResponse>(response, '获取记忆状态失败');
+}
+
+/**
+ * 获取功能开关状态（带数据源信息）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getFeatureFlagsWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<FeatureFlagsStatus>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/feature-flags`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<FeatureFlagsStatus>(response, '获取功能开关状态失败');
+}
+
 /** 模块运行状态 */
 export interface ModuleStatus {
   enabled: boolean;
   status: 'healthy' | 'warning' | 'error' | 'disabled';
+  lastActivity?: string;
   latencyMs?: number;
   errorRate?: number;
   callCount?: number;
@@ -865,6 +945,12 @@ export interface FeatureFlagsStatus {
   readEnabled: boolean;
   writeEnabled: boolean;
   flags: Record<string, ModuleStatus>;
+}
+
+/** 模块健康检查响应 */
+export interface ModuleHealthResponse {
+  flags: Record<string, ModuleStatus>;
+  checkedAt: string;
 }
 
 /**
@@ -878,6 +964,21 @@ export async function getFeatureFlags(options?: RequestOptions): Promise<Feature
     options,
   );
   return parseJsonResponse<FeatureFlagsStatus>(response, '获取功能开关状态失败');
+}
+
+/**
+ * 获取模块健康状态（主动探测）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getModuleHealthWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<ModuleHealthResponse>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/module-health`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<ModuleHealthResponse>(response, '获取模块健康状态失败');
 }
 
 /** 学习模式分布响应 */
@@ -1077,10 +1178,15 @@ export default {
   injectFault,
   // 系统状态页面 API
   getPipelineLayerStatus,
+  getPipelineLayerStatusWithSource,
   getAlgorithmStatus,
+  getAlgorithmStatusWithSource,
   getUserStateStatus,
+  getUserStateStatusWithSource,
   getMemoryStatus,
+  getMemoryStatusWithSource,
   getFeatureFlags,
+  getFeatureFlagsWithSource,
   // 健康检查 API
   getHealthMetrics,
   getHealthReady,

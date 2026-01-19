@@ -160,8 +160,18 @@ CREATE TABLE IF NOT EXISTS "optimization_event" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Create view/alias for table name differences (word_frequency -> word_frequencies)
-CREATE OR REPLACE VIEW "word_frequency" AS SELECT "word_id", "frequency_score" FROM "word_frequencies";
+-- 11. word_frequencies table (required for word_frequency view)
+CREATE TABLE IF NOT EXISTS "word_frequencies" (
+    "id" TEXT PRIMARY KEY,
+    "wordId" TEXT NOT NULL,
+    "frequencyScore" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    "rawFrequency" DOUBLE PRECISION,
+    "corpusSource" TEXT NOT NULL DEFAULT 'default',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
--- 12. algorithm_config view (singular alias for algorithm_configs)
-CREATE OR REPLACE VIEW "algorithm_config" AS SELECT * FROM "algorithm_configs";
+-- 12. Create view/alias for table name differences (word_frequency -> word_frequencies)
+CREATE OR REPLACE VIEW "word_frequency" AS SELECT "wordId" AS word_id, "frequencyScore"::double precision AS frequency_score FROM "word_frequencies";
+
+-- 13. algorithm_config view moved to 014_complete_schema_sync.sql

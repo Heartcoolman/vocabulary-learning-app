@@ -777,6 +777,7 @@ CREATE INDEX IF NOT EXISTS "idx_objective_history_timestamp" ON "objective_histo
 CREATE TABLE IF NOT EXISTS "visual_fatigue_records" (
   "id" TEXT PRIMARY KEY,
   "userId" TEXT NOT NULL,
+  "sessionId" TEXT,
   "score" REAL NOT NULL,
   "fusedScore" REAL NOT NULL,
   "perclos" REAL NOT NULL,
@@ -791,6 +792,8 @@ CREATE TABLE IF NOT EXISTS "visual_fatigue_records" (
 CREATE INDEX IF NOT EXISTS "idx_visual_fatigue_records_userId_createdAt" ON "visual_fatigue_records" ("userId", "createdAt");
 CREATE INDEX IF NOT EXISTS "idx_visual_fatigue_records_createdAt" ON "visual_fatigue_records" ("createdAt");
 CREATE INDEX IF NOT EXISTS "idx_visual_fatigue_records_userId" ON "visual_fatigue_records" ("userId");
+CREATE INDEX IF NOT EXISTS "idx_visual_fatigue_records_sessionId" ON "visual_fatigue_records" ("sessionId");
+CREATE INDEX IF NOT EXISTS "idx_visual_fatigue_records_sessionId_createdAt" ON "visual_fatigue_records" ("sessionId", "createdAt" DESC);
 
 -- 用户视觉疲劳配置表
 CREATE TABLE IF NOT EXISTS "user_visual_fatigue_configs" (

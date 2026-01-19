@@ -9,7 +9,7 @@
  * - 功能运行状态
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import {
   Activity,
   Brain,
@@ -27,17 +27,17 @@ import {
   ToggleRight,
 } from '../../components/Icon';
 import {
-  getPipelineLayerStatus,
-  getAlgorithmStatus,
-  getUserStateStatus,
-  getMemoryStatus,
-  getFeatureFlags,
+  getPipelineLayerStatusWithSource,
+  getAlgorithmStatusWithSource,
+  getUserStateStatusWithSource,
+  getMemoryStatusWithSource,
+  getModuleHealthWithSource,
   getOverviewStatsWithSource,
   PipelineStatusResponse,
   AlgorithmStatusResponse,
   UserStateStatusResponse,
   MemoryStatusResponse,
-  FeatureFlagsStatus,
+  ModuleHealthResponse,
 } from '../../services/aboutApi';
 import { amasLogger } from '../../utils/logger';
 
@@ -51,7 +51,10 @@ interface StatusIndicatorProps {
 // ==================== 子组件 ====================
 
 /** 状态指示器 */
-function StatusIndicator({ status, size = 'md' }: StatusIndicatorProps) {
+const StatusIndicator = memo(function StatusIndicator({
+  status,
+  size = 'md',
+}: StatusIndicatorProps) {
   const sizeClass = size === 'sm' ? 'w-2 h-2' : 'w-3 h-3';
   const colorClass = {
     healthy: 'bg-emerald-500',
@@ -64,10 +67,10 @@ function StatusIndicator({ status, size = 'md' }: StatusIndicatorProps) {
       className={`${sizeClass} ${colorClass} inline-block rounded-full ${status !== 'error' ? 'animate-pulse' : ''}`}
     />
   );
-}
+});
 
 /** Pipeline 层卡片 */
-function PipelineLayerCard({
+const PipelineLayerCard = memo(function PipelineLayerCard({
   layer,
 }: {
   layer: {
@@ -90,7 +93,7 @@ function PipelineLayerCard({
   };
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="rounded-button bg-blue-50 p-2 text-blue-600">
@@ -128,10 +131,14 @@ function PipelineLayerCard({
       </div>
     </div>
   );
-}
+});
 
 /** Pipeline 状态面板 */
-function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) {
+const PipelineStatusPanel = memo(function PipelineStatusPanel({
+  data,
+}: {
+  data: PipelineStatusResponse | null;
+}) {
   if (!data) {
     return (
       <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -141,7 +148,7 @@ function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) 
   }
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <Activity className="text-blue-500" />
@@ -157,7 +164,14 @@ function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) 
                 : '异常'}
           </span>
           <span className="ml-2 text-gray-400">|</span>
-          <span className="text-gray-500 dark:text-gray-400">吞吐量: {data.totalThroughput}/s</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            吞吐量:{' '}
+            {data.totalThroughput >= 1
+              ? `${data.totalThroughput.toFixed(1)}/s`
+              : data.totalThroughput * 3600 >= 1
+                ? `${(data.totalThroughput * 3600).toFixed(1)}/h`
+                : `${Math.round(data.totalThroughput * 86400)}/天`}
+          </span>
         </div>
       </div>
 
@@ -168,11 +182,12 @@ function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) 
       </div>
     </div>
   );
-}
+});
 
 /** 算法卡片 */
-function AlgorithmCard({
+const AlgorithmCard = memo(function AlgorithmCard({
   algo,
+  layer,
 }: {
   algo: {
     id: string;
@@ -181,54 +196,82 @@ function AlgorithmCard({
     callCount: number;
     avgLatencyMs: number;
     explorationRate: number;
+    isActive?: boolean;
+    status?: string;
   };
+  layer: string;
 }) {
   const colorMap: Record<string, string> = {
     thompson: 'from-blue-500 to-blue-600',
     linucb: 'from-purple-500 to-purple-600',
-    actr: 'from-amber-500 to-amber-600',
     heuristic: 'from-emerald-500 to-emerald-600',
+    attention_monitor: 'from-cyan-500 to-cyan-600',
+    fatigue_estimator: 'from-orange-500 to-orange-600',
+    cognitive_profiler: 'from-pink-500 to-pink-600',
+    motivation_tracker: 'from-teal-500 to-teal-600',
+    trend_analyzer: 'from-indigo-500 to-indigo-600',
+    actr_memory: 'from-amber-500 to-amber-600',
+    fsrs: 'from-rose-500 to-rose-600',
+    coldstart_manager: 'from-violet-500 to-violet-600',
   };
 
+  const isDecisionLayer = layer === 'decision';
+
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="font-medium text-gray-800 dark:text-white">{algo.name}</h4>
-        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs dark:bg-slate-700">
-          {(algo.weight * 100).toFixed(1)}%
-        </span>
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-white/80 p-3 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+      <div className="mb-2 flex items-center justify-between">
+        <h4 className="text-sm font-medium text-gray-800 dark:text-white">{algo.name}</h4>
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`h-2 w-2 rounded-full ${algo.isActive ? 'animate-pulse bg-emerald-500' : algo.callCount > 0 ? 'bg-gray-400' : 'bg-gray-300'}`}
+          />
+          {isDecisionLayer && (
+            <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-slate-700">
+              {(algo.weight * 100).toFixed(0)}%
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* 权重进度条 */}
-      <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
-        <div
-          className={`h-full bg-gradient-to-r ${colorMap[algo.id] || 'from-gray-400 to-gray-500'} transition-all duration-g3-slow`}
-          style={{ width: `${algo.weight * 100}%` }}
-        />
-      </div>
+      {isDecisionLayer && (
+        <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+          <div
+            className={`h-full bg-gradient-to-r ${colorMap[algo.id] || 'from-gray-400 to-gray-500'} transition-all duration-g3-slow`}
+            style={{ width: `${algo.weight * 100}%` }}
+          />
+        </div>
+      )}
 
-      <div className="grid grid-cols-3 gap-2 text-center text-sm">
+      <div
+        className={`grid ${isDecisionLayer ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-center text-xs`}
+      >
         <div>
           <div className="font-bold text-gray-800 dark:text-white">{algo.callCount}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">调用</div>
+          <div className="text-gray-500 dark:text-gray-400">调用</div>
         </div>
         <div>
           <div className="font-bold text-gray-800 dark:text-white">{algo.avgLatencyMs}ms</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">延迟</div>
+          <div className="text-gray-500 dark:text-gray-400">延迟</div>
         </div>
-        <div>
-          <div className="font-bold text-gray-800 dark:text-white">
-            {(algo.explorationRate * 100).toFixed(0)}%
+        {isDecisionLayer && (
+          <div>
+            <div className="font-bold text-gray-800 dark:text-white">
+              {(algo.explorationRate * 100).toFixed(0)}%
+            </div>
+            <div className="text-gray-500 dark:text-gray-400">探索率</div>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">探索率</div>
-        </div>
+        )}
       </div>
     </div>
   );
-}
+});
 
 /** 算法状态面板 */
-function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }) {
+const AlgorithmStatusPanel = memo(function AlgorithmStatusPanel({
+  data,
+}: {
+  data: AlgorithmStatusResponse | null;
+}) {
   if (!data) {
     return (
       <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -237,8 +280,41 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
     );
   }
 
+  const layerConfig: Record<string, { title: string; icon: React.ReactNode; gradient: string }> = {
+    decision: {
+      title: '决策层',
+      icon: <Target size={16} className="text-blue-500" />,
+      gradient: 'from-blue-500/10 to-indigo-500/10',
+    },
+    modeling: {
+      title: '建模层',
+      icon: <Brain size={16} className="text-purple-500" />,
+      gradient: 'from-purple-500/10 to-pink-500/10',
+    },
+    memory: {
+      title: '记忆层',
+      icon: <Activity size={16} className="text-amber-500" />,
+      gradient: 'from-amber-500/10 to-orange-500/10',
+    },
+    management: {
+      title: '管理层',
+      icon: <Lightning size={16} className="text-emerald-500" />,
+      gradient: 'from-emerald-500/10 to-teal-500/10',
+    },
+  };
+
+  const groupedAlgorithms = data.algorithms.reduce(
+    (acc, algo) => {
+      const layer = (algo as { layer?: string }).layer || 'decision';
+      if (!acc[layer]) acc[layer] = [];
+      acc[layer].push(algo);
+      return acc;
+    },
+    {} as Record<string, typeof data.algorithms>,
+  );
+
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <Brain className="text-purple-500" />
@@ -252,14 +328,48 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {data.algorithms.map((algo) => (
-          <AlgorithmCard key={algo.id} algo={algo} />
-        ))}
+      <div className="space-y-4">
+        {['decision', 'modeling', 'memory', 'management'].map((layer) => {
+          const algorithms = groupedAlgorithms[layer];
+          if (!algorithms || algorithms.length === 0) return null;
+
+          const config = layerConfig[layer];
+          const activeCount = algorithms.filter(
+            (a) => (a as { isActive?: boolean }).isActive || a.callCount > 0,
+          ).length;
+
+          return (
+            <div
+              key={layer}
+              className={`overflow-hidden rounded-card border border-gray-200/40 bg-gradient-to-r ${config.gradient}`}
+            >
+              <div className="flex items-center justify-between border-b border-gray-100/50 px-4 py-2">
+                <div className="flex items-center gap-2">
+                  {config.icon}
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    {config.title}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {activeCount}/{algorithms.length} 活跃
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-3 md:grid-cols-3 lg:grid-cols-5">
+                {algorithms.map((algo) => (
+                  <AlgorithmCard
+                    key={algo.id}
+                    algo={algo as typeof algo & { isActive?: boolean; status?: string }}
+                    layer={layer}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* 冷启动统计 */}
-      <div className="rounded-card bg-gray-50 p-4 dark:bg-slate-900">
+      <div className="mt-6 rounded-card bg-gray-50 p-4 dark:bg-slate-900">
         <h3 className="mb-3 flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
           <Lightning className="text-amber-500" size={18} />
           冷启动管理器
@@ -312,10 +422,14 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
       </div>
     </div>
   );
-}
+});
 
 /** 用户状态监控面板 */
-function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
+const UserStatePanel = memo(function UserStatePanel({
+  data,
+}: {
+  data: UserStateStatusResponse | null;
+}) {
   if (!data) {
     return (
       <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -327,7 +441,7 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
   const { distributions } = data;
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <Users className="text-emerald-500" />
@@ -504,10 +618,14 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
       )}
     </div>
   );
-}
+});
 
 /** 记忆状态面板 */
-function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
+const MemoryStatusPanel = memo(function MemoryStatusPanel({
+  data,
+}: {
+  data: MemoryStatusResponse | null;
+}) {
   if (!data) {
     return (
       <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -517,7 +635,7 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
   }
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
         <Brain className="text-rose-500" />
         记忆状态分布
@@ -615,10 +733,14 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
       </div>
     </div>
   );
-}
+});
 
 /** 功能运行状态面板 */
-function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
+const FeatureFlagsPanel = memo(function FeatureFlagsPanel({
+  data,
+}: {
+  data: ModuleHealthResponse | null;
+}) {
   if (!data) {
     return (
       <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -712,7 +834,7 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   const totalCount = Object.keys(data.flags || {}).length;
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-gradient-to-br from-white via-white to-indigo-50/30 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-gradient-to-br from-white via-white to-indigo-50/30 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800">
       {/* 标题栏 */}
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
@@ -829,7 +951,7 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
       </div>
     </div>
   );
-}
+});
 
 // ==================== 主组件 ====================
 
@@ -838,79 +960,114 @@ export default function SystemStatusPage() {
   const [algorithmData, setAlgorithmData] = useState<AlgorithmStatusResponse | null>(null);
   const [userStateData, setUserStateData] = useState<UserStateStatusResponse | null>(null);
   const [memoryData, setMemoryData] = useState<MemoryStatusResponse | null>(null);
-  const [featureFlags, setFeatureFlags] = useState<FeatureFlagsStatus | null>(null);
+  const [featureFlags, setFeatureFlags] = useState<ModuleHealthResponse | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [dataSource, setDataSource] = useState<'real' | 'virtual' | 'mixed'>('virtual');
+  const [dataSource, setDataSource] = useState<'real' | 'virtual' | 'mixed' | 'computed'>(
+    'virtual',
+  );
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected'>(
+    'connected',
+  );
+  const tickRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     try {
       const [pipeline, algo, userState, memory, flags, overviewResult] = await Promise.all([
-        getPipelineLayerStatus(),
-        getAlgorithmStatus(),
-        getUserStateStatus(),
-        getMemoryStatus(),
-        getFeatureFlags(),
+        getPipelineLayerStatusWithSource(),
+        getAlgorithmStatusWithSource(),
+        getUserStateStatusWithSource(),
+        getMemoryStatusWithSource(),
+        getModuleHealthWithSource(),
         getOverviewStatsWithSource(),
       ]);
 
-      setPipelineData(pipeline);
-      setAlgorithmData(algo);
-      setUserStateData(userState);
-      setMemoryData(memory);
-      setFeatureFlags(flags);
-      setDataSource(overviewResult.source);
+      setPipelineData(pipeline.data);
+      setAlgorithmData(algo.data);
+      setUserStateData(userState.data);
+      setMemoryData(memory.data);
+      setFeatureFlags(flags.data);
+
+      // Determine overall data source
+      const sources = [pipeline.source, algo.source, userState.source, memory.source];
+      const hasReal = sources.some((s) => s === 'real');
+      const hasVirtual = sources.some((s) => s === 'virtual' || s === 'computed');
+      if (hasReal && hasVirtual) {
+        setDataSource('mixed');
+      } else if (hasReal) {
+        setDataSource('real');
+      } else {
+        setDataSource(overviewResult.source);
+      }
+
       setLastUpdated(new Date());
+      setConnectionStatus('connected');
     } catch (error) {
       amasLogger.error({ err: error }, '获取系统状态数据失败');
+      setConnectionStatus('disconnected');
     }
   }, []);
 
   useEffect(() => {
     fetchData();
 
-    // 设置不同的刷新间隔
-    const pipelineTimer = setInterval(async () => {
+    // 使用单一心跳定时器管理所有状态更新，减少重渲染
+    const heartbeatTimer = setInterval(async () => {
+      tickRef.current += 1;
+      const tick = tickRef.current;
+
       try {
-        const data = await getPipelineLayerStatus();
-        setPipelineData(data);
+        // 并行获取需要更新的数据
+        const updates: Promise<{ type: string; result: unknown }>[] = [];
+
+        // 5秒更新一次 (每个tick)
+        updates.push(
+          getPipelineLayerStatusWithSource().then((r) => ({ type: 'pipeline', result: r })),
+          getModuleHealthWithSource().then((r) => ({ type: 'flags', result: r })),
+        );
+
+        // 10秒更新一次 (每2个tick)
+        if (tick % 2 === 0) {
+          updates.push(getAlgorithmStatusWithSource().then((r) => ({ type: 'algo', result: r })));
+        }
+
+        // 30秒更新一次 (每6个tick)
+        if (tick % 6 === 0) {
+          updates.push(
+            getUserStateStatusWithSource().then((r) => ({ type: 'userState', result: r })),
+          );
+        }
+
+        const results = await Promise.all(updates);
+
+        // 批量更新状态
+        results.forEach(({ type, result }) => {
+          const data = (result as { data: unknown }).data;
+          switch (type) {
+            case 'pipeline':
+              setPipelineData(data as PipelineStatusResponse);
+              break;
+            case 'flags':
+              setFeatureFlags(data as ModuleHealthResponse);
+              break;
+            case 'algo':
+              setAlgorithmData(data as AlgorithmStatusResponse);
+              break;
+            case 'userState':
+              setUserStateData(data as UserStateStatusResponse);
+              break;
+          }
+        });
+
         setLastUpdated(new Date());
+        setConnectionStatus('connected');
       } catch (e) {
-        amasLogger.error({ err: e }, 'Pipeline 状态刷新失败');
+        amasLogger.error({ err: e }, '状态自动刷新失败');
+        setConnectionStatus('disconnected');
       }
-    }, 5000); // 5秒
-
-    const algoTimer = setInterval(async () => {
-      try {
-        const data = await getAlgorithmStatus();
-        setAlgorithmData(data);
-      } catch (e) {
-        amasLogger.error({ err: e }, '算法状态刷新失败');
-      }
-    }, 10000); // 10秒
-
-    const userStateTimer = setInterval(async () => {
-      try {
-        const data = await getUserStateStatus();
-        setUserStateData(data);
-      } catch (e) {
-        amasLogger.error({ err: e }, '用户状态刷新失败');
-      }
-    }, 30000); // 30秒
-
-    const featureFlagsTimer = setInterval(async () => {
-      try {
-        const data = await getFeatureFlags();
-        setFeatureFlags(data);
-      } catch (e) {
-        amasLogger.error({ err: e }, '功能开关状态刷新失败');
-      }
-    }, 3000); // 3秒，更快响应调试界面的变化
+    }, 5000);
 
     return () => {
-      clearInterval(pipelineTimer);
-      clearInterval(algoTimer);
-      clearInterval(userStateTimer);
-      clearInterval(featureFlagsTimer);
+      clearInterval(heartbeatTimer);
     };
   }, [fetchData]);
 
@@ -932,20 +1089,32 @@ export default function SystemStatusPage() {
                     ? 'bg-emerald-100 text-emerald-700'
                     : dataSource === 'mixed'
                       ? 'bg-blue-100 text-blue-700'
-                      : 'bg-amber-100 text-amber-700'
+                      : dataSource === 'computed'
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'bg-amber-100 text-amber-700'
                 }`}
               >
                 {dataSource === 'real'
                   ? '真实数据'
                   : dataSource === 'mixed'
                     ? '混合数据'
-                    : '模拟数据'}
+                    : dataSource === 'computed'
+                      ? '计算数据'
+                      : '模拟数据'}
               </span>
             </div>
             <p className="mt-1 text-gray-500 dark:text-gray-400">实时监控系统运行状态和性能指标</p>
           </div>
           <div className="text-right text-sm text-gray-400 dark:text-gray-400">
-            <div>最后更新</div>
+            <div className="flex items-center justify-end gap-2">
+              <span>最后更新</span>
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  connectionStatus === 'connected' ? 'animate-pulse bg-emerald-500' : 'bg-red-500'
+                }`}
+                title={connectionStatus === 'connected' ? '连接正常' : '连接中断'}
+              />
+            </div>
             <div className="font-mono">{lastUpdated.toLocaleTimeString('zh-CN')}</div>
           </div>
         </header>

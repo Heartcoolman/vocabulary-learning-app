@@ -26,8 +26,12 @@ COPY packages/shared ./packages/shared
 COPY tsconfig.base.json ./
 
 # Build frontend
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=
+ARG VITE_SENTRY_DSN=
+ARG VITE_APP_VERSION=
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 
 WORKDIR /app/packages/frontend
 RUN pnpm build

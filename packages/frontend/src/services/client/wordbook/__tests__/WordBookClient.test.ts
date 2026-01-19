@@ -163,7 +163,7 @@ describe('WordBookClient', () => {
 
       const result = await client.getWordBookWords('1');
 
-      expect(mockRequest).toHaveBeenCalledWith('/api/wordbooks/1/words');
+      expect(mockRequest).toHaveBeenCalledWith('/api/wordbooks/1/words?all=true');
       expect(result).toHaveLength(1);
       expect(result[0].spelling).toBe('apple');
     });

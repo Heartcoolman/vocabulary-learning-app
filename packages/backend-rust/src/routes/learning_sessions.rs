@@ -302,6 +302,26 @@ async fn update_progress(
     let (proxy, user) = require_user(&state, &headers).await?;
     verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
 
+    if let Some(value) = payload.total_questions {
+        if value < 0 {
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "totalQuestions 必须是非负整数",
+            ));
+        }
+    }
+
+    if let Some(value) = payload.actual_mastery_count {
+        if value < 0 {
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "actualMasteryCount 必须是非负整数",
+            ));
+        }
+    }
+
     if let Some(value) = payload.flow_peak_score {
         if !(0.0..=1.0).contains(&value) {
             return Err(json_error(
@@ -318,6 +338,16 @@ async fn update_progress(
                 StatusCode::BAD_REQUEST,
                 "INVALID_COGNITIVE_LOAD",
                 "avgCognitiveLoad 必须是 0-1 之间的数字",
+            ));
+        }
+    }
+
+    if let Some(value) = payload.context_shifts {
+        if value < 0 {
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "contextShifts 必须是非负整数",
             ));
         }
     }
@@ -682,7 +712,12 @@ async fn set_session_ended_at(
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     let affected = sqlx::query(
-        r#"UPDATE "learning_sessions" SET "endedAt" = $1, "updatedAt" = $2 WHERE "id" = $3"#,
+        r#"
+        UPDATE "learning_sessions"
+        SET "endedAt" = COALESCE("endedAt", $1),
+            "updatedAt" = $2
+        WHERE "id" = $3
+        "#,
     )
     .bind(now)
     .bind(now)
@@ -721,25 +756,27 @@ async fn update_session_progress(
     let mut separated = qb.separated(", ");
 
     if let Some(value) = payload.total_questions {
-        separated
-            .push(r#""totalQuestions" = "#)
-            .push_bind(value as i32);
+        separated.push(r#""totalQuestions" = GREATEST(COALESCE("totalQuestions", 0), "#);
+        separated.push_bind(value as i32);
+        separated.push(")");
     }
     if let Some(value) = payload.actual_mastery_count {
-        separated
-            .push(r#""actualMasteryCount" = "#)
-            .push_bind(value as i32);
+        separated.push(r#""actualMasteryCount" = GREATEST(COALESCE("actualMasteryCount", 0), "#);
+        separated.push_bind(value as i32);
+        separated.push(")");
     }
     if let Some(value) = payload.flow_peak_score {
-        separated.push(r#""flowPeakScore" = "#).push_bind(value);
+        separated.push(r#""flowPeakScore" = GREATEST(COALESCE("flowPeakScore", 0), "#);
+        separated.push_bind(value);
+        separated.push(")");
     }
     if let Some(value) = payload.avg_cognitive_load {
         separated.push(r#""avgCognitiveLoad" = "#).push_bind(value);
     }
     if let Some(value) = payload.context_shifts {
-        separated
-            .push(r#""contextShifts" = "#)
-            .push_bind(value as i32);
+        separated.push(r#""contextShifts" = GREATEST(COALESCE("contextShifts", 0), "#);
+        separated.push_bind(value as i32);
+        separated.push(")");
     }
 
     separated.push(r#""updatedAt" = "#).push_bind(now);

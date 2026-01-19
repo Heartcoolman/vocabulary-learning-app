@@ -5,6 +5,7 @@ use sqlx::{PgPool, Row};
 use crate::amas::types::{
     ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams, UserState,
 };
+use crate::db::operations::{upsert_amas_user_state, AmasUserState};
 use crate::db::DatabaseProxy;
 
 // ========== Legacy types for backward compatibility ==========
@@ -53,7 +54,6 @@ pub fn compute_new_word_difficulty(spelling: &str, meaning_count: usize) -> f64 
 // ========== Service types ==========
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StrategyResponse {
     pub interval_scale: f64,
     pub new_ratio: f64,
@@ -709,35 +709,30 @@ fn compute_intervention(trend_state: &str, consecutive_days: i64) -> Interventio
 
 // ========== reset_user ==========
 pub async fn reset_user(proxy: &DatabaseProxy, user_id: &str) -> Result<(), String> {
-    let now = Utc::now().naive_utc();
-    let now_ms = Utc::now().timestamp_millis();
-    let state_id = uuid::Uuid::new_v4().to_string();
-    let model_id = uuid::Uuid::new_v4().to_string();
-    let default_cognitive = serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 });
-    let default_model = serde_json::json!({});
+    let now = Utc::now();
 
-    let pool = proxy.pool();
-    sqlx::query(
-        r#"INSERT INTO "amas_user_states" ("id","userId","attention","fatigue","motivation","confidence",
-           "cognitiveProfile","habitProfile","trendState","coldStartState","lastUpdateTs","updatedAt")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-           ON CONFLICT ("userId") DO UPDATE SET "attention"=EXCLUDED."attention","fatigue"=EXCLUDED."fatigue",
-           "motivation"=EXCLUDED."motivation","confidence"=EXCLUDED."confidence","cognitiveProfile"=EXCLUDED."cognitiveProfile",
-           "habitProfile"=EXCLUDED."habitProfile","trendState"=EXCLUDED."trendState","coldStartState"=EXCLUDED."coldStartState",
-           "lastUpdateTs"=EXCLUDED."lastUpdateTs","updatedAt"=EXCLUDED."updatedAt""#,
-    )
-    .bind(&state_id).bind(user_id).bind(0.7f64).bind(0.0f64).bind(0.0f64).bind(0.5f64)
-    .bind(&default_cognitive).bind(Option::<serde_json::Value>::None)
-    .bind(Option::<String>::None).bind(Option::<serde_json::Value>::None)
-    .bind(now_ms).bind(now)
-    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    let user_state = AmasUserState {
+        id: uuid::Uuid::new_v4().to_string(),
+        user_id: user_id.to_string(),
+        attention: 0.7,
+        fatigue: 0.0,
+        motivation: 0.0,
+        cognitive_profile: serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 }),
+        trend_state: None,
+        confidence: 0.5,
+        created_at: now.to_rfc3339(),
+        updated_at: now.to_rfc3339(),
+    };
 
-    sqlx::query(
-        r#"INSERT INTO "amas_user_models" ("id","userId","modelData","updatedAt") VALUES ($1,$2,$3,$4)
-           ON CONFLICT ("userId") DO UPDATE SET "modelData"=EXCLUDED."modelData","updatedAt"=EXCLUDED."updatedAt""#,
-    )
-    .bind(&model_id).bind(user_id).bind(&default_model).bind(now)
-    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    upsert_amas_user_state(proxy, &user_state)
+        .await
+        .map_err(|e| format!("写入失败: {e}"))?;
+
+    sqlx::query(r#"DELETE FROM "amas_user_models" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .execute(proxy.pool())
+        .await
+        .map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())
 }

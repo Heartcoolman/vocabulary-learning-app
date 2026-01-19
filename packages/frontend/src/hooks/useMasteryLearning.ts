@@ -17,7 +17,7 @@ import {
   createMasterySession,
   endHabitSession,
 } from './mastery';
-import { useSubmitAnswer, extractAmasState, useSyncProgress, syncProgress } from './mutations';
+import { useSubmitAnswer, extractAmasState } from './mutations';
 import { learningLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
@@ -72,7 +72,6 @@ export function useMasteryLearning(
   const isMountedRef = useRef(true);
   const prevUserIdRef = useRef(user?.id);
   const endSessionRef = useRef<(mode: 'async' | 'beacon') => void>(() => {});
-  const lastSyncCountRef = useRef(0);
 
   // 子 hooks
   const wordQueue = useWordQueue({ targetMasteryCount: initialTargetCount });
@@ -84,9 +83,11 @@ export function useMasteryLearning(
 
   // 保存缓存 - 使用 ref 避免依赖循环
   const saveCacheRef = useRef<() => void>(() => {});
+  const latestAmasResultRef = useRef<AmasProcessResult | null>(null);
   const saveCache = useCallback(() => {
     const state = wordQueueRef.current.getQueueState();
     if (!state || !syncRef.current) return;
+    const amasResult = latestAmasResultRef.current;
     syncRef.current.sessionCache.saveSessionToCache({
       sessionId: currentSessionIdRef.current,
       targetMasteryCount: initialTargetCount,
@@ -95,6 +96,14 @@ export function useMasteryLearning(
       queueState: state,
       timestamp: Date.now(),
       userId: user?.id ?? null,
+      amasStrategy: amasResult?.strategy
+        ? {
+            batchSize: amasResult.strategy.batch_size,
+            difficulty: amasResult.strategy.difficulty,
+            hintLevel: amasResult.strategy.hint_level,
+            intervalScale: amasResult.strategy.interval_scale,
+          }
+        : undefined,
     });
   }, [initialTargetCount, user?.id]);
   saveCacheRef.current = saveCache;
@@ -105,6 +114,7 @@ export function useMasteryLearning(
     getQueueManager: () => wordQueueRef.current.queueManagerRef.current,
     onAmasResult: (result) => {
       setLatestAmasResult(result);
+      latestAmasResultRef.current = result;
       // 应用 AMAS 策略到队列
       if (result.strategy) {
         wordQueueRef.current.applyStrategy({
@@ -129,9 +139,6 @@ export function useMasteryLearning(
   });
   syncRef.current = sync;
 
-  // 进度同步 mutation
-  const syncProgressMutation = useSyncProgress();
-
   endSessionRef.current = (mode) => {
     const sid = currentSessionIdRef.current;
     if (!sid || sessionStartTimeRef.current <= 0 || sessionEndedRef.current) return;
@@ -139,12 +146,27 @@ export function useMasteryLearning(
     sessionEndedRef.current = true;
     sessionStartTimeRef.current = 0;
 
-    if (mode === 'beacon' && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+    if (mode === 'beacon') {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
       const payload = JSON.stringify({ sessionId: sid, authToken: token });
-      const blob = new Blob([payload], { type: 'application/json' });
       const url = `${import.meta.env.VITE_API_URL || ''}${END_SESSION_ENDPOINT}`;
-      if (navigator.sendBeacon(url, blob)) return;
+
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: 'application/json' });
+        if (navigator.sendBeacon(url, blob)) return;
+      }
+
+      try {
+        void fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        });
+        return;
+      } catch {
+        // Fall back to async call below
+      }
     }
 
     endHabitSession(sid).catch(() => {});
@@ -158,6 +180,7 @@ export function useMasteryLearning(
     },
     onAmasResult: (result) => {
       setLatestAmasResult(result);
+      wordQueueRef.current.queueManagerRef.current?.clearSnapshot();
       // 应用 AMAS 策略到队列
       if (result.strategy) {
         wordQueueRef.current.applyStrategy({
@@ -177,6 +200,9 @@ export function useMasteryLearning(
     },
     onError: (err) => {
       setError(err.message);
+    },
+    onQueueRollback: () => {
+      wordQueueRef.current.queueManagerRef.current?.rollbackState();
     },
     onSuccess: () => {
       setError(null);
@@ -199,6 +225,12 @@ export function useMasteryLearning(
           sessionId: string;
           masteryThreshold: number;
           maxTotalQuestions: number;
+          amasStrategy?: {
+            batchSize?: number;
+            difficulty?: string;
+            hintLevel?: number;
+            intervalScale?: number;
+          };
         } | null = null;
 
         if (!isReset && syncRef.current) {
@@ -211,6 +243,7 @@ export function useMasteryLearning(
               sessionId: cache.sessionId,
               masteryThreshold: cache.masteryThreshold,
               maxTotalQuestions: cache.maxTotalQuestions,
+              amasStrategy: cache.amasStrategy,
             };
           }
         }
@@ -237,10 +270,22 @@ export function useMasteryLearning(
             maxTotalQuestions: cachedProgress.maxTotalQuestions,
             targetMasteryCount: words.meta.targetCount,
           });
-          // 恢复已掌握的单词计数（通过标记）
-          if (cachedProgress.masteredWordIds.length > 0) {
-            wordQueueRef.current.restoreMasteredCount(
-              cachedProgress.masteredWordIds.length,
+          // 优先使用服务器返回的最新策略，而非缓存的旧策略
+          if (words.meta.strategy) {
+            wordQueueRef.current.applyStrategy({
+              batchSize: words.meta.strategy.batchSize ?? words.meta.strategy.batch_size,
+              difficulty: words.meta.strategy.difficulty,
+              hintLevel: words.meta.strategy.hintLevel ?? words.meta.strategy.hint_level,
+              intervalScale:
+                words.meta.strategy.intervalScale ?? words.meta.strategy.interval_scale,
+            });
+          } else if (cachedProgress.amasStrategy) {
+            wordQueueRef.current.applyStrategy(cachedProgress.amasStrategy);
+          }
+          // 恢复会话进度（mastered/totalQuestions），用于完成条件与进度展示一致
+          if (cachedProgress.masteredWordIds.length > 0 || cachedProgress.totalQuestions > 0) {
+            wordQueueRef.current.restoreProgressSnapshot(
+              cachedProgress.masteredWordIds,
               cachedProgress.totalQuestions,
             );
           }
@@ -256,6 +301,15 @@ export function useMasteryLearning(
             maxTotalQuestions: words.meta.maxQuestions,
             targetMasteryCount: words.meta.targetCount,
           });
+          if (words.meta.strategy) {
+            wordQueueRef.current.applyStrategy({
+              batchSize: words.meta.strategy.batchSize ?? words.meta.strategy.batch_size,
+              difficulty: words.meta.strategy.difficulty,
+              hintLevel: words.meta.strategy.hintLevel ?? words.meta.strategy.hint_level,
+              intervalScale:
+                words.meta.strategy.intervalScale ?? words.meta.strategy.interval_scale,
+            });
+          }
         }
 
         if (isMountedRef.current)
@@ -317,17 +371,8 @@ export function useMasteryLearning(
   useEffect(() => {
     if (!wordQueue.isCompleted || sessionEndedRef.current) return;
 
-    // 会话完成时同步最终进度
-    if (currentSessionIdRef.current) {
-      syncProgressMutation.mutate({
-        sessionId: currentSessionIdRef.current,
-        actualMasteryCount: wordQueue.progress.masteredCount,
-        totalQuestions: wordQueue.progress.totalQuestions,
-      });
-    }
-
     endSessionRef.current('async');
-  }, [wordQueue.isCompleted, wordQueue.progress, syncProgressMutation]);
+  }, [wordQueue.isCompleted]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -348,17 +393,6 @@ export function useMasteryLearning(
 
   useEffect(() => {
     return () => {
-      // 组件卸载时同步进度（仅在会话未结束时）
-      if (!sessionEndedRef.current && currentSessionIdRef.current) {
-        const queueState = wordQueueRef.current.queueManagerRef.current?.getState();
-        if (queueState && queueState.totalQuestions > 0) {
-          syncProgress({
-            sessionId: currentSessionIdRef.current,
-            actualMasteryCount: queueState.masteredWordIds?.length ?? 0,
-            totalQuestions: queueState.totalQuestions,
-          }).catch(() => {});
-        }
-      }
       endSessionRef.current('async');
     };
   }, []);
@@ -366,10 +400,13 @@ export function useMasteryLearning(
   // Actions
   const submitAnswer = useCallback(
     async (isCorrect: boolean, responseTime: number) => {
-      const word = wordQueue.getCurrentWord();
+      const word = wordQueue.currentWord;
       if (!wordQueue.queueManagerRef.current || !word) return;
 
       setError(null);
+
+      // 创建状态快照用于错误回滚
+      wordQueue.queueManagerRef.current.snapshotState();
 
       // 先执行本地乐观更新
       const amasState = extractAmasState(latestAmasResult);
@@ -389,6 +426,7 @@ export function useMasteryLearning(
           sync.triggerQueueAdjustment(
             reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
             adaptive.getRecentPerformance(),
+            amasState,
           );
         }
       }
@@ -407,17 +445,6 @@ export function useMasteryLearning(
         pausedTimeMs,
         latestAmasState: amasState,
       });
-
-      // 每 5 次答题同步一次进度到服务器
-      const currentTotal = wordQueue.progress.totalQuestions;
-      if (currentTotal > 0 && currentTotal % 5 === 0 && currentTotal !== lastSyncCountRef.current) {
-        lastSyncCountRef.current = currentTotal;
-        syncProgressMutation.mutate({
-          sessionId: currentSessionIdRef.current,
-          actualMasteryCount: wordQueue.progress.masteredCount,
-          totalQuestions: currentTotal,
-        });
-      }
     },
     [
       wordQueue,
@@ -427,14 +454,13 @@ export function useMasteryLearning(
       getDialogPausedTime,
       resetDialogPausedTime,
       submitAnswerMutation,
-      syncProgressMutation,
     ],
   );
 
-  const advanceToNext = useCallback(
-    () => wordQueue.updateFromManager({ consume: true }),
-    [wordQueue],
-  );
+  const advanceToNext = useCallback(() => {
+    wordQueue.updateFromManager({ consume: true });
+    saveCacheRef.current();
+  }, [wordQueue]);
 
   const skipWord = useCallback(() => {
     const word = wordQueue.getCurrentWord();

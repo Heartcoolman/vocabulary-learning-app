@@ -74,20 +74,63 @@ pub struct AttentionWeights {
     pub drift: f64,
     pub interaction: f64,
     pub focus_loss: f64,
+    pub recent_accuracy: f64,
+    pub streak: f64,
+    pub hint_used: f64,
+    pub retry_count: f64,
+    pub dwell_time: f64,
+    pub visual_fatigue: f64,
+    pub motivation: f64,
+    pub cognitive: f64,
+    pub study_duration: f64,
+    pub circadian: f64,
 }
 
 impl Default for AttentionWeights {
     fn default() -> Self {
         Self {
-            rt_mean: 0.20,
-            rt_cv: 0.15,
-            pace_cv: 0.10,
-            pause: 0.15,
-            switch: 0.10,
-            drift: 0.10,
-            interaction: 0.10,
-            focus_loss: 0.10,
+            rt_mean: 0.12,
+            rt_cv: 0.08,
+            pace_cv: 0.05,
+            pause: 0.06,
+            switch: 0.05,
+            drift: 0.05,
+            interaction: 0.05,
+            focus_loss: 0.08,
+            recent_accuracy: 0.10,
+            streak: 0.06,
+            hint_used: 0.04,
+            retry_count: 0.04,
+            dwell_time: 0.04,
+            visual_fatigue: 0.06,
+            motivation: 0.04,
+            cognitive: 0.04,
+            study_duration: 0.05,
+            circadian: 0.04,
         }
+    }
+}
+
+impl AttentionWeights {
+    pub fn total(&self) -> f64 {
+        self.rt_mean
+            + self.rt_cv
+            + self.pace_cv
+            + self.pause
+            + self.switch
+            + self.drift
+            + self.interaction
+            + self.focus_loss
+            + self.recent_accuracy
+            + self.streak
+            + self.hint_used
+            + self.retry_count
+            + self.dwell_time
+            + self.visual_fatigue
+            + self.motivation
+            + self.cognitive
+            + self.study_duration
+            + self.circadian
     }
 }
 
@@ -177,8 +220,8 @@ pub struct ColdStartConfig {
 impl Default for ColdStartConfig {
     fn default() -> Self {
         Self {
-            classify_samples: 5,
-            explore_samples: 10,
+            classify_samples: 3,
+            explore_samples: 5,
             probe_sequence: vec![0, 1, 2, 0, 1, 2],
         }
     }
@@ -299,6 +342,9 @@ impl AMASConfig {
         }
         if let Ok(val) = std::env::var("AMAS_CAUSAL_ENABLED") {
             config.feature_flags.causal_inference_enabled = val.parse().unwrap_or(false);
+        }
+        if let Ok(val) = std::env::var("AMAS_BAYESIAN_ENABLED") {
+            config.feature_flags.bayesian_optimizer_enabled = val.parse().unwrap_or(false);
         }
         if let Ok(val) = std::env::var("AMAS_ACTR_ENABLED") {
             config.feature_flags.actr_memory_enabled = val.parse().unwrap_or(true);

@@ -1,26 +1,15 @@
 /**
  * AMAS 公开展示 - 首页宣传页
- *
- * 展示 AMAS 决策引擎的四层架构：
- * 感知层 → 建模层 → 学习层 → 决策层
- *
- * 特点：
- * - 交互式卡片展开动画
- * - G3 弹簧物理系统
- * - 渐进式信息揭示
+ * Bento Grid 布局 + 亮色玻璃拟态
  */
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Brain, Lightning, Target, CaretDown } from '../../components/Icon';
+import { motion } from 'framer-motion';
+import { Eye, Brain, Lightning, Target } from '../../components/Icon';
 import {
-  g3SpringStandard,
   staggerContainerVariants,
   staggerItemVariants,
   fadeInVariants,
 } from '../../utils/animations';
-
-// ==================== 类型定义 ====================
 
 interface StageConfig {
   title: string;
@@ -32,73 +21,54 @@ interface StageConfig {
   bgColor: string;
 }
 
-interface StageCardProps extends StageConfig {
-  isOpen: boolean;
-  onClick: () => void;
-}
-
-// ==================== 阶段配置 ====================
-
 const STAGES: StageConfig[] = [
   {
     title: '感知层',
     subtitle: 'Perception',
-    icon: <Eye size={24} />,
+    icon: <Eye size={32} weight="duotone" />,
     description: '多维度捕捉学习者的实时状态与环境信息，构建全面的用户画像。',
-    details: [
-      '注意力追踪：分析响应时间、暂停频率等指标',
-      '疲劳度监测：识别认知负荷与学习效率下降',
-      '动机评估：判断学习意愿与情绪状态',
-      '环境感知：适应不同时段的学习场景',
-    ],
+    details: ['注意力追踪与响应分析', '实时疲劳度监测', '学习动机与情绪评估', '环境场景自适应'],
     accentColor: 'bg-blue-500',
-    bgColor: 'bg-blue-50',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/20',
   },
   {
     title: '建模层',
     subtitle: 'Modeling',
-    icon: <Brain size={24} />,
+    icon: <Brain size={32} weight="duotone" />,
     description: '构建动态的学习者认知模型，量化核心认知能力维度。',
     details: [
-      '个性化遗忘曲线：动态半衰期 + 认知因子调整',
-      '单词复习历史：ACT-R 激活度追踪（最近20条）',
-      '处理速度：反应时间分布分析',
-      '稳定性与知识图谱：词汇掌握度映射',
+      '个性化遗忘曲线拟合',
+      'ACT-R 记忆激活度追踪',
+      '认知反应速度建模',
+      '知识图谱掌握度映射',
     ],
     accentColor: 'bg-purple-500',
-    bgColor: 'bg-purple-50',
+    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
   },
   {
     title: '学习层',
     subtitle: 'Learning',
-    icon: <Lightning size={24} />,
+    icon: <Lightning size={32} weight="duotone" />,
     description: '持续进化的算法集成引擎，从交互数据中提取最优策略。',
     details: [
-      'Thompson Sampling：概率匹配探索最优解',
-      'LinUCB：上下文感知的多臂赌博机策略',
-      'ACT-R 记忆模型：错误惩罚 + 最优间隔预测',
-      '集成学习：Ensemble 共识投票机制',
+      'Thompson Sampling 采样',
+      'LinUCB 上下文赌博机',
+      'ACT-R 间隔重复算法',
+      'Ensemble 集成策略投票',
     ],
     accentColor: 'bg-amber-500',
-    bgColor: 'bg-amber-50',
+    bgColor: 'bg-amber-50 dark:bg-amber-900/20',
   },
   {
     title: '决策层',
     subtitle: 'Decision',
-    icon: <Target size={24} />,
+    icon: <Target size={32} weight="duotone" />,
     description: '生成个性化的学习策略与即时反馈，实现精准教学。',
-    details: [
-      '多目标优化：准确率/记忆保持/效率平衡',
-      '学习模式适配：考试冲刺/日常/旅行模式',
-      '复习间隔优化：个性化半衰期调度',
-      '难度动态匹配：维持最优心流体验',
-    ],
+    details: ['多目标路径优化', '动态复习间隔调度', '自适应难度匹配', '心流体验维持'],
     accentColor: 'bg-emerald-500',
-    bgColor: 'bg-emerald-50',
+    bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
   },
 ];
-
-// ==================== 子组件 ====================
 
 function StageCard({
   title,
@@ -108,173 +78,107 @@ function StageCard({
   details,
   accentColor,
   bgColor,
-  isOpen,
-  onClick,
-}: StageCardProps) {
+}: StageConfig) {
   return (
     <motion.div
-      layout
-      onClick={onClick}
-      className={`relative cursor-pointer overflow-hidden rounded-card border transition-colors duration-g3-normal ${
-        isOpen
-          ? 'border-slate-300 bg-white shadow-elevated dark:border-slate-700 dark:bg-slate-800'
-          : 'border-slate-200 bg-white/60 hover:border-slate-300 hover:bg-white/80 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-slate-600 dark:hover:bg-slate-800/80'
-      } `}
-      initial={false}
-      animate={{ height: isOpen ? 'auto' : 120 }}
-      transition={g3SpringStandard}
+      whileHover={{ y: -5 }}
+      className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/40 bg-white/60 p-8 shadow-xl shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
     >
-      {/* 左侧强调色条 */}
-      <div className={`absolute left-0 top-0 h-full w-1 ${accentColor}`} />
+      <div
+        aria-hidden="true"
+        className={`absolute -right-12 -top-12 h-40 w-40 rounded-full ${bgColor} blur-3xl transition-transform duration-500 group-hover:scale-125 motion-reduce:transition-none`}
+      />
+      <div
+        aria-hidden="true"
+        className={`absolute -bottom-8 -left-8 h-32 w-32 rounded-full ${bgColor} opacity-50 blur-2xl transition-transform duration-500 group-hover:scale-125 motion-reduce:transition-none`}
+      />
 
-      <div className="p-6">
-        {/* 头部：图标 + 标题 + 展开指示器 */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div
-              className={`rounded-card p-3 transition-colors duration-g3-fast ${isOpen ? `${bgColor} text-slate-700 dark:text-slate-300` : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-gray-400'} `}
-            >
-              {icon}
-            </div>
-            <div>
-              <h3
-                className={`text-lg font-bold transition-colors duration-g3-fast ${isOpen ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-gray-300'} `}
-              >
-                {title}
-                <span className="ml-2 text-sm font-normal text-slate-400 dark:text-gray-400">
-                  {subtitle}
-                </span>
-              </h3>
-              {!isOpen && (
-                <p className="line-clamp-1 text-sm text-slate-500 dark:text-gray-400">
-                  {description}
-                </p>
-              )}
-            </div>
-          </div>
-          <motion.div
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={g3SpringStandard}
-            className="text-slate-400 dark:text-gray-400"
-          >
-            <CaretDown size={20} />
-          </motion.div>
+      <div className="relative z-10 mb-6 flex items-start justify-between">
+        <div
+          aria-hidden="true"
+          className={`flex h-16 w-16 items-center justify-center rounded-2xl ${bgColor} text-slate-700 shadow-sm ring-1 ring-white/50 transition-colors group-hover:bg-white group-hover:text-blue-600 dark:text-slate-300 dark:ring-slate-600/50 dark:group-hover:bg-slate-700 dark:group-hover:text-blue-400`}
+        >
+          {icon}
         </div>
+        <div className="text-right">
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h3>
+          <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
+            {subtitle}
+          </span>
+        </div>
+      </div>
 
-        {/* 展开内容 */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="pl-[60px] pt-2"
-            >
-              <p className="mb-4 leading-relaxed text-slate-600 dark:text-gray-400">
-                {description}
-              </p>
-              <ul className="space-y-2">
-                {details.map((detail, idx) => (
-                  <motion.li
-                    key={idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.08 }}
-                    className="flex items-start gap-2 text-sm text-slate-500 dark:text-gray-400"
-                  >
-                    <span
-                      className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${accentColor}`}
-                    />
-                    {detail}
-                  </motion.li>
-                ))}
-              </ul>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="relative z-10 flex-1">
+        <p className="mb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          {description}
+        </p>
+
+        <div className="space-y-3">
+          {details.map((detail, idx) => (
+            <div key={idx} className="flex items-center gap-3">
+              <div className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />
+              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                {detail}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </motion.div>
   );
 }
 
-// ==================== 主组件 ====================
-
 export default function AboutHomePage() {
-  const [openStage, setOpenStage] = useState<number | null>(0);
-
-  const handleToggle = (index: number) => {
-    setOpenStage(openStage === index ? null : index);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6 dark:bg-slate-900 md:p-12">
-      <div className="mx-auto max-w-4xl">
-        {/* 标题区 */}
+    <div className="min-h-full p-8 md:p-12 lg:p-16">
+      <div className="mx-auto max-w-7xl">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={fadeInVariants}
-          className="mb-16 text-center"
+          className="mb-16 text-left"
         >
-          <h1 className="mb-4 text-4xl font-bold tracking-tight text-slate-900 dark:text-white md:text-5xl">
-            AMAS{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              智能引擎
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/50 px-3 py-1 text-xs font-medium text-blue-600 backdrop-blur-sm dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+          >
+            <span aria-hidden="true" className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75 motion-reduce:animate-none" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+            </span>
+            Core Architecture
+          </motion.div>
+
+          <h1 className="mb-6 max-w-3xl text-5xl font-bold tracking-tight text-slate-900 dark:text-white md:text-7xl">
+            <span className="block text-slate-300 dark:text-slate-600">AMAS</span>
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Adaptive Intelligence
             </span>
           </h1>
-          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-slate-600 dark:text-gray-400">
-            <span className="text-slate-400 dark:text-gray-400">
+
+          <p className="max-w-2xl text-xl leading-relaxed text-slate-500 dark:text-slate-400">
+            像私人教练一样懂你的自适应学习系统。
+            <br />
+            <span className="text-base text-slate-400 dark:text-slate-500">
               Adaptive Multi-modal Assessment System
             </span>
-            <br />
-            像私教一样懂你的自适应学习系统
           </p>
         </motion.div>
 
-        {/* 流程连接线指示 */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mb-8 flex items-center justify-center gap-2 text-sm text-slate-400 dark:text-gray-400"
-        >
-          <span>感知</span>
-          <span>→</span>
-          <span>建模</span>
-          <span>→</span>
-          <span>学习</span>
-          <span>→</span>
-          <span>决策</span>
-        </motion.div>
-
-        {/* 阶段卡片列表 */}
         <motion.div
           variants={staggerContainerVariants}
           initial="hidden"
           animate="visible"
-          className="grid gap-4"
+          className="grid gap-6 md:grid-cols-2"
         >
           {STAGES.map((stage, index) => (
             <motion.div key={index} variants={staggerItemVariants}>
-              <StageCard
-                {...stage}
-                isOpen={openStage === index}
-                onClick={() => handleToggle(index)}
-              />
+              <StageCard {...stage} />
             </motion.div>
           ))}
         </motion.div>
-
-        {/* 底部提示 */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-12 text-center text-sm text-slate-400 dark:text-gray-400"
-        >
-          点击卡片展开查看详情 · 前往「模拟演示」体验决策过程
-        </motion.p>
       </div>
     </div>
   );

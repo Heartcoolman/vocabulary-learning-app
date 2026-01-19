@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FlashCard from '../components/FlashCard';
 import MasteryProgress from '../components/MasteryProgress';
@@ -34,20 +34,32 @@ export default function FlashcardPage() {
     if (currentWord) setResponseStartTime(Date.now());
   }, [currentWord]);
 
+  const isSubmittingRef = useRef(false);
+
   const handleKnown = useCallback(async () => {
-    if (!currentWord) return;
+    if (!currentWord || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     const responseTime = Date.now() - responseStartTime;
-    await submitAnswer(true, responseTime);
-    advanceToNext();
-    setResponseStartTime(Date.now());
+    try {
+      await submitAnswer(true, responseTime);
+      advanceToNext();
+      setResponseStartTime(Date.now());
+    } finally {
+      isSubmittingRef.current = false;
+    }
   }, [currentWord, responseStartTime, submitAnswer, advanceToNext]);
 
   const handleUnknown = useCallback(async () => {
-    if (!currentWord) return;
+    if (!currentWord || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     const responseTime = Date.now() - responseStartTime;
-    await submitAnswer(false, responseTime);
-    advanceToNext();
-    setResponseStartTime(Date.now());
+    try {
+      await submitAnswer(false, responseTime);
+      advanceToNext();
+      setResponseStartTime(Date.now());
+    } finally {
+      isSubmittingRef.current = false;
+    }
   }, [currentWord, responseStartTime, submitAnswer, advanceToNext]);
 
   const handlePronounce = useCallback(async () => {

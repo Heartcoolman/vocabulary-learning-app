@@ -153,7 +153,7 @@ async fn calculate_time_pref_from_records(
         let hour = ts.hour() as usize;
         hour_counts[hour] += 1;
         let correct_score = if is_correct { 1.0 } else { 0.0 };
-        let speed_score = (1.0 - (response_time as f64 / 10000.0)).max(0.0).min(1.0);
+        let speed_score = (1.0 - (response_time as f64 / 10000.0)).clamp(0.0, 1.0);
         hour_scores[hour] += correct_score * 0.7 + speed_score * 0.3;
     }
 

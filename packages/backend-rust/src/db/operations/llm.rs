@@ -189,9 +189,9 @@ pub async fn insert_llm_analysis_task(
     sqlx::query(
         r#"
         INSERT INTO "llm_analysis_tasks" (
-            "id", "type", "status", "priority", "input", "retryCount",
-            "createdBy", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, 'pending', $3, $4, 0, $5, $6, $6)
+            "id", "taskType", "status", "priority", "input",
+            "createdBy", "createdAt"
+        ) VALUES ($1, $2, 'pending', $3, $4, $5, $6)
         "#,
     )
     .bind(&id)
@@ -264,9 +264,7 @@ pub async fn update_llm_task_failed(
         UPDATE "llm_analysis_tasks" SET
             "status" = 'failed',
             "error" = $1,
-            "retryCount" = "retryCount" + 1,
-            "completedAt" = $2,
-            "updatedAt" = $2
+            "completedAt" = $2
         WHERE "id" = $3
         "#,
     )

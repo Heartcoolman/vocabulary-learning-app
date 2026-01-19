@@ -62,7 +62,7 @@ describe('AboutHomePage', () => {
     it('should render page title', () => {
       renderComponent();
       expect(screen.getByText(/AMAS/)).toBeInTheDocument();
-      expect(screen.getByText(/智能引擎/)).toBeInTheDocument();
+      expect(screen.getByText(/Adaptive Intelligence/)).toBeInTheDocument();
     });
 
     it('should render subtitle', () => {
@@ -70,12 +70,9 @@ describe('AboutHomePage', () => {
       expect(screen.getByText(/Adaptive Multi-modal Assessment System/)).toBeInTheDocument();
     });
 
-    it('should render flow indicator', () => {
+    it('should render core architecture badge', () => {
       renderComponent();
-      expect(screen.getByText('感知')).toBeInTheDocument();
-      expect(screen.getByText('建模')).toBeInTheDocument();
-      expect(screen.getByText('学习')).toBeInTheDocument();
-      expect(screen.getByText('决策')).toBeInTheDocument();
+      expect(screen.getByText('Core Architecture')).toBeInTheDocument();
     });
 
     it('should render all stage cards', () => {
@@ -94,9 +91,9 @@ describe('AboutHomePage', () => {
       expect(screen.getByText('Decision')).toBeInTheDocument();
     });
 
-    it('should render bottom hint', () => {
+    it('should render stage description', () => {
       renderComponent();
-      expect(screen.getByText(/点击卡片展开查看详情/)).toBeInTheDocument();
+      expect(screen.getByText(/像私人教练一样懂你的自适应学习系统/)).toBeInTheDocument();
     });
   });
 
@@ -134,10 +131,10 @@ describe('AboutHomePage', () => {
     it('should show stage details when expanded', async () => {
       renderComponent();
 
-      // First stage is expanded by default
+      // All stages now show their details
       expect(screen.getByText(/注意力追踪/)).toBeInTheDocument();
-      expect(screen.getByText(/疲劳度监测/)).toBeInTheDocument();
-      expect(screen.getByText(/动机评估/)).toBeInTheDocument();
+      expect(screen.getByText(/实时疲劳度监测/)).toBeInTheDocument();
+      expect(screen.getByText(/学习动机与情绪评估/)).toBeInTheDocument();
     });
   });
 
@@ -145,7 +142,7 @@ describe('AboutHomePage', () => {
     it('should display perception stage details', () => {
       renderComponent();
       // First stage is expanded by default
-      expect(screen.getByText(/注意力追踪.*分析响应时间/)).toBeInTheDocument();
+      expect(screen.getByText(/注意力追踪与响应分析/)).toBeInTheDocument();
     });
 
     it('should display modeling stage details when expanded', async () => {
@@ -155,7 +152,7 @@ describe('AboutHomePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/个性化遗忘曲线/)).toBeInTheDocument();
-        expect(screen.getByText(/ACT-R 激活度追踪/)).toBeInTheDocument();
+        expect(screen.getByText(/ACT-R 记忆激活度追踪/)).toBeInTheDocument();
       });
     });
 
@@ -167,7 +164,7 @@ describe('AboutHomePage', () => {
       await waitFor(() => {
         expect(screen.getByText(/Thompson Sampling/)).toBeInTheDocument();
         expect(screen.getByText(/LinUCB/)).toBeInTheDocument();
-        expect(screen.getByText(/ACT-R 记忆模型/)).toBeInTheDocument();
+        expect(screen.getByText(/ACT-R 间隔重复算法/)).toBeInTheDocument();
       });
     });
 
@@ -177,9 +174,9 @@ describe('AboutHomePage', () => {
       fireEvent.click(screen.getByText('决策层'));
 
       await waitFor(() => {
-        expect(screen.getByText(/多目标优化/)).toBeInTheDocument();
-        expect(screen.getByText(/学习模式适配/)).toBeInTheDocument();
-        expect(screen.getByText(/复习间隔优化/)).toBeInTheDocument();
+        expect(screen.getByText(/多目标路径优化/)).toBeInTheDocument();
+        expect(screen.getByText(/自适应难度匹配/)).toBeInTheDocument();
+        expect(screen.getByText(/动态复习间隔调度/)).toBeInTheDocument();
       });
     });
   });

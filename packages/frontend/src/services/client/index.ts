@@ -23,6 +23,21 @@ export { WordClient } from './word/WordClient';
 export { WordBookClient } from './wordbook/WordBookClient';
 export type { StudyProgress, TodayWordsResponse } from './wordbook/WordBookClient';
 
+// ==================== WordBook Center 模块 ====================
+export { WordBookCenterClient } from './wordbook-center/WordBookCenterClient';
+export type {
+  CenterConfig,
+  PersonalCenterConfig,
+  CenterConfigResponse,
+  CenterWordBook,
+  CenterWord,
+  CenterWordBookDetail,
+  BrowseResponse,
+  ImportResult,
+  UpdateInfo,
+  SyncResult,
+} from './wordbook-center/WordBookCenterClient';
+
 // ==================== Learning 模块 ====================
 export { LearningClient } from './learning/LearningClient';
 export type { SessionStats, SessionAnswerRecord } from './learning/LearningClient';
@@ -117,6 +132,7 @@ import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 import { NotificationClient } from './notification/NotificationClient';
 import { PreferencesClient } from './preferences/PreferencesClient';
+import { WordBookCenterClient } from './wordbook-center/WordBookCenterClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -144,6 +160,9 @@ export const notificationClient = new NotificationClient();
 
 /** 偏好设置客户端单例 */
 export const preferencesClient = new PreferencesClient();
+
+/** 词库中心客户端单例 */
+export const wordBookCenterClient = new WordBookCenterClient();
 
 // ==================== 向后兼容的 API 对象 ====================
 // 提供与旧版 ApiClient 完全兼容的单例对象

@@ -263,6 +263,10 @@ vi.mock('../../hooks/useMasteryLearning', () => ({
   useMasteryLearning: () => mockUseMasteryLearning(),
 }));
 
+vi.mock('../../hooks/queries/useStudyConfig', () => ({
+  useStudyConfig: () => ({ data: { dailyWordCount: 20 }, isLoading: false }),
+}));
+
 // Import after mocks
 import LearningPage from '../LearningPage';
 

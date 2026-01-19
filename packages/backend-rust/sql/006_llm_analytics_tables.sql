@@ -6,9 +6,9 @@ CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "userId" TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "token" TEXT NOT NULL UNIQUE,
-    "expiresAt" TIMESTAMPTZ NOT NULL,
+    "expiresAt" TIMESTAMP NOT NULL,
     "used" BOOLEAN DEFAULT FALSE,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    "createdAt" TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens("userId");
 CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens("token");
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS "suggestion_effect_tracking" (
     "metricsAfterApply" JSONB,
     "effectScore" DOUBLE PRECISION,
     "effectAnalysis" TEXT,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-    "evaluatedAt" TIMESTAMPTZ
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "evaluatedAt" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_set_suggestion ON suggestion_effect_tracking("suggestionId");
 
@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS "word_content_variants" (
     "status" TEXT NOT NULL DEFAULT 'pending',
     "taskId" TEXT,
     "approvedBy" TEXT,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ DEFAULT NOW()
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "updatedAt" TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_wcv_word ON word_content_variants("wordId");
 CREATE INDEX IF NOT EXISTS idx_wcv_status ON word_content_variants("status");
@@ -58,9 +58,9 @@ CREATE TABLE IF NOT EXISTS "llm_analysis_tasks" (
     "error" TEXT,
     "tokensUsed" INTEGER,
     "createdBy" TEXT,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-    "startedAt" TIMESTAMPTZ,
-    "completedAt" TIMESTAMPTZ
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "startedAt" TIMESTAMP,
+    "completedAt" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_lat_status ON llm_analysis_tasks("status");
 CREATE INDEX IF NOT EXISTS idx_lat_type ON llm_analysis_tasks("taskType");
@@ -76,8 +76,8 @@ CREATE TABLE IF NOT EXISTS "user_behavior_insights" (
     "recommendations" JSONB NOT NULL DEFAULT '{}',
     "userCount" INTEGER NOT NULL DEFAULT 0,
     "dataPoints" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ DEFAULT NOW(),
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "updatedAt" TIMESTAMP DEFAULT NOW(),
     UNIQUE("analysisDate", "userSegment")
 );
 CREATE INDEX IF NOT EXISTS idx_ubi_date ON user_behavior_insights("analysisDate");
@@ -94,8 +94,8 @@ CREATE TABLE IF NOT EXISTS "alert_root_cause_analyses" (
     "resolved" BOOLEAN DEFAULT FALSE,
     "resolvedBy" TEXT,
     "resolution" TEXT,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-    "resolvedAt" TIMESTAMPTZ
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "resolvedAt" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_arca_alert ON alert_root_cause_analyses("alertRuleId");
 CREATE INDEX IF NOT EXISTS idx_arca_resolved ON alert_root_cause_analyses("resolved");

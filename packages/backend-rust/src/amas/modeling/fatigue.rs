@@ -65,6 +65,10 @@ impl FatigueEstimator {
         self.last_update_ts = chrono::Utc::now().timestamp_millis();
     }
 
+    pub fn set_value(&mut self, value: f64) {
+        self.current_value = value.clamp(0.0, 1.0);
+    }
+
     pub fn apply_time_decay(&mut self, elapsed_minutes: f64) {
         let decay_factor = (-self.params.k * elapsed_minutes / 10.0).exp();
         self.current_value *= decay_factor;

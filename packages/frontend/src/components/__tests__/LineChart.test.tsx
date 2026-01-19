@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import LineChart, { LineChartData } from '../LineChart';
 
 describe('LineChart', () => {
@@ -29,12 +29,12 @@ describe('LineChart', () => {
     });
 
     it('should show no data message when data is undefined', () => {
-      render(<LineChart data={undefined as any} />);
+      render(<LineChart data={undefined as unknown as LineChartData[]} />);
       expect(screen.getByText('暂无数据')).toBeInTheDocument();
     });
 
     it('should show no data message when data is null', () => {
-      render(<LineChart data={null as any} />);
+      render(<LineChart data={null as unknown as LineChartData[]} />);
       expect(screen.getByText('暂无数据')).toBeInTheDocument();
     });
   });

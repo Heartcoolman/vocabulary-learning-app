@@ -4,12 +4,15 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import LearningStyleCard, { LearningStyleProfile, LearningStyle } from '../LearningStyleCard';
+import LearningStyleCard, { LearningStyleProfile } from '../LearningStyleCard';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, initial, animate, transition, ...props }: any) => (
+    div: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement>>) => (
       <div {...props}>{children}</div>
     ),
   },

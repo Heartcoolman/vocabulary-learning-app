@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS "morphemes" (
     "etymology" TEXT,
     "aliases" TEXT[] DEFAULT '{}',
     "frequency" INTEGER DEFAULT 0,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("surface", "type", "language")
 );
 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS "word_morphemes" (
     "weight" DOUBLE PRECISION DEFAULT 1.0,
     "confidence" DOUBLE PRECISION DEFAULT 0.7,
     "source" TEXT DEFAULT 'api',
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY ("wordId", "morphemeId", "role", "position")
 );
 
@@ -50,9 +50,9 @@ CREATE TABLE IF NOT EXISTS "user_morpheme_states" (
     "correctCount" INTEGER DEFAULT 0,
     "lapses" INTEGER DEFAULT 0,
     "reps" INTEGER DEFAULT 0,
-    "lastSeenAt" TIMESTAMPTZ,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "lastSeenAt" TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE("userId", "morphemeId")
 );
 

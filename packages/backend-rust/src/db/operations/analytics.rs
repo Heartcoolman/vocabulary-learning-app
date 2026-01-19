@@ -42,7 +42,7 @@ pub async fn upsert_user_behavior_insight(
     user_count: i32,
     data_points: i32,
 ) -> Result<String, sqlx::Error> {
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4();
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -58,7 +58,7 @@ pub async fn upsert_user_behavior_insight(
             "dataPoints" = EXCLUDED."dataPoints"
         "#,
     )
-    .bind(&id)
+    .bind(id)
     .bind(analysis_date)
     .bind(user_segment)
     .bind(patterns)
@@ -69,7 +69,7 @@ pub async fn upsert_user_behavior_insight(
     .bind(now)
     .execute(proxy.pool())
     .await?;
-    Ok(id)
+    Ok(id.to_string())
 }
 
 pub async fn insert_alert_root_cause_analysis(
@@ -81,7 +81,7 @@ pub async fn insert_alert_root_cause_analysis(
     related_metrics: &serde_json::Value,
     confidence: f64,
 ) -> Result<String, sqlx::Error> {
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4();
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -91,7 +91,7 @@ pub async fn insert_alert_root_cause_analysis(
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8, $8)
         "#,
     )
-    .bind(&id)
+    .bind(id)
     .bind(alert_rule_id)
     .bind(severity)
     .bind(root_cause)
@@ -101,7 +101,7 @@ pub async fn insert_alert_root_cause_analysis(
     .bind(now)
     .execute(proxy.pool())
     .await?;
-    Ok(id)
+    Ok(id.to_string())
 }
 
 pub async fn update_alert_root_cause_resolved(
@@ -111,6 +111,8 @@ pub async fn update_alert_root_cause_resolved(
     resolution: &str,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
+    let uuid =
+        uuid::Uuid::parse_str(analysis_id).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
     sqlx::query(
         r#"
         UPDATE "alert_root_cause_analyses" SET
@@ -125,7 +127,7 @@ pub async fn update_alert_root_cause_resolved(
     .bind(resolved_by)
     .bind(now)
     .bind(resolution)
-    .bind(analysis_id)
+    .bind(uuid)
     .execute(proxy.pool())
     .await?;
     Ok(())

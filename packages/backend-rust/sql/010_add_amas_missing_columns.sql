@@ -1,6 +1,21 @@
 -- Migration: Add missing columns to amas_user_models and decision_records
 
--- Add modelType column to amas_user_models
+-- Create amas_user_models table if not exists
+CREATE TABLE IF NOT EXISTS "amas_user_models" (
+    "id" TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "modelType" VARCHAR(64) NOT NULL DEFAULT 'default',
+    "modelData" TEXT,
+    "parameters" JSONB DEFAULT '{}',
+    "version" INTEGER DEFAULT 1,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE("userId", "modelType")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_amas_user_models_userId" ON "amas_user_models"("userId");
+
+-- Add modelType column to amas_user_models (for existing tables)
 ALTER TABLE "amas_user_models"
 ADD COLUMN IF NOT EXISTS "modelType" VARCHAR(64) NOT NULL DEFAULT 'default';
 

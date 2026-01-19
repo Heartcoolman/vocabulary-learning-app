@@ -10,6 +10,7 @@ import LearningPage from '../pages/LearningPage';
 // 懒加载 - 用户基础页面
 const VocabularyPage = lazy(() => import('../pages/VocabularyPage'));
 const WordBookDetailPage = lazy(() => import('../pages/WordBookDetailPage'));
+const WordBookCenterPage = lazy(() => import('../pages/WordBookCenterPage'));
 const StudySettingsPage = lazy(() => import('../pages/StudySettingsPage'));
 const HistoryPage = lazy(() => import('../pages/HistoryPage'));
 const StatisticsPage = lazy(() => import('../pages/StatisticsPage'));
@@ -90,6 +91,15 @@ export const userRoutes: AppRoute[] = [
       </ProtectedLazy>
     ),
     meta: { title: '词书详情', requireAuth: true },
+  },
+  {
+    path: '/wordbook-center',
+    element: (
+      <ProtectedLazy>
+        <WordBookCenterPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '词库中心', requireAuth: true },
   },
   {
     path: '/study-settings',

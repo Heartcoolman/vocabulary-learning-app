@@ -140,13 +140,16 @@ class TrackingService {
   private setupUnloadListener(): void {
     if (typeof window !== 'undefined') {
       this.beforeUnloadHandler = () => {
-        this.trackSessionEnd();
+        this.trackSessionEnd({ skipAutoFlush: true });
         this.flushSync();
       };
       window.addEventListener('beforeunload', this.beforeUnloadHandler);
 
-      this.pageHideHandler = () => {
-        this.trackSessionEnd();
+      this.pageHideHandler = (event?: PageTransitionEvent) => {
+        if (event?.persisted) {
+          return;
+        }
+        this.trackSessionEnd({ skipAutoFlush: true });
         this.flushSync();
       };
       window.addEventListener('pagehide', this.pageHideHandler);
@@ -168,7 +171,7 @@ class TrackingService {
   /**
    * 记录事件
    */
-  private recordEvent(event: TrackingEvent): void {
+  private recordEvent(event: TrackingEvent, options?: { skipAutoFlush?: boolean }): void {
     this.events.push({
       ...event,
       sessionId: this.sessionId,
@@ -178,8 +181,8 @@ class TrackingService {
     this.stats.totalInteractions++;
 
     // 达到批量大小时自动上报
-    if (this.events.length >= this.BATCH_SIZE) {
-      this.flush();
+    if (!options?.skipAutoFlush && this.events.length >= this.BATCH_SIZE) {
+      void this.flush();
     }
   }
 
@@ -320,19 +323,22 @@ class TrackingService {
   /**
    * 记录会话结束
    */
-  trackSessionEnd(): void {
+  trackSessionEnd(options?: { skipAutoFlush?: boolean }): void {
     const sessionDuration = Date.now() - this.sessionStartTime;
     this.stats.sessionDuration = sessionDuration;
 
-    this.recordEvent({
-      type: 'session_end',
-      timestamp: Date.now(),
-      data: {
-        sessionId: this.sessionId,
-        sessionDuration,
-        stats: { ...this.stats },
+    this.recordEvent(
+      {
+        type: 'session_end',
+        timestamp: Date.now(),
+        data: {
+          sessionId: this.sessionId,
+          sessionDuration,
+          stats: { ...this.stats },
+        },
       },
-    });
+      options,
+    );
     trackingLogger.info({ sessionId: this.sessionId, sessionDuration }, 'Session end tracked');
   }
 
@@ -422,20 +428,49 @@ class TrackingService {
       return;
     }
 
+    const eventsToSend = [...this.events];
+
     // 将 token 放入 body 而非 URL，避免泄露到服务器日志
-    const batch: EventBatch = {
-      events: [...this.events],
+    const beaconBatch: EventBatch = {
+      events: eventsToSend,
       sessionId: this.sessionId,
       timestamp: Date.now(),
       authToken: token,
     };
-
-    this.events = [];
+    const fetchBatch: EventBatch = {
+      events: eventsToSend,
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+    };
 
     // 使用 sendBeacon 确保数据在页面卸载时能发送
     if (navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(batch)], { type: 'application/json' });
-      navigator.sendBeacon(`${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}`, blob);
+      const blob = new Blob([JSON.stringify(beaconBatch)], { type: 'application/json' });
+      const ok = navigator.sendBeacon(
+        `${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}`,
+        blob,
+      );
+      if (ok) {
+        this.events = [];
+        return;
+      }
+    }
+
+    // sendBeacon 不可用/失败时，退化到 keepalive fetch
+    // 注意：无法可靠感知请求是否真正送达，此处尽力提交并清空队列，避免重复上报
+    try {
+      void fetch(`${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(fetchBatch),
+        keepalive: true,
+      });
+      this.events = [];
+    } catch (error) {
+      trackingLogger.warn({ err: error }, 'Failed to flush tracking events on unload');
     }
   }
 
@@ -479,7 +514,7 @@ class TrackingService {
       this.pageHideHandler = null;
     }
 
-    this.trackSessionEnd();
+    this.trackSessionEnd({ skipAutoFlush: true });
     this.flushSync();
   }
 }

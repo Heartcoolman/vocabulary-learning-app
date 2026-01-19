@@ -425,6 +425,7 @@ async fn insert_visual_fatigue_record(
         INSERT INTO "visual_fatigue_records" (
             "id",
             "userId",
+            "sessionId",
             "score",
             "fusedScore",
             "perclos",
@@ -435,11 +436,12 @@ async fn insert_visual_fatigue_record(
             "confidence",
             "createdAt"
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
         "#,
     )
     .bind(id)
     .bind(user_id)
+    .bind(&payload.session_id)
     .bind(payload.score)
     .bind(fused_score)
     .bind(payload.perclos)
@@ -687,10 +689,10 @@ async fn update_config(
         enabled = value;
     }
     if let Some(value) = patch.detection_fps {
-        detection_fps = value.max(1).min(30);
+        detection_fps = value.clamp(1, 30);
     }
     if let Some(value) = patch.upload_interval_ms {
-        upload_interval_ms = value.max(1000).min(60_000);
+        upload_interval_ms = value.clamp(1000, 60_000);
     }
     if let Some(value) = patch.vlm_analysis_enabled {
         vlm = value;

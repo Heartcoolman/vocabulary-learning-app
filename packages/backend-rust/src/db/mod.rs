@@ -1,4 +1,5 @@
 pub mod config;
+pub mod migrate;
 pub mod operations;
 pub mod state_machine;
 
@@ -36,6 +37,11 @@ impl DatabaseProxy {
             .connect(&config.primary_url)
             .await
             .map_err(DbInitError::Sqlx)?;
+
+        // Run database migrations
+        migrate::run_migrations(&pool)
+            .await
+            .map_err(DbInitError::Migration)?;
 
         let proxy = Arc::new(Self {
             health: Arc::new(RwLock::new(HealthTracker::new(config.health_check.clone()))),
@@ -152,6 +158,8 @@ pub enum DbInitError {
     Config(#[from] DbConfigError),
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
+    #[error(transparent)]
+    Migration(#[from] migrate::MigrationError),
 }
 
 #[derive(Debug, Error)]

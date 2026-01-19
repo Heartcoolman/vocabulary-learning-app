@@ -95,10 +95,12 @@ function SystemVitality({
             <Atom className="text-blue-500" /> 集成因果效应 (ATE)
           </p>
           <div className="text-3xl font-bold text-gray-900 dark:text-white">
-            {performance ? `+${performance.causalATE.toFixed(2)}` : '-'}
+            {performance?.causalATE != null ? `+${performance.causalATE.toFixed(2)}` : '-'}
           </div>
           <div className="mt-2 font-mono text-xs text-blue-400">
-            {performance ? `置信度 ${Math.round(performance.causalConfidence * 100)}%` : '暂无数据'}
+            {performance?.causalConfidence != null
+              ? `置信度 ${Math.round(performance.causalConfidence * 100)}%`
+              : '暂无数据'}
           </div>
         </div>
       </div>
@@ -445,7 +447,9 @@ export default function StatsPage() {
   );
   const [halfLifeDist, setHalfLifeDist] = useState<HalfLifeDistributionResponse | null>(null);
   const [time, setTime] = useState(new Date());
-  const [dataSource, setDataSource] = useState<'real' | 'virtual' | 'mixed'>('virtual');
+  const [dataSource, setDataSource] = useState<'real' | 'virtual' | 'mixed' | 'computed'>(
+    'virtual',
+  );
 
   const fetchData = useCallback(async () => {
     try {

@@ -194,8 +194,8 @@ describe('ProgressOverviewCard', () => {
     it('should apply indigo styling to total studied card', () => {
       const { container } = render(<ProgressOverviewCard data={defaultData} />);
 
-      const indigoCard = container.querySelector('.bg-indigo-50');
-      expect(indigoCard).toBeInTheDocument();
+      const blueCard = container.querySelector('.bg-blue-50');
+      expect(blueCard).toBeInTheDocument();
     });
 
     it('should apply amber styling to correct rate card', () => {
@@ -220,7 +220,7 @@ describe('ProgressOverviewCard', () => {
       const { container } = render(<ProgressOverviewCard data={defaultData} />);
 
       // Progress circle container
-      const circleContainer = container.querySelector('.relative.w-40.h-40');
+      const circleContainer = container.querySelector('.relative.w-36.h-36');
       expect(circleContainer).toBeInTheDocument();
     });
   });

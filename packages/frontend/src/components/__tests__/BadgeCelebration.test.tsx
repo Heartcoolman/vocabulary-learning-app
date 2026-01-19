@@ -17,16 +17,29 @@ vi.mock('framer-motion', () => ({
       animate: _animate,
       exit: _exit,
       ...props
-    }: any) => <div {...props}>{children}</div>,
+    }: {
+      children?: React.ReactNode;
+      variants?: unknown;
+      initial?: unknown;
+      animate?: unknown;
+      exit?: unknown;
+      [key: string]: unknown;
+    }) => <div {...props}>{children}</div>,
     button: ({
       children,
       whileHover: _whileHover,
       whileTap: _whileTap,
       transition: _transition,
       ...props
-    }: any) => <button {...props}>{children}</button>,
+    }: {
+      children?: React.ReactNode;
+      whileHover?: unknown;
+      whileTap?: unknown;
+      transition?: unknown;
+      [key: string]: unknown;
+    }) => <button {...props}>{children}</button>,
   },
-  AnimatePresence: ({ children }: any) => children,
+  AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
 }));
 
 // Mock Icon components

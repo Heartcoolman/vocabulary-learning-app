@@ -1,0 +1,153 @@
+{
+  "id": "daily-english",
+  "name": "日常英语100词",
+  "description": "日常生活中最常用的100个英语单词",
+  "wordCount": 20,
+  "coverImage": null,
+  "tags": ["日常", "入门", "基础"],
+  "version": "1.0.0",
+  "author": "Danci Team",
+  "downloadCount": 0,
+  "words": [
+    {
+      "spelling": "hello",
+      "phonetic": "/həˈləʊ/",
+      "meanings": ["你好", "喂"],
+      "examples": ["Hello, how are you?", "Say hello to everyone."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "thank",
+      "phonetic": "/θæŋk/",
+      "meanings": ["感谢", "谢谢"],
+      "examples": ["Thank you very much.", "I want to thank you for your help."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "please",
+      "phonetic": "/pliːz/",
+      "meanings": ["请", "使高兴"],
+      "examples": ["Please sit down.", "Please help me."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "sorry",
+      "phonetic": "/ˈsɒri/",
+      "meanings": ["对不起", "抱歉"],
+      "examples": ["I'm sorry for being late.", "Sorry to bother you."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "yes",
+      "phonetic": "/jes/",
+      "meanings": ["是", "好的"],
+      "examples": ["Yes, I agree.", "Yes, please."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "no",
+      "phonetic": "/nəʊ/",
+      "meanings": ["不", "没有"],
+      "examples": ["No, thank you.", "No problem."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "good",
+      "phonetic": "/ɡʊd/",
+      "meanings": ["好的", "优秀的"],
+      "examples": ["Good morning!", "That's a good idea."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "morning",
+      "phonetic": "/ˈmɔːnɪŋ/",
+      "meanings": ["早晨", "上午"],
+      "examples": ["Good morning!", "I exercise every morning."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "night",
+      "phonetic": "/naɪt/",
+      "meanings": ["夜晚", "晚上"],
+      "examples": ["Good night!", "I work at night."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "today",
+      "phonetic": "/təˈdeɪ/",
+      "meanings": ["今天"],
+      "examples": ["What day is today?", "I'm busy today."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "tomorrow",
+      "phonetic": "/təˈmɒrəʊ/",
+      "meanings": ["明天"],
+      "examples": ["See you tomorrow.", "Tomorrow is Monday."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "water",
+      "phonetic": "/ˈwɔːtər/",
+      "meanings": ["水", "浇水"],
+      "examples": ["Can I have some water?", "Water the plants."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "food",
+      "phonetic": "/fuːd/",
+      "meanings": ["食物", "食品"],
+      "examples": ["I love Chinese food.", "Food is ready."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "time",
+      "phonetic": "/taɪm/",
+      "meanings": ["时间", "次"],
+      "examples": ["What time is it?", "I don't have time."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "money",
+      "phonetic": "/ˈmʌni/",
+      "meanings": ["钱", "货币"],
+      "examples": ["I need some money.", "Time is money."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "friend",
+      "phonetic": "/frend/",
+      "meanings": ["朋友"],
+      "examples": ["He is my best friend.", "Make new friends."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "family",
+      "phonetic": "/ˈfæməli/",
+      "meanings": ["家庭", "家人"],
+      "examples": ["I love my family.", "Family comes first."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "work",
+      "phonetic": "/wɜːk/",
+      "meanings": ["工作", "运转"],
+      "examples": ["I go to work every day.", "This machine doesn't work."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "home",
+      "phonetic": "/həʊm/",
+      "meanings": ["家", "家乡"],
+      "examples": ["I'm going home.", "There's no place like home."],
+      "audioUrl": null
+    },
+    {
+      "spelling": "love",
+      "phonetic": "/lʌv/",
+      "meanings": ["爱", "喜爱"],
+      "examples": ["I love you.", "I love reading books."],
+      "audioUrl": null
+    }
+  ]
+}

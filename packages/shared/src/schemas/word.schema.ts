@@ -79,6 +79,42 @@ export const WordBookSchema = z.object({
   isPublic: z.boolean(),
   wordCount: z.number().int().nonnegative(),
   coverImage: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  sourceUrl: z.string().nullable().optional(),
+  sourceVersion: z.string().nullable().optional(),
+  importedAt: z.number().nullable().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
+});
+
+/**
+ * 词库中心配置Schema
+ */
+export const WordBookCenterConfigSchema = z.object({
+  id: z.string(),
+  centerUrl: z.string().url(),
+  updatedAt: z.string(),
+  updatedBy: z.string().nullable().optional(),
+});
+
+/**
+ * 词库中心词书Schema
+ */
+export const CenterWordBookSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  wordCount: z.number().int().nonnegative(),
+  coverImage: z.string().nullable().optional(),
+  tags: z.array(z.string()),
+  version: z.string(),
+  author: z.string().nullable().optional(),
+  downloadCount: z.number().optional(),
+});
+
+/**
+ * 导入词书请求Schema
+ */
+export const ImportWordBookRequestSchema = z.object({
+  targetType: z.enum(['SYSTEM', 'USER']),
 });

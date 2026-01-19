@@ -275,7 +275,7 @@ async fn get_analyses(
     };
 
     let pool = proxy.pool();
-    let limit = query.limit.unwrap_or(20).max(1).min(100);
+    let limit = query.limit.unwrap_or(20).clamp(1, 100);
     let offset = query.offset.unwrap_or(0).max(0);
 
     let total: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "alert_root_cause_analyses""#)
@@ -666,7 +666,7 @@ async fn get_insights(
         .into_response();
     };
 
-    let limit = query.limit.unwrap_or(10).max(1).min(100);
+    let limit = query.limit.unwrap_or(10).clamp(1, 100);
     let offset = query.offset.unwrap_or(0).max(0);
 
     match insight_generator::get_insights(&proxy, limit, offset, query.status.as_deref()).await {

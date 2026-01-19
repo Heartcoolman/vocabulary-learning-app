@@ -133,7 +133,7 @@ async fn list_tasks(
     let rows = match (&query.status, &query.task_type) {
         (Some(status), Some(task_type)) => {
             sqlx::query(
-                r#"SELECT * FROM "llm_analysis_tasks" WHERE "status" = $1 AND "type" = $2 ORDER BY "priority" DESC, "createdAt" DESC LIMIT $3"#,
+                r#"SELECT * FROM "llm_analysis_tasks" WHERE "status" = $1 AND "taskType" = $2 ORDER BY "priority" DESC, "createdAt" DESC LIMIT $3"#,
             )
             .bind(status)
             .bind(task_type)
@@ -152,7 +152,7 @@ async fn list_tasks(
         }
         (None, Some(task_type)) => {
             sqlx::query(
-                r#"SELECT * FROM "llm_analysis_tasks" WHERE "type" = $1 ORDER BY "priority" DESC, "createdAt" DESC LIMIT $2"#,
+                r#"SELECT * FROM "llm_analysis_tasks" WHERE "taskType" = $1 ORDER BY "priority" DESC, "createdAt" DESC LIMIT $2"#,
             )
             .bind(task_type)
             .bind(limit)
@@ -194,7 +194,7 @@ fn map_task_row(row: &sqlx::postgres::PgRow) -> TaskItem {
 
     TaskItem {
         id: row.try_get("id").unwrap_or_default(),
-        task_type: row.try_get("type").unwrap_or_default(),
+        task_type: row.try_get("taskType").unwrap_or_default(),
         status: row.try_get("status").unwrap_or_default(),
         priority: row.try_get("priority").unwrap_or(0),
         input: row.try_get("input").unwrap_or(serde_json::Value::Null),

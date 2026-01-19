@@ -48,6 +48,7 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
             Err(e) => {
                 let retry_count = parse_retry_count(&task.last_error);
                 let error_msg = e.to_string();
+                warn!(task_id = %task.id, error = %error_msg, "Delayed reward task processing failed");
                 handle_task_failure(&pool, &task, retry_count, &error_msg).await?;
                 failure_count += 1;
             }
@@ -66,13 +67,14 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
 }
 
 async fn recover_stuck_tasks(pool: &PgPool) -> Result<(), super::WorkerError> {
-    let timeout_threshold = Utc::now() - chrono::Duration::seconds(PROCESSING_TIMEOUT_SECS);
+    let timeout_threshold =
+        (Utc::now() - chrono::Duration::seconds(PROCESSING_TIMEOUT_SECS)).naive_utc();
 
     let result = sqlx::query(
         r#"
         UPDATE "reward_queue"
-        SET status = 'PENDING', "updatedAt" = NOW()
-        WHERE status = 'PROCESSING'
+        SET status = 'PENDING'::"RewardStatus", "updatedAt" = NOW()
+        WHERE status = 'PROCESSING'::"RewardStatus"
           AND "updatedAt" < $1
         "#,
     )
@@ -91,20 +93,20 @@ async fn recover_stuck_tasks(pool: &PgPool) -> Result<(), super::WorkerError> {
 }
 
 async fn claim_pending_tasks(pool: &PgPool) -> Result<Vec<RewardTask>, super::WorkerError> {
-    let now = Utc::now();
+    let now = Utc::now().naive_utc();
 
     let rows = sqlx::query(
         r#"
         WITH claimed AS (
             SELECT id FROM "reward_queue"
-            WHERE status = 'PENDING'
+            WHERE status = 'PENDING'::"RewardStatus"
               AND "dueTs" <= $1
             ORDER BY "dueTs" ASC
             LIMIT $2
             FOR UPDATE SKIP LOCKED
         )
         UPDATE "reward_queue" rq
-        SET status = 'PROCESSING', "updatedAt" = $1
+        SET status = 'PROCESSING'::"RewardStatus", "updatedAt" = $1
         FROM claimed
         WHERE rq.id = claimed.id
         RETURNING rq.id, rq."userId", rq."answerRecordId", rq.reward, rq."dueTs", rq."lastError"
@@ -121,17 +123,20 @@ async fn claim_pending_tasks(pool: &PgPool) -> Result<Vec<RewardTask>, super::Wo
             let id: Result<String, _> = row.try_get("id");
             let user_id: Result<String, _> = row.try_get("userId");
             let reward: Result<f64, _> = row.try_get("reward");
-            let due_ts: Result<chrono::DateTime<Utc>, _> = row.try_get("dueTs");
+            let due_ts_naive: Result<chrono::NaiveDateTime, _> = row.try_get("dueTs");
 
-            match (id, user_id, reward, due_ts) {
-                (Ok(id), Ok(user_id), Ok(reward), Ok(due_ts)) => Some(RewardTask {
-                    id,
-                    user_id,
-                    answer_record_id: row.try_get("answerRecordId").ok(),
-                    reward,
-                    due_ts,
-                    last_error: row.try_get("lastError").ok(),
-                }),
+            match (id, user_id, reward, due_ts_naive) {
+                (Ok(id), Ok(user_id), Ok(reward), Ok(naive_ts)) => {
+                    let due_ts = chrono::DateTime::<Utc>::from_naive_utc_and_offset(naive_ts, Utc);
+                    Some(RewardTask {
+                        id,
+                        user_id,
+                        answer_record_id: row.try_get("answerRecordId").ok(),
+                        reward,
+                        due_ts,
+                        last_error: row.try_get("lastError").ok(),
+                    })
+                }
                 _ => {
                     warn!("Failed to parse reward task row, skipping");
                     None
@@ -171,7 +176,7 @@ async fn process_single_task_atomic(
                 e
             })?;
 
-            let now = Utc::now();
+            let now = Utc::now().naive_utc();
             sqlx::query(
                 r#"
                 UPDATE "word_learning_states"
@@ -194,7 +199,7 @@ async fn process_single_task_atomic(
     }
 
     // Mark task as done within the same transaction
-    sqlx::query(r#"UPDATE "reward_queue" SET status = 'DONE', "lastError" = NULL, "updatedAt" = NOW() WHERE id = $1"#)
+    sqlx::query(r#"UPDATE "reward_queue" SET status = 'DONE'::"RewardStatus", "lastError" = NULL, "updatedAt" = NOW() WHERE id = $1"#)
         .bind(&task.id)
         .execute(&mut *tx)
         .await?;
@@ -215,13 +220,13 @@ async fn handle_task_failure(
     let next_status = if is_failed { "FAILED" } else { "PENDING" };
     let backoff_minutes = std::cmp::min(5, next_retry as i64);
     let next_due = if is_failed {
-        task.due_ts
+        task.due_ts.naive_utc()
     } else {
-        Utc::now() + chrono::Duration::minutes(backoff_minutes)
+        (Utc::now() + chrono::Duration::minutes(backoff_minutes)).naive_utc()
     };
     let full_error = format!("Retry {}/{}: {}", next_retry, MAX_RETRY, error_msg);
 
-    sqlx::query(r#"UPDATE "reward_queue" SET status = $1, "dueTs" = $2, "lastError" = $3, "updatedAt" = NOW() WHERE id = $4"#)
+    sqlx::query(r#"UPDATE "reward_queue" SET status = $1::"RewardStatus", "dueTs" = $2, "lastError" = $3, "updatedAt" = NOW() WHERE id = $4"#)
         .bind(next_status)
         .bind(next_due)
         .bind(&full_error)

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HabitProfileTab from '../HabitProfileTab';
 import type { HabitProfile } from '../../types/habit-profile';
@@ -14,22 +14,54 @@ vi.mock('../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../Icon')>();
   return {
     ...actual,
-    Clock: ({ className, size, weight }: any) => (
+    Clock: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span data-testid="clock-icon" className={className} data-size={size} data-weight={weight}>
         🕐
       </span>
     ),
-    TrendUp: ({ className, size, weight }: any) => (
+    TrendUp: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span data-testid="trend-up-icon" className={className} data-size={size} data-weight={weight}>
         📈
       </span>
     ),
-    Calendar: ({ className, size, weight }: any) => (
+    Calendar: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span data-testid="calendar-icon" className={className} data-size={size} data-weight={weight}>
         📅
       </span>
     ),
-    ArrowClockwise: ({ className, size, weight }: any) => (
+    ArrowClockwise: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="arrow-clockwise-icon"
         className={className}
@@ -39,7 +71,15 @@ vi.mock('../Icon', async (importOriginal) => {
         🔄
       </span>
     ),
-    FloppyDisk: ({ className, size, weight }: any) => (
+    FloppyDisk: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="floppy-disk-icon"
         className={className}
@@ -49,7 +89,15 @@ vi.mock('../Icon', async (importOriginal) => {
         💾
       </span>
     ),
-    ArrowCounterClockwise: ({ className, size, weight }: any) => (
+    ArrowCounterClockwise: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="arrow-counter-clockwise-icon"
         className={className}
@@ -59,7 +107,15 @@ vi.mock('../Icon', async (importOriginal) => {
         ↺
       </span>
     ),
-    Lightbulb: ({ className, size, weight }: any) => (
+    Lightbulb: ({
+      className,
+      size,
+      weight,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+    }) => (
       <span
         data-testid="lightbulb-icon"
         className={className}
@@ -80,13 +136,13 @@ vi.mock('../HabitHeatmap', () => ({
 }));
 
 vi.mock('../ChronotypeCard', () => ({
-  default: ({ data }: { data: any }) => (
+  default: ({ data }: { data: { type?: string } | null }) => (
     <div data-testid="chronotype-card">ChronotypeCard (type: {data?.type})</div>
   ),
 }));
 
 vi.mock('../LearningStyleCard', () => ({
-  default: ({ data }: { data: any }) => (
+  default: ({ data }: { data: { style?: string } | null }) => (
     <div data-testid="learning-style-card">LearningStyleCard (style: {data?.style})</div>
   ),
 }));
@@ -204,9 +260,11 @@ describe('HabitProfileTab', () => {
     it('should show generic error when no profile data', async () => {
       vi.mocked(apiClient.getHabitProfile).mockResolvedValue({
         stored: null,
-        realtime: null as any,
+        realtime: null as unknown as HabitProfile,
       });
-      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(null as any);
+      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(
+        null as unknown as ReturnType<typeof createMockCognitiveProfile>,
+      );
 
       render(<HabitProfileTab />);
 
@@ -357,7 +415,9 @@ describe('HabitProfileTab', () => {
         stored: null,
         realtime: createMockProfile(),
       });
-      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(null as any);
+      vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(
+        null as unknown as ReturnType<typeof createMockCognitiveProfile>,
+      );
 
       render(<HabitProfileTab />);
 
@@ -626,12 +686,12 @@ describe('HabitProfileTab', () => {
   // ==================== Component Unmount Tests ====================
   describe('unmount handling', () => {
     it('should not update state after unmount', async () => {
-      let resolvePromise: (value: any) => void;
-      const promise = new Promise((resolve) => {
+      let resolvePromise: (value: { stored: null; realtime: HabitProfile }) => void;
+      const promise = new Promise<{ stored: null; realtime: HabitProfile }>((resolve) => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(apiClient.getHabitProfile).mockReturnValue(promise as any);
+      vi.mocked(apiClient.getHabitProfile).mockReturnValue(promise);
       vi.mocked(apiClient.getCognitiveProfile).mockResolvedValue(createMockCognitiveProfile());
 
       const { unmount } = render(<HabitProfileTab />);

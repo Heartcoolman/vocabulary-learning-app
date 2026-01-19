@@ -148,9 +148,7 @@ describe('MasteryProgress', () => {
     });
 
     it('should use green color when completed', () => {
-      const { container } = render(
-        <MasteryProgress progress={defaultProgress} isCompleted={true} />,
-      );
+      render(<MasteryProgress progress={defaultProgress} isCompleted={true} />);
 
       // 完成时图标背景变绿色，百分比颜色保持 text-gray-500
       const progressBar = screen.getByRole('progressbar');
