@@ -1,5 +1,43 @@
 # Docker 部署指南
 
+## 🚀 一键部署（推荐）
+
+在全新服务器上，只需一条命令即可完成部署：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/heartcoolman/vocabulary-learning-app/main/deploy/deploy.sh | sudo bash
+```
+
+此脚本会自动：
+
+- 安装 Docker 和 Docker Compose（如未安装）
+- 下载生产环境配置文件
+- 生成安全的随机密钥
+- 拉取预构建的 Docker 镜像
+- 启动所有服务
+
+部署完成后，访问 `http://服务器IP:5173` 即可使用。
+
+### 部署后管理
+
+```bash
+cd /opt/danci
+
+# 查看服务状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
+
+# 更新到最新版本
+docker compose pull && docker compose up -d
+```
+
+---
+
 ## 架构概览
 
 ```
@@ -66,12 +104,12 @@ docker compose logs -f
 
 ### 服务列表
 
-| 服务         | 镜像                              | 端口 | 说明            |
-| ------------ | --------------------------------- | ---- | --------------- |
-| postgres     | timescale/timescaledb:latest-pg15 | 5432 | 主数据库        |
-| redis        | redis:7-alpine                    | 6379 | 缓存 + 分布式锁 |
-| backend-rust | 自构建                            | 3001 | Rust API 服务   |
-| frontend     | 自构建 (Nginx)                    | 5173 | 前端 + 反向代理 |
+| 服务         | 镜像                                                  | 端口 | 说明            |
+| ------------ | ----------------------------------------------------- | ---- | --------------- |
+| postgres     | timescale/timescaledb:latest-pg15                     | 5432 | 主数据库        |
+| redis        | redis:7-alpine                                        | 6379 | 缓存 + 分布式锁 |
+| backend-rust | ghcr.io/heartcoolman/vocabulary-learning-app/backend  | 3000 | Rust API 服务   |
+| frontend     | ghcr.io/heartcoolman/vocabulary-learning-app/frontend | 5173 | 前端 + 反向代理 |
 
 ### 健康检查
 
@@ -97,17 +135,16 @@ curl http://localhost:3001/health/database
 
 ### 可选
 
-| 变量                      | 默认值                | 说明             |
-| ------------------------- | --------------------- | ---------------- |
-| `POSTGRES_USER`           | danci                 | 数据库用户       |
-| `POSTGRES_DB`             | vocabulary_db         | 数据库名         |
-| `POSTGRES_PORT`           | 5432                  | 数据库端口       |
-| `REDIS_PORT`              | 6379                  | Redis 端口       |
-| `FRONTEND_PORT`           | 5173                  | 前端端口         |
-| `BACKEND_RUST_PORT`       | 3001                  | 后端端口         |
-| `RUST_LOG`                | info                  | 日志级别         |
-| `CORS_ORIGIN`             | http://localhost:5173 | 允许的跨域源     |
-| `SQLITE_FALLBACK_ENABLED` | true                  | 启用 SQLite 热备 |
+| 变量                | 默认值                | 说明         |
+| ------------------- | --------------------- | ------------ |
+| `POSTGRES_USER`     | danci                 | 数据库用户   |
+| `POSTGRES_DB`       | vocabulary_db         | 数据库名     |
+| `POSTGRES_PORT`     | 5432                  | 数据库端口   |
+| `REDIS_PORT`        | 6379                  | Redis 端口   |
+| `FRONTEND_PORT`     | 5173                  | 前端端口     |
+| `BACKEND_RUST_PORT` | 3001                  | 后端端口     |
+| `RUST_LOG`          | info                  | 日志级别     |
+| `CORS_ORIGIN`       | http://localhost:5173 | 允许的跨域源 |
 
 ## 常用命令
 
@@ -151,7 +188,29 @@ pnpm dev
 
 ## 生产部署
 
-### 1. 使用外部数据库
+### 推荐方式：一键部署
+
+使用上方的一键部署脚本，自动拉取 GitHub 预构建镜像，无需本地编译。
+
+### 手动部署
+
+1. 下载配置文件：
+
+```bash
+mkdir -p /opt/danci && cd /opt/danci
+curl -fsSL https://raw.githubusercontent.com/heartcoolman/vocabulary-learning-app/main/docker-compose.prod.yml -o docker-compose.yml
+```
+
+2. 创建 `.env` 文件并配置环境变量
+
+3. 启动服务：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### 使用外部数据库
 
 修改 `.env`：
 
@@ -161,7 +220,7 @@ DATABASE_URL=postgresql://user:pass@your-db-host:5432/danci
 
 然后在 `docker-compose.yml` 中注释掉 postgres 服务。
 
-### 2. 反向代理 (Nginx/Caddy)
+### 反向代理 (Nginx/Caddy)
 
 示例 Caddy 配置：
 
@@ -171,7 +230,7 @@ your-domain.com {
 }
 ```
 
-### 3. 数据备份
+### 数据备份
 
 ```bash
 # 备份数据库
