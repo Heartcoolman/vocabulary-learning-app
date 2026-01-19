@@ -49,3 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/heartcoolman/vocabulary-learning-ap
 ```
 
 部署完成后访问 `http://服务器IP:5173` 即可使用。
+
+---
+
+_Powered by [MkDocs Material](https://squidfunk.github.io/mkdocs-material/)_
