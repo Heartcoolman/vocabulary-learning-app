@@ -10,14 +10,14 @@ theme:
   language: zh
   palette:
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: amber
       toggle:
         icon: material/brightness-7
         name: 切换到暗黑模式
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: amber
       toggle:
         icon: material/brightness-4
         name: 切换到明亮模式
@@ -58,12 +58,15 @@ nav:
   - 快速开始:
       - Docker 部署: DOCKER.md
       - 本地开发: DEVELOPMENT.md
+      - 部署配置: DEPLOY.md
+  - 使用教程: GUIDE.md
   - 技术文档:
       - 系统架构: ARCHITECTURE.md
       - API 接口: API.md
       - 组件文档: COMPONENTS.md
   - 核心算法:
       - AMAS 引擎: AMAS.md
+  - 更新日志: CHANGELOG.md
 
 extra:
   social:
