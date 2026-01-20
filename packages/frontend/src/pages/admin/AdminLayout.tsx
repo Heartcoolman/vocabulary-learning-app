@@ -45,7 +45,7 @@ function VersionDisplay() {
           rel="noopener noreferrer"
           className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600 transition-colors hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50"
         >
-          v{versionInfo.latestVersion}
+          新版本 v{versionInfo.latestVersion}
         </a>
       )}
     </div>
