@@ -54,7 +54,7 @@ function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (user?.role !== 'ADMIN') {
     logout();
-    showToast('权限不足，仅管理员可访问', 'error');
+    showToast('error', '权限不足，仅管理员可访问');
     return <Navigate to="/admin-login" replace />;
   }
 

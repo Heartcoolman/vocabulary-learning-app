@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
       if (user?.role === 'ADMIN') {
         navigate('/admin', { replace: true });
       } else {
-        showToast('权限不足，仅管理员可访问', 'error');
+        showToast('error', '权限不足，仅管理员可访问');
         setError('权限不足，仅管理员可访问');
         logout();
         setIsLoading(false);
