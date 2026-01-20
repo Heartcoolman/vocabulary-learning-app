@@ -371,6 +371,14 @@ export interface SystemVersionInfo {
   publishedAt: string | null;
 }
 
+export interface OTAUpdateStatus {
+  stage: 'idle' | 'pulling' | 'restarting' | 'completed' | 'failed';
+  progress: number;
+  message: string;
+  error: string | null;
+  timestamp: string;
+}
+
 /**
  * API 响应中的 WordBook 类型（日期字段为字符串）
  */
@@ -1282,5 +1290,15 @@ export class AdminClient extends BaseClient {
 
   async getSystemVersion(): Promise<SystemVersionInfo> {
     return this.request<SystemVersionInfo>('/api/admin/system/version');
+  }
+
+  // ==================== OTA 更新 API ====================
+
+  async triggerSystemUpdate(): Promise<void> {
+    return this.request<void>('/api/admin/system/update', { method: 'POST' });
+  }
+
+  async getUpdateStatus(): Promise<OTAUpdateStatus> {
+    return this.request<OTAUpdateStatus>('/api/admin/system/update/status');
   }
 }

@@ -19,6 +19,7 @@ mod llm;
 mod logs;
 mod monitoring;
 mod ops;
+mod ota;
 mod quality;
 mod statistics;
 mod users;
@@ -61,6 +62,14 @@ pub fn router() -> Router<AppState> {
         .route(
             "/system/version",
             axum::routing::get(version::get_system_version),
+        )
+        .route(
+            "/system/update",
+            axum::routing::post(ota::trigger_update),
+        )
+        .route(
+            "/system/update/status",
+            axum::routing::get(ota::get_update_status),
         )
 }
 

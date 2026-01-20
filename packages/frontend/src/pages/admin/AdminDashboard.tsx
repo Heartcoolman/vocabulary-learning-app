@@ -26,10 +26,13 @@ import {
   Lightning,
   Eye,
   Robot,
+  Download,
+  XCircle,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
-import { ConfirmModal, AlertModal } from '../../components/ui';
+import { ConfirmModal, AlertModal, Modal, Button, Progress } from '../../components/ui';
+import { useOTAUpdate } from '../../hooks/mutations';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
@@ -67,6 +70,17 @@ export default function AdminDashboard() {
   } = useVisualFatigueStats();
   const { data: llmPendingCount } = useLLMPendingCount();
   const { data: versionInfo } = useSystemVersion();
+  const {
+    triggerUpdate,
+    updateStatus,
+    isTriggering,
+    triggerError,
+    resetUpdate,
+    openModal: openUpdateModal,
+    closeModal: closeUpdateModal,
+    isCheckingStatus,
+    isUpdateInProgress,
+  } = useOTAUpdate();
 
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
@@ -86,6 +100,38 @@ export default function AdminDashboard() {
     message: '',
     variant: 'info',
   });
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+  // OTA 更新处理
+  const handleOpenUpdateModal = () => {
+    setShowUpdateModal(true);
+    openUpdateModal();
+  };
+
+  const handleStartUpdate = () => {
+    triggerUpdate();
+  };
+
+  const handleCloseUpdateModal = () => {
+    if (isUpdateInProgress) {
+      return;
+    }
+    setShowUpdateModal(false);
+    closeUpdateModal();
+    if (updateStatus?.stage === 'completed' || updateStatus?.stage === 'failed' || triggerError) {
+      resetUpdate();
+    }
+  };
+
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return '未知错误';
+  };
 
   // 加载 AMAS 策略（保留原有逻辑）
   const loadAmasStrategy = async () => {
@@ -763,15 +809,26 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
-              {versionInfo.hasUpdate && versionInfo.releaseUrl && (
-                <a
-                  href={versionInfo.releaseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-                >
-                  查看更新
-                </a>
+              {versionInfo.hasUpdate && (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {versionInfo.releaseUrl && (
+                    <a
+                      href={versionInfo.releaseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    >
+                      查看更新
+                    </a>
+                  )}
+                  <button
+                    onClick={handleOpenUpdateModal}
+                    className="inline-flex items-center gap-2 rounded-button bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
+                  >
+                    <Download size={18} weight="bold" />
+                    立即更新
+                  </button>
+                </div>
               )}
             </div>
             {versionInfo.releaseNotes && (
@@ -779,11 +836,27 @@ export default function AdminDashboard() {
                 <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   更新说明
                 </h3>
-                <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-400">
-                  {versionInfo.releaseNotes.length > 500
+                <div className="max-h-32 space-y-1 overflow-y-auto text-sm text-gray-600 dark:text-gray-400">
+                  {(versionInfo.releaseNotes.length > 500
                     ? versionInfo.releaseNotes.slice(0, 500) + '...'
-                    : versionInfo.releaseNotes}
-                </p>
+                    : versionInfo.releaseNotes
+                  )
+                    .split('\n')
+                    .map((line, i) => {
+                      const trimmed = line.replace(/^#+\s*/, '');
+                      const isHeading = /^#+\s/.test(line);
+                      return trimmed ? (
+                        <p
+                          key={i}
+                          className={
+                            isHeading ? 'font-semibold text-gray-800 dark:text-gray-200' : ''
+                          }
+                        >
+                          {trimmed}
+                        </p>
+                      ) : null;
+                    })}
+                </div>
               </div>
             )}
           </div>
@@ -857,6 +930,101 @@ export default function AdminDashboard() {
         message={alertModal.message}
         variant={alertModal.variant}
       />
+
+      {/* OTA 更新 Modal */}
+      <Modal
+        isOpen={showUpdateModal}
+        onClose={handleCloseUpdateModal}
+        title="系统更新"
+        maxWidth="md"
+        showCloseButton={!isTriggering && !isUpdateInProgress}
+        closeOnOverlayClick={!isTriggering && !isUpdateInProgress}
+      >
+        <div className="space-y-6">
+          {isCheckingStatus && !updateStatus && !isTriggering && !triggerError ? (
+            <div className="flex items-center justify-center py-8">
+              <CircleNotch size={32} className="animate-spin text-blue-600" />
+            </div>
+          ) : (!updateStatus || updateStatus.stage === 'idle') && !isTriggering && !triggerError ? (
+            <>
+              <div className="flex items-center gap-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/40">
+                  <Lightning
+                    size={24}
+                    weight="duotone"
+                    className="text-blue-600 dark:text-blue-400"
+                  />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                    发现新版本 v{versionInfo?.latestVersion}
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    更新过程可能需要几分钟，期间服务将短暂重启。
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="secondary" onClick={handleCloseUpdateModal}>
+                  取消
+                </Button>
+                <Button variant="primary" onClick={handleStartUpdate}>
+                  确认更新
+                </Button>
+              </div>
+            </>
+          ) : triggerError || updateStatus?.stage === 'failed' ? (
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <XCircle size={32} weight="bold" className="text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="mb-2 text-lg font-bold text-gray-900 dark:text-white">更新失败</h3>
+              <p className="mb-6 text-gray-600 dark:text-gray-400">
+                {triggerError ? getErrorMessage(triggerError) : updateStatus?.error || '未知错误'}
+              </p>
+              <Button variant="secondary" onClick={handleCloseUpdateModal}>
+                关闭
+              </Button>
+            </div>
+          ) : updateStatus?.stage === 'completed' ? (
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                <CheckCircle
+                  size={32}
+                  weight="bold"
+                  className="text-green-600 dark:text-green-400"
+                />
+              </div>
+              <h3 className="mb-2 text-lg font-bold text-gray-900 dark:text-white">更新完成</h3>
+              <p className="mb-6 text-gray-600 dark:text-gray-400">系统已成功更新到最新版本。</p>
+              <Button variant="primary" onClick={() => window.location.reload()}>
+                刷新页面
+              </Button>
+            </div>
+          ) : (
+            <div className="py-4">
+              <div className="mb-2 flex justify-between text-sm font-medium">
+                <span className="text-gray-900 dark:text-white">
+                  {isTriggering
+                    ? '正在启动更新...'
+                    : updateStatus?.stage === 'pulling'
+                      ? '正在下载更新...'
+                      : updateStatus?.stage === 'restarting'
+                        ? '正在重启服务...'
+                        : '更新中...'}
+                </span>
+                <span className="text-blue-600 dark:text-blue-400">
+                  {updateStatus?.progress || 0}%
+                </span>
+              </div>
+              <Progress value={updateStatus?.progress || 0} className="mb-4" />
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                {updateStatus?.message || '请勿关闭页面...'}
+              </p>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

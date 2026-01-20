@@ -63,6 +63,7 @@ export type {
   LLMTask,
   WordVariant,
   SystemVersionInfo,
+  OTAUpdateStatus,
 } from './admin/AdminClient';
 
 // ==================== LLM Advisor 模块 ====================
