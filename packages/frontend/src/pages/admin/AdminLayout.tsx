@@ -38,14 +38,14 @@ function VersionDisplay() {
       <span className="text-xs text-gray-500 dark:text-gray-400">
         v{versionInfo.currentVersion}
       </span>
-      {versionInfo.hasUpdate && versionInfo.releaseUrl && (
+      {versionInfo.hasUpdate && versionInfo.releaseUrl && versionInfo.latestVersion && (
         <a
           href={versionInfo.releaseUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600 transition-colors hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50"
         >
-          新版本
+          v{versionInfo.latestVersion}
         </a>
       )}
     </div>
