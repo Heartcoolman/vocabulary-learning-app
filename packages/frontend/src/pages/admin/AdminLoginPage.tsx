@@ -53,35 +53,35 @@ export default function AdminLoginPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <CircleNotch className="h-12 w-12 animate-spin text-blue-500" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600/20">
-            <ShieldCheck size={32} className="text-blue-500" weight="duotone" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+            <ShieldCheck size={32} className="text-blue-600" weight="duotone" />
           </div>
-          <h1 className="text-2xl font-bold text-white">管理后台</h1>
-          <p className="mt-2 text-sm text-slate-400">请使用管理员账号登录</p>
+          <h1 className="text-2xl font-bold text-gray-900">管理后台</h1>
+          <p className="mt-2 text-sm text-gray-500">请使用管理员账号登录</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 rounded-xl bg-white p-8 shadow-lg">
           {error && (
             <div
               role="alert"
-              className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400"
+              className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600"
             >
               {error}
             </div>
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               邮箱
             </label>
             <input
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               placeholder="admin@example.com"
               disabled={isLoading}
               autoComplete="email"
@@ -97,7 +97,7 @@ export default function AdminLoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               密码
             </label>
             <div className="relative mt-2">
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 pr-12 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 placeholder="输入密码"
                 disabled={isLoading}
                 autoComplete="current-password"
@@ -114,7 +114,7 @@ export default function AdminLoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
               </button>
@@ -124,7 +124,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <>
@@ -138,7 +138,7 @@ export default function AdminLoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <a href="/" className="text-sm text-slate-400 transition-colors hover:text-slate-300">
+          <a href="/" className="text-sm text-gray-500 transition-colors hover:text-blue-600">
             返回主站
           </a>
         </div>
