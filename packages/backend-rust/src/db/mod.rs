@@ -110,7 +110,10 @@ impl DatabaseProxy {
         Ok(())
     }
 
-    pub async fn delete_all_user_sessions(&self, user_id: &str) -> Result<Vec<String>, sqlx::Error> {
+    pub async fn delete_all_user_sessions(
+        &self,
+        user_id: &str,
+    ) -> Result<Vec<String>, sqlx::Error> {
         let rows = sqlx::query_scalar::<_, String>(
             r#"DELETE FROM "sessions" WHERE "userId" = $1 RETURNING "token""#,
         )

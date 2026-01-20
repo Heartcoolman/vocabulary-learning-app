@@ -201,12 +201,11 @@ async fn run_seed_admin() {
         .await
         .expect("failed to connect to database");
 
-    let existing: Option<i64> = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "users" WHERE "role"::text = 'ADMIN'"#,
-    )
-    .fetch_one(&pool)
-    .await
-    .ok();
+    let existing: Option<i64> =
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "users" WHERE "role"::text = 'ADMIN'"#)
+            .fetch_one(&pool)
+            .await
+            .ok();
 
     if existing.unwrap_or(0) > 0 {
         println!("ADMIN_EXISTS");
