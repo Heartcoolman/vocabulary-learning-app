@@ -65,7 +65,13 @@ fn compare_versions(current: &str, latest: &str) -> bool {
     let parse = |s: &str| -> Vec<u32> {
         s.split('.')
             .take(3)
-            .filter_map(|p| p.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<u32>().ok())
+            .filter_map(|p| {
+                p.chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .ok()
+            })
             .collect()
     };
 
