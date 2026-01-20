@@ -4,8 +4,33 @@ set -e
 DEPLOY_DIR="/opt/danci"
 GITHUB_REPO="heartcoolman/vocabulary-learning-app"
 
+# 解析命令行参数
+ACTION="${1:-deploy}"
+
+show_help() {
+  echo "用法: sudo bash deploy.sh [命令]"
+  echo ""
+  echo "命令:"
+  echo "  deploy    完整部署（默认，首次安装使用）"
+  echo "  update    版本更新（拉取最新镜像并重启）"
+  echo "  help      显示帮助信息"
+  echo ""
+  echo "示例:"
+  echo "  sudo bash deploy.sh          # 完整部署"
+  echo "  sudo bash deploy.sh update   # 更新到最新版本"
+}
+
+if [ "$ACTION" = "help" ] || [ "$ACTION" = "-h" ] || [ "$ACTION" = "--help" ]; then
+  show_help
+  exit 0
+fi
+
 echo "╔════════════════════════════════════════════╗"
+if [ "$ACTION" = "update" ]; then
+echo "║     单词学习应用 - 版本更新                ║"
+else
 echo "║     单词学习应用 - 一键部署脚本            ║"
+fi
 echo "║     使用预构建镜像，无需本地编译           ║"
 echo "╚════════════════════════════════════════════╝"
 echo ""
@@ -14,6 +39,46 @@ echo ""
 if [ "$EUID" -ne 0 ]; then
   echo "❌ 请使用root权限运行: sudo bash deploy.sh"
   exit 1
+fi
+
+# 版本更新模式
+if [ "$ACTION" = "update" ]; then
+  if [ ! -d "$DEPLOY_DIR" ] || [ ! -f "$DEPLOY_DIR/docker-compose.yml" ]; then
+    echo "❌ 未找到部署目录，请先执行完整部署: sudo bash deploy.sh"
+    exit 1
+  fi
+
+  cd "$DEPLOY_DIR"
+
+  echo "[1/3] 拉取最新镜像..."
+  docker compose pull
+
+  echo "[2/3] 重启服务..."
+  docker compose up -d
+
+  echo "[3/3] 等待服务就绪..."
+  sleep 5
+  MAX_RETRIES=30
+  RETRY_COUNT=0
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -s http://localhost:5173/health &>/dev/null; then
+      break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    sleep 2
+  done
+
+  SERVER_IP=$(curl -s -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
+
+  echo ""
+  echo "╔════════════════════════════════════════════╗"
+  echo "║            🎉 更新完成！                   ║"
+  echo "╚════════════════════════════════════════════╝"
+  echo ""
+  docker compose ps
+  echo ""
+  echo "📍 访问地址: http://${SERVER_IP}:5173"
+  exit 0
 fi
 
 # 安装Docker
