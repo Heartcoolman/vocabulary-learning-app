@@ -138,6 +138,10 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "029_words_soft_delete",
             include_str!("../../sql/029_words_soft_delete.sql"),
         ),
+        (
+            "030_add_banned_role",
+            include_str!("../../sql/030_add_banned_role.sql"),
+        ),
     ];
 
     let mut applied_count = 0;

@@ -7,7 +7,7 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'BANNED';
   rewardProfile: string;
   createdAt: string;
   updatedAt: string;

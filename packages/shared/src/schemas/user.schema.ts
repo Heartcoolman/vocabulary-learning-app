@@ -8,7 +8,7 @@ import { z } from 'zod';
 /**
  * 用户角色Schema
  */
-export const UserRoleSchema = z.enum(['USER', 'ADMIN']);
+export const UserRoleSchema = z.enum(['USER', 'ADMIN', 'BANNED']);
 
 /**
  * 用户注册Schema

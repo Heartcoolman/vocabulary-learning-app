@@ -93,6 +93,19 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      // 开发环境：admin 路由重写
+      {
+        name: 'rewrite-admin-entry',
+        configureServer(server) {
+          server.middlewares.use((req, _res, next) => {
+            const url = req.url || '';
+            if (url === '/admin-login' || url === '/admin' || url.startsWith('/admin/')) {
+              req.url = '/admin.html';
+            }
+            next();
+          });
+        },
+      },
     ],
 
     // 确保 WASM 和模型文件正确处理
@@ -154,6 +167,10 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
 
       rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          admin: path.resolve(__dirname, 'admin.html'),
+        },
         output: {
           // 手动代码分割策略
           manualChunks: (id) => {

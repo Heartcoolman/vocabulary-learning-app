@@ -559,7 +559,7 @@ export class AdminClient extends BaseClient {
   /**
    * 修改用户角色（管理员）
    */
-  async updateUserRole(userId: string, role: 'USER' | 'ADMIN'): Promise<User> {
+  async updateUserRole(userId: string, role: 'USER' | 'ADMIN' | 'BANNED'): Promise<User> {
     return this.request<User>(`/api/admin/users/${userId}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),

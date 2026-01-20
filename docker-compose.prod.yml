@@ -53,13 +53,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-danci}:${POSTGRES_PASSWORD:-danci_secret_2024}@postgres:5432/${POSTGRES_DB:-vocabulary_db}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change_this_in_production_use_random_64_chars}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       WORKER_LEADER: 'true'
       SQLITE_FALLBACK_ENABLED: ${SQLITE_FALLBACK_ENABLED:-true}
       SQLITE_FALLBACK_PATH: /app/data/fallback.db
       DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
-    ports:
-      - '${BACKEND_RUST_PORT:-3001}:3000'
+    expose:
+      - '3000'
     volumes:
       - rust_backend_data:/app/data
     depends_on:
@@ -69,34 +68,12 @@ services:
         condition: service_healthy
     networks:
       - danci-network
-
-  backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/heartcoolman/vocabulary-learning-app/backend:latest}
-    container_name: danci-backend
-    restart: unless-stopped
-    environment:
-      RUST_LOG: ${RUST_LOG:-info}
-      HOST: 0.0.0.0
-      PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-danci}:${POSTGRES_PASSWORD:-danci_secret_2024}@postgres:5432/${POSTGRES_DB:-vocabulary_db}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change_this_in_production_use_random_64_chars}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      WORKER_LEADER: 'false'
-      SQLITE_FALLBACK_ENABLED: ${SQLITE_FALLBACK_ENABLED:-true}
-      SQLITE_FALLBACK_PATH: /app/data/fallback.db
-      DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
-    ports:
-      - '${BACKEND_PORT:-3002}:3000'
-    volumes:
-      - rust_backend_data:/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - danci-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/heartcoolman/vocabulary-learning-app/frontend:latest}
