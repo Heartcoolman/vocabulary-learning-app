@@ -30,6 +30,10 @@ const renderWithRouter = (requireAdmin = false, initialPath = '/protected') => {
           }
         />
         <Route path="/login" element={<div data-testid="login-page">Login Page</div>} />
+        <Route
+          path="/admin-login"
+          element={<div data-testid="admin-login-page">Admin Login Page</div>}
+        />
         <Route path="/403" element={<div data-testid="forbidden-page">Forbidden Page</div>} />
       </Routes>
     </MemoryRouter>,
@@ -142,7 +146,7 @@ describe('ProtectedRoute', () => {
       expect(screen.getByTestId('protected-content')).toBeInTheDocument();
     });
 
-    it('should redirect unauthenticated user to login even with requireAdmin', () => {
+    it('should redirect unauthenticated user to admin-login when requireAdmin is true', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
@@ -151,7 +155,7 @@ describe('ProtectedRoute', () => {
 
       renderWithRouter(true);
 
-      expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      expect(screen.getByTestId('admin-login-page')).toBeInTheDocument();
       expect(screen.queryByTestId('forbidden-page')).not.toBeInTheDocument();
     });
   });
