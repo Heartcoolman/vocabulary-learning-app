@@ -25,3 +25,6 @@ export * from './useAdjustWords';
 // Note: useWordMutations exports useCreateWord, useUpdateWord, useDeleteWord, useBatchCreateWords
 // which conflict with queries/useWords.ts exports. We only export useWordMutations here.
 export { useWordMutations } from './useWordMutations';
+
+// OTA 更新相关
+export { useOTAUpdate, otaUpdateKeys } from './useOTAUpdate';

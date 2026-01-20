@@ -57,10 +57,13 @@ services:
       SQLITE_FALLBACK_ENABLED: ${SQLITE_FALLBACK_ENABLED:-true}
       SQLITE_FALLBACK_PATH: /app/data/fallback.db
       DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
+      OTA_SOCKET_PATH: /run/danci/updater.sock
+      OTA_STATUS_FILE: /run/danci/update-status.json
     expose:
       - '3000'
     volumes:
       - rust_backend_data:/app/data
+      - /var/run/danci:/run/danci:ro
     depends_on:
       postgres:
         condition: service_healthy

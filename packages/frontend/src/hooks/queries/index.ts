@@ -180,6 +180,7 @@ export * from './useAdminStatistics';
 export * from './useSystemStatus';
 export * from './useConfigHistory';
 export * from './useVisualFatigueStats';
+export * from './useSystemVersion';
 
 // ==================== 学习记录相关查询 ====================
 export {

@@ -19,9 +19,11 @@ mod llm;
 mod logs;
 mod monitoring;
 mod ops;
+mod ota;
 mod quality;
 mod statistics;
 mod users;
+mod version;
 mod wordbooks;
 
 #[derive(Serialize)]
@@ -56,6 +58,15 @@ pub fn router() -> Router<AppState> {
         .route(
             "/visual-fatigue/stats",
             axum::routing::get(get_visual_fatigue_stats),
+        )
+        .route(
+            "/system/version",
+            axum::routing::get(version::get_system_version),
+        )
+        .route("/system/update", axum::routing::post(ota::trigger_update))
+        .route(
+            "/system/update/status",
+            axum::routing::get(ota::get_update_status),
         )
 }
 

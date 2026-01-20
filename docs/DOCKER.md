@@ -135,16 +135,17 @@ curl http://localhost:3001/health/database
 
 ### 可选
 
-| 变量                | 默认值                | 说明         |
-| ------------------- | --------------------- | ------------ |
-| `POSTGRES_USER`     | danci                 | 数据库用户   |
-| `POSTGRES_DB`       | vocabulary_db         | 数据库名     |
-| `POSTGRES_PORT`     | 5432                  | 数据库端口   |
-| `REDIS_PORT`        | 6379                  | Redis 端口   |
-| `FRONTEND_PORT`     | 5173                  | 前端端口     |
-| `BACKEND_RUST_PORT` | 3001                  | 后端端口     |
-| `RUST_LOG`          | info                  | 日志级别     |
-| `CORS_ORIGIN`       | http://localhost:5173 | 允许的跨域源 |
+| 变量                      | 默认值                | 说明             |
+| ------------------------- | --------------------- | ---------------- |
+| `POSTGRES_USER`           | danci                 | 数据库用户       |
+| `POSTGRES_DB`             | vocabulary_db         | 数据库名         |
+| `POSTGRES_PORT`           | 5432                  | 数据库端口       |
+| `REDIS_PORT`              | 6379                  | Redis 端口       |
+| `FRONTEND_PORT`           | 5173                  | 前端端口         |
+| `BACKEND_RUST_PORT`       | 3001                  | 后端端口         |
+| `RUST_LOG`                | info                  | 日志级别         |
+| `CORS_ORIGIN`             | http://localhost:5173 | 允许的跨域源     |
+| `SQLITE_FALLBACK_ENABLED` | true                  | 启用 SQLite 热备 |
 
 ## 常用命令
 

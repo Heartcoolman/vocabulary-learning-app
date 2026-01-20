@@ -16,13 +16,17 @@ const createTestQueryClient = () =>
     },
   });
 
-const { mockUseAdminStatistics, mockUseSystemHealth, mockUseVisualFatigueStats } = vi.hoisted(
-  () => ({
-    mockUseAdminStatistics: vi.fn(),
-    mockUseSystemHealth: vi.fn(),
-    mockUseVisualFatigueStats: vi.fn(),
-  }),
-);
+const {
+  mockUseAdminStatistics,
+  mockUseSystemHealth,
+  mockUseVisualFatigueStats,
+  mockUseSystemVersion,
+} = vi.hoisted(() => ({
+  mockUseAdminStatistics: vi.fn(),
+  mockUseSystemHealth: vi.fn(),
+  mockUseVisualFatigueStats: vi.fn(),
+  mockUseSystemVersion: vi.fn(),
+}));
 
 vi.mock('../../../hooks/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../hooks/queries')>();
@@ -31,6 +35,7 @@ vi.mock('../../../hooks/queries', async (importOriginal) => {
     useAdminStatistics: mockUseAdminStatistics,
     useSystemHealth: mockUseSystemHealth,
     useVisualFatigueStats: mockUseVisualFatigueStats,
+    useSystemVersion: mockUseSystemVersion,
   };
 });
 
@@ -47,6 +52,20 @@ const { mockAmasClient } = vi.hoisted(() => ({
 
 vi.mock('../../../services/client', () => ({
   amasClient: mockAmasClient,
+}));
+
+vi.mock('../../../hooks/mutations', () => ({
+  useOTAUpdate: () => ({
+    triggerUpdate: vi.fn(),
+    updateStatus: null,
+    isTriggering: false,
+    triggerError: null,
+    resetUpdate: vi.fn(),
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
+    isCheckingStatus: false,
+    isUpdateInProgress: false,
+  }),
 }));
 
 // Mock useToast hook
@@ -73,6 +92,9 @@ vi.mock('../../../components/ui', () => ({
         <button onClick={onClose}>关闭</button>
       </div>
     ) : null,
+  Modal: ({ isOpen, children }: any) => (isOpen ? <div data-testid="modal">{children}</div> : null),
+  Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
+  Progress: ({ value }: any) => <div data-testid="progress" data-value={value} />,
 }));
 
 const mockStats = {
@@ -132,6 +154,7 @@ describe('AdminDashboard', () => {
     });
     mockUseSystemHealth.mockReturnValue({ data: undefined });
     mockUseVisualFatigueStats.mockReturnValue({ data: undefined, isLoading: false, error: null });
+    mockUseSystemVersion.mockReturnValue({ data: undefined });
   });
 
   describe('loading state', () => {

@@ -81,6 +81,113 @@ if [ "$ACTION" = "update" ]; then
   exit 0
 fi
 
+# OTA 更新服务安装
+install_ota_service() {
+  echo "[OTA] 安装 OTA 更新服务..."
+
+  mkdir -p /var/run/danci
+  chmod 755 /var/run/danci
+
+  cat > /opt/danci/updater.sh << 'UPDATER_EOF'
+#!/bin/bash
+set -e
+
+STATUS_FILE="/var/run/danci/update-status.json"
+
+update_status() {
+  local stage="$1"
+  local progress="$2"
+  local message="$3"
+  local error="${4:-null}"
+  local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+
+  if [ "$error" = "null" ]; then
+    echo "{\"stage\":\"$stage\",\"progress\":$progress,\"message\":\"$message\",\"error\":null,\"timestamp\":\"$timestamp\"}" > "$STATUS_FILE"
+  else
+    echo "{\"stage\":\"$stage\",\"progress\":$progress,\"message\":\"$message\",\"error\":\"$error\",\"timestamp\":\"$timestamp\"}" > "$STATUS_FILE"
+  fi
+}
+
+cd /opt/danci
+
+update_status "pulling" 10 "正在拉取最新镜像..."
+
+if ! docker compose pull 2>&1; then
+  update_status "failed" 10 "镜像拉取失败" "docker compose pull failed"
+  exit 1
+fi
+
+update_status "pulling" 50 "镜像拉取完成，准备重启服务..."
+
+update_status "restarting" 60 "正在重启服务..."
+
+if ! docker compose up -d 2>&1; then
+  update_status "failed" 60 "服务重启失败" "docker compose up -d failed"
+  exit 1
+fi
+
+update_status "restarting" 80 "等待服务就绪..."
+
+MAX_RETRIES=30
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if curl -s http://localhost:5173/health &>/dev/null; then
+    break
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  sleep 2
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+  update_status "failed" 90 "服务启动超时" "health check timeout"
+  exit 1
+fi
+
+update_status "completed" 100 "更新完成"
+UPDATER_EOF
+
+  chmod +x /opt/danci/updater.sh
+
+  cat > /etc/systemd/system/danci-updater.socket << 'SOCKET_EOF'
+[Unit]
+Description=Danci OTA Updater Socket
+
+[Socket]
+ListenStream=/var/run/danci/updater.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=root
+Accept=no
+
+[Install]
+WantedBy=sockets.target
+SOCKET_EOF
+
+  cat > /etc/systemd/system/danci-updater.service << 'SERVICE_EOF'
+[Unit]
+Description=Danci OTA Updater Service
+Requires=danci-updater.socket
+After=danci-updater.socket
+
+[Service]
+Type=oneshot
+ExecStart=/opt/danci/updater.sh
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+WorkingDirectory=/opt/danci
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+
+  systemctl daemon-reload
+  systemctl enable danci-updater.socket
+  systemctl start danci-updater.socket
+
+  echo "[OTA] ✅ OTA 更新服务安装完成"
+}
+
 # 安装Docker
 if ! command -v docker &> /dev/null; then
   echo "[1/6] 正在安装 Docker..."
@@ -269,6 +376,9 @@ if [ "$ADMIN_EXISTS" -eq "0" ]; then
 else
   echo "   ✅ 管理员账户已存在（共 ${ADMIN_EXISTS} 个）"
 fi
+
+# 安装 OTA 更新服务
+install_ota_service
 
 # 显示结果
 echo ""

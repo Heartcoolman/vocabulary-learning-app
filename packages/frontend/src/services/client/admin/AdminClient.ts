@@ -362,6 +362,23 @@ export interface WordVariant {
   createdAt: string;
 }
 
+export interface SystemVersionInfo {
+  currentVersion: string;
+  latestVersion: string | null;
+  hasUpdate: boolean;
+  releaseUrl: string | null;
+  releaseNotes: string | null;
+  publishedAt: string | null;
+}
+
+export interface OTAUpdateStatus {
+  stage: 'idle' | 'pulling' | 'restarting' | 'completed' | 'failed';
+  progress: number;
+  message: string;
+  error: string | null;
+  timestamp: string;
+}
+
 /**
  * API 响应中的 WordBook 类型（日期字段为字符串）
  */
@@ -1267,5 +1284,21 @@ export class AdminClient extends BaseClient {
   async getAMASHealthReports(limit?: number): Promise<AMASHealthReport[]> {
     const query = limit ? `?limit=${limit}` : '';
     return this.request<AMASHealthReport[]>(`/api/admin/amas-monitoring/health-reports${query}`);
+  }
+
+  // ==================== 系统版本 API ====================
+
+  async getSystemVersion(): Promise<SystemVersionInfo> {
+    return this.request<SystemVersionInfo>('/api/admin/system/version');
+  }
+
+  // ==================== OTA 更新 API ====================
+
+  async triggerSystemUpdate(): Promise<void> {
+    return this.request<void>('/api/admin/system/update', { method: 'POST' });
+  }
+
+  async getUpdateStatus(): Promise<OTAUpdateStatus> {
+    return this.request<OTAUpdateStatus>('/api/admin/system/update/status');
   }
 }
