@@ -62,6 +62,7 @@ export type {
   VisualFatigueStats,
   LLMTask,
   WordVariant,
+  SystemVersionInfo,
 } from './admin/AdminClient';
 
 // ==================== LLM Advisor 模块 ====================

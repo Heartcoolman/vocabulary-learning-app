@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAdminStatistics, useSystemHealth, useVisualFatigueStats } from '../../hooks/queries';
+import {
+  useAdminStatistics,
+  useSystemHealth,
+  useVisualFatigueStats,
+  useSystemVersion,
+} from '../../hooks/queries';
 import { useLLMPendingCount } from '../../hooks/queries/useLLMAdvisor';
 import { amasClient } from '../../services/client';
 import {
@@ -61,6 +66,7 @@ export default function AdminDashboard() {
     error: vfError,
   } = useVisualFatigueStats();
   const { data: llmPendingCount } = useLLMPendingCount();
+  const { data: versionInfo } = useSystemVersion();
 
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
@@ -708,6 +714,81 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* 系统版本 */}
+      {versionInfo && (
+        <div className="mb-8">
+          <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+            <Gear size={28} weight="duotone" className="text-gray-500" />
+            系统版本
+          </h2>
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">当前版本</span>
+                  <span className="font-mono text-lg font-semibold text-gray-900 dark:text-white">
+                    v{versionInfo.currentVersion}
+                  </span>
+                </div>
+                {versionInfo.latestVersion && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">最新版本</span>
+                    <span
+                      className={`font-mono text-lg font-semibold ${
+                        versionInfo.hasUpdate
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-gray-900 dark:text-white'
+                      }`}
+                    >
+                      v{versionInfo.latestVersion}
+                    </span>
+                    {versionInfo.hasUpdate && (
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
+                        有更新
+                      </span>
+                    )}
+                  </div>
+                )}
+                {versionInfo.publishedAt && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">发布时间</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {new Date(versionInfo.publishedAt).toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {versionInfo.hasUpdate && versionInfo.releaseUrl && (
+                <a
+                  href={versionInfo.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                >
+                  查看更新
+                </a>
+              )}
+            </div>
+            {versionInfo.releaseNotes && (
+              <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-700">
+                <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  更新说明
+                </h3>
+                <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-400">
+                  {versionInfo.releaseNotes.length > 500
+                    ? versionInfo.releaseNotes.slice(0, 500) + '...'
+                    : versionInfo.releaseNotes}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 额外信息 */}
       <div className="grid gap-6 md:grid-cols-2">

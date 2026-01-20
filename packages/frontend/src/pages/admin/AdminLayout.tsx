@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient, { User } from '../../services/client';
 import { usePrefetch } from '../../hooks/usePrefetch';
+import { useSystemVersion } from '../../hooks/queries';
 import {
   ChartBar,
   UsersThree,
@@ -24,6 +25,32 @@ import {
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
+
+function VersionDisplay() {
+  const { data: versionInfo } = useSystemVersion();
+
+  if (!versionInfo) {
+    return null;
+  }
+
+  return (
+    <div className="mb-2 flex items-center justify-between px-4 py-2">
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        v{versionInfo.currentVersion}
+      </span>
+      {versionInfo.hasUpdate && versionInfo.releaseUrl && (
+        <a
+          href={versionInfo.releaseUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-600 transition-colors hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50"
+        >
+          新版本
+        </a>
+      )}
+    </div>
+  );
+}
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -128,6 +155,7 @@ export default function AdminLayout() {
         </nav>
 
         <div className="border-t border-gray-200 p-4 dark:border-slate-700">
+          <VersionDisplay />
           <Link
             to="/"
             className="flex items-center gap-2 rounded-button px-4 py-2 text-gray-700 transition-all hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"

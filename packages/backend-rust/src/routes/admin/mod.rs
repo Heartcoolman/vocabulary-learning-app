@@ -22,6 +22,7 @@ mod ops;
 mod quality;
 mod statistics;
 mod users;
+mod version;
 mod wordbooks;
 
 #[derive(Serialize)]
@@ -56,6 +57,10 @@ pub fn router() -> Router<AppState> {
         .route(
             "/visual-fatigue/stats",
             axum::routing::get(get_visual_fatigue_stats),
+        )
+        .route(
+            "/system/version",
+            axum::routing::get(version::get_system_version),
         )
 }
 
