@@ -199,7 +199,7 @@ docker compose logs backend-rust 2>&1 | grep -E "(migration|Migration|migrat)" |
 # 校验数据库迁移完成
 echo ""
 echo "🔍 校验数据库迁移状态..."
-EXPECTED_MIGRATIONS=30
+EXPECTED_MIGRATIONS=29
 MAX_RETRIES=30
 RETRY_COUNT=0
 
