@@ -60,6 +60,22 @@ vi.mock('@/components/ui', () => ({
   }),
 }));
 
+// Mock useSystemVersion hook
+vi.mock('@/hooks/queries/useSystemVersion', () => ({
+  useSystemVersion: () => ({
+    data: {
+      currentVersion: '0.1.0',
+      latestVersion: '0.1.0',
+      hasUpdate: false,
+      releaseUrl: null,
+      releaseNotes: null,
+      publishedAt: null,
+    },
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 vi.mock('@/components/Icon', async () => {
   const actual = await vi.importActual('@/components/Icon');
   return {
