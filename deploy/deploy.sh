@@ -134,7 +134,7 @@ docker compose logs backend-rust 2>&1 | grep -E "(migration|Migration|migrat)" |
 # 校验数据库迁移完成
 echo ""
 echo "🔍 校验数据库迁移状态..."
-EXPECTED_MIGRATIONS=29
+EXPECTED_MIGRATIONS=30
 MAX_RETRIES=30
 RETRY_COUNT=0
 
@@ -169,12 +169,34 @@ echo "👤 检查管理员账户..."
 ADMIN_EXISTS=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM users WHERE role = 'ADMIN'" 2>/dev/null | tr -d ' ' || echo "0")
 
 if [ "$ADMIN_EXISTS" -eq "0" ]; then
-  echo "   ℹ️  暂无管理员账户"
-  echo ""
-  echo "   📝 创建管理员步骤："
-  echo "   1. 访问 http://${SERVER_IP}:5173 注册新账户"
-  echo "   2. 运行以下命令升级为管理员："
-  echo "      cd $DEPLOY_DIR && docker compose exec postgres psql -U danci -d vocabulary_db -c \"UPDATE users SET role = 'ADMIN' WHERE email = '你的邮箱';\""
+  ADMIN_SUFFIX=$(openssl rand -hex 3)
+  ADMIN_USERNAME="admin_${ADMIN_SUFFIX}"
+  ADMIN_EMAIL="${ADMIN_USERNAME}@example.com"
+  ADMIN_PASSWORD="A1!$(openssl rand -hex 8)"
+
+  echo "   ⏳ 正在创建管理员账户..."
+  SEED_RESULT=$(docker compose exec -T backend-rust /app/danci-backend-rust seed-admin \
+    --username "$ADMIN_USERNAME" \
+    --email "$ADMIN_EMAIL" \
+    --password "$ADMIN_PASSWORD" 2>&1)
+
+  if echo "$SEED_RESULT" | grep -q "ADMIN_CREATED"; then
+    echo ""
+    echo "╔═══════════════════════════════════════════════╗"
+    echo "║          🔐 管理员账户已创建                  ║"
+    echo "╠═══════════════════════════════════════════════╣"
+    echo "║  邮箱:     $ADMIN_EMAIL"
+    echo "║  用户名:   $ADMIN_USERNAME"
+    echo "║  密码:     $ADMIN_PASSWORD"
+    echo "║                                               ║"
+    echo "║  ⚠️  请立即保存此信息！密码仅显示一次！       ║"
+    echo "╚═══════════════════════════════════════════════╝"
+    echo ""
+  elif echo "$SEED_RESULT" | grep -q "ADMIN_EXISTS"; then
+    echo "   ✅ 管理员账户已存在"
+  else
+    echo "   ⚠️ 管理员创建失败: $SEED_RESULT"
+  fi
 else
   echo "   ✅ 管理员账户已存在（共 ${ADMIN_EXISTS} 个）"
 fi

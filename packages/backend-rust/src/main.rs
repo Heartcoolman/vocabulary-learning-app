@@ -16,6 +16,13 @@ use danci_backend_rust::workers::WorkerManager;
 #[tokio::main]
 async fn main() {
     let _ = dotenvy::dotenv();
+
+    if let Some(cmd) = std::env::args().nth(1) {
+        if cmd == "seed-admin" {
+            return run_seed_admin().await;
+        }
+    }
+
     let config = Config::from_env();
 
     let _file_log_guard = logging::init_tracing(&config.log_level);
@@ -150,5 +157,85 @@ async fn shutdown_signal() {
     tokio::select! {
         _ = ctrl_c => {},
         _ = terminate => {},
+    }
+}
+
+async fn run_seed_admin() {
+    use sqlx::postgres::PgPoolOptions;
+    use sqlx::Row;
+    use std::time::Duration;
+
+    let args: Vec<String> = std::env::args().collect();
+    let mut username = None;
+    let mut email = None;
+    let mut password = None;
+
+    let mut i = 2;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--username" => {
+                username = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--email" => {
+                email = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--password" => {
+                password = args.get(i + 1).cloned();
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+
+    let username = username.expect("--username is required");
+    let email = email.expect("--email is required");
+    let password = password.expect("--password is required");
+
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&db_url)
+        .await
+        .expect("failed to connect to database");
+
+    let existing: Option<i64> = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "users" WHERE "role"::text = 'ADMIN'"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .ok();
+
+    if existing.unwrap_or(0) > 0 {
+        println!("ADMIN_EXISTS");
+        return;
+    }
+
+    let password_hash = bcrypt::hash(&password, 10).expect("failed to hash password");
+    let user_id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().naive_utc();
+
+    let result = sqlx::query(
+        r#"
+        INSERT INTO "users" ("id", "email", "passwordHash", "username", "role", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, 'ADMIN'::"UserRole", $5, $5)
+        "#,
+    )
+    .bind(&user_id)
+    .bind(&email)
+    .bind(&password_hash)
+    .bind(&username)
+    .bind(now)
+    .execute(&pool)
+    .await;
+
+    match result {
+        Ok(_) => println!("ADMIN_CREATED"),
+        Err(e) => {
+            eprintln!("Failed to create admin: {}", e);
+            std::process::exit(1);
+        }
     }
 }

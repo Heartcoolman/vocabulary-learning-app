@@ -381,9 +381,9 @@ pub async fn update_user_role(
     role: &str,
 ) -> Result<UpdateUserRoleResult, AdminError> {
     let normalized = role.trim().to_ascii_uppercase();
-    if normalized != "USER" && normalized != "ADMIN" {
+    if normalized != "USER" && normalized != "ADMIN" && normalized != "BANNED" {
         return Err(AdminError::Validation(
-            "role 必须为 USER 或 ADMIN".to_string(),
+            "role 必须为 USER / ADMIN / BANNED".to_string(),
         ));
     }
 

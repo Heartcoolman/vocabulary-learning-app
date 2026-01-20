@@ -618,6 +618,10 @@ pub async fn login(State(state): State<AppState>, req: Request<Body>) -> Respons
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "密码错误").into_response();
     }
 
+    if user.role == "BANNED" {
+        return json_error(StatusCode::FORBIDDEN, "ACCOUNT_BANNED", "账号已被封禁").into_response();
+    }
+
     let (token, expires_at) = match crate::auth::sign_jwt_for_user(&user.id) {
         Ok(value) => value,
         Err(err) => {

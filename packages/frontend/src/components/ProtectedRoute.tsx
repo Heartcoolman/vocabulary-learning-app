@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
 
   // 未登录则重定向到登录页
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={requireAdmin ? '/admin-login' : '/login'} replace />;
   }
 
   // 如果要求管理员权限，检查用户角色

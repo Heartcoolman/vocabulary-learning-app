@@ -236,13 +236,25 @@ export default function UserManagementPage() {
   };
 
   const getRoleLabel = (role: string) => {
-    return role === 'ADMIN' ? '管理员' : '用户';
+    switch (role) {
+      case 'ADMIN':
+        return '管理员';
+      case 'BANNED':
+        return '已封禁';
+      default:
+        return '用户';
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
-    return role === 'ADMIN'
-      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+    switch (role) {
+      case 'ADMIN':
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400';
+      case 'BANNED':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      default:
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+    }
   };
 
   if (isLoading && users.length === 0) {

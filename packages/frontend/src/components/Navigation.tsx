@@ -229,9 +229,9 @@ function NavigationComponent() {
             {isAuthenticated && user?.role === 'ADMIN' && (
               <Link
                 to="/admin"
+                reloadDocument
                 className={linkClass('/admin')}
                 aria-current={isActive('/admin') ? 'page' : undefined}
-                onMouseEnter={() => handlePrefetch('/admin')}
               >
                 管理后台
               </Link>
@@ -335,11 +335,7 @@ function NavigationComponent() {
 
               {/* 管理后台 */}
               {isAuthenticated && user?.role === 'ADMIN' && (
-                <Link
-                  to="/admin"
-                  className={mobileLinkClass('/admin')}
-                  onTouchStart={() => handlePrefetch('/admin')}
-                >
+                <Link to="/admin" reloadDocument className={mobileLinkClass('/admin')}>
                   管理后台
                 </Link>
               )}

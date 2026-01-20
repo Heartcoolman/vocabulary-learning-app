@@ -183,11 +183,22 @@ async fn update_user_role(
 
     let role = payload.role.trim().to_ascii_uppercase();
     match crate::services::admin::update_user_role(proxy.as_ref(), &id, &role).await {
-        Ok(data) => Json(SuccessResponse {
-            success: true,
-            data,
-        })
-        .into_response(),
+        Ok(data) => {
+            if let Ok(token_hashes) = proxy.delete_all_user_sessions(&id).await {
+                if let Some(cache) = state.cache() {
+                    for token_hash in token_hashes {
+                        cache
+                            .delete(&crate::cache::keys::session_key(&token_hash))
+                            .await;
+                    }
+                }
+            }
+            Json(SuccessResponse {
+                success: true,
+                data,
+            })
+            .into_response()
+        }
         Err(err) => admin_error_response(err),
     }
 }

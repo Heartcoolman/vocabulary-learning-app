@@ -327,6 +327,11 @@ async fn verify_with_postgres(
     let role: String = user_row
         .try_get("role")
         .map_err(|err| AuthError::Database(err.to_string()))?;
+
+    if role == "BANNED" {
+        return Err(AuthError::InvalidToken);
+    }
+
     let created_at: NaiveDateTime = user_row
         .try_get("createdAt")
         .map_err(|err| AuthError::Database(err.to_string()))?;

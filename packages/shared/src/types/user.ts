@@ -7,7 +7,7 @@ import { BaseEntity, ID, Timestamp } from './common';
 /**
  * 用户角色
  */
-export type UserRole = 'USER' | 'ADMIN';
+export type UserRole = 'USER' | 'ADMIN' | 'BANNED';
 
 /**
  * 用户信息
