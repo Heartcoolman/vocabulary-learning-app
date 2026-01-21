@@ -6,7 +6,8 @@ use tokio::sync::RwLock;
 
 use crate::amas::config::AMASConfig;
 use crate::amas::decision::{
-    ColdStartManager, EnsembleDecision, LinUCBModel, ThompsonSamplingModel,
+    linucb::ACTION_FEATURE_DIM, ColdStartManager, EnsembleDecision, LinUCBModel,
+    ThompsonSamplingModel,
 };
 use crate::amas::metrics::AlgorithmId;
 use crate::amas::modeling::{
@@ -16,6 +17,7 @@ use crate::amas::monitoring::AMASMonitor;
 use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
 use crate::db::DatabaseProxy;
+use crate::services::amas_config::AMASConfigService;
 use crate::services::fsrs::{
     compute_fsrs_mastery_score, fsrs_next_interval_with_root, fsrs_retrievability, FSRSParams,
     FSRSState, Rating,
@@ -35,6 +37,11 @@ struct UserModels {
 
 impl UserModels {
     fn new(config: &AMASConfig) -> Self {
+        let mut thompson = ThompsonSamplingModel::new(1.0, 1.0);
+        thompson.set_context_config(
+            config.thompson_context.bins,
+            config.thompson_context.weight,
+        );
         Self {
             attention: AttentionMonitor::new(
                 config.attention_weights.clone(),
@@ -45,8 +52,12 @@ impl UserModels {
             motivation: MotivationTracker::new(config.motivation.clone()),
             trend: TrendAnalyzer::new(config.trend.clone()),
             cold_start: Some(ColdStartManager::new(config.cold_start.clone())),
-            linucb: LinUCBModel::new(config.bandit.context_dim, config.bandit.alpha),
-            thompson: ThompsonSamplingModel::new(1.0, 1.0),
+            linucb: LinUCBModel::new(
+                config.bandit.context_dim,
+                ACTION_FEATURE_DIM,
+                config.bandit.alpha,
+            ),
+            thompson,
         }
     }
 
@@ -67,6 +78,7 @@ pub struct AMASEngine {
     user_models: Arc<RwLock<HashMap<String, UserModels>>>,
     user_states: Arc<RwLock<HashMap<String, PersistedAMASState>>>,
     monitor: Option<Arc<AMASMonitor>>,
+    db_proxy: Option<Arc<DatabaseProxy>>,
 }
 
 impl AMASEngine {
@@ -74,7 +86,9 @@ impl AMASEngine {
         let persistence = db_proxy
             .as_ref()
             .map(|proxy| Arc::new(AMASPersistence::new(Arc::clone(proxy))));
-        let monitor = db_proxy.map(|proxy| Arc::new(AMASMonitor::new(proxy)));
+        let monitor = db_proxy
+            .as_ref()
+            .map(|proxy| Arc::new(AMASMonitor::new(Arc::clone(proxy))));
         let ensemble = EnsembleDecision::new(config.feature_flags.clone());
 
         Self {
@@ -84,12 +98,27 @@ impl AMASEngine {
             user_models: Arc::new(RwLock::new(HashMap::new())),
             user_states: Arc::new(RwLock::new(HashMap::new())),
             monitor,
+            db_proxy,
         }
     }
 
     pub async fn reload_config(&self) -> Result<(), String> {
-        let new_config = AMASConfig::from_env();
+        let mut new_config = AMASConfig::from_env();
+        if let Some(ref proxy) = self.db_proxy {
+            let service = AMASConfigService::new(Arc::clone(proxy));
+            match service.get_config().await {
+                Ok(db_config) => {
+                    new_config.thompson_context.bins = db_config.thompson_context.bins;
+                    new_config.thompson_context.weight = db_config.thompson_context.weight;
+                }
+                Err(err) => {
+                    tracing::warn!(error = %err, "Failed to load AMAS config from DB");
+                }
+            }
+        }
         let new_ensemble = EnsembleDecision::new(new_config.feature_flags.clone());
+        let thompson_bins = new_config.thompson_context.bins;
+        let thompson_weight = new_config.thompson_context.weight;
 
         {
             let mut config = self.config.write().await;
@@ -98,6 +127,14 @@ impl AMASEngine {
         {
             let mut ensemble = self.ensemble.write().await;
             *ensemble = new_ensemble;
+        }
+        {
+            let mut model_map = self.user_models.write().await;
+            for models in model_map.values_mut() {
+                models
+                    .thompson
+                    .set_context_config(thompson_bins, thompson_weight);
+            }
         }
 
         tracing::info!("AMAS config reloaded");
@@ -160,7 +197,8 @@ impl AMASEngine {
         } else if !config.feature_flags.ensemble_enabled {
             (current_strategy.clone(), vec![])
         } else {
-            let strategy_candidates = self.generate_strategy_candidates(&current_strategy);
+            let strategy_candidates =
+                self.generate_strategy_candidates(&current_strategy, &new_user_state);
 
             let linucb_action = if config.feature_flags.linucb_enabled {
                 track_algorithm!(
@@ -203,12 +241,15 @@ impl AMASEngine {
         let reward = self.compute_reward(&event, &new_user_state, &options, &config);
 
         if cold_start_result.is_none() {
-            let feature_vec = self.strategy_to_feature(&new_strategy);
-            models.linucb.update(&feature_vec, reward.value);
-            models.thompson.update(&new_strategy, reward.value);
+            let linucb_feature = models.linucb.build_features(&feature_vector, &new_strategy);
+            models.linucb.update(&linucb_feature, reward.value);
+            models
+                .thompson
+                .update(&new_user_state, &new_strategy, reward.value);
         }
 
-        let explanation = self.build_explanation(&candidates, &new_user_state, &new_strategy);
+        let explanation =
+            self.build_explanation(&candidates, &new_user_state, &current_strategy, &new_strategy);
 
         // Calculate interval using FSRS when word state is available
         let word_mastery_decision = event.word_id.as_ref().map(|wid| {
@@ -225,7 +266,12 @@ impl AMASEngine {
                     reps: ws.reps,
                     lapses: ws.lapses,
                 };
-                let desired_retention = ws.desired_retention.clamp(0.8, 0.95);
+                let desired_retention = self.adjust_fsrs_retention(
+                    ws.desired_retention,
+                    &new_user_state,
+                    &options,
+                    &config,
+                );
                 let root_bonus = options
                     .root_features
                     .as_ref()
@@ -293,12 +339,14 @@ impl AMASEngine {
                     .as_ref()
                     .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
                     .unwrap_or(0.0);
+                let desired_retention =
+                    self.adjust_fsrs_retention(0.9, &new_user_state, &options, &config);
                 let result = track_algorithm!(
                     AlgorithmId::Fsrs,
                     fsrs_next_interval_with_root(
                         &fsrs_state,
                         rating,
-                        0.9,
+                        desired_retention,
                         &fsrs_params,
                         root_bonus,
                     )
@@ -563,6 +611,17 @@ impl AMASEngine {
         {
             let models = self.user_models.read().await;
             if let Some(m) = models.get(user_id) {
+                let mut linucb = m.linucb.clone();
+                linucb.ensure_dimensions(
+                    config.bandit.context_dim,
+                    ACTION_FEATURE_DIM,
+                    config.bandit.alpha,
+                );
+                let mut thompson = m.thompson.clone();
+                thompson.set_context_config(
+                    config.thompson_context.bins,
+                    config.thompson_context.weight,
+                );
                 let mut attention = AttentionMonitor::new(
                     config.attention_weights.clone(),
                     config.attention_smoothing,
@@ -587,26 +646,37 @@ impl AMASEngine {
                     cold_start: m.cold_start.as_ref().map(|cs| {
                         ColdStartManager::from_state(config.cold_start.clone(), cs.state().clone())
                     }),
-                    linucb: m.linucb.clone(),
-                    thompson: m.thompson.clone(),
+                    linucb,
+                    thompson,
                 };
             }
         }
 
         // Restore bandit models from persisted state
-        let linucb = state
+        let mut linucb = state
             .bandit_model
             .as_ref()
             .and_then(|b| b.linucb_state.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_else(|| LinUCBModel::new(config.bandit.context_dim, config.bandit.alpha));
+            .unwrap_or_else(|| {
+                LinUCBModel::new(config.bandit.context_dim, ACTION_FEATURE_DIM, config.bandit.alpha)
+            });
+        linucb.ensure_dimensions(
+            config.bandit.context_dim,
+            ACTION_FEATURE_DIM,
+            config.bandit.alpha,
+        );
 
-        let thompson = state
+        let mut thompson = state
             .bandit_model
             .as_ref()
             .and_then(|b| b.thompson_params.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_else(|| ThompsonSamplingModel::new(1.0, 1.0));
+        thompson.set_context_config(
+            config.thompson_context.bins,
+            config.thompson_context.weight,
+        );
 
         let mut attention =
             AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
@@ -887,6 +957,28 @@ impl AMASEngine {
         Some(recall.clamp(0.0, 1.0))
     }
 
+    fn adjust_fsrs_retention(
+        &self,
+        base_retention: f64,
+        state: &UserState,
+        options: &ProcessOptions,
+        config: &AMASConfig,
+    ) -> f64 {
+        let cfg = &config.fsrs_personalization;
+        let accuracy = options.recent_accuracy.unwrap_or(0.7);
+        let cognitive = (state.cognitive.mem + state.cognitive.stability) / 2.0;
+        let fatigue = state.fused_fatigue.unwrap_or(state.fatigue);
+        let motivation = (state.motivation + 1.0) / 2.0;
+
+        let delta = cfg.accuracy_weight * (accuracy - 0.7)
+            + cfg.cognitive_weight * (cognitive - 0.5)
+            - cfg.fatigue_weight * (fatigue - 0.3)
+            + cfg.motivation_weight * (motivation - 0.5);
+
+        let base = base_retention.clamp(cfg.min_retention, cfg.max_retention);
+        (base + delta).clamp(cfg.min_retention, cfg.max_retention)
+    }
+
     fn compute_reward(
         &self,
         event: &RawEvent,
@@ -929,6 +1021,7 @@ impl AMASEngine {
         &self,
         _candidates: &[crate::amas::decision::ensemble::DecisionCandidate],
         state: &UserState,
+        previous: &StrategyParams,
         strategy: &StrategyParams,
     ) -> DecisionExplanation {
         let mut factors = Vec::new();
@@ -961,10 +1054,60 @@ impl AMASEngine {
             });
         }
 
+        if let Some(habit) = state.habit.as_ref() {
+            if habit.samples.time_events >= 10 {
+                let hour = chrono::Local::now().hour() as i32;
+                let pref_score = habit
+                    .time_pref
+                    .get(hour as usize)
+                    .copied()
+                    .unwrap_or(0.0);
+                let is_preferred = habit.preferred_time_slots.contains(&hour);
+                if pref_score >= 0.6 || is_preferred {
+                    factors.push(DecisionFactor {
+                        name: "学习习惯".to_string(),
+                        value: pref_score,
+                        impact: "偏好时段提高挑战".to_string(),
+                        percentage: (pref_score * 100.0) as f64,
+                    });
+                } else if pref_score <= 0.2 {
+                    factors.push(DecisionFactor {
+                        name: "学习习惯".to_string(),
+                        value: pref_score,
+                        impact: "非偏好时段降低负担".to_string(),
+                        percentage: (pref_score * 100.0) as f64,
+                    });
+                }
+            }
+        }
+
         let mut changes = Vec::new();
-        changes.push(format!("难度: {}", strategy.difficulty.as_str()));
-        changes.push(format!("批量: {}", strategy.batch_size));
-        changes.push(format!("新词比例: {:.0}%", strategy.new_ratio * 100.0));
+        if previous.difficulty != strategy.difficulty {
+            changes.push(format!(
+                "难度: {} -> {}",
+                previous.difficulty.as_str(),
+                strategy.difficulty.as_str()
+            ));
+        } else {
+            changes.push(format!("难度: {}", strategy.difficulty.as_str()));
+        }
+        if previous.batch_size != strategy.batch_size {
+            changes.push(format!(
+                "批量: {} -> {}",
+                previous.batch_size, strategy.batch_size
+            ));
+        } else {
+            changes.push(format!("批量: {}", strategy.batch_size));
+        }
+        if (previous.new_ratio - strategy.new_ratio).abs() > f64::EPSILON {
+            changes.push(format!(
+                "新词比例: {:.0}% -> {:.0}%",
+                previous.new_ratio * 100.0,
+                strategy.new_ratio * 100.0
+            ));
+        } else {
+            changes.push(format!("新词比例: {:.0}%", strategy.new_ratio * 100.0));
+        }
 
         let text = if factors.is_empty() {
             "学习状态良好，保持当前策略".to_string()
@@ -980,15 +1123,67 @@ impl AMASEngine {
         }
     }
 
-    fn generate_strategy_candidates(&self, current: &StrategyParams) -> Vec<StrategyParams> {
-        let difficulties = [
+    fn generate_strategy_candidates(
+        &self,
+        current: &StrategyParams,
+        state: &UserState,
+    ) -> Vec<StrategyParams> {
+        let mut difficulties = vec![
             DifficultyLevel::Easy,
             DifficultyLevel::Mid,
             DifficultyLevel::Hard,
         ];
-        let new_ratios = [0.1, 0.2, 0.3, 0.4];
-        let batch_sizes = [5, 8, 12, 16];
-        let hint_levels = [0, 1, 2];
+        let mut new_ratios = vec![0.1, 0.2, 0.3, 0.4];
+        let mut batch_sizes = vec![5, 8, 12, 16];
+        let mut hint_levels = vec![0, 1, 2];
+
+        if let Some(habit) = state.habit.as_ref() {
+            if habit.samples.time_events >= 10 {
+                let hour = chrono::Local::now().hour() as i32;
+                let pref_score = habit
+                    .time_pref
+                    .get(hour as usize)
+                    .copied()
+                    .unwrap_or(0.5);
+                let is_preferred = habit.preferred_time_slots.contains(&hour);
+                let bias = if is_preferred { pref_score.max(0.6) } else { pref_score };
+
+                if bias >= 0.6 {
+                    difficulties = vec![DifficultyLevel::Mid, DifficultyLevel::Hard];
+                    new_ratios = vec![0.2, 0.3, 0.4];
+                    batch_sizes = vec![8, 12, 16];
+                    hint_levels = vec![0, 1];
+                } else if bias <= 0.2 {
+                    difficulties = vec![DifficultyLevel::Easy, DifficultyLevel::Mid];
+                    new_ratios = vec![0.1, 0.2, 0.3];
+                    batch_sizes = vec![5, 8, 12];
+                    hint_levels = vec![1, 2];
+                }
+            }
+
+            if habit.samples.batches >= 5 {
+                let median = habit.rhythm_pref.batch_median.round() as i32;
+                if (5..=16).contains(&median) && !batch_sizes.contains(&median) {
+                    batch_sizes.push(median);
+                }
+            }
+        }
+
+        if !difficulties.contains(&current.difficulty) {
+            difficulties.push(current.difficulty);
+        }
+        if !new_ratios
+            .iter()
+            .any(|v| (*v - current.new_ratio).abs() < 1e-6)
+        {
+            new_ratios.push(current.new_ratio);
+        }
+        if !batch_sizes.contains(&current.batch_size) {
+            batch_sizes.push(current.batch_size);
+        }
+        if !hint_levels.contains(&current.hint_level) {
+            hint_levels.push(current.hint_level);
+        }
 
         let mut candidates = Vec::with_capacity(difficulties.len() * new_ratios.len());
 
@@ -1021,21 +1216,6 @@ impl AMASEngine {
         candidates
     }
 
-    fn strategy_to_feature(&self, strategy: &StrategyParams) -> Vec<f64> {
-        let difficulty_val = match strategy.difficulty {
-            DifficultyLevel::Easy => 0.3,
-            DifficultyLevel::Mid => 0.6,
-            DifficultyLevel::Hard => 0.9,
-        };
-
-        vec![
-            difficulty_val,
-            strategy.new_ratio,
-            strategy.batch_size as f64 / 20.0,
-            strategy.interval_scale,
-            strategy.hint_level as f64 / 2.0,
-        ]
-    }
 
     fn compute_objective_evaluation(
         &self,

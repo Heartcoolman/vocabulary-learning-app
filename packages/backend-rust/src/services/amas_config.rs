@@ -15,6 +15,7 @@ pub enum AMASConfigType {
     Threshold,
     RewardWeight,
     SafetyThreshold,
+    ThompsonContext,
 }
 
 impl AMASConfigType {
@@ -24,6 +25,7 @@ impl AMASConfigType {
             Self::Threshold => "threshold",
             Self::RewardWeight => "reward_weight",
             Self::SafetyThreshold => "safety_threshold",
+            Self::ThompsonContext => "thompson_context",
         }
     }
 }
@@ -139,11 +141,28 @@ impl Default for SafetyThresholdConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ThompsonContextConfig {
+    pub bins: usize,
+    pub weight: f64,
+}
+
+impl Default for ThompsonContextConfig {
+    fn default() -> Self {
+        Self {
+            bins: 3,
+            weight: 0.7,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AMASConfig {
     pub param_bounds: ParamBoundConfig,
     pub thresholds: ThresholdConfig,
     pub reward_weights: RewardWeightConfig,
     pub safety_thresholds: SafetyThresholdConfig,
+    pub thompson_context: ThompsonContextConfig,
     pub version: String,
     pub updated_at: i64,
     pub updated_by: String,
@@ -156,6 +175,7 @@ impl Default for AMASConfig {
             thresholds: ThresholdConfig::default(),
             reward_weights: RewardWeightConfig::default(),
             safety_thresholds: SafetyThresholdConfig::default(),
+            thompson_context: ThompsonContextConfig::default(),
             version: "1.0.0".to_string(),
             updated_at: chrono::Utc::now().timestamp_millis(),
             updated_by: "system".to_string(),
@@ -250,6 +270,11 @@ impl AMASConfigService {
     pub async fn get_safety_thresholds(&self) -> Result<SafetyThresholdConfig, AMASConfigError> {
         let config = self.get_config().await?;
         Ok(config.safety_thresholds)
+    }
+
+    pub async fn get_thompson_context(&self) -> Result<ThompsonContextConfig, AMASConfigError> {
+        let config = self.get_config().await?;
+        Ok(config.thompson_context)
     }
 
     pub async fn update_param_bound(
@@ -492,6 +517,68 @@ impl AMASConfigService {
         Ok(())
     }
 
+    pub async fn update_thompson_context(
+        &self,
+        target: &str,
+        new_value: f64,
+        changed_by: &str,
+        change_reason: &str,
+        suggestion_id: Option<&str>,
+    ) -> Result<(), AMASConfigError> {
+        let mut config = self.get_config().await?;
+
+        let (target_name, prev_value) = match target {
+            "thompsonContextBins" | "bins" => {
+                let bins_value = new_value.round() as i64;
+                if bins_value < 2 {
+                    return Err(AMASConfigError::Validation(format!(
+                        "thompson context bins {} must be >= 2",
+                        new_value
+                    )));
+                }
+                let prev = config.thompson_context.bins as f64;
+                config.thompson_context.bins = bins_value as usize;
+                ("thompsonContextBins", prev)
+            }
+            "thompsonContextWeight" | "weight" => {
+                if !(0.0..=1.0).contains(&new_value) {
+                    return Err(AMASConfigError::Validation(format!(
+                        "thompson context weight {} is out of range [0, 1]",
+                        new_value
+                    )));
+                }
+                let prev = config.thompson_context.weight;
+                config.thompson_context.weight = new_value;
+                ("thompsonContextWeight", prev)
+            }
+            _ => {
+                return Err(AMASConfigError::Validation(format!(
+                    "invalid thompson context target: {}",
+                    target
+                )))
+            }
+        };
+
+        config.version = increment_version(&config.version);
+        config.updated_at = chrono::Utc::now().timestamp_millis();
+        config.updated_by = changed_by.to_string();
+
+        self.save_config_to_db(
+            AMASConfigType::ThompsonContext,
+            target_name,
+            prev_value,
+            new_value,
+            &config,
+            changed_by,
+            change_reason,
+            suggestion_id,
+        )
+        .await?;
+
+        self.invalidate_cache().await;
+        Ok(())
+    }
+
     pub async fn get_config_history(
         &self,
         config_type: Option<AMASConfigType>,
@@ -582,6 +669,11 @@ impl AMASConfigService {
                         config.safety_thresholds = parsed;
                     }
                 }
+                if let Some(tc) = amas_config.get("thompsonContext") {
+                    if let Ok(parsed) = serde_json::from_value(tc.clone()) {
+                        config.thompson_context = parsed;
+                    }
+                }
                 if let Some(v) = amas_config.get("version").and_then(|v| v.as_str()) {
                     config.version = v.to_string();
                 }
@@ -612,6 +704,7 @@ impl AMASConfigService {
                 "thresholds": config.thresholds,
                 "rewardWeights": config.reward_weights,
                 "safetyThresholds": config.safety_thresholds,
+                "thompsonContext": config.thompson_context,
                 "version": config.version
             }
         });

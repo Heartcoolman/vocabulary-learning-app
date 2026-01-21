@@ -1,3 +1,5 @@
+use chrono::Timelike;
+
 use crate::amas::types::{DifficultyLevel, StrategyParams, UserState};
 
 pub struct HeuristicLearner {
@@ -57,6 +59,37 @@ impl HeuristicLearner {
         } else if state.cognitive.mem < 0.4 {
             result.interval_scale = (result.interval_scale * 1.2).min(1.5);
             result.hint_level = (result.hint_level + 1).min(2);
+        }
+
+        if let Some(habit) = state.habit.as_ref() {
+            if habit.samples.time_events >= 10 {
+                let hour = chrono::Local::now().hour() as i32;
+                let pref_score = habit
+                    .time_pref
+                    .get(hour as usize)
+                    .copied()
+                    .unwrap_or(0.0);
+                let is_preferred = habit.preferred_time_slots.contains(&hour);
+                if pref_score >= 0.6 || is_preferred {
+                    result.batch_size = (result.batch_size + 1).min(16);
+                    result.new_ratio = (result.new_ratio + 0.05).min(0.4);
+                    if result.difficulty == DifficultyLevel::Easy {
+                        result.difficulty = DifficultyLevel::Mid;
+                    }
+                } else if pref_score <= 0.2 {
+                    result.batch_size = (result.batch_size - 1).max(5);
+                    result.new_ratio = (result.new_ratio - 0.05).max(0.1);
+                    result.hint_level = (result.hint_level + 1).min(2);
+                }
+
+                if habit.samples.batches >= 5 {
+                    let target = habit.rhythm_pref.batch_median.round() as i32;
+                    let delta = target - result.batch_size;
+                    if delta.abs() >= 2 {
+                        result.batch_size = (result.batch_size + delta.signum()).clamp(5, 16);
+                    }
+                }
+            }
         }
 
         result

@@ -2,28 +2,42 @@ use serde::{Deserialize, Serialize};
 
 use crate::amas::types::{FeatureVector, StrategyParams, UserState};
 
+pub const ACTION_FEATURE_DIM: usize = 5;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinUCBModel {
     d: usize,
     alpha: f64,
     a: Vec<Vec<f64>>,
     b: Vec<f64>,
+    #[serde(default)]
+    context_dim: usize,
+    #[serde(default)]
+    action_dim: usize,
 }
 
 impl LinUCBModel {
-    pub fn new(d: usize, alpha: f64) -> Self {
+    pub fn new(context_dim: usize, action_dim: usize, alpha: f64) -> Self {
+        let d = context_dim + action_dim;
         let mut a = vec![vec![0.0; d]; d];
         for i in 0..d {
             a[i][i] = 1.0;
         }
         let b = vec![0.0; d];
-        Self { d, alpha, a, b }
+        Self {
+            d,
+            alpha,
+            a,
+            b,
+            context_dim,
+            action_dim,
+        }
     }
 
     pub fn select_action(
         &self,
         _state: &UserState,
-        _feature: &FeatureVector,
+        feature: &FeatureVector,
         candidates: &[StrategyParams],
     ) -> Option<StrategyParams> {
         if candidates.is_empty() {
@@ -34,7 +48,7 @@ impl LinUCBModel {
         let mut best_action = None;
 
         for candidate in candidates {
-            let x = self.strategy_to_feature(candidate);
+            let x = self.build_features(feature, candidate);
             let score = self.compute_ucb(&x);
             if score > best_score {
                 best_score = score;
@@ -45,7 +59,38 @@ impl LinUCBModel {
         best_action
     }
 
-    fn strategy_to_feature(&self, strategy: &StrategyParams) -> Vec<f64> {
+    pub fn ensure_dimensions(&mut self, context_dim: usize, action_dim: usize, alpha: f64) {
+        let expected = context_dim + action_dim;
+        if self.d != expected || self.context_dim != context_dim || self.action_dim != action_dim {
+            *self = Self::new(context_dim, action_dim, alpha);
+        }
+    }
+
+    pub fn build_features(
+        &self,
+        context: &FeatureVector,
+        strategy: &StrategyParams,
+    ) -> Vec<f64> {
+        if self.d == 0 {
+            return Vec::new();
+        }
+        let mut x = vec![0.0; self.d];
+        let context_len = self.context_dim.min(context.values.len());
+        for i in 0..context_len {
+            x[i] = context.values[i];
+        }
+        let action_features = self.strategy_to_action_features(strategy);
+        let action_len = self.action_dim.min(action_features.len());
+        let offset = self.context_dim.min(self.d);
+        for i in 0..action_len {
+            if offset + i < x.len() {
+                x[offset + i] = action_features[i];
+            }
+        }
+        x
+    }
+
+    fn strategy_to_action_features(&self, strategy: &StrategyParams) -> Vec<f64> {
         let difficulty_val = match strategy.difficulty {
             crate::amas::types::DifficultyLevel::Easy => 0.3,
             crate::amas::types::DifficultyLevel::Mid => 0.6,
@@ -176,6 +221,6 @@ impl LinUCBModel {
 
 impl Default for LinUCBModel {
     fn default() -> Self {
-        Self::new(5, 1.0)
+        Self::new(10, ACTION_FEATURE_DIM, 1.0)
     }
 }

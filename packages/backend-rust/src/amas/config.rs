@@ -215,6 +215,11 @@ pub struct ColdStartConfig {
     pub classify_samples: i32,
     pub explore_samples: i32,
     pub probe_sequence: Vec<i32>,
+    pub min_classify_samples: i32,
+    pub min_explore_samples: i32,
+    pub classify_confidence_margin: f64,
+    pub explore_high_accuracy: f64,
+    pub explore_low_accuracy: f64,
 }
 
 impl Default for ColdStartConfig {
@@ -223,6 +228,11 @@ impl Default for ColdStartConfig {
             classify_samples: 3,
             explore_samples: 5,
             probe_sequence: vec![0, 1, 2, 0, 1, 2],
+            min_classify_samples: 2,
+            min_explore_samples: 2,
+            classify_confidence_margin: 0.35,
+            explore_high_accuracy: 0.85,
+            explore_low_accuracy: 0.5,
         }
     }
 }
@@ -239,9 +249,24 @@ impl Default for BanditConfig {
     fn default() -> Self {
         Self {
             alpha: 0.1,
-            context_dim: 5,
+            context_dim: 10,
             action_count: 48,
             exploration_bonus: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThompsonContextConfig {
+    pub bins: usize,
+    pub weight: f64,
+}
+
+impl Default for ThompsonContextConfig {
+    fn default() -> Self {
+        Self {
+            bins: 3,
+            weight: 0.7,
         }
     }
 }
@@ -261,6 +286,29 @@ impl Default for RewardConfig {
             speed_weight: 0.2,
             stability_weight: 0.2,
             retention_weight: 0.2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FsrsPersonalizationConfig {
+    pub min_retention: f64,
+    pub max_retention: f64,
+    pub accuracy_weight: f64,
+    pub cognitive_weight: f64,
+    pub fatigue_weight: f64,
+    pub motivation_weight: f64,
+}
+
+impl Default for FsrsPersonalizationConfig {
+    fn default() -> Self {
+        Self {
+            min_retention: 0.75,
+            max_retention: 0.97,
+            accuracy_weight: 0.05,
+            cognitive_weight: 0.05,
+            fatigue_weight: 0.05,
+            motivation_weight: 0.03,
         }
     }
 }
@@ -300,7 +348,9 @@ pub struct AMASConfig {
     pub trend: TrendParams,
     pub cold_start: ColdStartConfig,
     pub bandit: BanditConfig,
+    pub thompson_context: ThompsonContextConfig,
     pub reward: RewardConfig,
+    pub fsrs_personalization: FsrsPersonalizationConfig,
     pub feature_flags: FeatureFlags,
     pub attention_smoothing: f64,
     pub confidence_decay: f64,
@@ -318,7 +368,9 @@ impl Default for AMASConfig {
             trend: TrendParams::default(),
             cold_start: ColdStartConfig::default(),
             bandit: BanditConfig::default(),
+            thompson_context: ThompsonContextConfig::default(),
             reward: RewardConfig::default(),
+            fsrs_personalization: FsrsPersonalizationConfig::default(),
             feature_flags: FeatureFlags::default(),
             attention_smoothing: 0.3,
             confidence_decay: 0.99,
@@ -339,6 +391,13 @@ impl AMASConfig {
         }
         if let Ok(val) = std::env::var("AMAS_LINUCB_ENABLED") {
             config.feature_flags.linucb_enabled = val.parse().unwrap_or(true);
+        }
+        if let Ok(val) = std::env::var("AMAS_THOMPSON_CONTEXT_BINS") {
+            config.thompson_context.bins = val.parse().unwrap_or(config.thompson_context.bins);
+        }
+        if let Ok(val) = std::env::var("AMAS_THOMPSON_CONTEXT_WEIGHT") {
+            config.thompson_context.weight =
+                val.parse().unwrap_or(config.thompson_context.weight);
         }
         if let Ok(val) = std::env::var("AMAS_CAUSAL_ENABLED") {
             config.feature_flags.causal_inference_enabled = val.parse().unwrap_or(false);
