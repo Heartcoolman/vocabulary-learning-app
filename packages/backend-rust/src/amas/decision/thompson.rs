@@ -313,7 +313,9 @@ fn default_context_weight() -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::amas::types::{CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState};
+    use crate::amas::types::{
+        CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState,
+    };
 
     fn sample_strategy() -> StrategyParams {
         StrategyParams {

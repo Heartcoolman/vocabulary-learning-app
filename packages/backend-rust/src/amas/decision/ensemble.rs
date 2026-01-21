@@ -425,8 +425,12 @@ impl Default for EnsembleDecision {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::amas::config::{EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig};
-    use crate::amas::types::{CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState};
+    use crate::amas::config::{
+        EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig,
+    };
+    use crate::amas::types::{
+        CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState,
+    };
 
     fn sample_strategy() -> StrategyParams {
         StrategyParams {
@@ -812,7 +816,8 @@ mod tests {
             ..Default::default()
         };
         let tracker = PerformanceTracker::new(config);
-        let weights = tracker.get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
+        let weights =
+            tracker.get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
         let total: f64 = weights.values().sum();
         assert!((total - 1.0).abs() < 1e-6);
     }

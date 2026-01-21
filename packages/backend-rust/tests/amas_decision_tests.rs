@@ -307,9 +307,10 @@ fn integration_performance_tracker_adapts_weights() {
         ensemble.update_performance(&candidates, &final_strategy, reward);
     }
 
-    let weights = ensemble
-        .performance
-        .get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
+    let weights =
+        ensemble
+            .performance
+            .get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
     let total: f64 = weights.values().sum();
     assert!((total - 1.0).abs() < 1e-6);
 }
