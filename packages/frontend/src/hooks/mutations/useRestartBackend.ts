@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/client';
 
@@ -10,8 +10,10 @@ export function useRestartBackend() {
   const queryClient = useQueryClient();
   const [isRestarting, setIsRestarting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  // Track dataUpdatedAt to detect fresh responses after restart
+  const restartStartedAt = useRef<number>(0);
 
-  const { data: versionInfo } = useQuery({
+  const { data: versionInfo, dataUpdatedAt } = useQuery({
     queryKey: restartBackendKeys.status(),
     queryFn: () => adminClient.getSystemVersion(),
     enabled: isRestarting,
@@ -24,14 +26,18 @@ export function useRestartBackend() {
   const restartMutation = useMutation({
     mutationFn: () => adminClient.restartBackend(),
     onSuccess: () => {
+      // Record when restart started to ignore stale versionInfo
+      restartStartedAt.current = Date.now();
+      // Clear any cached version info before starting to poll
+      queryClient.removeQueries({ queryKey: restartBackendKeys.status() });
       setIsRestarting(true);
       setIsConfirmOpen(false);
-      queryClient.invalidateQueries({ queryKey: restartBackendKeys.status() });
     },
   });
 
   useEffect(() => {
-    if (isRestarting && versionInfo) {
+    // Only trigger reload if versionInfo was fetched AFTER restart started
+    if (isRestarting && versionInfo && dataUpdatedAt > restartStartedAt.current) {
       const timer = setTimeout(() => {
         setIsRestarting(false);
         restartMutation.reset();
@@ -39,7 +45,7 @@ export function useRestartBackend() {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [isRestarting, versionInfo, restartMutation]);
+  }, [isRestarting, versionInfo, dataUpdatedAt, restartMutation]);
 
   const openConfirmModal = useCallback(() => setIsConfirmOpen(true), []);
   const closeConfirmModal = useCallback(() => setIsConfirmOpen(false), []);

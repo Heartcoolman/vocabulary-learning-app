@@ -10,6 +10,7 @@ pub struct ColdStartSignals {
     pub motivation: f64,
     pub cognitive_mem: f64,
     pub rt_variance: f64,
+    pub has_signals: bool,
 }
 
 pub struct ColdStartManager {
@@ -146,8 +147,10 @@ impl ColdStartManager {
     fn handle_explore(&mut self, accuracy: f64) -> Option<StrategyParams> {
         self.state.update_count += 1;
 
-        // Calculate actual explore samples (update_count includes classify samples)
-        let explore_samples = self.state.update_count - self.config.classify_samples;
+        // Calculate actual explore samples. Use min_classify_samples as baseline since
+        // early transition can happen before reaching classify_samples. Ensure non-negative.
+        let classify_baseline = self.config.min_classify_samples.min(self.state.update_count - 1);
+        let explore_samples = (self.state.update_count - classify_baseline).max(1);
 
         // Early exit only if we have enough explore samples AND accuracy is extreme
         if explore_samples >= self.config.min_explore_samples {
@@ -261,14 +264,17 @@ impl ColdStartManager {
         if response_time < 2000 && accuracy > 0.8 {
             score += 1.0;
         }
-        if signals.attention > 0.7 {
-            score += 0.3;
-        }
-        if signals.rt_variance < 0.3 {
-            score += 0.2;
-        }
-        if signals.cognitive_mem > 0.7 {
-            score += 0.2;
+        // Only apply signal-based scoring when signals are provided
+        if signals.has_signals {
+            if signals.attention > 0.7 {
+                score += 0.3;
+            }
+            if signals.rt_variance < 0.3 {
+                score += 0.2;
+            }
+            if signals.cognitive_mem > 0.7 {
+                score += 0.2;
+            }
         }
         score
     }
@@ -278,14 +284,17 @@ impl ColdStartManager {
         if accuracy >= 0.6 && accuracy <= 0.85 {
             score += 1.0;
         }
-        if signals.cognitive_mem > 0.5 && signals.cognitive_mem <= 0.8 {
-            score += 0.3;
-        }
-        if signals.motivation > 0.0 && signals.motivation < 0.5 {
-            score += 0.2;
-        }
-        if signals.rt_variance >= 0.3 && signals.rt_variance <= 0.6 {
-            score += 0.2;
+        // Only apply signal-based scoring when signals are provided
+        if signals.has_signals {
+            if signals.cognitive_mem > 0.5 && signals.cognitive_mem <= 0.8 {
+                score += 0.3;
+            }
+            if signals.motivation > 0.0 && signals.motivation < 0.5 {
+                score += 0.2;
+            }
+            if signals.rt_variance >= 0.3 && signals.rt_variance <= 0.6 {
+                score += 0.2;
+            }
         }
         score
     }
@@ -300,14 +309,17 @@ impl ColdStartManager {
         if response_time > 4000 || accuracy < 0.6 {
             score += 1.0;
         }
-        if signals.motivation < 0.0 {
-            score += 0.3;
-        }
-        if signals.attention < 0.5 {
-            score += 0.2;
-        }
-        if signals.rt_variance > 0.6 {
-            score += 0.2;
+        // Only apply signal-based scoring when signals are provided
+        if signals.has_signals {
+            if signals.motivation < 0.0 {
+                score += 0.3;
+            }
+            if signals.attention < 0.5 {
+                score += 0.2;
+            }
+            if signals.rt_variance > 0.6 {
+                score += 0.2;
+            }
         }
         score
     }
@@ -331,6 +343,7 @@ mod tests {
             motivation: 0.6,
             cognitive_mem: 0.8,
             rt_variance: 0.2,
+            has_signals: true,
         }
     }
 
@@ -340,6 +353,7 @@ mod tests {
             motivation: -0.2,
             cognitive_mem: 0.4,
             rt_variance: 0.8,
+            has_signals: true,
         }
     }
 
@@ -404,6 +418,7 @@ mod tests {
             motivation: 0.3,
             cognitive_mem: 0.6,
             rt_variance: 0.4,
+            has_signals: true,
         };
         for _ in 0..3 {
             manager.update_with_signals(0.7, 3000, &stable_signals);
@@ -431,7 +446,7 @@ mod tests {
         let config = ColdStartConfig {
             classify_samples: 2,
             explore_samples: 5,
-            min_classify_samples: 1,
+            min_classify_samples: 2,
             min_explore_samples: 2,
             explore_high_accuracy: 0.85,
             ..Default::default()
@@ -455,7 +470,7 @@ mod tests {
         let config = ColdStartConfig {
             classify_samples: 2,
             explore_samples: 5,
-            min_classify_samples: 1,
+            min_classify_samples: 2,
             min_explore_samples: 2,
             explore_low_accuracy: 0.5,
             ..Default::default()
@@ -582,6 +597,7 @@ mod tests {
             motivation: 0.3,
             cognitive_mem: 0.6,
             rt_variance: 0.4,
+            has_signals: true,
         };
         let score = manager.compute_stable_score(0.7, &stable_signals);
         assert!(score > 1.0);

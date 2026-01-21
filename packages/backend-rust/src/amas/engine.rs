@@ -182,6 +182,7 @@ impl AMASEngine {
                     motivation: new_user_state.motivation,
                     cognitive_mem: new_user_state.cognitive.mem,
                     rt_variance: options.rt_cv.unwrap_or(0.5),
+                    has_signals: true,
                 };
                 track_algorithm!(
                     AlgorithmId::ColdStartManager,

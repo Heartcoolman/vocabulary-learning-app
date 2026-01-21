@@ -134,13 +134,28 @@ pub async fn update_elo_ratings_db(
     is_correct: bool,
     response_time_ms: i64,
 ) -> Result<EloUpdate, sqlx::Error> {
-    let user_elo = get_user_elo(proxy, user_id).await?;
-    let word_elo = get_word_elo(proxy, word_id).await?;
-
-    let update = update_ratings(user_elo, word_elo, is_correct, response_time_ms);
-
     let pool = proxy.pool();
     let mut tx = pool.begin().await?;
+
+    // Read Elo values within transaction to prevent lost updates under concurrency
+    let user_row = sqlx::query(r#"SELECT "abilityElo" FROM "users" WHERE "id" = $1 FOR UPDATE"#)
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+    let user_elo = user_row
+        .and_then(|r| r.try_get::<Option<f64>, _>("abilityElo").ok().flatten())
+        .unwrap_or(DEFAULT_ELO);
+
+    let word_row =
+        sqlx::query(r#"SELECT "difficultyElo" FROM "words" WHERE "id" = $1 FOR UPDATE"#)
+            .bind(word_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let word_elo = word_row
+        .and_then(|r| r.try_get::<Option<f64>, _>("difficultyElo").ok().flatten())
+        .unwrap_or(DEFAULT_ELO);
+
+    let update = update_ratings(user_elo, word_elo, is_correct, response_time_ms);
 
     sqlx::query(r#"UPDATE "users" SET "abilityElo" = $2, "eloGamesPlayed" = COALESCE("eloGamesPlayed", 0) + 1 WHERE "id" = $1"#)
         .bind(user_id)
