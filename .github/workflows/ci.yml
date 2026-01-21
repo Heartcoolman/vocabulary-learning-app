@@ -198,10 +198,13 @@ jobs:
         working-directory: packages/backend-rust
         run: cargo check
 
-      - name: Run Backend Tests
+      - name: Run Backend Unit Tests
         working-directory: packages/backend-rust
-        run: cargo test
-        continue-on-error: true
+        run: cargo test --lib
+
+      - name: Run Backend Integration Tests
+        working-directory: packages/backend-rust
+        run: cargo test --test '*'
 
       - name: Clippy Lint (Native)
         working-directory: packages/native
