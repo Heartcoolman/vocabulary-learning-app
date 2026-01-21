@@ -59,6 +59,12 @@ impl LinUCBModel {
         best_action
     }
 
+    pub fn get_confidence(&self, feature: &FeatureVector, strategy: &StrategyParams) -> f64 {
+        let x = self.build_features(feature, strategy);
+        let exploration = self.compute_confidence(&x);
+        (1.0 - 0.3 * exploration).clamp(0.4, 1.0)
+    }
+
     pub fn ensure_dimensions(&mut self, context_dim: usize, action_dim: usize, alpha: f64) {
         let expected = context_dim + action_dim;
         if self.d != expected || self.context_dim != context_dim || self.action_dim != action_dim {

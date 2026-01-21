@@ -88,6 +88,20 @@ impl ThompsonSamplingModel {
         best_action
     }
 
+    pub fn get_confidence(&mut self, state: &UserState, strategy: &StrategyParams) -> f64 {
+        let action_key = self.strategy_to_key(strategy);
+        let context_key = self.context_signature(state);
+        let global = self.ensure_params(&action_key);
+        let context = self.ensure_context_params(&context_key, &action_key);
+
+        let global_n = (global.alpha + global.beta - 2.0).max(0.0);
+        let context_n = (context.alpha + context.beta - 2.0).max(0.0);
+        let blended_n = (1.0 - self.context_weight) * global_n + self.context_weight * context_n;
+
+        let raw_conf = blended_n / (blended_n + 20.0);
+        0.4 + 0.6 * raw_conf
+    }
+
     pub fn set_context_config(&mut self, bins: usize, weight: f64) {
         self.context_bins = bins.max(2);
         self.context_weight = weight.clamp(0.0, 1.0);

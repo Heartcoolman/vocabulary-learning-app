@@ -536,6 +536,7 @@ pub struct ProcessOptions {
     pub rt_cv: Option<f64>,
     pub pace_cv: Option<f64>,
     pub root_features: Option<RootFeatures>,
+    pub total_sessions: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

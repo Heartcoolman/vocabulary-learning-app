@@ -212,6 +212,10 @@ impl AMASEngine {
             } else {
                 None
             };
+            let linucb_confidence = linucb_action
+                .as_ref()
+                .map(|a| models.linucb.get_confidence(&feature_vector, a));
+
             let thompson_action = if config.feature_flags.thompson_enabled {
                 track_algorithm!(
                     AlgorithmId::Thompson,
@@ -224,18 +228,32 @@ impl AMASEngine {
             } else {
                 None
             };
+            let thompson_confidence = thompson_action
+                .as_ref()
+                .map(|a| models.thompson.get_confidence(&new_user_state, a));
 
             let ensemble = self.ensemble.read().await;
-            track_algorithm!(
+            let (raw_strategy, candidates) = track_algorithm!(
                 AlgorithmId::Heuristic,
                 ensemble.decide(
                     &new_user_state,
                     &feature_vector,
                     &current_strategy,
                     thompson_action.as_ref(),
+                    thompson_confidence,
                     linucb_action.as_ref(),
+                    linucb_confidence,
                 )
-            )
+            );
+
+            let session_info = crate::amas::decision::ensemble::SessionInfo {
+                total_sessions: options.total_sessions.unwrap_or(0),
+                duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
+            };
+            let filtered_strategy =
+                ensemble.post_filter(raw_strategy, &new_user_state, Some(&session_info));
+
+            (filtered_strategy, candidates)
         };
 
         let reward = self.compute_reward(&event, &new_user_state, &options, &config);
@@ -246,6 +264,11 @@ impl AMASEngine {
             models
                 .thompson
                 .update(&new_user_state, &new_strategy, reward.value);
+
+            {
+                let mut ensemble = self.ensemble.write().await;
+                ensemble.update_performance(&candidates, &new_strategy, reward.value);
+            }
         }
 
         let explanation =
