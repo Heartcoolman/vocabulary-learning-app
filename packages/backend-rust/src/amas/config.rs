@@ -396,8 +396,7 @@ impl AMASConfig {
             config.thompson_context.bins = val.parse().unwrap_or(config.thompson_context.bins);
         }
         if let Ok(val) = std::env::var("AMAS_THOMPSON_CONTEXT_WEIGHT") {
-            config.thompson_context.weight =
-                val.parse().unwrap_or(config.thompson_context.weight);
+            config.thompson_context.weight = val.parse().unwrap_or(config.thompson_context.weight);
         }
         if let Ok(val) = std::env::var("AMAS_CAUSAL_ENABLED") {
             config.feature_flags.causal_inference_enabled = val.parse().unwrap_or(false);

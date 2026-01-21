@@ -562,9 +562,8 @@ async fn apply_suggestions_to_config(
         }
 
         if is_thompson_context_target(item.target.as_str()) {
-            let service = amas_service.get_or_insert_with(|| {
-                AMASConfigService::new(Arc::new(proxy.clone()))
-            });
+            let service =
+                amas_service.get_or_insert_with(|| AMASConfigService::new(Arc::new(proxy.clone())));
             let current_config = match service.get_config().await {
                 Ok(config) => config,
                 Err(e) => {

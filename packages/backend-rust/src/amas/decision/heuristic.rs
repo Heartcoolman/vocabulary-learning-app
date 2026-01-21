@@ -64,11 +64,7 @@ impl HeuristicLearner {
         if let Some(habit) = state.habit.as_ref() {
             if habit.samples.time_events >= 10 {
                 let hour = chrono::Local::now().hour() as i32;
-                let pref_score = habit
-                    .time_pref
-                    .get(hour as usize)
-                    .copied()
-                    .unwrap_or(0.0);
+                let pref_score = habit.time_pref.get(hour as usize).copied().unwrap_or(0.0);
                 let is_preferred = habit.preferred_time_slots.contains(&hour);
                 if pref_score >= 0.6 || is_preferred {
                     result.batch_size = (result.batch_size + 1).min(16);

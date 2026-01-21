@@ -38,10 +38,7 @@ struct UserModels {
 impl UserModels {
     fn new(config: &AMASConfig) -> Self {
         let mut thompson = ThompsonSamplingModel::new(1.0, 1.0);
-        thompson.set_context_config(
-            config.thompson_context.bins,
-            config.thompson_context.weight,
-        );
+        thompson.set_context_config(config.thompson_context.bins, config.thompson_context.weight);
         Self {
             attention: AttentionMonitor::new(
                 config.attention_weights.clone(),
@@ -271,8 +268,12 @@ impl AMASEngine {
             }
         }
 
-        let explanation =
-            self.build_explanation(&candidates, &new_user_state, &current_strategy, &new_strategy);
+        let explanation = self.build_explanation(
+            &candidates,
+            &new_user_state,
+            &current_strategy,
+            &new_strategy,
+        );
 
         // Calculate interval using FSRS when word state is available
         let word_mastery_decision = event.word_id.as_ref().map(|wid| {
@@ -682,7 +683,11 @@ impl AMASEngine {
             .and_then(|b| b.linucb_state.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_else(|| {
-                LinUCBModel::new(config.bandit.context_dim, ACTION_FEATURE_DIM, config.bandit.alpha)
+                LinUCBModel::new(
+                    config.bandit.context_dim,
+                    ACTION_FEATURE_DIM,
+                    config.bandit.alpha,
+                )
             });
         linucb.ensure_dimensions(
             config.bandit.context_dim,
@@ -696,10 +701,7 @@ impl AMASEngine {
             .and_then(|b| b.thompson_params.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_else(|| ThompsonSamplingModel::new(1.0, 1.0));
-        thompson.set_context_config(
-            config.thompson_context.bins,
-            config.thompson_context.weight,
-        );
+        thompson.set_context_config(config.thompson_context.bins, config.thompson_context.weight);
 
         let mut attention =
             AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
@@ -1080,11 +1082,7 @@ impl AMASEngine {
         if let Some(habit) = state.habit.as_ref() {
             if habit.samples.time_events >= 10 {
                 let hour = chrono::Local::now().hour() as i32;
-                let pref_score = habit
-                    .time_pref
-                    .get(hour as usize)
-                    .copied()
-                    .unwrap_or(0.0);
+                let pref_score = habit.time_pref.get(hour as usize).copied().unwrap_or(0.0);
                 let is_preferred = habit.preferred_time_slots.contains(&hour);
                 if pref_score >= 0.6 || is_preferred {
                     factors.push(DecisionFactor {
@@ -1163,13 +1161,13 @@ impl AMASEngine {
         if let Some(habit) = state.habit.as_ref() {
             if habit.samples.time_events >= 10 {
                 let hour = chrono::Local::now().hour() as i32;
-                let pref_score = habit
-                    .time_pref
-                    .get(hour as usize)
-                    .copied()
-                    .unwrap_or(0.5);
+                let pref_score = habit.time_pref.get(hour as usize).copied().unwrap_or(0.5);
                 let is_preferred = habit.preferred_time_slots.contains(&hour);
-                let bias = if is_preferred { pref_score.max(0.6) } else { pref_score };
+                let bias = if is_preferred {
+                    pref_score.max(0.6)
+                } else {
+                    pref_score
+                };
 
                 if bias >= 0.6 {
                     difficulties = vec![DifficultyLevel::Mid, DifficultyLevel::Hard];
@@ -1238,7 +1236,6 @@ impl AMASEngine {
 
         candidates
     }
-
 
     fn compute_objective_evaluation(
         &self,

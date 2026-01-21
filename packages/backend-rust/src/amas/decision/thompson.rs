@@ -75,9 +75,10 @@ impl ThompsonSamplingModel {
             let params = self.ensure_params(&action_key);
             let context_params = self.ensure_context_params(&context_key, &action_key);
             let global_sample = self.sample_beta(&mut rng, params.alpha, params.beta);
-            let context_sample = self.sample_beta(&mut rng, context_params.alpha, context_params.beta);
-            let sample = (1.0 - self.context_weight) * global_sample
-                + self.context_weight * context_sample;
+            let context_sample =
+                self.sample_beta(&mut rng, context_params.alpha, context_params.beta);
+            let sample =
+                (1.0 - self.context_weight) * global_sample + self.context_weight * context_sample;
 
             if sample > best_score {
                 best_score = sample;
@@ -163,10 +164,7 @@ impl ThompsonSamplingModel {
             return;
         }
 
-        let mut entries: Vec<_> = map
-            .iter()
-            .map(|(k, v)| (k.clone(), v.last_used))
-            .collect();
+        let mut entries: Vec<_> = map.iter().map(|(k, v)| (k.clone(), v.last_used)).collect();
         entries.sort_by_key(|(_, lu)| *lu);
 
         let to_remove = map.len() - MAX_PARAMS_CACHE_SIZE / 2;
@@ -273,10 +271,7 @@ impl ThompsonSamplingModel {
         let bins = self.context_bins.max(2);
         let max_idx = (bins - 1) as i32;
         let attention = state.attention.clamp(0.0, 1.0);
-        let fatigue = state
-            .fused_fatigue
-            .unwrap_or(state.fatigue)
-            .clamp(0.0, 1.0);
+        let fatigue = state.fused_fatigue.unwrap_or(state.fatigue).clamp(0.0, 1.0);
         let motivation = ((state.motivation + 1.0) / 2.0).clamp(0.0, 1.0);
         let time_pref = state
             .habit

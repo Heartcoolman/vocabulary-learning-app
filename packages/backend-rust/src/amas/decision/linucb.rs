@@ -72,11 +72,7 @@ impl LinUCBModel {
         }
     }
 
-    pub fn build_features(
-        &self,
-        context: &FeatureVector,
-        strategy: &StrategyParams,
-    ) -> Vec<f64> {
+    pub fn build_features(&self, context: &FeatureVector, strategy: &StrategyParams) -> Vec<f64> {
         if self.d == 0 {
             return Vec::new();
         }

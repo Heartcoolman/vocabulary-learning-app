@@ -183,7 +183,9 @@ impl EnsembleDecision {
                 source: "heuristic".to_string(),
                 strategy: heuristic_strategy,
                 confidence: heuristic_conf,
-                weight: *dynamic_weights.get("heuristic").unwrap_or(&self.heuristic_weight),
+                weight: *dynamic_weights
+                    .get("heuristic")
+                    .unwrap_or(&self.heuristic_weight),
             });
         }
 
@@ -193,7 +195,9 @@ impl EnsembleDecision {
                     source: "thompson".to_string(),
                     strategy: action.clone(),
                     confidence: thompson_confidence.unwrap_or(0.7),
-                    weight: *dynamic_weights.get("thompson").unwrap_or(&self.thompson_weight),
+                    weight: *dynamic_weights
+                        .get("thompson")
+                        .unwrap_or(&self.thompson_weight),
                 });
             }
         }
@@ -363,7 +367,11 @@ impl EnsembleDecision {
 }
 
 fn snap_to_valid_grid(value: i32, grid: &[i32], min: i32, max: i32) -> i32 {
-    let valid: Vec<i32> = grid.iter().filter(|&&v| v >= min && v <= max).copied().collect();
+    let valid: Vec<i32> = grid
+        .iter()
+        .filter(|&&v| v >= min && v <= max)
+        .copied()
+        .collect();
     if valid.is_empty() {
         return min;
     }
