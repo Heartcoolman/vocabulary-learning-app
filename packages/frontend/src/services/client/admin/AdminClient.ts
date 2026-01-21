@@ -1301,4 +1301,8 @@ export class AdminClient extends BaseClient {
   async getUpdateStatus(): Promise<OTAUpdateStatus> {
     return this.request<OTAUpdateStatus>('/api/admin/system/update/status');
   }
+
+  async restartBackend(): Promise<void> {
+    return this.request<void>('/api/admin/system/restart', { method: 'POST' });
+  }
 }

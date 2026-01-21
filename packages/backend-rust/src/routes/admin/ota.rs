@@ -11,6 +11,7 @@ use crate::state::AppState;
 
 const OTA_SOCKET_PATH_ENV: &str = "OTA_SOCKET_PATH";
 const OTA_STATUS_FILE_ENV: &str = "OTA_STATUS_FILE";
+const RESTART_SOCKET_PATH_ENV: &str = "BACKEND_RESTART_SOCKET_PATH";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,29 +36,29 @@ fn now_iso8601() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-fn env_required(key: &'static str) -> Result<String, AppError> {
+fn env_required(key: &'static str, error_code: &'static str) -> Result<String, AppError> {
     std::env::var(key).map_err(|_| {
         json_error(
             StatusCode::SERVICE_UNAVAILABLE,
-            "OTA_NOT_CONFIGURED",
+            error_code,
             format!("{key} 未配置"),
         )
     })
 }
 
 #[cfg(unix)]
-fn trigger_update_socket_blocking(socket_path: String) -> Result<(), std::io::Error> {
+fn trigger_socket_blocking(socket_path: String, command: &[u8]) -> Result<(), std::io::Error> {
     use std::io::Write;
     use std::os::unix::net::UnixStream;
 
     let mut stream = UnixStream::connect(socket_path)?;
-    stream.write_all(b"update\n")?;
+    stream.write_all(command)?;
     stream.flush()?;
     Ok(())
 }
 
 #[cfg(not(unix))]
-fn trigger_update_socket_blocking(_socket_path: String) -> Result<(), std::io::Error> {
+fn trigger_socket_blocking(_socket_path: String, _command: &[u8]) -> Result<(), std::io::Error> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,
         "Unix sockets are not supported on this platform",
@@ -65,17 +66,18 @@ fn trigger_update_socket_blocking(_socket_path: String) -> Result<(), std::io::E
 }
 
 pub async fn trigger_update(State(_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
-    let socket_path = env_required(OTA_SOCKET_PATH_ENV)?;
+    let socket_path = env_required(OTA_SOCKET_PATH_ENV, "OTA_NOT_CONFIGURED")?;
 
-    let result = tokio::task::spawn_blocking(move || trigger_update_socket_blocking(socket_path))
-        .await
-        .map_err(|_| {
-            json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "OTA_THREAD_ERROR",
-                "触发 OTA 更新失败",
-            )
-        })?;
+    let result =
+        tokio::task::spawn_blocking(move || trigger_socket_blocking(socket_path, b"update\n"))
+            .await
+            .map_err(|_| {
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "OTA_THREAD_ERROR",
+                    "触发 OTA 更新失败",
+                )
+            })?;
 
     result.map_err(|_| {
         json_error(
@@ -94,7 +96,7 @@ pub async fn trigger_update(State(_state): State<AppState>) -> Result<impl IntoR
 pub async fn get_update_status(
     State(_state): State<AppState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let status_file = env_required(OTA_STATUS_FILE_ENV)?;
+    let status_file = env_required(OTA_STATUS_FILE_ENV, "OTA_NOT_CONFIGURED")?;
 
     let contents = match tokio::fs::read_to_string(&status_file).await {
         Ok(s) => s,
@@ -144,5 +146,35 @@ pub async fn get_update_status(
     Ok(Json(serde_json::json!({
         "success": true,
         "data": status
+    })))
+}
+
+pub async fn restart_backend(
+    State(_state): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
+    let socket_path = env_required(RESTART_SOCKET_PATH_ENV, "RESTART_NOT_CONFIGURED")?;
+
+    let result =
+        tokio::task::spawn_blocking(move || trigger_socket_blocking(socket_path, b"restart\n"))
+            .await
+            .map_err(|_| {
+                json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "RESTART_THREAD_ERROR",
+                    "触发重启失败",
+                )
+            })?;
+
+    result.map_err(|_| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "RESTART_SOCKET_ERROR",
+            "重启服务不可用",
+        )
+    })?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "data": { "triggered": true }
     })))
 }

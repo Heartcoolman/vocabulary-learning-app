@@ -576,6 +576,12 @@ async fn get_due_words_with_priority(
         scores.iter().map(|s| (s.word_id.as_str(), s)).collect();
     let word_map: HashMap<&str, &WordBase> = words.iter().map(|w| (w.id.as_str(), w)).collect();
 
+    // Get user Elo for ZPD calculation
+    let user_elo = crate::services::elo::get_user_elo(proxy, user_id)
+        .await
+        .unwrap_or(1200.0);
+    let zpd_config = crate::services::zpd::ZPDConfig::default();
+
     let mut results = Vec::new();
     for state_row in word_states {
         let Some(word) = word_map.get(state_row.word_id.as_str()) else {
@@ -597,13 +603,20 @@ async fn get_due_words_with_priority(
             None => (0.0, None),
         };
 
-        let priority = overdue_days.min(8.0) * 5.0
+        let base_priority = overdue_days.min(8.0) * 5.0
             + if error_rate > 0.5 {
                 30.0
             } else {
                 error_rate * 60.0
             }
             + total_score.map(|v| (100.0 - v) * 0.3).unwrap_or(30.0);
+
+        // Apply ZPD adjustment to priority
+        let word_elo = crate::services::elo::get_word_elo(proxy, &state_row.word_id)
+            .await
+            .unwrap_or(1200.0);
+        let priority =
+            crate::services::zpd::adjust_priority(base_priority, user_elo, word_elo, &zpd_config);
 
         let difficulty = compute_difficulty_from_score(score, error_rate);
 

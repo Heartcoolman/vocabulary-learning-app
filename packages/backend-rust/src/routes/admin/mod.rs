@@ -68,6 +68,7 @@ pub fn router() -> Router<AppState> {
             "/system/update/status",
             axum::routing::get(ota::get_update_status),
         )
+        .route("/system/restart", axum::routing::post(ota::restart_backend))
 }
 
 #[derive(Debug, Deserialize)]

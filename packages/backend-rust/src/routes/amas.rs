@@ -501,7 +501,7 @@ async fn process_event(
         "Creating answer record with responseTime"
     );
     let record_input = CreateRecordInput {
-        word_id,
+        word_id: word_id.clone(),
         selected_option: None,
         selected_answer: None,
         correct_answer: None,
@@ -518,6 +518,19 @@ async fn process_event(
     };
     match create_record(&proxy, &user.id, record_input).await {
         Ok(record) => {
+            // Update Elo ratings after each answer
+            if let Err(e) = crate::services::elo::update_elo_ratings_db(
+                &proxy,
+                &user.id,
+                &word_id,
+                body.is_correct,
+                body.response_time,
+            )
+            .await
+            {
+                tracing::warn!(error = %e, "Failed to update Elo ratings");
+            }
+
             let delay_ms = 5 * 60 * 1000i64;
             let _ = enqueue_delayed_reward(
                 &proxy,

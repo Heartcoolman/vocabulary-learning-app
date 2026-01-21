@@ -59,6 +59,7 @@ services:
       DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
       OTA_SOCKET_PATH: /run/danci/updater.sock
       OTA_STATUS_FILE: /run/danci/update-status.json
+      BACKEND_RESTART_SOCKET_PATH: /run/danci/restart.sock
     expose:
       - '3000'
     volumes:

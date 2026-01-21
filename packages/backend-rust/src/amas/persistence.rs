@@ -68,6 +68,7 @@ impl AMASPersistence {
             cold_start_state,
             interaction_count,
             last_updated: chrono::Utc::now().timestamp_millis(),
+            user_fsrs_params: None,
         })
     }
 

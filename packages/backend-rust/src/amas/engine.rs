@@ -19,8 +19,8 @@ use crate::amas::types::*;
 use crate::db::DatabaseProxy;
 use crate::services::amas_config::AMASConfigService;
 use crate::services::fsrs::{
-    compute_fsrs_mastery_score, fsrs_next_interval_with_root, fsrs_retrievability, FSRSParams,
-    FSRSState, Rating,
+    compute_fsrs_mastery_score, fsrs5_retrievability, fsrs_next_interval_with_root, FSRSState,
+    Rating, RetentionSample, UserFSRSParams,
 };
 use crate::track_algorithm;
 
@@ -86,7 +86,8 @@ impl AMASEngine {
         let monitor = db_proxy
             .as_ref()
             .map(|proxy| Arc::new(AMASMonitor::new(Arc::clone(proxy))));
-        let ensemble = EnsembleDecision::new(config.feature_flags.clone());
+        let ensemble =
+            EnsembleDecision::with_config(config.feature_flags.clone(), config.ensemble.clone());
 
         Self {
             config: Arc::new(RwLock::new(config)),
@@ -113,7 +114,10 @@ impl AMASEngine {
                 }
             }
         }
-        let new_ensemble = EnsembleDecision::new(new_config.feature_flags.clone());
+        let new_ensemble = EnsembleDecision::with_config(
+            new_config.feature_flags.clone(),
+            new_config.ensemble.clone(),
+        );
         let thompson_bins = new_config.thompson_context.bins;
         let thompson_weight = new_config.thompson_context.weight;
 
@@ -173,9 +177,15 @@ impl AMASEngine {
         let cold_start_result = if let Some(ref mut cs) = models.cold_start {
             if !cs.is_complete() {
                 let accuracy = if event.is_correct { 1.0 } else { 0.0 };
+                let signals = crate::amas::decision::coldstart::ColdStartSignals {
+                    attention: new_user_state.attention,
+                    motivation: new_user_state.motivation,
+                    cognitive_mem: new_user_state.cognitive.mem,
+                    rt_variance: options.rt_cv.unwrap_or(0.5),
+                };
                 track_algorithm!(
                     AlgorithmId::ColdStartManager,
-                    cs.update(accuracy, event.response_time)
+                    cs.update_with_signals(accuracy, event.response_time, &signals)
                 )
             } else {
                 None
@@ -209,9 +219,16 @@ impl AMASEngine {
             } else {
                 None
             };
-            let linucb_confidence = linucb_action
-                .as_ref()
-                .map(|a| models.linucb.get_confidence(&feature_vector, a));
+            let conf_map = &config.ensemble.confidence_map;
+            let linucb_confidence = linucb_action.as_ref().map(|a| {
+                models.linucb.get_confidence_with_params(
+                    &feature_vector,
+                    a,
+                    conf_map.linucb_exploration_scale,
+                    conf_map.min_confidence,
+                    conf_map.max_confidence,
+                )
+            });
 
             let thompson_action = if config.feature_flags.thompson_enabled {
                 track_algorithm!(
@@ -225,9 +242,15 @@ impl AMASEngine {
             } else {
                 None
             };
-            let thompson_confidence = thompson_action
-                .as_ref()
-                .map(|a| models.thompson.get_confidence(&new_user_state, a));
+            let thompson_confidence = thompson_action.as_ref().map(|a| {
+                models.thompson.get_confidence_with_params(
+                    &new_user_state,
+                    a,
+                    conf_map.thompson_ess_k,
+                    conf_map.min_confidence,
+                    conf_map.max_confidence,
+                )
+            });
 
             let ensemble = self.ensemble.read().await;
             let (raw_strategy, candidates) = track_algorithm!(
@@ -278,7 +301,11 @@ impl AMASEngine {
         // Calculate interval using FSRS when word state is available
         let word_mastery_decision = event.word_id.as_ref().map(|wid| {
             let rating = Rating::from_correct(event.is_correct, event.response_time);
-            let fsrs_params = FSRSParams::default();
+            let fsrs_params = state
+                .user_fsrs_params
+                .as_ref()
+                .map(|p| p.effective_params())
+                .unwrap_or_default();
 
             if let Some(ref ws) = options.word_state {
                 // Use FSRS with existing word state
@@ -311,7 +338,14 @@ impl AMASEngine {
                         root_bonus,
                     )
                 );
-                let retrievability = fsrs_retrievability(ws.stability, ws.elapsed_days);
+                let now_ts = chrono::Utc::now().timestamp_millis();
+                let last_review_ts = if ws.elapsed_days > 0.0 {
+                    Some(now_ts - (ws.elapsed_days * 86_400_000.0) as i64)
+                } else {
+                    None
+                };
+                let retrievability =
+                    fsrs5_retrievability(ws.stability, ws.elapsed_days, last_review_ts, now_ts);
 
                 // AMAS comprehensive mastery decision
                 let (fsrs_score, _fsrs_conf) = compute_fsrs_mastery_score(&result.state, rating);
@@ -417,6 +451,30 @@ impl AMASEngine {
         });
 
         let cold_start_phase = models.cold_start.as_ref().map(|cs| cs.phase());
+
+        // Collect Bayesian FSRS sample for parameter optimization
+        if let (Some(ref ws), Some(ref _wmd)) = (&options.word_state, &word_mastery_decision) {
+            if ws.reps > 0 && ws.elapsed_days > 0.0 {
+                let sample = RetentionSample {
+                    stability: ws.stability,
+                    elapsed_days: ws.elapsed_days,
+                    actual_recalled: event.is_correct,
+                };
+                let user_params = state
+                    .user_fsrs_params
+                    .get_or_insert_with(UserFSRSParams::default);
+                if let Some(ref mut bayesian) = user_params.bayesian {
+                    bayesian.add_sample(sample);
+                    if bayesian.samples.len() >= 20 {
+                        bayesian.optimize(0.01);
+                    }
+                } else {
+                    let mut bayesian = crate::services::fsrs::BayesianFSRSParams::default();
+                    bayesian.add_sample(sample);
+                    user_params.bayesian = Some(bayesian);
+                }
+            }
+        }
 
         state.user_state = new_user_state.clone();
         state.current_strategy = new_strategy.clone();
@@ -618,6 +676,7 @@ impl AMASEngine {
             cold_start_state: Some(ColdStartState::default()),
             interaction_count: 0,
             last_updated: chrono::Utc::now().timestamp_millis(),
+            user_fsrs_params: None,
         };
 
         let mut states = self.user_states.write().await;

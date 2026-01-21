@@ -339,6 +339,123 @@ impl Default for FeatureFlags {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfidenceMapConfig {
+    pub min_confidence: f64,
+    pub max_confidence: f64,
+    pub thompson_ess_k: f64,
+    pub linucb_exploration_scale: f64,
+}
+
+impl Default for ConfidenceMapConfig {
+    fn default() -> Self {
+        Self {
+            min_confidence: 0.4,
+            max_confidence: 1.0,
+            thompson_ess_k: 20.0,
+            linucb_exploration_scale: 0.3,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceTrackerConfig {
+    pub ema_alpha: f64,
+    pub warmup_samples: u64,
+    pub min_weight: f64,
+    pub blend_max: f64,
+    pub blend_scale: f64,
+    pub trust_score_min: f64,
+    pub trust_score_max: f64,
+}
+
+impl Default for PerformanceTrackerConfig {
+    fn default() -> Self {
+        Self {
+            ema_alpha: 0.1,
+            warmup_samples: 20,
+            min_weight: 0.15,
+            blend_max: 0.5,
+            blend_scale: 100.0,
+            trust_score_min: 0.2,
+            trust_score_max: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SafetyFilterConfig {
+    pub high_fatigue_threshold: f64,
+    pub mid_fatigue_threshold: f64,
+    pub low_attention_threshold: f64,
+    pub new_user_session_threshold: u32,
+    pub long_session_minutes: f64,
+    pub long_session_max_new_ratio: f64,
+    pub high_fatigue_max_batch: i32,
+    pub mid_fatigue_max_batch: i32,
+    pub high_fatigue_max_new_ratio: f64,
+}
+
+impl Default for SafetyFilterConfig {
+    fn default() -> Self {
+        Self {
+            high_fatigue_threshold: 0.9,
+            mid_fatigue_threshold: 0.75,
+            low_attention_threshold: 0.3,
+            new_user_session_threshold: 5,
+            long_session_minutes: 45.0,
+            long_session_max_new_ratio: 0.15,
+            high_fatigue_max_batch: 5,
+            mid_fatigue_max_batch: 8,
+            high_fatigue_max_new_ratio: 0.2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StrategySimilarityWeights {
+    pub difficulty_weight: f64,
+    pub new_ratio_weight: f64,
+    pub batch_size_weight: f64,
+    pub interval_scale_weight: f64,
+}
+
+impl Default for StrategySimilarityWeights {
+    fn default() -> Self {
+        Self {
+            difficulty_weight: 0.3,
+            new_ratio_weight: 0.25,
+            batch_size_weight: 0.25,
+            interval_scale_weight: 0.2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnsembleConfig {
+    pub thompson_base_weight: f64,
+    pub linucb_base_weight: f64,
+    pub heuristic_base_weight: f64,
+    pub confidence_map: ConfidenceMapConfig,
+    pub performance_tracker: PerformanceTrackerConfig,
+    pub safety_filter: SafetyFilterConfig,
+    pub similarity_weights: StrategySimilarityWeights,
+}
+
+impl Default for EnsembleConfig {
+    fn default() -> Self {
+        Self {
+            thompson_base_weight: 0.4,
+            linucb_base_weight: 0.4,
+            heuristic_base_weight: 0.2,
+            confidence_map: ConfidenceMapConfig::default(),
+            performance_tracker: PerformanceTrackerConfig::default(),
+            safety_filter: SafetyFilterConfig::default(),
+            similarity_weights: StrategySimilarityWeights::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AMASConfig {
     pub perception: PerceptionConfig,
     pub attention_weights: AttentionWeights,
@@ -352,6 +469,7 @@ pub struct AMASConfig {
     pub reward: RewardConfig,
     pub fsrs_personalization: FsrsPersonalizationConfig,
     pub feature_flags: FeatureFlags,
+    pub ensemble: EnsembleConfig,
     pub attention_smoothing: f64,
     pub confidence_decay: f64,
     pub min_confidence: f64,
@@ -372,6 +490,7 @@ impl Default for AMASConfig {
             reward: RewardConfig::default(),
             fsrs_personalization: FsrsPersonalizationConfig::default(),
             feature_flags: FeatureFlags::default(),
+            ensemble: EnsembleConfig::default(),
             attention_smoothing: 0.3,
             confidence_decay: 0.99,
             min_confidence: 0.1,

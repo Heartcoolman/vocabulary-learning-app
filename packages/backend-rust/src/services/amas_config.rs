@@ -16,6 +16,7 @@ pub enum AMASConfigType {
     RewardWeight,
     SafetyThreshold,
     ThompsonContext,
+    Ensemble,
 }
 
 impl AMASConfigType {
@@ -26,6 +27,7 @@ impl AMASConfigType {
             Self::RewardWeight => "reward_weight",
             Self::SafetyThreshold => "safety_threshold",
             Self::ThompsonContext => "thompson_context",
+            Self::Ensemble => "ensemble",
         }
     }
 }
@@ -156,6 +158,72 @@ impl Default for ThompsonContextConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct EnsembleServiceConfig {
+    pub thompson_base_weight: f64,
+    pub linucb_base_weight: f64,
+    pub heuristic_base_weight: f64,
+    pub thompson_ess_k: f64,
+    pub linucb_exploration_scale: f64,
+    pub min_confidence: f64,
+    pub max_confidence: f64,
+    pub ema_alpha: f64,
+    pub warmup_samples: u64,
+    pub min_weight: f64,
+    pub blend_max: f64,
+    pub blend_scale: f64,
+    pub trust_score_min: f64,
+    pub trust_score_max: f64,
+    pub high_fatigue_threshold: f64,
+    pub mid_fatigue_threshold: f64,
+    pub low_attention_threshold: f64,
+    pub new_user_session_threshold: u32,
+    pub long_session_minutes: f64,
+    pub long_session_max_new_ratio: f64,
+    pub high_fatigue_max_batch: i32,
+    pub mid_fatigue_max_batch: i32,
+    pub high_fatigue_max_new_ratio: f64,
+    pub difficulty_weight: f64,
+    pub new_ratio_weight: f64,
+    pub batch_size_weight: f64,
+    pub interval_scale_weight: f64,
+}
+
+impl Default for EnsembleServiceConfig {
+    fn default() -> Self {
+        Self {
+            thompson_base_weight: 0.4,
+            linucb_base_weight: 0.4,
+            heuristic_base_weight: 0.2,
+            thompson_ess_k: 20.0,
+            linucb_exploration_scale: 0.3,
+            min_confidence: 0.4,
+            max_confidence: 1.0,
+            ema_alpha: 0.1,
+            warmup_samples: 20,
+            min_weight: 0.15,
+            blend_max: 0.5,
+            blend_scale: 100.0,
+            trust_score_min: 0.2,
+            trust_score_max: 1.0,
+            high_fatigue_threshold: 0.9,
+            mid_fatigue_threshold: 0.75,
+            low_attention_threshold: 0.3,
+            new_user_session_threshold: 5,
+            long_session_minutes: 45.0,
+            long_session_max_new_ratio: 0.15,
+            high_fatigue_max_batch: 5,
+            mid_fatigue_max_batch: 8,
+            high_fatigue_max_new_ratio: 0.2,
+            difficulty_weight: 0.3,
+            new_ratio_weight: 0.25,
+            batch_size_weight: 0.25,
+            interval_scale_weight: 0.2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AMASConfig {
     pub param_bounds: ParamBoundConfig,
@@ -163,6 +231,7 @@ pub struct AMASConfig {
     pub reward_weights: RewardWeightConfig,
     pub safety_thresholds: SafetyThresholdConfig,
     pub thompson_context: ThompsonContextConfig,
+    pub ensemble: EnsembleServiceConfig,
     pub version: String,
     pub updated_at: i64,
     pub updated_by: String,
@@ -176,6 +245,7 @@ impl Default for AMASConfig {
             reward_weights: RewardWeightConfig::default(),
             safety_thresholds: SafetyThresholdConfig::default(),
             thompson_context: ThompsonContextConfig::default(),
+            ensemble: EnsembleServiceConfig::default(),
             version: "1.0.0".to_string(),
             updated_at: chrono::Utc::now().timestamp_millis(),
             updated_by: "system".to_string(),
@@ -275,6 +345,11 @@ impl AMASConfigService {
     pub async fn get_thompson_context(&self) -> Result<ThompsonContextConfig, AMASConfigError> {
         let config = self.get_config().await?;
         Ok(config.thompson_context)
+    }
+
+    pub async fn get_ensemble(&self) -> Result<EnsembleServiceConfig, AMASConfigError> {
+        let config = self.get_config().await?;
+        Ok(config.ensemble)
     }
 
     pub async fn update_param_bound(
@@ -579,6 +654,114 @@ impl AMASConfigService {
         Ok(())
     }
 
+    pub async fn update_ensemble(
+        &self,
+        target: &str,
+        new_value: f64,
+        changed_by: &str,
+        change_reason: &str,
+        suggestion_id: Option<&str>,
+    ) -> Result<(), AMASConfigError> {
+        let mut config = self.get_config().await?;
+
+        let prev_value = match target {
+            "thompsonBaseWeight" => {
+                std::mem::replace(&mut config.ensemble.thompson_base_weight, new_value)
+            }
+            "linucbBaseWeight" => {
+                std::mem::replace(&mut config.ensemble.linucb_base_weight, new_value)
+            }
+            "heuristicBaseWeight" => {
+                std::mem::replace(&mut config.ensemble.heuristic_base_weight, new_value)
+            }
+            "thompsonEssK" => std::mem::replace(&mut config.ensemble.thompson_ess_k, new_value),
+            "linucbExplorationScale" => {
+                std::mem::replace(&mut config.ensemble.linucb_exploration_scale, new_value)
+            }
+            "minConfidence" => std::mem::replace(&mut config.ensemble.min_confidence, new_value),
+            "maxConfidence" => std::mem::replace(&mut config.ensemble.max_confidence, new_value),
+            "emaAlpha" => std::mem::replace(&mut config.ensemble.ema_alpha, new_value),
+            "warmupSamples" => {
+                let prev = config.ensemble.warmup_samples as f64;
+                config.ensemble.warmup_samples = new_value.round().max(0.0) as u64;
+                prev
+            }
+            "minWeight" => std::mem::replace(&mut config.ensemble.min_weight, new_value),
+            "blendMax" => std::mem::replace(&mut config.ensemble.blend_max, new_value),
+            "blendScale" => std::mem::replace(&mut config.ensemble.blend_scale, new_value),
+            "trustScoreMin" => std::mem::replace(&mut config.ensemble.trust_score_min, new_value),
+            "trustScoreMax" => std::mem::replace(&mut config.ensemble.trust_score_max, new_value),
+            "highFatigueThreshold" => {
+                std::mem::replace(&mut config.ensemble.high_fatigue_threshold, new_value)
+            }
+            "midFatigueThreshold" => {
+                std::mem::replace(&mut config.ensemble.mid_fatigue_threshold, new_value)
+            }
+            "lowAttentionThreshold" => {
+                std::mem::replace(&mut config.ensemble.low_attention_threshold, new_value)
+            }
+            "newUserSessionThreshold" => {
+                let prev = config.ensemble.new_user_session_threshold as f64;
+                config.ensemble.new_user_session_threshold = new_value.round().max(0.0) as u32;
+                prev
+            }
+            "longSessionMinutes" => {
+                std::mem::replace(&mut config.ensemble.long_session_minutes, new_value)
+            }
+            "longSessionMaxNewRatio" => {
+                std::mem::replace(&mut config.ensemble.long_session_max_new_ratio, new_value)
+            }
+            "highFatigueMaxBatch" => {
+                let prev = config.ensemble.high_fatigue_max_batch as f64;
+                config.ensemble.high_fatigue_max_batch = new_value.round().max(1.0) as i32;
+                prev
+            }
+            "midFatigueMaxBatch" => {
+                let prev = config.ensemble.mid_fatigue_max_batch as f64;
+                config.ensemble.mid_fatigue_max_batch = new_value.round().max(1.0) as i32;
+                prev
+            }
+            "highFatigueMaxNewRatio" => {
+                std::mem::replace(&mut config.ensemble.high_fatigue_max_new_ratio, new_value)
+            }
+            "difficultyWeight" => {
+                std::mem::replace(&mut config.ensemble.difficulty_weight, new_value)
+            }
+            "newRatioWeight" => std::mem::replace(&mut config.ensemble.new_ratio_weight, new_value),
+            "batchSizeWeight" => {
+                std::mem::replace(&mut config.ensemble.batch_size_weight, new_value)
+            }
+            "intervalScaleWeight" => {
+                std::mem::replace(&mut config.ensemble.interval_scale_weight, new_value)
+            }
+            _ => {
+                return Err(AMASConfigError::Validation(format!(
+                    "invalid ensemble target: {}",
+                    target
+                )))
+            }
+        };
+
+        config.version = increment_version(&config.version);
+        config.updated_at = chrono::Utc::now().timestamp_millis();
+        config.updated_by = changed_by.to_string();
+
+        self.save_config_to_db(
+            AMASConfigType::Ensemble,
+            target,
+            prev_value,
+            new_value,
+            &config,
+            changed_by,
+            change_reason,
+            suggestion_id,
+        )
+        .await?;
+
+        self.invalidate_cache().await;
+        Ok(())
+    }
+
     pub async fn get_config_history(
         &self,
         config_type: Option<AMASConfigType>,
@@ -674,6 +857,11 @@ impl AMASConfigService {
                         config.thompson_context = parsed;
                     }
                 }
+                if let Some(ens) = amas_config.get("ensemble") {
+                    if let Ok(parsed) = serde_json::from_value(ens.clone()) {
+                        config.ensemble = parsed;
+                    }
+                }
                 if let Some(v) = amas_config.get("version").and_then(|v| v.as_str()) {
                     config.version = v.to_string();
                 }
@@ -705,6 +893,7 @@ impl AMASConfigService {
                 "rewardWeights": config.reward_weights,
                 "safetyThresholds": config.safety_thresholds,
                 "thompsonContext": config.thompson_context,
+                "ensemble": config.ensemble,
                 "version": config.version
             }
         });

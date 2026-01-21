@@ -148,6 +148,17 @@ UPDATER_EOF
 
   chmod +x /opt/danci/updater.sh
 
+  # 后端重启脚本
+  cat > /opt/danci/restart-backend.sh << 'RESTART_EOF'
+#!/bin/bash
+set -e
+cd /opt/danci
+docker compose restart backend-rust
+RESTART_EOF
+
+  chmod +x /opt/danci/restart-backend.sh
+
+  # OTA Updater Socket
   cat > /etc/systemd/system/danci-updater.socket << 'SOCKET_EOF'
 [Unit]
 Description=Danci OTA Updater Socket
@@ -181,11 +192,45 @@ WorkingDirectory=/opt/danci
 WantedBy=multi-user.target
 SERVICE_EOF
 
-  systemctl daemon-reload
-  systemctl enable danci-updater.socket
-  systemctl start danci-updater.socket
+  # Backend Restart Socket
+  cat > /etc/systemd/system/danci-restart.socket << 'SOCKET_EOF'
+[Unit]
+Description=Danci Backend Restart Socket
 
-  echo "[OTA] ✅ OTA 更新服务安装完成"
+[Socket]
+ListenStream=/var/run/danci/restart.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=root
+Accept=no
+
+[Install]
+WantedBy=sockets.target
+SOCKET_EOF
+
+  cat > /etc/systemd/system/danci-restart.service << 'SERVICE_EOF'
+[Unit]
+Description=Danci Backend Restart Service
+Requires=danci-restart.socket
+After=danci-restart.socket
+
+[Service]
+Type=oneshot
+ExecStart=/opt/danci/restart-backend.sh
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+WorkingDirectory=/opt/danci
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+
+  systemctl daemon-reload
+  systemctl enable danci-updater.socket danci-restart.socket
+  systemctl start danci-updater.socket danci-restart.socket
+
+  echo "[OTA] ✅ OTA 更新服务和后端重启服务安装完成"
 }
 
 # 安装Docker

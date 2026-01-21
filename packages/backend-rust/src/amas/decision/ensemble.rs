@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::amas::config::FeatureFlags;
+use crate::amas::config::{
+    EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, StrategySimilarityWeights,
+};
 use crate::amas::types::{DifficultyLevel, FeatureVector, StrategyParams, UserState};
 
 use super::heuristic::HeuristicLearner;
@@ -30,31 +32,35 @@ pub struct SessionInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceTracker {
     pub algorithms: HashMap<String, AlgorithmPerformance>,
-    ema_alpha: f64,
-    min_samples: u64,
-    min_weight: f64,
+    config: PerformanceTrackerConfig,
 }
 
 impl Default for PerformanceTracker {
     fn default() -> Self {
         Self {
             algorithms: HashMap::new(),
-            ema_alpha: 0.1,
-            min_samples: 20,
-            min_weight: 0.15,
+            config: PerformanceTrackerConfig::default(),
         }
     }
 }
 
 impl PerformanceTracker {
+    pub fn new(config: PerformanceTrackerConfig) -> Self {
+        Self {
+            algorithms: HashMap::new(),
+            config,
+        }
+    }
+
     pub fn update(
         &mut self,
         candidates: &[DecisionCandidate],
         final_strategy: &StrategyParams,
         actual_reward: f64,
+        similarity_weights: &StrategySimilarityWeights,
     ) {
         let total: u64 = self.algorithms.values().map(|p| p.sample_count).sum();
-        if total < self.min_samples {
+        if total < self.config.warmup_samples {
             for c in candidates {
                 self.algorithms
                     .entry(c.source.clone())
@@ -65,12 +71,12 @@ impl PerformanceTracker {
         }
 
         for c in candidates {
-            let similarity = strategy_similarity(&c.strategy, final_strategy);
+            let similarity = strategy_similarity(&c.strategy, final_strategy, similarity_weights);
             let attributed = actual_reward * similarity;
             let perf = self.algorithms.entry(c.source.clone()).or_default();
             perf.sample_count += 1;
-            perf.ema_reward =
-                (1.0 - self.ema_alpha) * perf.ema_reward + self.ema_alpha * attributed;
+            perf.ema_reward = (1.0 - self.config.ema_alpha) * perf.ema_reward
+                + self.config.ema_alpha * attributed;
         }
         self.update_trust_scores();
     }
@@ -85,16 +91,18 @@ impl PerformanceTracker {
         let range = (max_reward - min_reward).max(1e-6);
 
         for perf in self.algorithms.values_mut() {
-            perf.trust_score = ((perf.ema_reward - min_reward) / range).clamp(0.2, 1.0);
+            perf.trust_score = ((perf.ema_reward - min_reward) / range)
+                .clamp(self.config.trust_score_min, self.config.trust_score_max);
         }
     }
 
     pub fn get_weights(&self, base: &[(&str, f64)]) -> HashMap<String, f64> {
         let total: u64 = self.algorithms.values().map(|p| p.sample_count).sum();
-        let blend = if total < self.min_samples {
+        let blend = if total < self.config.warmup_samples {
             0.0
         } else {
-            ((total - self.min_samples) as f64 / 100.0).min(0.5)
+            ((total - self.config.warmup_samples) as f64 / self.config.blend_scale)
+                .min(self.config.blend_max)
         };
 
         let mut result = HashMap::new();
@@ -104,7 +112,7 @@ impl PerformanceTracker {
                 .get(*src)
                 .map(|p| p.trust_score)
                 .unwrap_or(0.33);
-            let w = ((1.0 - blend) * base_w + blend * trust).max(self.min_weight);
+            let w = ((1.0 - blend) * base_w + blend * trust).max(self.config.min_weight);
             result.insert(src.to_string(), w);
         }
         normalize(&mut result);
@@ -112,7 +120,11 @@ impl PerformanceTracker {
     }
 }
 
-fn strategy_similarity(a: &StrategyParams, b: &StrategyParams) -> f64 {
+fn strategy_similarity(
+    a: &StrategyParams,
+    b: &StrategyParams,
+    w: &StrategySimilarityWeights,
+) -> f64 {
     let diff = if a.difficulty == b.difficulty {
         1.0
     } else {
@@ -121,7 +133,11 @@ fn strategy_similarity(a: &StrategyParams, b: &StrategyParams) -> f64 {
     let ratio = 1.0 - (a.new_ratio - b.new_ratio).abs();
     let batch = 1.0 - ((a.batch_size - b.batch_size).abs() as f64 / 15.0);
     let interval = 1.0 - (a.interval_scale - b.interval_scale).abs();
-    (0.3 * diff + 0.25 * ratio + 0.25 * batch + 0.2 * interval).clamp(0.0, 1.0)
+    (w.difficulty_weight * diff
+        + w.new_ratio_weight * ratio
+        + w.batch_size_weight * batch
+        + w.interval_scale_weight * interval)
+        .clamp(0.0, 1.0)
 }
 
 fn normalize(weights: &mut HashMap<String, f64>) {
@@ -136,26 +152,35 @@ fn normalize(weights: &mut HashMap<String, f64>) {
 pub struct EnsembleDecision {
     feature_flags: FeatureFlags,
     heuristic: HeuristicLearner,
-    thompson_weight: f64,
-    linucb_weight: f64,
-    heuristic_weight: f64,
+    config: EnsembleConfig,
     pub performance: PerformanceTracker,
 }
 
 impl EnsembleDecision {
     pub fn new(feature_flags: FeatureFlags) -> Self {
+        Self::with_config(feature_flags, EnsembleConfig::default())
+    }
+
+    pub fn with_config(feature_flags: FeatureFlags, config: EnsembleConfig) -> Self {
         Self {
             feature_flags,
             heuristic: HeuristicLearner::default(),
-            thompson_weight: 0.4,
-            linucb_weight: 0.4,
-            heuristic_weight: 0.2,
-            performance: PerformanceTracker::default(),
+            performance: PerformanceTracker::new(config.performance_tracker.clone()),
+            config,
         }
     }
 
     pub fn set_feature_flags(&mut self, flags: FeatureFlags) {
         self.feature_flags = flags;
+    }
+
+    pub fn set_config(&mut self, config: EnsembleConfig) {
+        self.performance = PerformanceTracker::new(config.performance_tracker.clone());
+        self.config = config;
+    }
+
+    pub fn config(&self) -> &EnsembleConfig {
+        &self.config
     }
 
     pub fn decide(
@@ -171,9 +196,9 @@ impl EnsembleDecision {
         let mut candidates: Vec<DecisionCandidate> = Vec::new();
 
         let dynamic_weights = self.performance.get_weights(&[
-            ("thompson", self.thompson_weight),
-            ("linucb", self.linucb_weight),
-            ("heuristic", self.heuristic_weight),
+            ("thompson", self.config.thompson_base_weight),
+            ("linucb", self.config.linucb_base_weight),
+            ("heuristic", self.config.heuristic_base_weight),
         ]);
 
         if self.feature_flags.heuristic_enabled {
@@ -185,7 +210,7 @@ impl EnsembleDecision {
                 confidence: heuristic_conf,
                 weight: *dynamic_weights
                     .get("heuristic")
-                    .unwrap_or(&self.heuristic_weight),
+                    .unwrap_or(&self.config.heuristic_base_weight),
             });
         }
 
@@ -197,7 +222,7 @@ impl EnsembleDecision {
                     confidence: thompson_confidence.unwrap_or(0.7),
                     weight: *dynamic_weights
                         .get("thompson")
-                        .unwrap_or(&self.thompson_weight),
+                        .unwrap_or(&self.config.thompson_base_weight),
                 });
             }
         }
@@ -208,7 +233,9 @@ impl EnsembleDecision {
                     source: "linucb".to_string(),
                     strategy: action.clone(),
                     confidence: linucb_confidence.unwrap_or(state.conf),
-                    weight: *dynamic_weights.get("linucb").unwrap_or(&self.linucb_weight),
+                    weight: *dynamic_weights
+                        .get("linucb")
+                        .unwrap_or(&self.config.linucb_base_weight),
                 });
             }
         }
@@ -227,7 +254,12 @@ impl EnsembleDecision {
         final_strategy: &StrategyParams,
         reward: f64,
     ) {
-        self.performance.update(candidates, final_strategy, reward);
+        self.performance.update(
+            candidates,
+            final_strategy,
+            reward,
+            &self.config.similarity_weights,
+        );
     }
 
     pub fn post_filter(
@@ -236,36 +268,42 @@ impl EnsembleDecision {
         state: &UserState,
         session: Option<&SessionInfo>,
     ) -> StrategyParams {
+        let sf = &self.config.safety_filter;
         let fatigue = state.fused_fatigue.unwrap_or(state.fatigue);
 
-        let (min_batch, max_batch) = if fatigue > 0.9 {
-            (3, 5)
-        } else if fatigue > 0.75 {
-            (3, 8)
+        let (min_batch, max_batch) = if fatigue > sf.high_fatigue_threshold {
+            (3, sf.high_fatigue_max_batch)
+        } else if fatigue > sf.mid_fatigue_threshold {
+            (3, sf.mid_fatigue_max_batch)
         } else {
             (3, 20)
         };
 
-        let max_ratio = if fatigue > 0.75 { 0.2 } else { 0.5 };
+        let max_ratio = if fatigue > sf.mid_fatigue_threshold {
+            sf.high_fatigue_max_new_ratio
+        } else {
+            0.5
+        };
 
-        if fatigue > 0.9 {
+        if fatigue > sf.high_fatigue_threshold {
             strategy.difficulty = DifficultyLevel::Easy;
             strategy.hint_level = strategy.hint_level.max(2);
-        } else if fatigue > 0.75 && strategy.difficulty == DifficultyLevel::Hard {
+        } else if fatigue > sf.mid_fatigue_threshold && strategy.difficulty == DifficultyLevel::Hard
+        {
             strategy.difficulty = DifficultyLevel::Mid;
         }
 
-        if state.attention < 0.3 {
+        if state.attention < sf.low_attention_threshold {
             strategy.hint_level = strategy.hint_level.max(1);
         }
 
         if let Some(s) = session {
-            if s.total_sessions < 5 {
+            if s.total_sessions < sf.new_user_session_threshold {
                 strategy.difficulty = DifficultyLevel::Easy;
                 strategy.hint_level = strategy.hint_level.max(1);
             }
-            if s.duration_minutes > 45.0 {
-                strategy.new_ratio = strategy.new_ratio.min(0.15);
+            if s.duration_minutes > sf.long_session_minutes {
+                strategy.new_ratio = strategy.new_ratio.min(sf.long_session_max_new_ratio);
             }
         }
 
@@ -381,5 +419,473 @@ fn snap_to_valid_grid(value: i32, grid: &[i32], min: i32, max: i32) -> i32 {
 impl Default for EnsembleDecision {
     fn default() -> Self {
         Self::new(FeatureFlags::default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::amas::config::{EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig};
+    use crate::amas::types::{CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState};
+
+    fn sample_strategy() -> StrategyParams {
+        StrategyParams {
+            difficulty: DifficultyLevel::Mid,
+            new_ratio: 0.2,
+            batch_size: 8,
+            interval_scale: 1.0,
+            hint_level: 1,
+        }
+    }
+
+    fn sample_user_state() -> UserState {
+        UserState {
+            attention: 0.7,
+            fatigue: 0.3,
+            cognitive: CognitiveProfile::default(),
+            motivation: 0.5,
+            habit: None,
+            trend: None,
+            conf: 0.5,
+            ts: 0,
+            visual_fatigue: None,
+            fused_fatigue: None,
+        }
+    }
+
+    fn sample_feature_vector() -> FeatureVector {
+        FeatureVector::new(vec![0.5; 5], vec!["f".to_string(); 5])
+    }
+
+    #[test]
+    fn new_creates_with_feature_flags() {
+        let flags = FeatureFlags {
+            thompson_enabled: true,
+            linucb_enabled: false,
+            heuristic_enabled: true,
+            ..Default::default()
+        };
+        let ensemble = EnsembleDecision::new(flags.clone());
+        assert_eq!(ensemble.feature_flags.thompson_enabled, true);
+        assert_eq!(ensemble.feature_flags.linucb_enabled, false);
+    }
+
+    #[test]
+    fn decide_returns_current_when_no_candidates() {
+        let flags = FeatureFlags {
+            thompson_enabled: false,
+            linucb_enabled: false,
+            heuristic_enabled: false,
+            ..Default::default()
+        };
+        let ensemble = EnsembleDecision::new(flags);
+        let state = sample_user_state();
+        let feature = sample_feature_vector();
+        let current = sample_strategy();
+        let (final_strategy, candidates) =
+            ensemble.decide(&state, &feature, &current, None, None, None, None);
+        assert_eq!(final_strategy.batch_size, current.batch_size);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn decide_includes_heuristic_when_enabled() {
+        let flags = FeatureFlags {
+            thompson_enabled: false,
+            linucb_enabled: false,
+            heuristic_enabled: true,
+            ..Default::default()
+        };
+        let ensemble = EnsembleDecision::new(flags);
+        let state = sample_user_state();
+        let feature = sample_feature_vector();
+        let current = sample_strategy();
+        let (_, candidates) = ensemble.decide(&state, &feature, &current, None, None, None, None);
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.source == "heuristic"));
+    }
+
+    #[test]
+    fn decide_includes_thompson_when_provided() {
+        let flags = FeatureFlags {
+            thompson_enabled: true,
+            linucb_enabled: false,
+            heuristic_enabled: false,
+            ..Default::default()
+        };
+        let ensemble = EnsembleDecision::new(flags);
+        let state = sample_user_state();
+        let feature = sample_feature_vector();
+        let current = sample_strategy();
+        let thompson_action = StrategyParams {
+            difficulty: DifficultyLevel::Hard,
+            ..sample_strategy()
+        };
+        let (_, candidates) = ensemble.decide(
+            &state,
+            &feature,
+            &current,
+            Some(&thompson_action),
+            Some(0.8),
+            None,
+            None,
+        );
+        assert!(candidates.iter().any(|c| c.source == "thompson"));
+    }
+
+    #[test]
+    fn decide_includes_linucb_when_provided() {
+        let flags = FeatureFlags {
+            thompson_enabled: false,
+            linucb_enabled: true,
+            heuristic_enabled: false,
+            ..Default::default()
+        };
+        let ensemble = EnsembleDecision::new(flags);
+        let state = sample_user_state();
+        let feature = sample_feature_vector();
+        let current = sample_strategy();
+        let linucb_action = StrategyParams {
+            difficulty: DifficultyLevel::Easy,
+            ..sample_strategy()
+        };
+        let (_, candidates) = ensemble.decide(
+            &state,
+            &feature,
+            &current,
+            None,
+            None,
+            Some(&linucb_action),
+            Some(0.7),
+        );
+        assert!(candidates.iter().any(|c| c.source == "linucb"));
+    }
+
+    #[test]
+    fn weighted_merge_returns_default_for_empty() {
+        let ensemble = EnsembleDecision::default();
+        let merged = ensemble.weighted_merge(&[]);
+        assert_eq!(merged.batch_size, StrategyParams::default().batch_size);
+    }
+
+    #[test]
+    fn weighted_merge_returns_first_when_zero_weight() {
+        let ensemble = EnsembleDecision::default();
+        let candidates = vec![DecisionCandidate {
+            source: "test".to_string(),
+            strategy: StrategyParams {
+                batch_size: 12,
+                ..sample_strategy()
+            },
+            confidence: 0.0,
+            weight: 0.0,
+        }];
+        let merged = ensemble.weighted_merge(&candidates);
+        assert_eq!(merged.batch_size, 12);
+    }
+
+    #[test]
+    fn weighted_merge_snaps_values() {
+        let ensemble = EnsembleDecision::default();
+        let candidates = vec![DecisionCandidate {
+            source: "a".to_string(),
+            strategy: StrategyParams {
+                interval_scale: 1.49,
+                new_ratio: 0.39,
+                batch_size: 15,
+                hint_level: 1,
+                difficulty: DifficultyLevel::Hard,
+            },
+            confidence: 1.0,
+            weight: 1.0,
+        }];
+        let merged = ensemble.weighted_merge(&candidates);
+        assert_eq!(merged.batch_size, 16);
+        assert!((merged.new_ratio - 0.4).abs() < 1e-6);
+        assert!((merged.interval_scale - 1.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn weighted_merge_averages_multiple_candidates() {
+        let ensemble = EnsembleDecision::default();
+        let candidates = vec![
+            DecisionCandidate {
+                source: "a".to_string(),
+                strategy: StrategyParams {
+                    new_ratio: 0.1,
+                    batch_size: 5,
+                    ..sample_strategy()
+                },
+                confidence: 1.0,
+                weight: 0.5,
+            },
+            DecisionCandidate {
+                source: "b".to_string(),
+                strategy: StrategyParams {
+                    new_ratio: 0.3,
+                    batch_size: 16,
+                    ..sample_strategy()
+                },
+                confidence: 1.0,
+                weight: 0.5,
+            },
+        ];
+        let merged = ensemble.weighted_merge(&candidates);
+        assert_eq!(merged.new_ratio, 0.2);
+    }
+
+    #[test]
+    fn weighted_merge_selects_majority_difficulty() {
+        let ensemble = EnsembleDecision::default();
+        let candidates = vec![
+            DecisionCandidate {
+                source: "a".to_string(),
+                strategy: StrategyParams {
+                    difficulty: DifficultyLevel::Hard,
+                    ..sample_strategy()
+                },
+                confidence: 1.0,
+                weight: 0.6,
+            },
+            DecisionCandidate {
+                source: "b".to_string(),
+                strategy: StrategyParams {
+                    difficulty: DifficultyLevel::Easy,
+                    ..sample_strategy()
+                },
+                confidence: 1.0,
+                weight: 0.4,
+            },
+        ];
+        let merged = ensemble.weighted_merge(&candidates);
+        assert_eq!(merged.difficulty, DifficultyLevel::Hard);
+    }
+
+    #[test]
+    fn post_filter_reduces_batch_on_high_fatigue() {
+        let ensemble = EnsembleDecision::default();
+        let mut state = sample_user_state();
+        state.fatigue = 0.95;
+        let strategy = StrategyParams {
+            batch_size: 16,
+            difficulty: DifficultyLevel::Hard,
+            ..sample_strategy()
+        };
+        let filtered = ensemble.post_filter(strategy, &state, None);
+        assert!(filtered.batch_size <= ensemble.config.safety_filter.high_fatigue_max_batch);
+        assert_eq!(filtered.difficulty, DifficultyLevel::Easy);
+    }
+
+    #[test]
+    fn post_filter_increases_hint_on_low_attention() {
+        let ensemble = EnsembleDecision::default();
+        let mut state = sample_user_state();
+        state.attention = 0.2;
+        let strategy = StrategyParams {
+            hint_level: 0,
+            ..sample_strategy()
+        };
+        let filtered = ensemble.post_filter(strategy, &state, None);
+        assert!(filtered.hint_level >= 1);
+    }
+
+    #[test]
+    fn post_filter_adjusts_for_new_user() {
+        let ensemble = EnsembleDecision::default();
+        let state = sample_user_state();
+        let strategy = StrategyParams {
+            difficulty: DifficultyLevel::Hard,
+            ..sample_strategy()
+        };
+        let session = SessionInfo {
+            total_sessions: 2,
+            duration_minutes: 10.0,
+        };
+        let filtered = ensemble.post_filter(strategy, &state, Some(&session));
+        assert_eq!(filtered.difficulty, DifficultyLevel::Easy);
+    }
+
+    #[test]
+    fn post_filter_limits_new_ratio_for_long_session() {
+        let config = EnsembleConfig {
+            safety_filter: SafetyFilterConfig {
+                long_session_minutes: 30.0,
+                long_session_max_new_ratio: 0.15,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let ensemble = EnsembleDecision::with_config(FeatureFlags::default(), config);
+        let state = sample_user_state();
+        let strategy = StrategyParams {
+            new_ratio: 0.4,
+            ..sample_strategy()
+        };
+        let session = SessionInfo {
+            total_sessions: 20,
+            duration_minutes: 60.0,
+        };
+        let filtered = ensemble.post_filter(strategy, &state, Some(&session));
+        assert!(filtered.new_ratio <= 0.15);
+    }
+
+    #[test]
+    fn strategy_similarity_identical_strategies() {
+        let s1 = sample_strategy();
+        let s2 = sample_strategy();
+        let weights = StrategySimilarityWeights::default();
+        let sim = strategy_similarity(&s1, &s2, &weights);
+        assert!((sim - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn strategy_similarity_different_difficulty() {
+        let s1 = StrategyParams {
+            difficulty: DifficultyLevel::Easy,
+            ..sample_strategy()
+        };
+        let s2 = StrategyParams {
+            difficulty: DifficultyLevel::Hard,
+            ..sample_strategy()
+        };
+        let weights = StrategySimilarityWeights::default();
+        let sim = strategy_similarity(&s1, &s2, &weights);
+        assert!(sim < 1.0);
+    }
+
+    #[test]
+    fn performance_tracker_warmup_phase() {
+        let config = PerformanceTrackerConfig {
+            warmup_samples: 10,
+            ..Default::default()
+        };
+        let mut tracker = PerformanceTracker::new(config);
+        let candidates = vec![DecisionCandidate {
+            source: "algo1".to_string(),
+            strategy: sample_strategy(),
+            confidence: 1.0,
+            weight: 1.0,
+        }];
+        for _ in 0..5 {
+            tracker.update(
+                &candidates,
+                &sample_strategy(),
+                1.0,
+                &StrategySimilarityWeights::default(),
+            );
+        }
+        let perf = tracker.algorithms.get("algo1").unwrap();
+        assert_eq!(perf.sample_count, 5);
+        assert!((perf.ema_reward - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn performance_tracker_updates_after_warmup() {
+        let config = PerformanceTrackerConfig {
+            warmup_samples: 5,
+            ema_alpha: 0.1,
+            ..Default::default()
+        };
+        let mut tracker = PerformanceTracker::new(config);
+        let candidates = vec![DecisionCandidate {
+            source: "algo1".to_string(),
+            strategy: sample_strategy(),
+            confidence: 1.0,
+            weight: 1.0,
+        }];
+        for _ in 0..10 {
+            tracker.update(
+                &candidates,
+                &sample_strategy(),
+                1.0,
+                &StrategySimilarityWeights::default(),
+            );
+        }
+        let perf = tracker.algorithms.get("algo1").unwrap();
+        assert!(perf.ema_reward > 0.0);
+    }
+
+    #[test]
+    fn performance_tracker_get_weights_during_warmup() {
+        let config = PerformanceTrackerConfig {
+            warmup_samples: 100,
+            ..Default::default()
+        };
+        let tracker = PerformanceTracker::new(config);
+        let weights = tracker.get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
+        let total: f64 = weights.values().sum();
+        assert!((total - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn normalize_sums_to_one() {
+        let mut weights = HashMap::new();
+        weights.insert("a".to_string(), 2.0);
+        weights.insert("b".to_string(), 3.0);
+        normalize(&mut weights);
+        let total: f64 = weights.values().sum();
+        assert!((total - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn normalize_handles_zero_total() {
+        let mut weights = HashMap::new();
+        weights.insert("a".to_string(), 0.0);
+        weights.insert("b".to_string(), 0.0);
+        normalize(&mut weights);
+        assert_eq!(weights.get("a"), Some(&0.0));
+    }
+
+    #[test]
+    fn snap_to_valid_grid_selects_closest() {
+        let result = snap_to_valid_grid(7, &[5, 8, 12, 16], 3, 20);
+        assert_eq!(result, 8);
+    }
+
+    #[test]
+    fn snap_to_valid_grid_respects_bounds() {
+        let result = snap_to_valid_grid(16, &[5, 8, 12, 16], 3, 10);
+        assert_eq!(result, 8);
+    }
+
+    #[test]
+    fn snap_to_valid_grid_returns_min_when_empty() {
+        let result = snap_to_valid_grid(10, &[5, 8, 12, 16], 20, 25);
+        assert_eq!(result, 20);
+    }
+
+    #[test]
+    fn set_feature_flags_updates_flags() {
+        let mut ensemble = EnsembleDecision::default();
+        let new_flags = FeatureFlags {
+            thompson_enabled: false,
+            ..Default::default()
+        };
+        ensemble.set_feature_flags(new_flags);
+        assert_eq!(ensemble.feature_flags.thompson_enabled, false);
+    }
+
+    #[test]
+    fn set_config_resets_performance_tracker() {
+        let mut ensemble = EnsembleDecision::default();
+        let new_config = EnsembleConfig {
+            thompson_base_weight: 0.5,
+            ..Default::default()
+        };
+        ensemble.set_config(new_config);
+        assert!((ensemble.config.thompson_base_weight - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn update_performance_delegates_to_tracker() {
+        let mut ensemble = EnsembleDecision::default();
+        let candidates = vec![DecisionCandidate {
+            source: "test".to_string(),
+            strategy: sample_strategy(),
+            confidence: 1.0,
+            weight: 1.0,
+        }];
+        ensemble.update_performance(&candidates, &sample_strategy(), 1.0);
+        assert!(ensemble.performance.algorithms.contains_key("test"));
     }
 }

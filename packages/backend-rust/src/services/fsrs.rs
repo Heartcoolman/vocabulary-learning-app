@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 const DECAY: f64 = -0.5;
 const FACTOR: f64 = 19.0 / 81.0;
 
+const SHORT_TERM_WINDOW_MINUTES: f64 = 30.0;
+const SHORT_TERM_TAU_MINUTES: f64 = 10.0;
+const SHORT_TERM_WEIGHT: f64 = 0.15;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FSRSParams {
     pub w: [f64; 17],
@@ -18,6 +22,132 @@ impl Default for FSRSParams {
                 1.26, 0.29, 2.61, // w14-w16
             ],
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserFSRSParams {
+    pub base: FSRSParams,
+    pub adjustments: [f64; 17],
+    pub sample_count: i64,
+    pub last_updated: i64,
+    #[serde(default)]
+    pub bayesian: Option<BayesianFSRSParams>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BayesianFSRSParams {
+    pub log_w_mean: [f64; 17],
+    pub log_w_precision: [f64; 17],
+    pub samples: Vec<RetentionSample>,
+    pub population_mean: [f64; 17],
+    pub population_var: [f64; 17],
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetentionSample {
+    pub stability: f64,
+    pub elapsed_days: f64,
+    pub actual_recalled: bool,
+}
+
+impl Default for BayesianFSRSParams {
+    fn default() -> Self {
+        let base = FSRSParams::default();
+        let log_w_mean: [f64; 17] = std::array::from_fn(|i| base.w[i].ln());
+        let log_w_precision = [1.0; 17];
+        let population_var = [0.25; 17];
+        Self {
+            log_w_mean,
+            log_w_precision,
+            samples: Vec::new(),
+            population_mean: log_w_mean,
+            population_var,
+        }
+    }
+}
+
+impl BayesianFSRSParams {
+    pub fn add_sample(&mut self, sample: RetentionSample) {
+        self.samples.push(sample);
+        if self.samples.len() > 500 {
+            self.samples.drain(0..100);
+        }
+    }
+
+    pub fn optimize(&mut self, learning_rate: f64) {
+        if self.samples.len() < 20 {
+            return;
+        }
+
+        let lr = learning_rate.clamp(0.001, 0.05);
+        for sample in &self.samples {
+            let predicted = self.predict_recall(sample.stability, sample.elapsed_days);
+            let actual = if sample.actual_recalled { 1.0 } else { 0.0 };
+            let error = actual - predicted;
+
+            for i in 0..17 {
+                let grad = error * 0.1;
+                let prior_term =
+                    (self.log_w_mean[i] - self.population_mean[i]) / self.population_var[i];
+                let full_grad = grad - 0.01 * prior_term;
+
+                self.log_w_precision[i] += full_grad * full_grad;
+                let step = lr * full_grad / (self.log_w_precision[i].sqrt() + 1e-8);
+                self.log_w_mean[i] += step;
+            }
+        }
+        self.samples.clear();
+    }
+
+    pub fn predict_recall(&self, stability: f64, elapsed_days: f64) -> f64 {
+        if stability <= 0.0 {
+            return 0.0;
+        }
+        (1.0 + FACTOR * elapsed_days / stability).powf(DECAY)
+    }
+
+    pub fn effective_params(&self) -> FSRSParams {
+        let w: [f64; 17] = std::array::from_fn(|i| self.log_w_mean[i].exp().clamp(0.01, 100.0));
+        FSRSParams { w }
+    }
+}
+
+impl Default for UserFSRSParams {
+    fn default() -> Self {
+        Self {
+            base: FSRSParams::default(),
+            adjustments: [1.0; 17],
+            sample_count: 0,
+            last_updated: 0,
+            bayesian: None,
+        }
+    }
+}
+
+impl UserFSRSParams {
+    pub fn effective_params(&self) -> FSRSParams {
+        let mut w = self.base.w;
+        for i in 0..17 {
+            w[i] *= self.adjustments[i];
+        }
+        FSRSParams { w }
+    }
+
+    pub fn update_from_retention(&mut self, predicted: f64, actual: f64, learning_rate: f64) {
+        let error = actual - predicted;
+        let lr = learning_rate.clamp(0.01, 0.2);
+        for i in 4..9 {
+            self.adjustments[i] *= 1.0 + error * lr;
+            self.adjustments[i] = self.adjustments[i].clamp(0.5, 2.0);
+        }
+        self.sample_count += 1;
+        self.last_updated = chrono::Utc::now().timestamp_millis();
+    }
+
+    pub fn reset(&mut self) {
+        self.adjustments = [1.0; 17];
+        self.sample_count = 0;
     }
 }
 
@@ -81,11 +211,32 @@ pub struct FSRSResult {
 }
 
 pub fn fsrs_retrievability(stability: f64, elapsed_days: f64) -> f64 {
+    fsrs5_retrievability(stability, elapsed_days, None, 0)
+}
+
+pub fn fsrs5_retrievability(
+    stability: f64,
+    elapsed_days: f64,
+    last_review_ts: Option<i64>,
+    current_ts: i64,
+) -> f64 {
     if stability <= 0.0 {
         return 0.0;
     }
     let safe_elapsed = elapsed_days.max(0.0);
-    (1.0 + FACTOR * safe_elapsed / stability).powf(DECAY)
+    let long_term = (1.0 + FACTOR * safe_elapsed / stability).powf(DECAY);
+
+    if let Some(last_ts) = last_review_ts {
+        if current_ts > last_ts {
+            let elapsed_minutes = (current_ts - last_ts) as f64 / 60_000.0;
+            if elapsed_minutes < SHORT_TERM_WINDOW_MINUTES {
+                let short_term_decay = (-elapsed_minutes / SHORT_TERM_TAU_MINUTES).exp();
+                let short_term_boost = SHORT_TERM_WEIGHT * short_term_decay;
+                return (long_term + short_term_boost).min(1.0);
+            }
+        }
+    }
+    long_term
 }
 
 pub fn fsrs_next_interval(
