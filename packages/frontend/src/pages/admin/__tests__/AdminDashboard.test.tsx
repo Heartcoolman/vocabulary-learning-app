@@ -66,6 +66,14 @@ vi.mock('../../../hooks/mutations', () => ({
     isCheckingStatus: false,
     isUpdateInProgress: false,
   }),
+  useRestartBackend: () => ({
+    restartBackend: vi.fn(),
+    isRestarting: false,
+    restartError: null,
+    isConfirmModalOpen: false,
+    openConfirmModal: vi.fn(),
+    closeConfirmModal: vi.fn(),
+  }),
 }));
 
 // Mock useToast hook
