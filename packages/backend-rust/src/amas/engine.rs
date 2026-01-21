@@ -266,12 +266,13 @@ impl AMASEngine {
                 )
             );
 
-            let session_info = options.total_sessions.map(|total| {
-                crate::amas::decision::ensemble::SessionInfo {
-                    total_sessions: total,
-                    duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
-                }
-            });
+            let session_info =
+                options
+                    .total_sessions
+                    .map(|total| crate::amas::decision::ensemble::SessionInfo {
+                        total_sessions: total,
+                        duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
+                    });
             let filtered_strategy =
                 ensemble.post_filter(raw_strategy, &new_user_state, session_info.as_ref());
 
