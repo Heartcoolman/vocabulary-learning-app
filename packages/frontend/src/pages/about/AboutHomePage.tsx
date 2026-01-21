@@ -40,7 +40,7 @@ const STAGES: StageConfig[] = [
       '个性化遗忘曲线拟合',
       'ACT-R 记忆激活度追踪',
       '认知反应速度建模',
-      '知识图谱掌握度映射',
+      'TrendAnalyzer 学习趋势洞察',
     ],
     accentColor: 'bg-purple-500',
     bgColor: 'bg-purple-50 dark:bg-purple-900/20',
@@ -53,7 +53,7 @@ const STAGES: StageConfig[] = [
     details: [
       'Thompson Sampling 采样',
       'LinUCB 上下文赌博机',
-      'ACT-R 间隔重复算法',
+      'FSRS 个性化间隔调度',
       'Ensemble 集成策略投票',
     ],
     accentColor: 'bg-amber-500',

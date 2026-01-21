@@ -39,16 +39,20 @@ const ALGO_COLORS: Record<string, string> = {
   thompson: 'text-blue-500',
   linucb: 'text-purple-500',
   actr: 'text-amber-500',
+  fsrs: 'text-cyan-500',
   heuristic: 'text-emerald-500',
   coldstart: 'text-gray-500',
+  trendAnalyzer: 'text-teal-500',
 };
 
 const ALGO_BG: Record<string, string> = {
   thompson: 'bg-blue-500',
   linucb: 'bg-purple-500',
   actr: 'bg-amber-500',
+  fsrs: 'bg-cyan-500',
   heuristic: 'bg-emerald-500',
   coldstart: 'bg-gray-500',
+  trendAnalyzer: 'bg-teal-500',
 };
 
 const SCENARIOS = [
