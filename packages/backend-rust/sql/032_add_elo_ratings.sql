@@ -12,8 +12,7 @@ ALTER TABLE "words" ADD COLUMN IF NOT EXISTS "eloGamesPlayed" INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS "idx_users_ability_elo" ON "users"("abilityElo");
 CREATE INDEX IF NOT EXISTS "idx_words_difficulty_elo" ON "words"("difficultyElo");
 
--- Initialize word Elo based on existing difficulty data
+-- Initialize word Elo based on word length (simple heuristic)
 UPDATE "words" SET
   "difficultyElo" = 1100.0 + 400.0 * LEAST(1.0, GREATEST(0.0, (LENGTH("spelling") - 3.0) / 12.0))
-                  + 300.0 * LEAST(1.0, GREATEST(0.0, 1.0 - COALESCE("frequency", 0.5)))
 WHERE "difficultyElo" = 1200.0;
