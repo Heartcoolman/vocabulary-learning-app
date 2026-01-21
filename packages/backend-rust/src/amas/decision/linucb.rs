@@ -97,6 +97,8 @@ impl LinUCBModel {
             *self = Self::new(context_dim, action_dim, alpha);
             return;
         }
+        // Always update alpha to reflect config changes
+        self.alpha = alpha;
         if self.context_dim != context_dim || self.action_dim != action_dim {
             let a_matches =
                 self.a.len() == expected && self.a.iter().all(|row| row.len() == expected);

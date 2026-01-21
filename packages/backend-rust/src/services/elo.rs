@@ -94,6 +94,39 @@ pub async fn get_word_elo(proxy: &DatabaseProxy, word_id: &str) -> Result<f64, s
         .unwrap_or(DEFAULT_ELO))
 }
 
+pub async fn get_word_elos_bulk(
+    proxy: &DatabaseProxy,
+    word_ids: &[String],
+) -> Result<std::collections::HashMap<String, f64>, sqlx::Error> {
+    use std::collections::HashMap;
+
+    if word_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let pool = proxy.pool();
+    let placeholders: Vec<String> = (1..=word_ids.len()).map(|i| format!("${}", i)).collect();
+    let query = format!(
+        r#"SELECT "id", "difficultyElo" FROM "words" WHERE "id" IN ({})"#,
+        placeholders.join(", ")
+    );
+
+    let mut q = sqlx::query(&query);
+    for id in word_ids {
+        q = q.bind(id);
+    }
+
+    let rows = q.fetch_all(pool).await?;
+    let mut result: HashMap<String, f64> = HashMap::new();
+    for row in rows {
+        let id: String = row.try_get("id")?;
+        let elo: Option<f64> = row.try_get("difficultyElo").ok().flatten();
+        result.insert(id, elo.unwrap_or(DEFAULT_ELO));
+    }
+
+    Ok(result)
+}
+
 pub async fn update_elo_ratings_db(
     proxy: &DatabaseProxy,
     user_id: &str,
@@ -107,17 +140,21 @@ pub async fn update_elo_ratings_db(
     let update = update_ratings(user_elo, word_elo, is_correct, response_time_ms);
 
     let pool = proxy.pool();
+    let mut tx = pool.begin().await?;
+
     sqlx::query(r#"UPDATE "users" SET "abilityElo" = $2, "eloGamesPlayed" = COALESCE("eloGamesPlayed", 0) + 1 WHERE "id" = $1"#)
         .bind(user_id)
         .bind(update.new_user_elo)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
     sqlx::query(r#"UPDATE "words" SET "difficultyElo" = $2, "eloGamesPlayed" = COALESCE("eloGamesPlayed", 0) + 1 WHERE "id" = $1"#)
         .bind(word_id)
         .bind(update.new_word_elo)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
+
+    tx.commit().await?;
 
     Ok(update)
 }

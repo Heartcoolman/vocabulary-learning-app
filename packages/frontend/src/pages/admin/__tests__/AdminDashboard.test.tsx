@@ -68,9 +68,10 @@ vi.mock('../../../hooks/mutations', () => ({
   }),
   useRestartBackend: () => ({
     restartBackend: vi.fn(),
+    isPending: false,
+    error: null,
     isRestarting: false,
-    restartError: null,
-    isConfirmModalOpen: false,
+    isConfirmOpen: false,
     openConfirmModal: vi.fn(),
     closeConfirmModal: vi.fn(),
   }),

@@ -582,6 +582,11 @@ async fn get_due_words_with_priority(
         .unwrap_or(1200.0);
     let zpd_config = crate::services::zpd::ZPDConfig::default();
 
+    // Bulk load word Elos to avoid N+1 queries
+    let word_elo_map = crate::services::elo::get_word_elos_bulk(proxy, &word_ids)
+        .await
+        .unwrap_or_default();
+
     let mut results = Vec::new();
     for state_row in word_states {
         let Some(word) = word_map.get(state_row.word_id.as_str()) else {
@@ -612,8 +617,9 @@ async fn get_due_words_with_priority(
             + total_score.map(|v| (100.0 - v) * 0.3).unwrap_or(30.0);
 
         // Apply ZPD adjustment to priority
-        let word_elo = crate::services::elo::get_word_elo(proxy, &state_row.word_id)
-            .await
+        let word_elo = word_elo_map
+            .get(&state_row.word_id)
+            .copied()
             .unwrap_or(1200.0);
         let priority =
             crate::services::zpd::adjust_priority(base_priority, user_elo, word_elo, &zpd_config);

@@ -146,8 +146,11 @@ impl ColdStartManager {
     fn handle_explore(&mut self, accuracy: f64) -> Option<StrategyParams> {
         self.state.update_count += 1;
 
-        let min_total_samples = self.config.min_classify_samples + self.config.min_explore_samples;
-        if self.state.update_count >= min_total_samples {
+        // Calculate actual explore samples (update_count includes classify samples)
+        let explore_samples = self.state.update_count - self.config.classify_samples;
+
+        // Early exit only if we have enough explore samples AND accuracy is extreme
+        if explore_samples >= self.config.min_explore_samples {
             if accuracy >= self.config.explore_high_accuracy
                 || accuracy <= self.config.explore_low_accuracy
             {
@@ -155,7 +158,7 @@ impl ColdStartManager {
             }
         }
 
-        if self.state.update_count >= self.config.classify_samples + self.config.explore_samples {
+        if explore_samples >= self.config.explore_samples {
             return self.finish_explore(accuracy);
         }
 
@@ -438,7 +441,10 @@ mod tests {
         manager.update(0.9, 1500);
         manager.update(0.9, 1500);
         assert!(matches!(manager.phase(), ColdStartPhase::Explore));
-        // Third update with high accuracy triggers early exit
+        // Third update: first explore sample, not enough yet
+        manager.update(0.9, 1500);
+        assert!(matches!(manager.phase(), ColdStartPhase::Explore));
+        // Fourth update: second explore sample with high accuracy triggers early exit
         manager.update(0.9, 1500);
         assert!(matches!(manager.phase(), ColdStartPhase::Normal));
         assert!(manager.is_complete());
@@ -459,7 +465,10 @@ mod tests {
         manager.update(0.4, 5000);
         manager.update(0.4, 5000);
         assert!(matches!(manager.phase(), ColdStartPhase::Explore));
-        // Third update with low accuracy triggers early exit
+        // Third update: first explore sample, not enough yet
+        manager.update(0.4, 5000);
+        assert!(matches!(manager.phase(), ColdStartPhase::Explore));
+        // Fourth update: second explore sample with low accuracy triggers early exit
         manager.update(0.4, 5000);
         assert!(matches!(manager.phase(), ColdStartPhase::Normal));
     }
