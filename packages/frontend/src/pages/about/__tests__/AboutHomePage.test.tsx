@@ -104,34 +104,23 @@ describe('AboutHomePage', () => {
       expect(screen.getByText(/多维度捕捉学习者的实时状态/)).toBeInTheDocument();
     });
 
-    it('should toggle stage card when clicking', async () => {
+    it('should display all stage details by default', () => {
       renderComponent();
 
-      // Click on the second stage
-      const modelingStage = screen.getByText('建模层');
-      fireEvent.click(modelingStage);
-
-      await waitFor(() => {
-        expect(screen.getByText(/构建动态的学习者认知模型/)).toBeInTheDocument();
-      });
+      // All stages show their details without clicking
+      expect(screen.getByText(/构建动态的学习者认知模型/)).toBeInTheDocument();
     });
 
-    it('should expand stage to show details', async () => {
+    it('should display learning stage description', () => {
       renderComponent();
 
-      // Click on learning stage
-      const learningStage = screen.getByText('学习层');
-      fireEvent.click(learningStage);
-
-      await waitFor(() => {
-        expect(screen.getByText(/持续进化的算法集成引擎/)).toBeInTheDocument();
-      });
+      expect(screen.getByText(/持续进化的算法集成引擎/)).toBeInTheDocument();
     });
 
-    it('should show stage details when expanded', async () => {
+    it('should show all stage details', () => {
       renderComponent();
 
-      // All stages now show their details
+      // All stages show their details
       expect(screen.getByText(/注意力追踪/)).toBeInTheDocument();
       expect(screen.getByText(/实时疲劳度监测/)).toBeInTheDocument();
       expect(screen.getByText(/学习动机与情绪评估/)).toBeInTheDocument();
@@ -145,39 +134,27 @@ describe('AboutHomePage', () => {
       expect(screen.getByText(/注意力追踪与响应分析/)).toBeInTheDocument();
     });
 
-    it('should display modeling stage details when expanded', async () => {
+    it('should display modeling stage details', () => {
       renderComponent();
 
-      fireEvent.click(screen.getByText('建模层'));
-
-      await waitFor(() => {
-        expect(screen.getByText(/个性化遗忘曲线/)).toBeInTheDocument();
-        expect(screen.getByText(/ACT-R 记忆激活度追踪/)).toBeInTheDocument();
-      });
+      expect(screen.getByText(/个性化遗忘曲线/)).toBeInTheDocument();
+      expect(screen.getByText(/ACT-R 记忆激活度追踪/)).toBeInTheDocument();
     });
 
-    it('should display learning stage details when expanded', async () => {
+    it('should display learning stage details', () => {
       renderComponent();
 
-      fireEvent.click(screen.getByText('学习层'));
-
-      await waitFor(() => {
-        expect(screen.getByText(/Thompson Sampling/)).toBeInTheDocument();
-        expect(screen.getByText(/LinUCB/)).toBeInTheDocument();
-        expect(screen.getByText(/ACT-R 间隔重复算法/)).toBeInTheDocument();
-      });
+      expect(screen.getByText(/Thompson Sampling/)).toBeInTheDocument();
+      expect(screen.getByText(/LinUCB/)).toBeInTheDocument();
+      expect(screen.getByText(/FSRS/)).toBeInTheDocument();
     });
 
-    it('should display decision stage details when expanded', async () => {
+    it('should display decision stage details', () => {
       renderComponent();
 
-      fireEvent.click(screen.getByText('决策层'));
-
-      await waitFor(() => {
-        expect(screen.getByText(/多目标路径优化/)).toBeInTheDocument();
-        expect(screen.getByText(/自适应难度匹配/)).toBeInTheDocument();
-        expect(screen.getByText(/动态复习间隔调度/)).toBeInTheDocument();
-      });
+      expect(screen.getByText(/多目标路径优化/)).toBeInTheDocument();
+      expect(screen.getByText(/自适应难度匹配/)).toBeInTheDocument();
+      expect(screen.getByText(/动态复习间隔调度/)).toBeInTheDocument();
     });
   });
 
@@ -193,18 +170,15 @@ describe('AboutHomePage', () => {
     });
   });
 
-  describe('Card Collapse', () => {
-    it('should collapse stage when clicking the same stage again', async () => {
+  describe('Card Layout', () => {
+    it('should display all cards with their content visible', () => {
       renderComponent();
 
-      // First stage is open by default
+      // All stage descriptions are visible
       expect(screen.getByText(/多维度捕捉学习者的实时状态/)).toBeInTheDocument();
-
-      // Click on the first stage to collapse it
-      fireEvent.click(screen.getByText('感知层'));
-
-      // Description should still be visible in collapsed state as a one-liner
-      // The detailed list should be collapsed
+      expect(screen.getByText(/构建动态的学习者认知模型/)).toBeInTheDocument();
+      expect(screen.getByText(/持续进化的算法集成引擎/)).toBeInTheDocument();
+      expect(screen.getByText(/生成个性化的学习策略/)).toBeInTheDocument();
     });
   });
 
