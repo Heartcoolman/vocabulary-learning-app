@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Brain, Lightning, Scales, CaretRight } from '@phosphor-icons/react';
+import { G3_DURATION, G3_EASING } from '../../utils/animations';
 
 interface Layer {
   id: string;
@@ -71,7 +72,7 @@ export default function AboutCascade() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: G3_DURATION.slower / 1000, ease: G3_EASING.standard }}
             >
               <h1 className="mb-6 text-5xl font-extrabold tracking-tight text-slate-900 lg:text-7xl">
                 AMAS <span className="block font-light text-slate-400 lg:inline">系统</span>
@@ -97,11 +98,11 @@ export default function AboutCascade() {
                   scale: activeId === layer.id ? 1.02 : 1,
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className={`relative cursor-pointer overflow-hidden rounded-xl border backdrop-blur-md transition-colors duration-300 ${activeId === layer.id ? 'bg-white shadow-xl ring-1 ring-slate-900/5' : `${layer.bg} border-transparent shadow-sm hover:border-slate-200`}`}
+                className={`relative cursor-pointer overflow-hidden rounded-xl border backdrop-blur-md transition-colors duration-g3-normal ${activeId === layer.id ? 'bg-white shadow-xl ring-1 ring-slate-900/5' : `${layer.bg} border-transparent shadow-sm hover:border-slate-200`}`}
               >
                 <div className="flex items-start gap-5 p-6">
                   <div
-                    className={`rounded-xl p-3.5 transition-colors duration-300 ${activeId === layer.id ? layer.accent + ' text-white' : 'bg-white ' + layer.color}`}
+                    className={`rounded-xl p-3.5 transition-colors duration-g3-normal ${activeId === layer.id ? layer.accent + ' text-white' : 'bg-white ' + layer.color}`}
                   >
                     <layer.icon size={28} weight={activeId === layer.id ? 'fill' : 'bold'} />
                   </div>
@@ -115,7 +116,7 @@ export default function AboutCascade() {
                       <CaretRight
                         size={20}
                         weight="bold"
-                        className={`transition-transform duration-300 ${activeId === layer.id ? 'rotate-90 text-slate-300' : 'text-slate-400'}`}
+                        className={`transition-transform duration-g3-normal ease-g3 ${activeId === layer.id ? 'rotate-90 text-slate-300' : 'text-slate-400'}`}
                       />
                     </div>
                     <p
@@ -129,6 +130,10 @@ export default function AboutCascade() {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
+                          transition={{
+                            duration: G3_DURATION.normal / 1000,
+                            ease: G3_EASING.standard,
+                          }}
                           className="overflow-hidden"
                         >
                           <p className="pb-2 leading-relaxed text-slate-600">{layer.description}</p>
@@ -169,7 +174,7 @@ export default function AboutCascade() {
                     />
                   </motion.div>
                   <div
-                    className={`text-sm font-semibold transition-all duration-300 ${activeId === layer.id ? 'translate-x-1 text-slate-900' : 'text-slate-300'}`}
+                    className={`text-sm font-semibold transition-all duration-g3-normal ${activeId === layer.id ? 'translate-x-1 text-slate-900' : 'text-slate-300'}`}
                   >
                     {layer.title}
                   </div>

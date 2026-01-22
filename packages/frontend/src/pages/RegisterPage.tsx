@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft } from '../components/Icon';
+import { Spinner } from '../components/ui/Spinner';
 
 /**
  * 注册页面组件
@@ -209,7 +210,7 @@ export default function RegisterPage() {
             >
               {loading ? (
                 <span className="flex items-center justify-center">
-                  <span className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white"></span>
+                  <Spinner size="sm" color="white" className="mr-2" />
                   注册中...
                 </span>
               ) : (

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckType, Task } from '../api';
 import { TaskProgress } from '../hooks';
 import { Play, CircleNotch } from '@phosphor-icons/react';
+import { G3_DURATION, G3_EASING } from '../../../../utils/animations';
+import { Spinner, InlineSpinner } from '../../../../components/ui/Spinner';
 
 interface Props {
   onStart: (type: CheckType) => void;
@@ -76,7 +78,7 @@ export const TaskRunner: React.FC<Props> = ({
                 className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? (
-                  <CircleNotch className="h-5 w-5 animate-spin" />
+                  <Spinner size="sm" color="white" />
                 ) : (
                   <Play weight="fill" className="h-5 w-5" />
                 )}
@@ -95,7 +97,7 @@ export const TaskRunner: React.FC<Props> = ({
                     className="h-full rounded-full bg-blue-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${percent}%` }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: G3_DURATION.slower / 1000, ease: 'linear' }}
                   />
                 </div>
                 <div className="mt-1 flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
@@ -122,6 +124,7 @@ export const TaskRunner: React.FC<Props> = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: G3_DURATION.normal / 1000, ease: G3_EASING.standard }}
             className="mt-4 grid grid-cols-4 gap-4 divide-x divide-gray-100 border-t border-gray-100 pt-4 text-center dark:divide-slate-700 dark:border-slate-700"
           >
             <div>
@@ -143,7 +146,7 @@ export const TaskRunner: React.FC<Props> = ({
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400">状态</div>
               <div className="flex items-center justify-center gap-1 font-mono font-semibold text-blue-600">
-                <CircleNotch className="h-3 w-3 animate-spin" />
+                <InlineSpinner size="sm" className="text-blue-600" />
                 进行中
               </div>
             </div>

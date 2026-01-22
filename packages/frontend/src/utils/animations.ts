@@ -348,3 +348,92 @@ export const pulseSoftVariants: Variants = {
     },
   },
 };
+
+/* ========================================
+ * 补充迁移变体 (从 animation-variants.ts 合并)
+ * ======================================== */
+
+/**
+ * 勾选图标绘制动画
+ * 用于 Checkbox 或操作成功反馈
+ */
+export const checkmarkVariants: Variants = {
+  hidden: { pathLength: 0, opacity: 0 },
+  visible: {
+    pathLength: 1,
+    opacity: 1,
+    transition: {
+      duration: G3_DURATION.normal / 1000,
+      ease: G3_EASING.standard,
+    },
+  },
+  exit: {
+    pathLength: 0,
+    opacity: 0,
+    transition: {
+      duration: G3_DURATION.fast / 1000,
+      ease: G3_EASING.exit,
+    },
+  },
+};
+
+/**
+ * Toast 通知入场动画
+ * 右侧滑入 + 弹性
+ */
+export const toastVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    x: 24,
+    scale: 0.95,
+  },
+  visible: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: g3SpringSnappy,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    transition: {
+      duration: G3_DURATION.fast / 1000,
+      ease: G3_EASING.exit,
+    },
+  },
+};
+
+/**
+ * 错误震动反馈
+ */
+export const shakeVariants: Variants = {
+  idle: { x: 0 },
+  error: {
+    x: [0, -4, 4, -4, 4, 0],
+    transition: {
+      duration: 0.4,
+      ease: G3_EASING.standard,
+    },
+  },
+};
+
+/**
+ * 按钮微交互变体
+ * 用于 wrap 按钮内容的 motion.div
+ */
+export const buttonInteractionVariants: Variants = {
+  hover: {
+    scale: 1.02,
+    transition: {
+      duration: G3_DURATION.fast / 1000,
+      ease: G3_EASING.standard,
+    },
+  },
+  tap: {
+    scale: 0.96,
+    transition: {
+      duration: G3_DURATION.instant / 1000,
+      ease: G3_EASING.standard,
+    },
+  },
+};
