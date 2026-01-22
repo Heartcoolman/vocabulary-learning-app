@@ -146,11 +146,10 @@ pub async fn update_elo_ratings_db(
         .and_then(|r| r.try_get::<Option<f64>, _>("abilityElo").ok().flatten())
         .unwrap_or(DEFAULT_ELO);
 
-    let word_row =
-        sqlx::query(r#"SELECT "difficultyElo" FROM "words" WHERE "id" = $1 FOR UPDATE"#)
-            .bind(word_id)
-            .fetch_optional(&mut *tx)
-            .await?;
+    let word_row = sqlx::query(r#"SELECT "difficultyElo" FROM "words" WHERE "id" = $1 FOR UPDATE"#)
+        .bind(word_id)
+        .fetch_optional(&mut *tx)
+        .await?;
     let word_elo = word_row
         .and_then(|r| r.try_get::<Option<f64>, _>("difficultyElo").ok().flatten())
         .unwrap_or(DEFAULT_ELO);

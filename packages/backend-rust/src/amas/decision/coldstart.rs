@@ -149,7 +149,10 @@ impl ColdStartManager {
 
         // Calculate actual explore samples. Use min_classify_samples as baseline since
         // early transition can happen before reaching classify_samples. Ensure non-negative.
-        let classify_baseline = self.config.min_classify_samples.min(self.state.update_count - 1);
+        let classify_baseline = self
+            .config
+            .min_classify_samples
+            .min(self.state.update_count - 1);
         let explore_samples = (self.state.update_count - classify_baseline).max(1);
 
         // Early exit only if we have enough explore samples AND accuracy is extreme
