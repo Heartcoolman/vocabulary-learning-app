@@ -2,16 +2,17 @@
 
 ## v1.6.3
 
-### 2026-01-21 - AMAS 算法增强与 About 页面展示
+### 2026-01-22 - AMAS 算法增强与 About 页面展示
 
 **AMAS 决策算法增强**
 
 - Thompson Sampling 新增上下文感知，学习效果更精准
 - LinUCB 优化特征交互，策略推荐更智能
 - 冷启动加速，新用户更快进入个性化学习
-- Ensemble 集成器自适应权重，决策更稳定
-- 新增 ELO 评分，量化学习能力成长
+- Ensemble 集成器自适应权重与性能追踪，决策更稳定
+- 新增 ELO 评分系统，量化学习能力成长
 - 新增 ZPD (最近发展区) 分析，精准匹配学习难度
+- 新增 Heuristic 启发式决策算法
 
 **About 页面算法展示**
 
@@ -20,13 +21,9 @@
 - AboutDataFlow 数据流页面新增 FSRS 算法权重可视化
 - AboutDataFlow 新增「建模层算法」面板，展示 5 个核心算法实时状态
 
-**建模层算法面板**
+**管理后台**
 
-- 注意力监测 (Attention Monitor) - 实时追踪
-- 疲劳估计 (Fatigue Estimator) - 多源融合
-- 认知画像 (Cognitive Profiler) - 能力建模
-- 动机追踪 (Motivation Tracker) - 情绪识别
-- 趋势分析 (TrendAnalyzer) - 掌握预测
+- 新增后端服务重启功能
 
 **Bug 修复**
 
