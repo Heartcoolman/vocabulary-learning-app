@@ -14,6 +14,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::response::{json_error, AppError};
+use crate::services::amas_config::AMASConfigService;
 use crate::services::llm_provider::{ChatMessage, LLMProvider};
 use crate::state::AppState;
 
@@ -98,6 +99,14 @@ const VALID_SUGGESTION_TARGETS: &[(&str, &str)] = &[
         "newWordRatioLowAccuracyThreshold",
         "低正确率阈值：正确率低于此值时启用低正确率新词比例(0.0-1.0)",
     ),
+    (
+        "thompsonContextBins",
+        "Thompson上下文分桶数：上下文维度离散化的桶数量(>=2)",
+    ),
+    (
+        "thompsonContextWeight",
+        "Thompson上下文权重：上下文采样在最终策略中的权重(0.0-1.0)",
+    ),
 ];
 
 fn valid_target_set() -> HashSet<&'static str> {
@@ -105,6 +114,10 @@ fn valid_target_set() -> HashSet<&'static str> {
         .iter()
         .map(|(name, _)| *name)
         .collect()
+}
+
+fn is_thompson_context_target(target: &str) -> bool {
+    matches!(target, "thompsonContextBins" | "thompsonContextWeight")
 }
 
 #[derive(Serialize)]
@@ -483,43 +496,55 @@ async fn apply_suggestions_to_config(
     let pool = proxy.pool();
 
     let metrics_before = collect_current_metrics(pool).await;
-    let config_row =
-        sqlx::query(r#"SELECT "id" FROM "algorithm_configs" WHERE "isDefault" = true LIMIT 1"#)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "Failed to query default config");
-                json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
-            })?;
+    let needs_algorithm_config = suggestions
+        .iter()
+        .any(|item| !is_thompson_context_target(item.target.as_str()));
+    let config_id: Option<String> = if needs_algorithm_config {
+        let config_row =
+            sqlx::query(r#"SELECT "id" FROM "algorithm_configs" WHERE "isDefault" = true LIMIT 1"#)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!(error = %e, "Failed to query default config");
+                    json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
+                })?;
 
-    let config_id: String = match config_row {
-        Some(row) => row.try_get("id").unwrap_or_default(),
-        None => {
-            let first_row = sqlx::query(
-                r#"SELECT "id" FROM "algorithm_configs" ORDER BY "createdAt" ASC LIMIT 1"#,
-            )
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "Failed to query first config");
-                json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
-            })?;
-            match first_row {
-                Some(row) => row.try_get("id").unwrap_or_default(),
-                None => {
-                    tracing::warn!("No algorithm_configs found, skipping suggestion apply");
-                    return Ok(result);
+        let config_id: String = match config_row {
+            Some(row) => row.try_get("id").unwrap_or_default(),
+            None => {
+                let first_row = sqlx::query(
+                    r#"SELECT "id" FROM "algorithm_configs" ORDER BY "createdAt" ASC LIMIT 1"#,
+                )
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!(error = %e, "Failed to query first config");
+                    json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
+                })?;
+                match first_row {
+                    Some(row) => row.try_get("id").unwrap_or_default(),
+                    None => {
+                        tracing::warn!(
+                            "No algorithm_configs found, skipping algorithm-config suggestions"
+                        );
+                        String::new()
+                    }
                 }
             }
+        };
+
+        if config_id.is_empty() {
+            tracing::warn!("Empty config_id, skipping algorithm-config suggestions");
+            None
+        } else {
+            Some(config_id)
         }
+    } else {
+        None
     };
 
-    if config_id.is_empty() {
-        tracing::warn!("Empty config_id, skipping suggestion apply");
-        return Ok(result);
-    }
-
     let valid_targets = valid_target_set();
+    let mut amas_service: Option<AMASConfigService> = None;
 
     for item in suggestions {
         if !valid_targets.contains(item.target.as_str()) {
@@ -536,13 +561,107 @@ async fn apply_suggestions_to_config(
             continue;
         }
 
+        if is_thompson_context_target(item.target.as_str()) {
+            let service =
+                amas_service.get_or_insert_with(|| AMASConfigService::new(Arc::new(proxy.clone())));
+            let current_config = match service.get_config().await {
+                Ok(config) => config,
+                Err(e) => {
+                    result.failed.push(FailedItem {
+                        id: item.id.clone(),
+                        target: item.target.clone(),
+                        error: e.to_string(),
+                    });
+                    tracing::error!(
+                        error = %e,
+                        suggestion_id = %suggestion_id,
+                        target = %item.target,
+                        "Failed to read AMAS config"
+                    );
+                    continue;
+                }
+            };
+
+            let real_current_value = match item.target.as_str() {
+                "thompsonContextBins" => current_config.thompson_context.bins as f64,
+                "thompsonContextWeight" => current_config.thompson_context.weight,
+                _ => item.current_value,
+            };
+
+            let change_reason = format!("LLM建议审批: {}", item.reason);
+            let update_result = service
+                .update_thompson_context(
+                    &item.target,
+                    item.suggested_value,
+                    changed_by,
+                    &change_reason,
+                    Some(suggestion_id),
+                )
+                .await;
+
+            match update_result {
+                Ok(()) => {
+                    result.applied.push(item.id.clone());
+                    if let Err(e) = crate::db::operations::insert_suggestion_effect_tracking(
+                        proxy,
+                        suggestion_id,
+                        &item.id,
+                        &item.target,
+                        real_current_value,
+                        item.suggested_value,
+                        &metrics_before,
+                    )
+                    .await
+                    {
+                        tracing::warn!(error = %e, "Failed to insert suggestion effect tracking");
+                    }
+
+                    tracing::info!(
+                        suggestion_id = %suggestion_id,
+                        target = %item.target,
+                        old = real_current_value,
+                        new = item.suggested_value,
+                        "Applied LLM suggestion to AMAS config"
+                    );
+                }
+                Err(e) => {
+                    result.failed.push(FailedItem {
+                        id: item.id.clone(),
+                        target: item.target.clone(),
+                        error: e.to_string(),
+                    });
+                    tracing::error!(
+                        error = %e,
+                        suggestion_id = %suggestion_id,
+                        target = %item.target,
+                        "Failed to apply LLM suggestion to AMAS config"
+                    );
+                }
+            }
+            continue;
+        }
+
+        let Some(config_id) = config_id.as_ref() else {
+            result.skipped.push(SkippedItem {
+                id: item.id.clone(),
+                target: item.target.clone(),
+                reason: "缺少算法配置".to_string(),
+            });
+            tracing::warn!(
+                suggestion_id = %suggestion_id,
+                target = %item.target,
+                "Skipped suggestion without algorithm config"
+            );
+            continue;
+        };
+
         let field = item.target.as_str();
 
         let current_val_row = sqlx::query(&format!(
             r#"SELECT "{}" as "val" FROM "algorithm_configs" WHERE "id" = $1"#,
             field
         ))
-        .bind(&config_id)
+        .bind(config_id)
         .fetch_optional(pool)
         .await;
 
@@ -568,7 +687,7 @@ async fn apply_suggestions_to_config(
             sqlx::query(&sql)
                 .bind(item.suggested_value)
                 .bind(now)
-                .bind(&config_id)
+                .bind(config_id)
                 .execute(pool)
                 .await
         } else {
@@ -576,7 +695,7 @@ async fn apply_suggestions_to_config(
             sqlx::query(&sql)
                 .bind(int_value)
                 .bind(now)
-                .bind(&config_id)
+                .bind(config_id)
                 .execute(pool)
                 .await
         };
@@ -596,7 +715,7 @@ async fn apply_suggestions_to_config(
                     "#,
                 )
                 .bind(&history_id)
-                .bind(&config_id)
+                .bind(config_id)
                 .bind(changed_by)
                 .bind(&change_reason)
                 .bind(&prev_val)

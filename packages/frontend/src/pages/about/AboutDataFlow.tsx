@@ -38,6 +38,7 @@ interface AlgorithmWeights {
   linucb: number;
   heuristic: number;
   actr: number;
+  fsrs: number;
   coldstart: number;
 }
 
@@ -98,8 +99,17 @@ const ALGORITHMS = [
   { id: 'thompson', name: 'Thompson', desc: '概率采样', color: '#3B82F6' },
   { id: 'linucb', name: 'LinUCB', desc: '上下文探索', color: '#8B5CF6' },
   { id: 'actr', name: 'ACT-R', desc: '记忆模型', color: '#F59E0B' },
+  { id: 'fsrs', name: 'FSRS', desc: '17参数间隔调度', color: '#06B6D4' },
   { id: 'heuristic', name: '启发式', desc: '规则推理', color: '#10B981' },
   { id: 'coldstart', name: '冷启动', desc: '新用户策略', color: '#EC4899' },
+];
+
+const MODELING_ALGORITHMS = [
+  { id: 'attentionMonitor', name: '注意力监测', desc: '实时追踪', color: '#3B82F6' },
+  { id: 'fatigueEstimator', name: '疲劳估计', desc: '多源融合', color: '#EF4444' },
+  { id: 'cognitiveProfiler', name: '认知画像', desc: '能力建模', color: '#8B5CF6' },
+  { id: 'motivationTracker', name: '动机追踪', desc: '情绪识别', color: '#F59E0B' },
+  { id: 'trendAnalyzer', name: '趋势分析', desc: '掌握预测', color: '#14B8A6' },
 ];
 
 function generateMockFrame(prevFrame: FlowFrame | null): FlowFrame {
@@ -138,14 +148,21 @@ function generateMockFrame(prevFrame: FlowFrame | null): FlowFrame {
     thompson: 0.2 + Math.random() * 0.2,
     linucb: 0.15 + Math.random() * 0.2,
     actr: 0.15 + Math.random() * 0.15,
+    fsrs: 0.12 + Math.random() * 0.18,
     heuristic: 0.1 + Math.random() * 0.15,
     coldstart: 0.05 + Math.random() * 0.1,
   };
   const total =
-    weights.thompson + weights.linucb + weights.actr + weights.heuristic + weights.coldstart;
+    weights.thompson +
+    weights.linucb +
+    weights.actr +
+    weights.fsrs +
+    weights.heuristic +
+    weights.coldstart;
   weights.thompson /= total;
   weights.linucb /= total;
   weights.actr /= total;
+  weights.fsrs /= total;
   weights.heuristic /= total;
   weights.coldstart /= total;
 
@@ -422,14 +439,14 @@ const INTRO_STAGES = [
     subtitle: 'Modeling',
     icon: Brain,
     description: '构建动态的学习者认知模型，量化核心认知能力维度。',
-    details: ['遗忘曲线拟合', '认知反应速度', '知识掌握度'],
+    details: ['遗忘曲线拟合', '认知反应速度', 'TrendAnalyzer'],
     fullDescription:
       '建模层将感知层的原始数据转化为结构化的用户认知模型。采用 ACT-R 认知架构理论，动态拟合个性化遗忘曲线，追踪记忆激活度衰减规律，量化用户的记忆强度、学习速度和知识稳定性。',
     features: [
       { name: '个性化遗忘曲线', desc: '基于历史数据拟合用户专属记忆衰减模型' },
       { name: 'ACT-R 记忆激活', desc: '计算每个知识点的实时激活强度' },
       { name: '认知负荷评估', desc: '评估当前学习任务的认知资源消耗' },
-      { name: '知识图谱映射', desc: '构建词汇间的语义关联网络' },
+      { name: 'TrendAnalyzer', desc: '分析学习趋势与掌握度演化轨迹' },
     ],
     accentColor: 'bg-purple-500',
     bgColor: 'bg-purple-50/50',
@@ -441,14 +458,14 @@ const INTRO_STAGES = [
     subtitle: 'Learning',
     icon: GraduationCap,
     description: '持续进化的算法集成引擎，从交互数据中提取最优策略。',
-    details: ['Thompson采样', '间隔重复算法', '集成策略投票'],
+    details: ['Thompson采样', 'FSRS调度', '集成策略投票'],
     fullDescription:
-      '学习层是 AMAS 的智能核心，集成多种强化学习和间隔重复算法。通过 Thompson Sampling 进行概率探索，LinUCB 处理上下文特征，结合 ACT-R 间隔重复理论，在探索与利用之间动态平衡，持续优化学习策略。',
+      '学习层是 AMAS 的智能核心，集成多种强化学习和间隔重复算法。通过 Thompson Sampling 进行概率探索，LinUCB 处理上下文特征，FSRS 实现个性化间隔调度，在探索与利用之间动态平衡，持续优化学习策略。',
     features: [
       { name: 'Thompson Sampling', desc: '贝叶斯概率采样，平衡探索与利用' },
       { name: 'LinUCB 上下文赌博机', desc: '根据用户特征选择最优复习策略' },
+      { name: 'FSRS 17参数调度', desc: '17维参数驱动的个性化间隔优化' },
       { name: 'Ensemble 集成投票', desc: '多算法加权融合，提高决策鲁棒性' },
-      { name: '延迟奖励反馈', desc: '根据长期记忆效果调整算法权重' },
     ],
     accentColor: 'bg-amber-500',
     bgColor: 'bg-amber-50/50',
@@ -1000,11 +1017,12 @@ export default function AboutDataFlow() {
           cognitive: data.state.cognitive,
         },
         weights: {
-          thompson: data.weights.thompson || 0.25,
-          linucb: data.weights.linucb || 0.25,
-          actr: data.weights.actr || 0.2,
-          heuristic: data.weights.heuristic || 0.2,
-          coldstart: data.weights.coldstart || 0.1,
+          thompson: data.weights.thompson ?? 0.25,
+          linucb: data.weights.linucb ?? 0.25,
+          actr: data.weights.actr ?? 0.2,
+          fsrs: data.weights.fsrs ?? 0.15,
+          heuristic: data.weights.heuristic ?? 0.1,
+          coldstart: data.weights.coldstart ?? 0.05,
         },
         reward: data.reward,
         decision: data.decision,
@@ -1685,6 +1703,66 @@ export default function AboutDataFlow() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Modeling Algorithms Panel */}
+            <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
+              <div className="mb-4 flex items-center gap-2">
+                <Brain size={20} weight="duotone" className="text-purple-500" />
+                <h2 className="font-bold text-gray-900">建模层算法</h2>
+                <span className="ml-auto text-xs text-gray-400">Modeling Layer</span>
+              </div>
+              {currentFrame && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  {MODELING_ALGORITHMS.map((algo, idx) => {
+                    const values = [
+                      currentFrame.state.attention,
+                      currentFrame.state.fusedFatigue ?? currentFrame.state.fatigue,
+                      (currentFrame.state.cognitive.mem +
+                        currentFrame.state.cognitive.speed +
+                        currentFrame.state.cognitive.stability) /
+                        3,
+                      currentFrame.state.motivation,
+                      Math.max(
+                        0,
+                        Math.min(
+                          1,
+                          0.5 +
+                            (stateHistory.attention.length > 1
+                              ? (stateHistory.attention[stateHistory.attention.length - 1] -
+                                  stateHistory.attention[0]) *
+                                0.8
+                              : 0),
+                        ),
+                      ),
+                    ];
+                    const value = values[idx];
+                    return (
+                      <div
+                        key={algo.id}
+                        className="rounded-xl border border-gray-100 bg-gray-50 p-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium text-gray-900">{algo.name}</div>
+                          <div className="text-xs font-bold" style={{ color: algo.color }}>
+                            {Math.round(value * 100)}%
+                          </div>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">{algo.desc}</div>
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: algo.color }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.round(value * 100)}%` }}
+                            transition={{ duration: 0.5 }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Event Log */}

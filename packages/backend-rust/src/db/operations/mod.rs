@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub mod algorithm_metrics;
+pub mod algorithm_performance;
 pub mod amas;
 pub mod analytics;
 pub mod content;
@@ -11,6 +12,7 @@ pub mod system_status;
 pub mod user;
 
 pub use algorithm_metrics::*;
+pub use algorithm_performance::*;
 pub use amas::*;
 #[allow(unused_imports)]
 pub use analytics::*;

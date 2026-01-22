@@ -2299,7 +2299,9 @@ async fn probe_algorithm_health(
                 &test_feature,
                 &test_strategy,
                 Some(&test_strategy),
+                Some(0.7),
                 Some(&test_strategy),
+                Some(0.7),
             )
         }));
         let latency = start.elapsed().as_millis() as i64;

@@ -61,6 +61,9 @@ async fn main() {
     };
 
     let amas_engine = AppState::create_amas_engine(db_proxy.clone());
+    if let Err(err) = amas_engine.reload_config().await {
+        tracing::warn!(error = %err, "failed to reload AMAS config");
+    }
 
     let worker_manager = if let Some(ref proxy) = db_proxy {
         match WorkerManager::new(Arc::clone(proxy), Arc::clone(&amas_engine)).await {

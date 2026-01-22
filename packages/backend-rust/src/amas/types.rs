@@ -219,6 +219,121 @@ pub struct ColdStartState {
     pub settled_strategy: Option<StrategyParams>,
     #[serde(default)]
     pub classification_scores: [f64; 3],
+    #[serde(default)]
+    pub continuous_profile: Option<ContinuousUserProfile>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContinuousUserProfile {
+    pub speed: f64,
+    pub stability: f64,
+    pub risk_tolerance: f64,
+    pub engagement: f64,
+    pub confidence: [f64; 4],
+}
+
+impl Default for ContinuousUserProfile {
+    fn default() -> Self {
+        Self {
+            speed: 0.5,
+            stability: 0.5,
+            risk_tolerance: 0.5,
+            engagement: 0.5,
+            confidence: [0.0; 4],
+        }
+    }
+}
+
+impl ContinuousUserProfile {
+    pub fn from_user_type(user_type: UserType) -> Self {
+        match user_type {
+            UserType::Fast => Self {
+                speed: 0.8,
+                stability: 0.4,
+                risk_tolerance: 0.7,
+                engagement: 0.6,
+                confidence: [0.3; 4],
+            },
+            UserType::Stable => Self {
+                speed: 0.5,
+                stability: 0.6,
+                risk_tolerance: 0.5,
+                engagement: 0.5,
+                confidence: [0.3; 4],
+            },
+            UserType::Cautious => Self {
+                speed: 0.3,
+                stability: 0.7,
+                risk_tolerance: 0.3,
+                engagement: 0.4,
+                confidence: [0.3; 4],
+            },
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        accuracy: f64,
+        response_time_ms: i64,
+        attention: f64,
+        motivation: f64,
+    ) {
+        let alpha = 0.1;
+        let speed_signal = (1.0 - (response_time_ms as f64 / 10000.0).min(1.0)).clamp(0.0, 1.0);
+        let stability_signal = accuracy.clamp(0.0, 1.0);
+        let risk_signal = ((1.0 - accuracy * 0.3) * speed_signal).clamp(0.0, 1.0);
+        let engagement_signal =
+            ((attention.clamp(0.0, 1.0) + (motivation.clamp(-1.0, 1.0) + 1.0) / 2.0) / 2.0)
+                .clamp(0.0, 1.0);
+
+        self.speed = (self.speed * (1.0 - alpha) + speed_signal * alpha).clamp(0.0, 1.0);
+        self.stability =
+            (self.stability * (1.0 - alpha) + stability_signal * alpha).clamp(0.0, 1.0);
+        self.risk_tolerance =
+            (self.risk_tolerance * (1.0 - alpha) + risk_signal * alpha).clamp(0.0, 1.0);
+        self.engagement =
+            (self.engagement * (1.0 - alpha) + engagement_signal * alpha).clamp(0.0, 1.0);
+
+        for c in &mut self.confidence {
+            *c = (*c + 0.02).min(1.0);
+        }
+    }
+
+    pub fn min_confidence(&self) -> f64 {
+        self.confidence
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    pub fn to_strategy(&self) -> StrategyParams {
+        let interval_scale = 0.8 + 0.4 * self.stability;
+        let new_ratio = (0.1 + 0.2 * self.speed * self.engagement).clamp(0.1, 0.4);
+        let batch_size = (5.0 + 10.0 * self.engagement).round() as i32;
+        let hint_level = if self.risk_tolerance > 0.7 {
+            0
+        } else if self.risk_tolerance > 0.4 {
+            1
+        } else {
+            2
+        };
+        let difficulty = if self.risk_tolerance > 0.6 {
+            DifficultyLevel::Hard
+        } else if self.risk_tolerance > 0.35 {
+            DifficultyLevel::Mid
+        } else {
+            DifficultyLevel::Easy
+        };
+
+        StrategyParams {
+            interval_scale,
+            new_ratio,
+            difficulty,
+            batch_size: batch_size.clamp(5, 16),
+            hint_level,
+        }
+    }
 }
 
 impl Default for ColdStartState {
@@ -230,6 +345,7 @@ impl Default for ColdStartState {
             update_count: 0,
             settled_strategy: None,
             classification_scores: [0.0; 3],
+            continuous_profile: None,
         }
     }
 }
@@ -536,6 +652,7 @@ pub struct ProcessOptions {
     pub rt_cv: Option<f64>,
     pub pace_cv: Option<f64>,
     pub root_features: Option<RootFeatures>,
+    pub total_sessions: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -585,4 +702,6 @@ pub struct PersistedAMASState {
     pub cold_start_state: Option<ColdStartState>,
     pub interaction_count: i32,
     pub last_updated: i64,
+    #[serde(default)]
+    pub user_fsrs_params: Option<crate::services::fsrs::UserFSRSParams>,
 }

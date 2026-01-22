@@ -32,7 +32,7 @@ import {
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
 import { ConfirmModal, AlertModal, Modal, Button, Progress } from '../../components/ui';
-import { useOTAUpdate } from '../../hooks/mutations';
+import { useOTAUpdate, useRestartBackend } from '../../hooks/mutations';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
@@ -81,6 +81,15 @@ export default function AdminDashboard() {
     isCheckingStatus,
     isUpdateInProgress,
   } = useOTAUpdate();
+  const {
+    restartBackend,
+    isPending: isRestartPending,
+    error: restartError,
+    isRestarting,
+    isConfirmOpen: isRestartConfirmOpen,
+    openConfirmModal: openRestartModal,
+    closeConfirmModal: closeRestartModal,
+  } = useRestartBackend();
 
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
@@ -809,27 +818,36 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
-              {versionInfo.hasUpdate && (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  {versionInfo.releaseUrl && (
-                    <a
-                      href={versionInfo.releaseUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  onClick={() => openRestartModal()}
+                  className="inline-flex items-center gap-2 rounded-button bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                >
+                  <ArrowClockwise size={18} weight="bold" />
+                  重启服务
+                </button>
+                {versionInfo.hasUpdate && (
+                  <>
+                    {versionInfo.releaseUrl && (
+                      <a
+                        href={versionInfo.releaseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                      >
+                        查看更新
+                      </a>
+                    )}
+                    <button
+                      onClick={handleOpenUpdateModal}
+                      className="inline-flex items-center gap-2 rounded-button bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
                     >
-                      查看更新
-                    </a>
-                  )}
-                  <button
-                    onClick={handleOpenUpdateModal}
-                    className="inline-flex items-center gap-2 rounded-button bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
-                  >
-                    <Download size={18} weight="bold" />
-                    立即更新
-                  </button>
-                </div>
-              )}
+                      <Download size={18} weight="bold" />
+                      立即更新
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             {versionInfo.releaseNotes && (
               <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-700">
@@ -930,6 +948,45 @@ export default function AdminDashboard() {
         message={alertModal.message}
         variant={alertModal.variant}
       />
+
+      {/* 重启确认对话框 */}
+      <ConfirmModal
+        isOpen={isRestartConfirmOpen}
+        onClose={closeRestartModal}
+        onConfirm={() => restartBackend()}
+        title="重启后端服务"
+        message={
+          restartError
+            ? `重启失败: ${restartError instanceof Error ? restartError.message : '未知错误'}`
+            : '确定要重启后端服务吗？服务将暂时中断，重启完成后页面会自动刷新。'
+        }
+        confirmText="确认重启"
+        cancelText="取消"
+        variant={restartError ? 'danger' : 'warning'}
+        isLoading={isRestartPending}
+      />
+
+      {/* 重启中 Modal */}
+      <Modal
+        isOpen={isRestarting}
+        onClose={() => {}}
+        title="正在重启服务"
+        maxWidth="sm"
+        showCloseButton={false}
+        closeOnOverlayClick={false}
+      >
+        <div className="flex flex-col items-center justify-center py-8">
+          <CircleNotch size={48} className="mb-4 animate-spin text-blue-600" />
+          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            服务重启中...
+          </h3>
+          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+            请稍候，系统正在重新启动。
+            <br />
+            完成后页面将自动刷新。
+          </p>
+        </div>
+      </Modal>
 
       {/* OTA 更新 Modal */}
       <Modal

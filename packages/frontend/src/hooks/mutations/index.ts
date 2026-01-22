@@ -28,3 +28,6 @@ export { useWordMutations } from './useWordMutations';
 
 // OTA 更新相关
 export { useOTAUpdate, otaUpdateKeys } from './useOTAUpdate';
+
+// 后端重启
+export { useRestartBackend, restartBackendKeys } from './useRestartBackend';

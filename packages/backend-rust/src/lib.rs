@@ -30,6 +30,9 @@ pub async fn create_app() -> axum::Router {
     }
 
     let amas_engine = AppState::create_amas_engine(db_proxy.clone());
+    if let Err(err) = amas_engine.reload_config().await {
+        tracing::warn!(error = %err, "failed to reload AMAS config");
+    }
     let state = AppState::new(db_proxy, amas_engine, None);
 
     routes::router(state)

@@ -142,6 +142,14 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "030_add_banned_role",
             include_str!("../../sql/030_add_banned_role.sql"),
         ),
+        (
+            "031_algorithm_performance",
+            include_str!("../../sql/031_algorithm_performance.sql"),
+        ),
+        (
+            "032_add_elo_ratings",
+            include_str!("../../sql/032_add_elo_ratings.sql"),
+        ),
     ];
 
     let mut applied_count = 0;
