@@ -11,6 +11,7 @@ use crate::services::llm_provider::{ChatMessage, LLMProvider};
 
 const DEFAULT_CONCURRENCY: usize = 1;
 const WORD_CHECK_TIMEOUT_SECS: u64 = 30;
+const MAX_WORDS_PER_TASK: i64 = 1000;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -136,6 +137,11 @@ pub async fn start_task(
     request: StartTaskRequest,
     user_id: String,
 ) -> Result<Task, String> {
+    let llm = LLMProvider::from_env();
+    if !llm.is_available() {
+        return Err("LLM服务未配置，无法执行质量检查任务".to_string());
+    }
+
     let pool = proxy.pool();
     let task_id = uuid::Uuid::new_v4();
     let task_type = request.task_type.as_str();
@@ -148,6 +154,13 @@ pub async fn start_task(
             .fetch_one(pool)
             .await
             .unwrap_or(0);
+
+    if word_count > MAX_WORDS_PER_TASK {
+        return Err(format!(
+            "词书包含 {} 个单词，超过单次检查上限 {} 个",
+            word_count, MAX_WORDS_PER_TASK
+        ));
+    }
 
     sqlx::query(
         r#"

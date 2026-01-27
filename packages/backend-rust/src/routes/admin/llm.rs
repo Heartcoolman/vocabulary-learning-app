@@ -6,13 +6,13 @@ use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::auth::AuthUser;
 use crate::db::operations::llm::{
     insert_llm_analysis_task, insert_word_content_variant, update_llm_task_completed,
     update_llm_task_failed, update_llm_task_started, update_suggestion_effect,
     update_word_content_variant_status,
 };
 use crate::response::{json_error, AppError};
+use crate::services::admin_auth::AdminAuthUser;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -53,7 +53,7 @@ struct TaskIdResponse {
 
 async fn create_task(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Json(body): Json<CreateTaskRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
@@ -487,7 +487,7 @@ struct UpdateVariantStatusRequest {
 
 async fn update_variant_status(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Path(id): Path<String>,
     Json(body): Json<UpdateVariantStatusRequest>,
 ) -> Result<impl IntoResponse, AppError> {

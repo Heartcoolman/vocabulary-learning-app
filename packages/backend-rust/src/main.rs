@@ -18,8 +18,10 @@ async fn main() {
     let _ = dotenvy::dotenv();
 
     if let Some(cmd) = std::env::args().nth(1) {
-        if cmd == "seed-admin" {
-            return run_seed_admin().await;
+        match cmd.as_str() {
+            "seed-admin" => return run_seed_admin().await,
+            "migrate-admins" => return run_migrate_admins().await,
+            _ => {}
         }
     }
 
@@ -165,7 +167,6 @@ async fn shutdown_signal() {
 
 async fn run_seed_admin() {
     use sqlx::postgres::PgPoolOptions;
-    use sqlx::Row;
     use std::time::Duration;
 
     let args: Vec<String> = std::env::args().collect();
@@ -205,7 +206,8 @@ async fn run_seed_admin() {
         .expect("failed to connect to database");
 
     let existing: Option<i64> =
-        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "users" WHERE "role"::text = 'ADMIN'"#)
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "admin_users" WHERE "email" = $1"#)
+            .bind(&email)
             .fetch_one(&pool)
             .await
             .ok();
@@ -216,16 +218,16 @@ async fn run_seed_admin() {
     }
 
     let password_hash = bcrypt::hash(&password, 10).expect("failed to hash password");
-    let user_id = uuid::Uuid::new_v4().to_string();
+    let admin_id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().naive_utc();
 
     let result = sqlx::query(
         r#"
-        INSERT INTO "users" ("id", "email", "passwordHash", "username", "role", "createdAt", "updatedAt")
-        VALUES ($1, $2, $3, $4, 'ADMIN'::"UserRole", $5, $5)
+        INSERT INTO "admin_users" ("id", "email", "passwordHash", "username", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, $5)
         "#,
     )
-    .bind(&user_id)
+    .bind(&admin_id)
     .bind(&email)
     .bind(&password_hash)
     .bind(&username)
@@ -240,4 +242,74 @@ async fn run_seed_admin() {
             std::process::exit(1);
         }
     }
+}
+
+async fn run_migrate_admins() {
+    use sqlx::postgres::PgPoolOptions;
+    use sqlx::Row;
+    use std::time::Duration;
+
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&db_url)
+        .await
+        .expect("failed to connect to database");
+
+    let admins = sqlx::query(
+        r#"
+        SELECT "id", "email", "passwordHash", "username", "createdAt"
+        FROM "users"
+        WHERE "role"::text = 'ADMIN'
+        "#,
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("failed to query admins");
+
+    let mut migrated = 0;
+    let mut skipped = 0;
+
+    for row in admins {
+        let email: String = row.try_get("email").unwrap_or_default();
+        let password_hash: String = row.try_get("passwordHash").unwrap_or_default();
+        let username: String = row.try_get("username").unwrap_or_default();
+        let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+
+        let admin_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().naive_utc();
+
+        let result = sqlx::query(
+            r#"
+            INSERT INTO "admin_users" ("id", "email", "passwordHash", "username", "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT ("email") DO UPDATE SET
+                "passwordHash" = EXCLUDED."passwordHash",
+                "username" = EXCLUDED."username",
+                "updatedAt" = EXCLUDED."updatedAt"
+            "#,
+        )
+        .bind(&admin_id)
+        .bind(&email)
+        .bind(&password_hash)
+        .bind(&username)
+        .bind(created_at)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        match result {
+            Ok(_) => {
+                migrated += 1;
+                println!("Migrated: {}", email);
+            }
+            Err(e) => {
+                skipped += 1;
+                eprintln!("Failed to migrate {}: {}", email, e);
+            }
+        }
+    }
+
+    println!("Migration complete: {} migrated, {} skipped", migrated, skipped);
 }

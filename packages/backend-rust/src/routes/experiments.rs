@@ -175,6 +175,20 @@ struct RecordMetricBody {
     reward: f64,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportQuery {
+    format: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportDataDto {
+    experiment: ExperimentDto,
+    status: ExperimentStatusDto,
+    exported_at: String,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_experiments).post(create_experiment))
@@ -186,6 +200,7 @@ pub fn router() -> Router<AppState> {
         .route("/:experimentId/start", post(start_experiment))
         .route("/:experimentId/stop", post(stop_experiment))
         .route("/:experimentId/metric", post(record_metric))
+        .route("/:experimentId/export", get(export_experiment))
         .fallback(|| async { (StatusCode::NOT_FOUND, Json(serde_json::json!({"success": false, "error": "接口不存在", "code": "NOT_FOUND"}))) })
 }
 
@@ -431,6 +446,74 @@ async fn delete_experiment(
         success: true,
         data: serde_json::json!({ "message": "实验已删除" }),
     }))
+}
+
+async fn export_experiment(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(experiment_id): Path<String>,
+    Query(query): Query<ExportQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
+
+    let primary = proxy.primary_pool().await;
+    let Some(pool) = primary else {
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
+    };
+
+    let experiment = fetch_experiment_pg(&pool, experiment_id.trim())
+        .await?
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在"))?;
+
+    let status = compute_experiment_status(&experiment);
+    let exported_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+
+    let format = query.format.as_deref().unwrap_or("json");
+
+    match format {
+        "csv" => {
+            let mut csv_content = String::new();
+            csv_content.push_str("variant_id,variant_name,is_control,sample_count,average_reward,std_dev,weight\n");
+            for variant in &experiment.variants {
+                let metrics = experiment.metrics.iter().find(|m| m.variant_id == variant.id);
+                let (sample_count, avg_reward, std_dev) = metrics
+                    .map(|m| (m.sample_count, m.average_reward, m.std_dev))
+                    .unwrap_or((0, 0.0, 0.0));
+                csv_content.push_str(&format!(
+                    "{},{},{},{},{:.6},{:.6},{:.4}\n",
+                    variant.id, variant.name, variant.is_control, sample_count, avg_reward, std_dev, variant.weight
+                ));
+            }
+            csv_content.push_str(&format!("\n# Experiment: {}\n", experiment.name));
+            csv_content.push_str(&format!("# Status: {}\n", status.status));
+            csv_content.push_str(&format!("# P-Value: {:.6}\n", status.p_value));
+            csv_content.push_str(&format!("# Effect Size: {:.4}\n", status.effect_size));
+            csv_content.push_str(&format!("# Is Significant: {}\n", status.is_significant));
+            csv_content.push_str(&format!("# Recommendation: {}\n", status.recommendation));
+            csv_content.push_str(&format!("# Exported At: {}\n", exported_at));
+
+            Ok((
+                [(axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+                 (axum::http::header::CONTENT_DISPOSITION, &format!("attachment; filename=\"experiment-{}.csv\"", experiment_id))],
+                csv_content,
+            ).into_response())
+        }
+        _ => {
+            let export_data = ExportDataDto {
+                experiment,
+                status,
+                exported_at,
+            };
+            Ok(Json(SuccessResponse {
+                success: true,
+                data: export_data,
+            }).into_response())
+        }
+    }
 }
 
 async fn record_metric(

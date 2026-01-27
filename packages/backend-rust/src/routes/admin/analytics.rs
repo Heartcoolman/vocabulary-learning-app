@@ -7,12 +7,12 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::auth::AuthUser;
 use crate::db::operations::analytics::{
     insert_alert_root_cause_analysis, update_alert_root_cause_resolved,
     upsert_user_behavior_insight,
 };
 use crate::response::{json_error, AppError};
+use crate::services::admin_auth::AdminAuthUser;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -396,7 +396,7 @@ struct ResolveAlertRequest {
 
 async fn resolve_alert_root_cause(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Path(id): Path<String>,
     Json(body): Json<ResolveAlertRequest>,
 ) -> Result<impl IntoResponse, AppError> {

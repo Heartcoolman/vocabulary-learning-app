@@ -3,7 +3,10 @@
 mod algorithm_metrics;
 mod amas_aggregation;
 mod amas_health_analyzer;
+pub mod clustering;
+pub mod confusion_cache;
 mod delayed_reward;
+mod embedding_worker;
 mod etymology;
 mod forgetting_alert;
 mod llm_advisor;
@@ -364,6 +367,123 @@ impl WorkerManager {
             .map_err(WorkerError::Scheduler)?;
             scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
             info!("Algorithm metrics persistence worker scheduled (every 5 minutes)");
+        }
+
+        // Embedding worker - runs every 5 minutes by default
+        let enable_embedding = std::env::var("ENABLE_EMBEDDING_WORKER")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+
+        if enable_embedding {
+            let schedule = std::env::var("EMBEDDING_SCHEDULE")
+                .unwrap_or_else(|_| "0 */5 * * * *".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = embedding_worker::process_pending_embeddings(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "Embedding worker error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "Embedding worker scheduled");
+        }
+
+        // Word clustering - runs weekly (Sunday 4AM by default)
+        let enable_clustering = std::env::var("ENABLE_CLUSTERING_WORKER")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+
+        if enable_clustering {
+            let schedule = std::env::var("CLUSTERING_SCHEDULE")
+                .unwrap_or_else(|_| "0 0 4 * * 0".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = clustering::run_clustering_cycle(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "Clustering worker error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "Clustering worker scheduled");
+        }
+
+        // Confusion cache rebuild - runs after clustering (Sunday 5AM by default)
+        let enable_confusion_cache = std::env::var("ENABLE_CONFUSION_CACHE_WORKER")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+
+        if enable_confusion_cache {
+            let schedule = std::env::var("CONFUSION_CACHE_SCHEDULE")
+                .unwrap_or_else(|_| "0 0 5 * * 0".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = confusion_cache::rebuild_confusion_cache(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "Confusion cache worker error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "Confusion cache worker scheduled");
+        }
+
+        // Weekly report auto-generation - runs Monday 06:00 by default
+        let enable_weekly_report = std::env::var("ENABLE_WEEKLY_REPORT_WORKER")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+
+        if enable_weekly_report {
+            let schedule = std::env::var("WEEKLY_REPORT_SCHEDULE")
+                .unwrap_or_else(|_| "0 0 6 * * 1".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = crate::services::weekly_report::generate_report(&db) => {
+                            match result {
+                                Ok(report) => info!(report_id = %report.id, "Weekly report generated"),
+                                Err(e) => error!(error = %e, "Weekly report generation error"),
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "Weekly report worker scheduled");
         }
 
         scheduler.start().await.map_err(WorkerError::Scheduler)?;

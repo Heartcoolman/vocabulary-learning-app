@@ -169,13 +169,80 @@ pub async fn logout(State(state): State<AppState>, req: Request<Body>) -> Respon
     }
 }
 
-pub async fn request_password_reset(Json(_payload): Json<PasswordResetRequest>) -> Response {
-    json_error(
-        StatusCode::NOT_IMPLEMENTED,
-        "NOT_IMPLEMENTED",
-        "自助密码重置未启用，请联系管理员",
+pub async fn request_password_reset(
+    State(state): State<AppState>,
+    Json(payload): Json<PasswordResetRequest>,
+) -> Response {
+    let email = payload.email.trim().to_lowercase();
+
+    if !is_valid_email(&email) {
+        return success_reset_response();
+    }
+
+    let Some(proxy) = state.db_proxy() else {
+        return success_reset_response();
+    };
+
+    let email_service = state.email_service();
+    if !email_service.is_available() {
+        tracing::warn!("password reset requested but email service not configured");
+        return success_reset_response();
+    }
+
+    let user_id = match crate::db::operations::user::get_user_id_by_email(proxy.as_ref(), &email)
+        .await
+    {
+        Ok(Some(id)) => id,
+        _ => return success_reset_response(),
+    };
+
+    if let Ok(Some(last_request)) =
+        crate::db::operations::user::get_last_reset_request_time(proxy.as_ref(), &user_id).await
+    {
+        let now = chrono::Utc::now().naive_utc();
+        let elapsed = (now - last_request).num_seconds();
+        if elapsed < 60 {
+            tracing::debug!(user_id = %user_id, elapsed, "rate limited password reset request");
+            return success_reset_response();
+        }
+    }
+
+    let _ =
+        crate::db::operations::user::invalidate_user_reset_tokens(proxy.as_ref(), &user_id).await;
+
+    let raw_token = Uuid::new_v4().to_string();
+    let token_hash = match bcrypt::hash(&raw_token, 10) {
+        Ok(hash) => hash,
+        Err(err) => {
+            tracing::warn!(error = %err, "password reset token hash failed");
+            return success_reset_response();
+        }
+    };
+
+    let expires_at = chrono::Utc::now().naive_utc() + chrono::Duration::minutes(15);
+    if let Err(err) = crate::db::operations::user::create_password_reset_token(
+        proxy.as_ref(),
+        &user_id,
+        &token_hash,
+        expires_at,
     )
-    .into_response()
+    .await
+    {
+        tracing::warn!(error = %err, "password reset token create failed");
+        return success_reset_response();
+    }
+
+    let reset_link = build_reset_link(&raw_token);
+    let html_body = build_reset_email_html(&reset_link);
+
+    if let Err(err) = email_service
+        .send_email(&email, "重置您的密码 / Reset Your Password", &html_body)
+        .await
+    {
+        tracing::warn!(error = %err, "password reset email send failed");
+    }
+
+    success_reset_response()
 }
 
 pub async fn reset_password(
@@ -844,4 +911,44 @@ fn auth_cookie_header(token: &str) -> Option<HeaderValue> {
     }
 
     HeaderValue::from_str(&cookie).ok()
+}
+
+fn success_reset_response() -> Response {
+    Json(MessageResponse {
+        success: true,
+        message: "如果该邮箱已注册，您将收到密码重置邮件",
+    })
+    .into_response()
+}
+
+fn build_reset_link(token: &str) -> String {
+    let base_url =
+        std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+    format!(
+        "{}/reset-password?token={}",
+        base_url.trim_end_matches('/'),
+        token
+    )
+}
+
+fn build_reset_email_html(reset_link: &str) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+<h2 style="color: #333;">重置密码 / Reset Password</h2>
+<p>您收到此邮件是因为有人请求重置您的账户密码。</p>
+<p>You received this email because someone requested to reset your account password.</p>
+<p style="margin: 30px 0;">
+<a href="{reset_link}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">重置密码 / Reset Password</a>
+</p>
+<p style="color: #666; font-size: 14px;">此链接将在15分钟后失效。如果您没有请求重置密码，请忽略此邮件。</p>
+<p style="color: #666; font-size: 14px;">This link will expire in 15 minutes. If you didn't request a password reset, please ignore this email.</p>
+<hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+<p style="color: #999; font-size: 12px;">Danci - 智能单词学习</p>
+</body>
+</html>"#,
+        reset_link = reset_link
+    )
 }

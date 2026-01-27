@@ -5,8 +5,8 @@ use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthUser;
 use crate::response::json_error;
+use crate::services::admin_auth::AdminAuthUser;
 use crate::services::quality_service;
 use crate::state::AppState;
 
@@ -36,7 +36,7 @@ pub fn router() -> Router<AppState> {
 
 async fn start_task(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Path(wordbook_id): Path<String>,
     Json(payload): Json<quality_service::StartTaskRequest>,
 ) -> Response {
@@ -69,7 +69,7 @@ struct ListTasksQuery {
 
 async fn list_tasks(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
     Path(wordbook_id): Path<String>,
     Query(query): Query<ListTasksQuery>,
 ) -> Response {
@@ -98,7 +98,7 @@ async fn list_tasks(
 
 async fn get_stats(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
     Path(wordbook_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
@@ -124,7 +124,7 @@ async fn get_stats(
 
 async fn cancel_task(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
     Path(task_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
@@ -150,7 +150,7 @@ async fn cancel_task(
 
 async fn list_issues(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
     Path(wordbook_id): Path<String>,
     Query(filters): Query<quality_service::IssueFilters>,
 ) -> Response {
@@ -178,7 +178,7 @@ async fn list_issues(
 
 async fn apply_fix(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Path(issue_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
@@ -204,7 +204,7 @@ async fn apply_fix(
 
 async fn ignore_issue(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Path(issue_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
@@ -230,7 +230,7 @@ async fn ignore_issue(
 
 async fn batch_operation(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
+    Extension(user): Extension<AdminAuthUser>,
     Json(payload): Json<quality_service::BatchRequest>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {

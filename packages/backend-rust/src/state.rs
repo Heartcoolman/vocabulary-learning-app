@@ -9,6 +9,7 @@ use crate::amas::AMASEngine;
 use crate::cache::RedisCache;
 use crate::core::EventBus;
 use crate::db::DatabaseProxy;
+use crate::services::email_provider::EmailService;
 
 #[derive(Debug)]
 pub struct RuntimeConfig {
@@ -86,6 +87,7 @@ pub struct AppState {
     amas_engine: Arc<AMASEngine>,
     event_bus: Arc<EventBus>,
     runtime: Arc<RuntimeConfig>,
+    email_service: Arc<EmailService>,
 }
 
 impl AppState {
@@ -102,6 +104,7 @@ impl AppState {
             amas_engine,
             event_bus: Arc::new(EventBus::new()),
             runtime: Arc::new(RuntimeConfig::new()),
+            email_service: Arc::new(EmailService::from_env()),
         }
     }
 
@@ -145,5 +148,9 @@ impl AppState {
 
     pub fn runtime(&self) -> Arc<RuntimeConfig> {
         Arc::clone(&self.runtime)
+    }
+
+    pub fn email_service(&self) -> Arc<EmailService> {
+        Arc::clone(&self.email_service)
     }
 }

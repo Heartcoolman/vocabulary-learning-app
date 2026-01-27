@@ -194,6 +194,29 @@ impl RealtimeHub {
             active_sessions,
         }
     }
+
+    async fn online_user_ids(&self) -> Vec<String> {
+        self.user_index.read().await.keys().cloned().collect()
+    }
+
+    async fn online_count(&self) -> usize {
+        self.user_index.read().await.len()
+    }
+}
+
+pub fn get_online_user_ids() -> Vec<String> {
+    let hub = hub();
+    tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(hub.online_user_ids())
+    })
+}
+
+pub async fn get_online_user_ids_async() -> Vec<String> {
+    hub().online_user_ids().await
+}
+
+pub async fn get_online_count() -> usize {
+    hub().online_count().await
 }
 
 #[derive(Debug, Deserialize)]
@@ -269,6 +292,7 @@ fn allowed_event_types() -> HashSet<String> {
         "ping",
         "error",
         "amas-flow",
+        "admin-broadcast",
     ]
     .into_iter()
     .map(|v| v.to_string())

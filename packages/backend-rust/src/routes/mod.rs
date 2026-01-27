@@ -22,6 +22,7 @@ mod plan;
 mod preferences;
 pub mod realtime;
 mod records;
+mod semantic;
 mod study_config;
 mod tracking;
 mod users;
@@ -112,6 +113,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/users/me/password",
             put(users::update_password).fallback(fallback_handler),
+        )
+        .route(
+            "/api/users/me/avatar",
+            post(users::upload_avatar).fallback(fallback_handler),
         )
         .route(
             "/api/users/profile/reward",
@@ -547,11 +552,20 @@ pub fn router(state: AppState) -> Router {
     let middleware_state = state.clone();
 
     app = app.nest("/api/about", about::router());
+    // Admin auth routes: public (login/logout) + protected (me/users)
+    let admin_auth_router = admin::auth_public_router().merge(
+        admin::auth_protected_router().layer(middleware::from_fn_with_state(
+            middleware_state.clone(),
+            admin::require_admin_auth,
+        )),
+    );
+    app = app.nest("/api/admin/auth", admin_auth_router);
+    // Admin protected routes (all other admin endpoints)
     app = app.nest(
         "/api/admin",
         admin::router().layer(middleware::from_fn_with_state(
             middleware_state.clone(),
-            admin::require_admin,
+            admin::require_admin_auth,
         )),
     );
     app = app.nest("/api/alerts", alerts::router());
@@ -567,6 +581,7 @@ pub fn router(state: AppState) -> Router {
     app = app.nest("/api/optimization", optimization::router());
     app = app.nest("/api/plan", plan::router());
     app = app.nest("/api/realtime", realtime::router());
+    app = app.nest("/api/semantic", semantic::router());
     app = app.nest("/api/tracking", tracking::router());
     app = app.nest("/api/visual-fatigue", visual_fatigue::router());
     app = app.nest("/api/word-contexts", word_contexts::router());

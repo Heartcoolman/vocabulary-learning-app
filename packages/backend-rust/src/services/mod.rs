@@ -1,13 +1,17 @@
 #![allow(dead_code)]
 
 pub mod admin;
+pub mod admin_auth;
 pub mod alert_engine;
 pub mod alerts;
 pub mod amas;
 pub mod amas_config;
 pub mod badge;
+pub mod broadcast;
 pub mod delayed_reward;
 pub mod elo;
+pub mod email_provider;
+pub mod embedding_provider;
 pub mod etymology;
 pub mod evaluation;
 pub mod experiment;
@@ -21,6 +25,7 @@ pub mod llm_provider;
 pub mod mastery_learning;
 pub mod quality_service;
 pub mod record;
+pub mod segment_classifier;
 pub mod state_history;
 pub mod study_config;
 pub mod trend_analysis;
