@@ -162,7 +162,7 @@ export class AuthClient extends BaseClient {
    * 设置认证令牌
    */
   setToken(token: string): void {
-    this.tokenManager.setToken(token);
+    this.tokenManager.setToken?.(token);
   }
 
   /**

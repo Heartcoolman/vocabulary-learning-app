@@ -16,12 +16,12 @@ describe('ProgressBarChart', () => {
     });
 
     it('should show no data message when data is undefined', () => {
-      render(<ProgressBarChart data={undefined as any} />);
+      render(<ProgressBarChart data={undefined} />);
       expect(screen.getByText('暂无数据')).toBeInTheDocument();
     });
 
     it('should show no data message when data is null', () => {
-      render(<ProgressBarChart data={null as any} />);
+      render(<ProgressBarChart data={null} />);
       expect(screen.getByText('暂无数据')).toBeInTheDocument();
     });
   });

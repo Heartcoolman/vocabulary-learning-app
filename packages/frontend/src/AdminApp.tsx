@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { IconContext } from '@phosphor-icons/react';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { ToastProvider, useToast } from './components/ui';
+import { ToastProvider } from './components/ui';
 import { queryClient } from './lib/queryClient';
 import { useAdminAuthStore } from './stores/adminAuthStore';
 import { adminGetMe } from './services/client/admin/AdminAuthClient';

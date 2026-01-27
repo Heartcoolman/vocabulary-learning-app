@@ -1,7 +1,7 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SpeakerHigh, Check, X } from './Icon';
-import { g3SpringSnappy, G3_DURATION, G3_EASING } from '../utils/animations';
+import { g3SpringSnappy, G3_DURATION } from '../utils/animations';
 
 export interface FlashCardWord {
   id: string;

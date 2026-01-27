@@ -100,22 +100,25 @@ function getPriorityConfig(priority: SuggestionPriority) {
  * Phase 4.3: StateChangeReason 集成（显示 factors）
  */
 function AmasSuggestionComponent({ result, onBreak, showFactors = true }: AmasSuggestionProps) {
-  if (!result || (!result.explanation?.text && !result.suggestion && !result.shouldBreak)) {
-    return null;
-  }
-
-  const isBreakSuggestion = result.shouldBreak;
-
   // Phase 4.2: 计算建议优先级
-  const priority = useMemo(() => inferPriority(result), [result]);
+  const priority = useMemo<SuggestionPriority>(
+    () => (result ? inferPriority(result) : 'low'),
+    [result],
+  );
   const priorityConfig = getPriorityConfig(priority);
   const PriorityIcon = priorityConfig.icon;
 
   // Phase 4.3: 转换 factors 为 DecisionFactor 格式
   const decisionFactors = useMemo(
-    () => convertToDecisionFactors(result.explanation?.factors),
-    [result.explanation?.factors],
+    () => convertToDecisionFactors(result?.explanation?.factors),
+    [result?.explanation?.factors],
   );
+
+  if (!result || (!result.explanation?.text && !result.suggestion && !result.shouldBreak)) {
+    return null;
+  }
+
+  const isBreakSuggestion = result.shouldBreak;
 
   // 判断是否显示 factors（仅在有显著因素且非休息建议时显示）
   const shouldShowFactors = showFactors && decisionFactors.length > 0 && !isBreakSuggestion;

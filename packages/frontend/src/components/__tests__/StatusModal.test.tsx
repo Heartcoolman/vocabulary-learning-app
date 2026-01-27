@@ -3,13 +3,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ComponentProps } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import StatusModal from '../StatusModal';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: ComponentProps<'div'>) => <div {...props}>{children}</div>,
   },
 }));
 
@@ -30,8 +31,13 @@ vi.mock('../../utils/animations', () => ({
 }));
 
 // Mock AmasStatus component
+type MockAmasStatusProps = {
+  detailed?: boolean;
+  refreshTrigger?: number;
+};
+
 vi.mock('../AmasStatus', () => ({
-  default: ({ detailed, refreshTrigger }: any) => (
+  default: ({ detailed, refreshTrigger }: MockAmasStatusProps) => (
     <div data-testid="amas-status" data-detailed={detailed} data-refresh={refreshTrigger}>
       AMAS Status Component
     </div>

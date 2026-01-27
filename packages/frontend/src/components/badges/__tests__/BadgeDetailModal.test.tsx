@@ -9,12 +9,19 @@ import userEvent from '@testing-library/user-event';
 import BadgeDetailModal from '../BadgeDetailModal';
 import type { Badge, BadgeCategory } from '../../../types/amas-enhanced';
 
+type MockIconProps = {
+  size?: number;
+  weight?: string;
+  color?: string;
+  className?: string;
+};
+
 // Mock Icon component
 vi.mock('../../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../Icon')>();
   return {
     ...actual,
-    Trophy: ({ size, weight, color, className }: any) => (
+    Trophy: ({ size, weight, color, className }: MockIconProps) => (
       <span
         data-testid="trophy-icon"
         data-size={size}
@@ -25,27 +32,27 @@ vi.mock('../../Icon', async (importOriginal) => {
         🏆
       </span>
     ),
-    Star: ({ size, weight, color }: any) => (
+    Star: ({ size, weight, color }: MockIconProps) => (
       <span data-testid="star-icon" data-size={size} data-weight={weight} data-color={color}>
         ⭐
       </span>
     ),
-    Fire: ({ size, weight, color }: any) => (
+    Fire: ({ size, weight, color }: MockIconProps) => (
       <span data-testid="fire-icon" data-size={size} data-weight={weight} data-color={color}>
         🔥
       </span>
     ),
-    Brain: ({ size, weight, color }: any) => (
+    Brain: ({ size, weight, color }: MockIconProps) => (
       <span data-testid="brain-icon" data-size={size} data-weight={weight} data-color={color}>
         🧠
       </span>
     ),
-    Target: ({ size, weight, color }: any) => (
+    Target: ({ size, weight, color }: MockIconProps) => (
       <span data-testid="target-icon" data-size={size} data-weight={weight} data-color={color}>
         🎯
       </span>
     ),
-    CheckCircle: ({ size, weight, color, className }: any) => (
+    CheckCircle: ({ size, weight, color, className }: MockIconProps) => (
       <span
         data-testid="check-circle-icon"
         data-size={size}
@@ -56,17 +63,17 @@ vi.mock('../../Icon', async (importOriginal) => {
         ✅
       </span>
     ),
-    X: ({ size, weight, color }: any) => (
+    X: ({ size, weight, color }: MockIconProps) => (
       <span data-testid="x-icon" data-size={size} data-weight={weight} data-color={color}>
         ❌
       </span>
     ),
-    Info: ({ size, weight, color }: any) => (
+    Info: ({ size, weight, color }: MockIconProps) => (
       <span data-testid="info-icon" data-size={size} data-weight={weight} data-color={color}>
         ℹ️
       </span>
     ),
-    CircleNotch: ({ size, weight, color, className }: any) => (
+    CircleNotch: ({ size, weight, color, className }: MockIconProps) => (
       <span
         data-testid="circle-notch-icon"
         data-size={size}
@@ -342,10 +349,10 @@ describe('BadgeDetailModal', () => {
     it('should call onClose when backdrop is clicked', async () => {
       const badge = createBadge();
       const user = userEvent.setup();
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      // Click on the backdrop (the outermost div)
-      const backdrop = container.querySelector('.fixed.inset-0');
+      // Click on the backdrop (the outermost div rendered via portal)
+      const backdrop = document.body.querySelector('.fixed.inset-0');
       if (backdrop) {
         await user.click(backdrop);
       }
@@ -410,30 +417,30 @@ describe('BadgeDetailModal', () => {
   describe('category colors', () => {
     it('should apply orange color scheme for STREAK category', () => {
       const badge = createBadge({ category: 'STREAK', unlockedAt: '2024-01-15T10:30:00Z' });
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      expect(container.querySelector('.bg-orange-100')).toBeInTheDocument();
+      expect(document.body.querySelector('.bg-orange-100')).toBeInTheDocument();
     });
 
     it('should apply green color scheme for ACCURACY category', () => {
       const badge = createBadge({ category: 'ACCURACY', unlockedAt: '2024-01-15T10:30:00Z' });
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      expect(container.querySelector('.bg-green-100')).toBeInTheDocument();
+      expect(document.body.querySelector('.bg-green-100')).toBeInTheDocument();
     });
 
     it('should apply purple color scheme for COGNITIVE category', () => {
       const badge = createBadge({ category: 'COGNITIVE', unlockedAt: '2024-01-15T10:30:00Z' });
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      expect(container.querySelector('.bg-purple-100')).toBeInTheDocument();
+      expect(document.body.querySelector('.bg-purple-100')).toBeInTheDocument();
     });
 
     it('should apply blue color scheme for MILESTONE category', () => {
       const badge = createBadge({ category: 'MILESTONE', unlockedAt: '2024-01-15T10:30:00Z' });
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      expect(container.querySelector('.bg-blue-100')).toBeInTheDocument();
+      expect(document.body.querySelector('.bg-blue-100')).toBeInTheDocument();
     });
 
     it('should apply gray color for locked badge icon', () => {
@@ -445,9 +452,9 @@ describe('BadgeDetailModal', () => {
         percentage: 0,
       });
 
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      expect(container.querySelector('.bg-gray-200')).toBeInTheDocument();
+      expect(document.body.querySelector('.bg-gray-200')).toBeInTheDocument();
     });
   });
 
@@ -510,12 +517,12 @@ describe('BadgeDetailModal', () => {
 
     it('should have modal structure', () => {
       const badge = createBadge();
-      const { container } = render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
+      render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
       // Should have backdrop
-      expect(container.querySelector('.fixed.inset-0')).toBeInTheDocument();
+      expect(document.body.querySelector('.fixed.inset-0')).toBeInTheDocument();
       // Should have modal content
-      expect(container.querySelector('.bg-white.rounded-3xl')).toBeInTheDocument();
+      expect(document.body.querySelector('.bg-white.rounded-3xl')).toBeInTheDocument();
     });
   });
 });
