@@ -239,7 +239,7 @@ export default function RegisterPage() {
             to="/about"
             className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-white"
           >
-            <ArrowLeft size={14} weight="bold" />
+            <ArrowLeft size={14} />
             了解更多
           </Link>
         </div>

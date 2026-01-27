@@ -50,11 +50,19 @@ const mockStatisticsData: FullStatisticsData = {
   weekdayHeat: [1, 2, 0, 0, 0, 0, 1],
 };
 
-// Mock useStatistics hook
+// Mock useStatistics hook and related semantic hooks used by ErrorAnalysisPanel
 const mockUseStatistics = vi.fn();
-vi.mock('../../hooks/queries', () => ({
-  useStatistics: () => mockUseStatistics(),
-}));
+const mockUseSemanticStats = vi.fn();
+const mockUseErrorAnalysis = vi.fn();
+vi.mock('../../hooks/queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/queries')>();
+  return {
+    ...actual,
+    useStatistics: () => mockUseStatistics(),
+    useSemanticStats: () => mockUseSemanticStats(),
+    useErrorAnalysis: (enabled?: boolean) => mockUseErrorAnalysis(enabled),
+  };
+});
 
 // 创建测试用的 QueryClient
 function createTestQueryClient() {
@@ -74,6 +82,16 @@ describe('StatisticsPage', () => {
     // 默认返回成功状态
     mockUseStatistics.mockReturnValue({
       data: mockStatisticsData,
+      isLoading: false,
+      error: null,
+    });
+    mockUseSemanticStats.mockReturnValue({
+      stats: { available: false },
+      isLoading: false,
+      error: null,
+    });
+    mockUseErrorAnalysis.mockReturnValue({
+      analysis: null,
       isLoading: false,
       error: null,
     });
@@ -210,9 +228,9 @@ describe('StatisticsPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('周日')).toBeInTheDocument();
-        expect(screen.getByText('周一')).toBeInTheDocument();
-        expect(screen.getByText('周六')).toBeInTheDocument();
+        expect(screen.getByText('日')).toBeInTheDocument();
+        expect(screen.getByText('一')).toBeInTheDocument();
+        expect(screen.getByText('六')).toBeInTheDocument();
       });
     });
   });

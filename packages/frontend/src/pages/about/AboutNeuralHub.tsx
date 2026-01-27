@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Eye, Graph, Brain, ArrowsSplit, X } from '@phosphor-icons/react';
+import { User, Eye, Graph, Brain, ArrowsSplit, X } from '@/components/Icon';
 
 interface NodeData {
   id: string;
@@ -128,13 +128,13 @@ export default function AboutNeuralHub() {
           whileTap={{ scale: 0.95 }}
         >
           <motion.div
-            className="absolute inset-0 rounded-full bg-indigo-500 opacity-20"
+            className="absolute inset-0 rounded-full bg-blue-500 opacity-20"
             animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           />
-          <div className="relative z-10 flex h-20 w-20 flex-col items-center justify-center rounded-full border-2 border-indigo-100 bg-white shadow-lg">
-            <User size={32} weight="duotone" className="mb-1 text-indigo-600" />
-            <span className="text-[10px] font-bold tracking-wider text-indigo-900">用户</span>
+          <div className="relative z-10 flex h-20 w-20 flex-col items-center justify-center rounded-full border-2 border-blue-100 bg-white shadow-lg">
+            <User size={32} className="mb-1 text-blue-600" />
+            <span className="text-[10px] font-bold tracking-wider text-blue-900">用户</span>
           </div>
         </motion.div>
 
@@ -159,7 +159,7 @@ export default function AboutNeuralHub() {
             >
               <motion.button
                 onClick={() => setActiveNode(isActive ? null : node.id)}
-                className={`group relative flex h-16 w-16 flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-md transition-all duration-300 hover:shadow-xl ${isActive ? 'z-20 ring-4 ring-indigo-100 ring-offset-2' : 'z-10'}`}
+                className={`group relative flex h-16 w-16 flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-md transition-all duration-300 hover:shadow-xl ${isActive ? 'z-20 ring-4 ring-blue-100 ring-offset-2' : 'z-10'}`}
                 whileHover={{ scale: 1.1 }}
                 animate={
                   isRippleActive
@@ -167,7 +167,7 @@ export default function AboutNeuralHub() {
                     : {}
                 }
               >
-                <node.icon size={28} weight="duotone" className={node.color} />
+                <node.icon size={28} className={node.color} />
                 <span className="absolute -bottom-6 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-sm">
                   {node.label}
                 </span>
@@ -195,7 +195,7 @@ export default function AboutNeuralHub() {
                         <div
                           className={`rounded-xl bg-slate-50 p-2.5 ${node.color} ring-1 ring-slate-100`}
                         >
-                          <node.icon size={24} weight="duotone" />
+                          <node.icon size={24} />
                         </div>
                         <div>
                           <h3 className="text-lg font-bold leading-tight text-slate-800">
@@ -220,7 +220,7 @@ export default function AboutNeuralHub() {
                           transition={{ delay: idx * 0.05 }}
                           className="flex items-center gap-2.5 text-sm text-slate-600"
                         >
-                          <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
                           {detail}
                         </motion.div>
                       ))}

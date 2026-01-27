@@ -1,7 +1,14 @@
 import React, { memo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Books, MagnifyingGlass, CaretLeft, CaretRight } from '../../../../components/Icon';
-import { CaretDown, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import {
+  Books,
+  MagnifyingGlass,
+  CaretLeft,
+  CaretRight,
+  CaretDown,
+  ArrowUp,
+  ArrowDown,
+} from '../../../../components/Icon';
 import { getMasteryLevelLabel, getMasteryLevelColor } from './UserStatistics';
 
 export interface FilterState {
@@ -169,11 +176,10 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
               onClick={onToggleFilters}
               className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700"
             >
-              <MagnifyingGlass size={16} weight="bold" />
+              <MagnifyingGlass size={16} />
               <span>筛选和排序</span>
               <CaretDown
                 size={16}
-                weight="bold"
                 className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
               />
             </button>
@@ -275,11 +281,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                   className="rounded-button bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                   title={filters.sortOrder === 'asc' ? '升序' : '降序'}
                 >
-                  {filters.sortOrder === 'asc' ? (
-                    <ArrowUp size={20} weight="bold" />
-                  ) : (
-                    <ArrowDown size={20} weight="bold" />
-                  )}
+                  {filters.sortOrder === 'asc' ? <ArrowUp size={20} /> : <ArrowDown size={20} />}
                 </button>
               </div>
             </div>
@@ -424,7 +426,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                   disabled={pagination.page === 1}
                   className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
-                  <CaretLeft size={16} weight="bold" />
+                  <CaretLeft size={16} />
                 </button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
@@ -461,7 +463,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                   disabled={pagination.page === pagination.totalPages}
                   className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
-                  <CaretRight size={16} weight="bold" />
+                  <CaretRight size={16} />
                 </button>
               </div>
             </div>

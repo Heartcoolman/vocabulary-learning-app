@@ -15,14 +15,18 @@ const mockExplainabilityApi = vi.hoisted(() => ({
 }));
 
 // Mock useToast hook
-vi.mock('../../../components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
-}));
+vi.mock('../../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+    }),
+  };
+});
 
 // Mock explainabilityApi
 vi.mock('../../../services/explainabilityApi', () => ({

@@ -1,8 +1,9 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import apiClient, { User } from '../../services/client';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '../../hooks/usePrefetch';
 import { useSystemVersion } from '../../hooks/queries';
+import { NotificationDropdown } from '../../components/notification';
+import { useAdminAuthStore } from '../../stores/adminAuthStore';
+import { adminLogout } from '../../services/client/admin/AdminAuthClient';
 import {
   ChartBar,
   UsersThree,
@@ -24,7 +25,6 @@ import {
   Heartbeat,
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
-import { adminLogger } from '../../utils/logger';
 
 function VersionDisplay() {
   const { data: versionInfo } = useSystemVersion();
@@ -54,52 +54,13 @@ function VersionDisplay() {
 
 export default function AdminLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const toast = useToast();
   const { prefetchOnHover } = usePrefetch();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, clearAuth } = useAdminAuthStore();
 
-  useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  const checkAdminAccess = async () => {
-    try {
-      const userData = await apiClient.getCurrentUser();
-      setUser(userData);
-
-      // 前端权限校验：只有管理员可以访问管理后台
-      if (userData.role !== 'ADMIN') {
-        toast.error('需要管理员权限');
-        navigate('/');
-        return;
-      }
-    } catch (err) {
-      adminLogger.error({ err }, '获取用户信息失败');
-      navigate('/login');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleLogout = async () => {
+    await adminLogout();
+    clearAuth();
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center dark:bg-slate-900">
-        <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
-          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
-            正在加载...
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const menuItems = [
     { path: '/admin', label: '仪表盘', icon: ChartBar, exact: true },
@@ -115,9 +76,11 @@ export default function AdminLayout() {
     { path: '/admin/amas-monitoring', label: 'AMAS 监控', icon: Heartbeat },
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
     { path: '/admin/weekly-report', label: '运营周报', icon: ChartLine },
+    { path: '/admin/broadcasts', label: '广播通知', icon: Bell },
     { path: '/admin/logs', label: '系统日志', icon: FileText },
     { path: '/admin/log-alerts', label: '告警规则', icon: Bell },
     { path: '/admin/system-debug', label: '系统调试', icon: Bug },
+    { path: '/admin/settings', label: '系统设置', icon: Gear },
   ];
 
   return (
@@ -156,19 +119,24 @@ export default function AdminLayout() {
 
         <div className="border-t border-gray-200 p-4 dark:border-slate-700">
           <VersionDisplay />
-          <Link
-            to="/"
-            className="flex items-center gap-2 rounded-button px-4 py-2 text-gray-700 transition-all hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 rounded-button px-4 py-2 text-gray-700 transition-all hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
           >
             <ArrowLeft size={16} weight="bold" />
-            返回主页
-          </Link>
+            退出登录
+          </button>
         </div>
       </aside>
 
       {/* 主内容区 */}
-      <main className="flex-1">
-        <Outlet />
+      <main className="flex flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-end border-b border-gray-200/60 bg-white/80 px-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+          <NotificationDropdown systemOnly />
+        </header>
+        <div className="flex-1">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

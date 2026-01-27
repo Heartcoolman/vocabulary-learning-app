@@ -123,6 +123,7 @@ export {
   Camera,
   // 实验管理页面图标
   Stop,
+  SkipForward,
   // 词库质量管理页面图标
   Wrench,
   // LLM 任务管理页面图标
@@ -135,7 +136,36 @@ export {
   GearSix,
   // AMAS 监控页面图标
   Heartbeat,
+  // 用户管理页面图标
+  Prohibit,
+  // 设计系统统一 - 补充图标
+  Hourglass,
+  CloudSun,
+  SunDim,
+  MoonStars,
+  Envelope,
+  EnvelopeOpen,
+  TreeStructure,
+  Gavel,
+  ArrowsSplit,
+  Cube,
+  GraduationCap,
+  Flame,
+  CalendarBlank,
+  Circle,
+  Speedometer,
+  GitCommit,
+  CaretDoubleUp,
+  Cards,
+  Translate,
+  ArrowsLeftRight,
+  ListDashes,
+  Stack,
+  Megaphone,
 } from '@phosphor-icons/react';
+
+// Re-export types for components that need them
+export type { Icon, IconProps } from '@phosphor-icons/react';
 
 // 图标别名
 export {

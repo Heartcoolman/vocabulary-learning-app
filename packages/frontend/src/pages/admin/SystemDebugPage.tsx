@@ -384,7 +384,7 @@ function ServicesPanel({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Cpu className="h-5 w-5 text-indigo-600" />
+          <Cpu className="h-5 w-5 text-blue-600" />
           <h3 className="font-semibold">核心服务控制</h3>
         </div>
       </CardHeader>

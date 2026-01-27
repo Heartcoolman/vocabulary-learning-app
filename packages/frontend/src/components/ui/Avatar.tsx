@@ -60,7 +60,7 @@ function getColorFromName(name: string): string {
     'bg-red-500',
     'bg-purple-500',
     'bg-pink-500',
-    'bg-indigo-500',
+    'bg-blue-500',
     'bg-teal-500',
   ];
   let hash = 0;
@@ -119,7 +119,6 @@ export const Avatar = memo(
             (icon || (
               <User
                 size={iconSize}
-                weight="bold"
                 className="text-gray-400 dark:text-gray-500"
                 aria-hidden="true"
               />

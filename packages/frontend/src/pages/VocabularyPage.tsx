@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Word, WordBook } from '../types/models';
-import { Books, CircleNotch, MagnifyingGlass, X, User } from '../components/Icon';
-import { useToast, Modal } from '../components/ui';
+import { Books, MagnifyingGlass, X, User, Target, Shuffle, ArrowRight } from '../components/Icon';
+import { useToast, Modal, Spinner } from '../components/ui';
 import { ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 import {
@@ -17,7 +17,12 @@ import {
   useSyncWordBook,
 } from '../hooks/mutations/useWordBookMutations';
 import { UpdateBadge, UpdateConfirmModal } from '../components/wordbook-center';
-import type { UpdateInfo } from '../services/client';
+import { ClusterCard } from '../components/semantic';
+import { useWordClusters, useSemanticStats } from '../hooks/queries';
+import { semanticClient, type UpdateInfo } from '../services/client';
+import { buildSeedWords } from '../utils/learningSeed';
+
+type ViewMode = 'wordbooks' | 'themes';
 
 // 搜索结果类型
 type SearchResult = Word & { wordBook?: { id: string; name: string; type: string } };
@@ -29,6 +34,7 @@ export default function VocabularyPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'system' | 'user'>('system');
+  const [viewMode, setViewMode] = useState<ViewMode>('wordbooks');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newBookName, setNewBookName] = useState('');
   const [newBookDesc, setNewBookDesc] = useState('');
@@ -68,6 +74,14 @@ export default function VocabularyPage() {
   const createWordBookMutation = useCreateWordBook();
   const deleteWordBookMutation = useDeleteWordBook();
   const syncWordBookMutation = useSyncWordBook();
+
+  // 语义相关数据
+  const { stats: semanticStats } = useSemanticStats();
+  const shouldFetchClusters =
+    viewMode === 'themes' &&
+    (semanticStats?.available ?? false) &&
+    (semanticStats?.coverage ?? 0) >= 0.5;
+  const { clusters, isLoading: isClustersLoading } = useWordClusters(shouldFetchClusters);
 
   // 获取更新信息
   const { data: updates = [] } = useWordBookUpdates();
@@ -147,6 +161,27 @@ export default function VocabularyPage() {
     }
   };
 
+  const handleLearnTheme = async (clusterId: string) => {
+    try {
+      const detail = await semanticClient.getClusterDetail(clusterId);
+      const seedWords = buildSeedWords(detail.words);
+      if (seedWords.length === 0) {
+        toast.info('该主题暂无可学习的单词');
+        return;
+      }
+      navigate('/', {
+        state: {
+          seedWords,
+          seedSource: 'cluster',
+          seedLabel: detail.themeLabel,
+        },
+      });
+    } catch (err) {
+      uiLogger.error({ err, clusterId }, '加载主题单词失败');
+      toast.error(err instanceof Error ? err.message : '加载主题单词失败');
+    }
+  };
+
   const renderWordBookCard = (book: WordBook, isUserBook: boolean) => {
     const update = updateMap.get(book.id);
     return (
@@ -186,7 +221,7 @@ export default function VocabularyPage() {
 
           <div className="mb-3 mt-auto flex items-center gap-2 text-base text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1">
-              <Books size={16} weight="bold" />
+              <Books size={16} />
               {book.wordCount} 个单词{book.sourceVersion && ` · v${book.sourceVersion}`}
             </span>
           </div>
@@ -233,12 +268,7 @@ export default function VocabularyPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400">正在加载...</p>
         </div>
       </div>
@@ -291,7 +321,7 @@ export default function VocabularyPage() {
             <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-card border border-gray-200 bg-white shadow-elevated dark:border-slate-700 dark:bg-slate-800">
               {isSearching || isSearchingFetching ? (
                 <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                  <CircleNotch className="mx-auto mb-2 animate-spin" size={24} />
+                  <Spinner className="mx-auto mb-2" size="sm" color="secondary" />
                   搜索中...
                 </div>
               ) : searchResults.length === 0 && searchQuery.trim() ? (
@@ -353,34 +383,106 @@ export default function VocabularyPage() {
           </div>
         )}
 
-        {/* 标签切换 */}
-        <div className="mb-4 flex gap-4 border-b border-gray-200 dark:border-slate-700">
-          <button
-            onClick={() => setActiveTab('system')}
-            className={`px-4 py-2 font-medium transition-all ${
-              activeTab === 'system'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-            }`}
+        {/* 易混淆词入口卡片 */}
+        {semanticStats?.available && (
+          <div
+            onClick={() => navigate('/confusion-words')}
+            className="mb-4 flex cursor-pointer items-center gap-4 rounded-card border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 p-4 transition-all duration-g3-fast hover:scale-[1.01] hover:shadow-soft dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20"
           >
-            系统词库 ({systemBooks.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('user')}
-            className={`px-4 py-2 font-medium transition-all ${
-              activeTab === 'user'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-            }`}
-          >
-            我的词库 ({userBooks.length})
-          </button>
-        </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40">
+              <Shuffle size={24} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 dark:text-white">易混淆词检测</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                发现语义相近的词对，针对性练习避免混淆
+              </p>
+            </div>
+            <ArrowRight size={20} className="text-gray-400" />
+          </div>
+        )}
 
-        {/* 词书列表 */}
-        {displayBooks.length === 0 ? (
+        {/* 视图模式切换 - 暂时隐藏主题视图功能 */}
+        {/* <div className="mb-4 flex gap-2 rounded-card border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => setViewMode('wordbooks')}
+            className={`flex-1 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
+              viewMode === 'wordbooks'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Books size={16} className="inline mr-1" />
+            词书视图
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('themes')}
+            disabled={!semanticStats?.available}
+            className={`flex-1 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
+              viewMode === 'themes'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Target size={16} className="inline mr-1" />
+            主题视图
+          </button>
+        </div> */}
+
+        {/* 标签切换 - 仅在词书视图显示 */}
+        {viewMode === 'wordbooks' && (
+          <div className="mb-4 flex gap-4 border-b border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => setActiveTab('system')}
+              className={`px-4 py-2 font-medium transition-all ${
+                activeTab === 'system'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              系统词库 ({systemBooks.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('user')}
+              className={`px-4 py-2 font-medium transition-all ${
+                activeTab === 'user'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              我的词库 ({userBooks.length})
+            </button>
+          </div>
+        )}
+
+        {/* 内容区域 */}
+        {viewMode === 'themes' ? (
+          // 主题视图
+          semanticStats?.coverage !== undefined && semanticStats.coverage < 0.5 ? (
+            <div className="py-16 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                向量数据不足（当前覆盖率 {(semanticStats.coverage * 100).toFixed(0)}
+                %），无法使用主题视图
+              </p>
+            </div>
+          ) : isClustersLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Spinner size="xl" color="primary" />
+            </div>
+          ) : clusters.length === 0 ? (
+            <div className="py-16 text-center text-gray-500 dark:text-gray-400">暂无主题数据</div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {clusters.map((cluster) => (
+                <ClusterCard key={cluster.id} cluster={cluster} onLearnTheme={handleLearnTheme} />
+              ))}
+            </div>
+          )
+        ) : displayBooks.length === 0 ? (
           <div className="py-16 text-center">
-            <Books size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
+            <Books size={80} color="#9ca3af" className="mx-auto mb-4" />
             <p className="mb-4 text-gray-500 dark:text-gray-400">
               {activeTab === 'system' ? '暂无系统词库' : '还没有创建任何词书'}
             </p>

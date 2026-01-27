@@ -271,7 +271,7 @@ export const Popover = memo(
                       )}
                       aria-label="关闭"
                     >
-                      <X size={16} weight="bold" />
+                      <X size={16} />
                     </button>
                   )}
                 </div>

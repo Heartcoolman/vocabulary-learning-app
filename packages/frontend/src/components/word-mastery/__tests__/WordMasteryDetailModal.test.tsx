@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WordMasteryDetailModal } from '../WordMasteryDetailModal';
 import { apiClient } from '../../../services/client';
 import { ApiError } from '../../../services/client';
@@ -103,6 +104,18 @@ const mockWordData = {
   spelling: 'hello',
   phonetic: '/həˈloʊ/',
   meanings: ['你好', '打招呼'],
+};
+
+const render = (ui: JSX.Element) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return rtlRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 };
 
 const mockMasteryData = {

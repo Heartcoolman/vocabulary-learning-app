@@ -15,6 +15,7 @@ vi.mock('framer-motion', () => ({
     span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
     p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
   },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
 // Mock Icon components
@@ -30,6 +31,7 @@ vi.mock('../Icon', async (importOriginal) => {
     Clock: () => <span data-testid="clock">🕐</span>,
     Target: () => <span data-testid="target">🎯</span>,
     SpeakerHigh: () => <span data-testid="speaker">🔊</span>,
+    CircleNotch: () => <span data-testid="circle-notch">⟳</span>,
   };
 });
 

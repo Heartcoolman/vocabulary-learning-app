@@ -129,11 +129,9 @@ export const Checkbox = memo(
               )}
               {...props}
             />
-            {showCheck && (
-              <Check size={iconSize} weight="bold" className="text-white" aria-hidden="true" />
-            )}
+            {showCheck && <Check size={iconSize} className="text-white" aria-hidden="true" />}
             {showIndeterminate && (
-              <Minus size={iconSize} weight="bold" className="text-white" aria-hidden="true" />
+              <Minus size={iconSize} className="text-white" aria-hidden="true" />
             )}
           </span>
 

@@ -165,7 +165,7 @@ export default function WordBookCenterPage() {
               onClick={() => navigate(-1)}
               className="inline-flex items-center rounded-button px-3 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" weight="bold" />
+              <ArrowLeft className="mr-2 h-4 w-4" />
               返回
             </button>
             <button
@@ -177,7 +177,7 @@ export default function WordBookCenterPage() {
             </button>
           </nav>
           <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-            <Books className="h-8 w-8 text-blue-500" weight="duotone" />
+            <Books className="h-8 w-8 text-blue-500" />
             词库中心
           </h1>
           <p className="mt-1 text-base text-gray-600 dark:text-gray-400">浏览和导入外部词书</p>
@@ -185,12 +185,7 @@ export default function WordBookCenterPage() {
 
         {needsConfig ? (
           <div className="animate-g3-slide-up py-16 text-center">
-            <Warning
-              className="mx-auto mb-6 animate-pulse"
-              size={96}
-              weight="thin"
-              color="#eab308"
-            />
+            <Warning className="mx-auto mb-6 animate-pulse" size={96} color="#eab308" />
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
               词库中心未配置
             </h2>
@@ -201,7 +196,7 @@ export default function WordBookCenterPage() {
               onClick={handleOpenConfig}
               className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-soft transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              <Gear className="h-5 w-5" weight="bold" />
+              <Gear className="h-5 w-5" />
               配置词库中心
             </button>
           </div>
@@ -211,12 +206,7 @@ export default function WordBookCenterPage() {
           </div>
         ) : browseError ? (
           <div className="animate-g3-slide-up py-16 text-center">
-            <Warning
-              className="mx-auto mb-6 animate-pulse"
-              size={96}
-              weight="thin"
-              color="#ef4444"
-            />
+            <Warning className="mx-auto mb-6 animate-pulse" size={96} color="#ef4444" />
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
             <p className="mb-6 text-base text-gray-600 dark:text-gray-400">
               {browseError instanceof Error ? browseError.message : '无法连接词库中心'}

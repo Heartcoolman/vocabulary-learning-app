@@ -188,7 +188,7 @@ export default function AdminWordBooks() {
               )}
 
               <div className="mb-4 flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-                <Books size={16} weight="bold" />
+                <Books size={16} />
                 {book.wordCount} 个单词
               </div>
 
@@ -202,10 +202,10 @@ export default function AdminWordBooks() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEditClick(book)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-button bg-indigo-50 px-3 py-2 text-indigo-600 transition-all duration-g3-fast hover:scale-105 hover:bg-indigo-100 active:scale-95 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-button bg-blue-50 px-3 py-2 text-blue-600 transition-all duration-g3-fast hover:scale-105 hover:bg-blue-100 active:scale-95 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
                     title="编辑词库"
                   >
-                    <NotePencil size={16} weight="bold" />
+                    <NotePencil size={16} />
                     编辑
                   </button>
                   <button
@@ -215,7 +215,7 @@ export default function AdminWordBooks() {
                     className="flex flex-1 items-center justify-center gap-1 rounded-button bg-green-50 px-3 py-2 text-green-600 transition-all duration-g3-fast hover:scale-105 hover:bg-green-100 active:scale-95 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                     title="批量导入单词"
                   >
-                    <UploadSimple size={16} weight="bold" />
+                    <UploadSimple size={16} />
                     导入
                   </button>
                   <button
@@ -303,7 +303,7 @@ export default function AdminWordBooks() {
             type="text"
             value={editBook.name}
             onChange={(e) => setEditBook({ ...editBook, name: e.target.value })}
-            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
             placeholder="例如：TOEFL 核心词汇"
           />
         </div>
@@ -315,7 +315,7 @@ export default function AdminWordBooks() {
           <textarea
             value={editBook.description}
             onChange={(e) => setEditBook({ ...editBook, description: e.target.value })}
-            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-gray-400"
             rows={3}
             placeholder="简单描述这个词库..."
           />
@@ -324,7 +324,7 @@ export default function AdminWordBooks() {
         <div className="flex gap-3">
           <button
             onClick={handleUpdateBook}
-            className="flex-1 rounded-card bg-indigo-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-indigo-600 hover:shadow-floating focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:scale-95"
+            className="flex-1 rounded-card bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             保存
           </button>

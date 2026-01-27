@@ -371,11 +371,7 @@ export const Select = memo(
                         {option.icon && <span className="flex-shrink-0">{option.icon}</span>}
                         <span className="flex-1 truncate text-left">{option.label}</span>
                         {isSelected && (
-                          <Check
-                            size={iconSize}
-                            weight="bold"
-                            className="flex-shrink-0 text-blue-500"
-                          />
+                          <Check size={iconSize} className="flex-shrink-0 text-blue-500" />
                         )}
                       </button>
                     );
@@ -871,7 +867,7 @@ export const MultiSelect = memo(
                               : 'border-gray-300 dark:border-slate-500',
                           )}
                         >
-                          {isSelected && <Check size={12} weight="bold" className="text-white" />}
+                          {isSelected && <Check size={12} className="text-white" />}
                         </span>
                         {option.icon && <span className="flex-shrink-0">{option.icon}</span>}
                         <span className="flex-1 truncate text-left">{option.label}</span>

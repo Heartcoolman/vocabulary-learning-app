@@ -149,7 +149,7 @@ describe('SimulationPage', () => {
     it('should select new user scenario by default', () => {
       renderComponent();
       const newUserButton = screen.getByText('新手起步').closest('button');
-      expect(newUserButton).toHaveClass('bg-indigo-50');
+      expect(newUserButton).toHaveClass('bg-blue-50');
     });
 
     it('should change scenario when clicking', async () => {
@@ -159,7 +159,7 @@ describe('SimulationPage', () => {
 
       await waitFor(() => {
         const tiredButton = screen.getByText('疲劳状态').closest('button');
-        expect(tiredButton).toHaveClass('bg-indigo-50');
+        expect(tiredButton).toHaveClass('bg-blue-50');
       });
     });
 

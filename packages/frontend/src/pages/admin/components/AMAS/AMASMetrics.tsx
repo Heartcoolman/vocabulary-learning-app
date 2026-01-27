@@ -35,11 +35,11 @@ export interface AMASMetricsProps {
 const getTrendIcon = (trend: string): React.ReactNode => {
   switch (trend) {
     case 'up':
-      return <TrendUp size={20} weight="bold" className="text-green-500" />;
+      return <TrendUp size={20} className="text-green-500" />;
     case 'down':
-      return <TrendDown size={20} weight="bold" className="text-red-500" />;
+      return <TrendDown size={20} className="text-red-500" />;
     default:
-      return <Minus size={20} weight="bold" className="text-gray-500 dark:text-gray-400" />;
+      return <Minus size={20} className="text-gray-500 dark:text-gray-400" />;
   }
 };
 
@@ -201,7 +201,7 @@ function AMASMetricsComponent({
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <ChartLine size={24} weight="duotone" className="text-blue-500" />
+          <ChartLine size={24} className="text-blue-500" />
           学习曲线
         </h2>
         <div className="flex items-center gap-2">
@@ -212,7 +212,7 @@ function AMASMetricsComponent({
             className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
             title="刷新"
           >
-            <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
+            <ArrowClockwise size={20} className={isLoading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
@@ -225,7 +225,7 @@ function AMASMetricsComponent({
       ) : error ? (
         /* 错误状态 */
         <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-          <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={48} color="#ef4444" className="mx-auto mb-4" />
           <p>{error}</p>
         </div>
       ) : data ? (

@@ -93,7 +93,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className={`rounded-card p-3 ${config.bg} ${config.color}`}>
-              <MainIcon size={24} weight="duotone" />
+              <MainIcon size={24} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h3>
@@ -110,7 +110,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
             <div key={m.key} className="relative">
               <div className="mb-1 flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <m.icon size={14} weight="bold" className="opacity-70" /> {m.label}
+                  <m.icon size={14} className="opacity-70" /> {m.label}
                 </span>
                 <span className="font-medium text-gray-900 dark:text-white">
                   {(m.score * 100).toFixed(0)}
@@ -132,7 +132,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
 
       <div className="mt-auto border-t border-gray-100 bg-gray-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/80">
         <div className="flex gap-3">
-          <Sparkle className="mt-0.5 shrink-0 text-yellow-500" size={16} weight="duotone" />
+          <Sparkle className="mt-0.5 shrink-0 text-yellow-500" size={16} />
           <p className="text-sm leading-snug text-gray-600 dark:text-gray-300">
             <span className="font-medium text-gray-900 dark:text-white">建议：</span>
             {config.desc}

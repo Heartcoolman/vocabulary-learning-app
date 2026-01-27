@@ -172,7 +172,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
           >
             <UploadSimple
               className={`h-6 w-6 ${isDragging ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
-              weight="bold"
               aria-hidden="true"
             />
           </div>
@@ -188,7 +187,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-2 relative flex items-center gap-4 rounded-card border border-gray-200 bg-white p-4 shadow-soft duration-g3-normal dark:border-slate-700 dark:bg-slate-800">
           <div className="rounded-button bg-blue-50 p-3 dark:bg-blue-900/30">
-            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" weight="duotone" />
+            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -209,7 +208,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             aria-label="Remove file"
             title="删除文件"
           >
-            <X className="h-5 w-5" weight="bold" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       )}

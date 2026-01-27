@@ -65,7 +65,7 @@ export default function WordDetailModal({
       <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <ChartLine size={24} weight="duotone" className="text-blue-500" />
+            <ChartLine size={24} className="text-blue-500" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               {wordSpelling || history?.word.spelling || wordId} 学习详情
             </h2>

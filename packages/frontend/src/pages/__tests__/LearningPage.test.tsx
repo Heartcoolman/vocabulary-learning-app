@@ -149,6 +149,10 @@ vi.mock('../../components/explainability/ExplainabilityModal', () => ({
     ) : null,
 }));
 
+vi.mock('../../components/semantic/RelatedWordsPanel', () => ({
+  RelatedWordsPanel: () => null,
+}));
+
 // Mock logger
 vi.mock('../../utils/logger', () => ({
   learningLogger: {
@@ -644,7 +648,8 @@ describe('LearningPage', () => {
 
       render(<LearningPage />);
 
-      expect(screen.getByText('当前学习策略')).toBeInTheDocument();
+      // Bottom bar shows current word status (new/review)
+      expect(screen.getByText('新词')).toBeInTheDocument();
     });
 
     it('should show analyzing message when no AMAS result', () => {

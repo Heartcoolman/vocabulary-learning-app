@@ -335,7 +335,7 @@ describe('ConfirmModal', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /确定/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument();
     });
 
@@ -417,7 +417,7 @@ describe('ConfirmModal', () => {
       );
 
       // Button still shows text but with loading spinner icon
-      expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /确定/ })).toBeInTheDocument();
     });
 
     it('should disable buttons when isLoading is true', () => {
@@ -432,7 +432,7 @@ describe('ConfirmModal', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: '确定' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /确定/ })).toBeDisabled();
       expect(screen.getByRole('button', { name: '取消' })).toBeDisabled();
     });
   });

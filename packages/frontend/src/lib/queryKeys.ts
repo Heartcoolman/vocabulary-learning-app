@@ -265,6 +265,17 @@ export const queryKeys = {
     operations: () => [...queryKeys.batch.all, 'operations'] as const,
     progress: (operationId: string) => [...queryKeys.batch.all, 'progress', operationId] as const,
   },
+
+  /**
+   * 通知相关查询
+   */
+  notifications: {
+    all: ['notifications'] as const,
+    lists: () => [...queryKeys.notifications.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) =>
+      [...queryKeys.notifications.lists(), filters] as const,
+    stats: () => [...queryKeys.notifications.all, 'stats'] as const,
+  },
 } as const;
 
 /**

@@ -86,7 +86,7 @@ export const Input = memo(
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+            className="text-gray-400 hover:text-gray-600 focus:outline-none dark:text-gray-500 dark:hover:text-gray-300"
             aria-label={showPassword ? '隐藏密码' : '显示密码'}
             tabIndex={-1}
           >
@@ -124,7 +124,10 @@ export const Input = memo(
           >
             {actualPrefix && (
               <span
-                className={cn('flex items-center text-gray-400', iconContainerSizeStyles[size])}
+                className={cn(
+                  'flex items-center text-gray-400 dark:text-gray-500',
+                  iconContainerSizeStyles[size],
+                )}
               >
                 {actualPrefix}
               </span>

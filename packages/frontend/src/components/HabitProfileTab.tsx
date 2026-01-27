@@ -138,7 +138,7 @@ const HabitProfileTab: React.FC = () => {
             onClick={loadHabitProfile}
             className="mx-auto flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
-            <ArrowClockwise size={16} weight="bold" />
+            <ArrowClockwise size={16} />
             重试
           </button>
         </div>
@@ -158,7 +158,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center gap-3">
             <div className="rounded-button bg-blue-100 p-2 dark:bg-blue-900/30">
-              <Clock className="text-blue-600 dark:text-blue-400" size={24} weight="bold" />
+              <Clock className="text-blue-600 dark:text-blue-400" size={24} />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">学习时长</h3>
           </div>
@@ -175,7 +175,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center gap-3">
             <div className="rounded-button bg-green-100 p-2 dark:bg-green-900/30">
-              <TrendUp className="text-green-600 dark:text-green-400" size={24} weight="bold" />
+              <TrendUp className="text-green-600 dark:text-green-400" size={24} />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">学习节奏</h3>
           </div>
@@ -192,7 +192,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center gap-3">
             <div className="rounded-button bg-purple-100 p-2 dark:bg-purple-900/30">
-              <Calendar className="text-purple-600 dark:text-purple-400" size={24} weight="bold" />
+              <Calendar className="text-purple-600 dark:text-purple-400" size={24} />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">数据样本</h3>
           </div>
@@ -286,9 +286,9 @@ const HabitProfileTab: React.FC = () => {
             className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {actionLoading === 'save' ? (
-              <ArrowClockwise size={16} weight="bold" className="animate-spin" />
+              <ArrowClockwise size={16} className="animate-spin" />
             ) : (
-              <FloppyDisk size={16} weight="bold" />
+              <FloppyDisk size={16} />
             )}
             保存习惯画像
           </button>
@@ -299,9 +299,9 @@ const HabitProfileTab: React.FC = () => {
             className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
           >
             {actionLoading === 'init' ? (
-              <ArrowClockwise size={16} weight="bold" className="animate-spin" />
+              <ArrowClockwise size={16} className="animate-spin" />
             ) : (
-              <ArrowCounterClockwise size={16} weight="bold" />
+              <ArrowCounterClockwise size={16} />
             )}
             从历史重建
           </button>
@@ -314,8 +314,7 @@ const HabitProfileTab: React.FC = () => {
 
       <div className="rounded-button border border-blue-100 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30">
         <h4 className="mb-2 flex items-center gap-1 text-sm font-semibold text-blue-900 dark:text-blue-200">
-          <Lightbulb size={16} weight="fill" className="text-blue-600 dark:text-blue-400" />{' '}
-          关于习惯画像
+          <Lightbulb size={16} className="text-blue-600 dark:text-blue-400" /> 关于习惯画像
         </h4>
         <p className="text-sm text-blue-700 dark:text-blue-300">
           系统会自动分析你的学习习惯，包括偏好的学习时段、每次学习时长和学习节奏。 这些数据将帮助

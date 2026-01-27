@@ -1,10 +1,12 @@
 import { BrowserRouter, Navigate, useRoutes, RouteObject } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { IconContext } from '@phosphor-icons/react';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider, useToast } from './components/ui';
 import { queryClient } from './lib/queryClient';
+import { useAdminAuthStore } from './stores/adminAuthStore';
+import { adminGetMe } from './services/client/admin/AdminAuthClient';
 
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
@@ -28,6 +30,8 @@ const WeeklyReportPage = lazy(() => import('./pages/admin/WeeklyReportPage'));
 const WordQualityPage = lazy(() => import('./pages/admin/WordQualityPage'));
 const LLMTasksPage = lazy(() => import('./pages/admin/LLMTasksPage'));
 const AMASMonitoringPage = lazy(() => import('./pages/admin/AMASMonitoringPage'));
+const SystemSettingsPage = lazy(() => import('./pages/admin/SystemSettingsPage'));
+const BroadcastPage = lazy(() => import('./pages/admin/BroadcastPage'));
 
 function PageLoader() {
   return (
@@ -41,8 +45,7 @@ function PageLoader() {
 }
 
 function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, loading, logout } = useAuth();
-  const { showToast } = useToast();
+  const { isAuthenticated, loading } = useAdminAuthStore();
 
   if (loading) {
     return <PageLoader />;
@@ -52,11 +55,22 @@ function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/admin-login" replace />;
   }
 
-  if (user?.role !== 'ADMIN') {
-    logout();
-    showToast('error', '权限不足，仅管理员可访问');
-    return <Navigate to="/admin-login" replace />;
-  }
+  return <>{children}</>;
+}
+
+function AdminAuthInit({ children }: { children: React.ReactNode }) {
+  const { token, setAuth, clearAuth, init, loading } = useAdminAuthStore();
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
+  useEffect(() => {
+    if (!token || !loading) return;
+    adminGetMe()
+      .then((user) => setAuth(user, token))
+      .catch(() => clearAuth());
+  }, [token, loading, setAuth, clearAuth]);
 
   return <>{children}</>;
 }
@@ -241,6 +255,22 @@ function AdminRoutes() {
             </Suspense>
           ),
         },
+        {
+          path: 'settings',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <SystemSettingsPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: 'broadcasts',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <BroadcastPage />
+            </Suspense>
+          ),
+        },
       ],
     },
     { path: '*', element: <Navigate to="/admin" replace /> },
@@ -251,16 +281,18 @@ function AdminRoutes() {
 
 export default function AdminApp() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <ToastProvider>
-              <AdminRoutes />
-            </ToastProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <IconContext.Provider value={{ weight: 'duotone' }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <BrowserRouter>
+            <AdminAuthInit>
+              <ToastProvider>
+                <AdminRoutes />
+              </ToastProvider>
+            </AdminAuthInit>
+          </BrowserRouter>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </IconContext.Provider>
   );
 }

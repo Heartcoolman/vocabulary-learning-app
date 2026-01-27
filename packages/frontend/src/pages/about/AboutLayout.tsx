@@ -47,8 +47,8 @@ export default function AboutLayout() {
         {/* 标题区 */}
         <div className="border-b border-white/20 p-8 dark:border-slate-700/20">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20">
-              <Sparkle size={20} weight="fill" className="text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-600 shadow-lg shadow-blue-500/20">
+              <Sparkle size={20} className="text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -75,7 +75,7 @@ export default function AboutLayout() {
                 aria-current={finalActive ? 'page' : undefined}
                 className={`group flex items-center gap-3 rounded-2xl px-5 py-3.5 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                   finalActive
-                    ? 'bg-white text-blue-600 shadow-md shadow-slate-200/50 ring-1 ring-black/5 dark:bg-slate-700 dark:text-blue-400 dark:shadow-none'
+                    ? 'bg-white text-blue-600 shadow-soft shadow-slate-200/50 ring-1 ring-black/5 dark:bg-slate-700 dark:text-blue-400 dark:shadow-none'
                     : 'text-slate-500 hover:bg-white/50 hover:text-slate-900 hover:shadow-sm dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'
                 }`}
               >

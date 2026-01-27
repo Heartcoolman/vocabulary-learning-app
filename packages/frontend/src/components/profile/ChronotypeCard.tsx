@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, SunHorizon } from '@phosphor-icons/react';
+import { Sun, Moon, SunHorizon } from '@/components/Icon';
 
 interface ChronotypeCardProps {
   type: 'morning' | 'evening' | 'neutral';
@@ -12,9 +12,9 @@ export const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ type, confidence
   const isEvening = type === 'evening';
 
   const getIcon = () => {
-    if (isMorning) return <Sun size={32} weight="duotone" className="text-amber-500" />;
-    if (isEvening) return <Moon size={32} weight="duotone" className="text-indigo-500" />;
-    return <SunHorizon size={32} weight="duotone" className="text-teal-500" />;
+    if (isMorning) return <Sun size={32} className="text-amber-500" />;
+    if (isEvening) return <Moon size={32} className="text-blue-500" />;
+    return <SunHorizon size={32} className="text-teal-500" />;
   };
 
   const getTitle = () => {
@@ -38,7 +38,7 @@ export const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ type, confidence
     <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800">
       {/* Background Decoration */}
       <div
-        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-g3-slow ${isMorning ? 'bg-amber-400' : isEvening ? 'bg-indigo-600' : 'bg-teal-400'}`}
+        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-g3-slow ${isMorning ? 'bg-amber-400' : isEvening ? 'bg-blue-600' : 'bg-teal-400'}`}
       />
 
       <div className="relative z-10">
@@ -53,7 +53,7 @@ export const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ type, confidence
             <div className="flex items-center gap-1">
               <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                 <div
-                  className={`h-full rounded-full ${isMorning ? 'bg-amber-500' : isEvening ? 'bg-indigo-500' : 'bg-teal-500'}`}
+                  className={`h-full rounded-full ${isMorning ? 'bg-amber-500' : isEvening ? 'bg-blue-500' : 'bg-teal-500'}`}
                   style={{ width: `${confidence * 100}%` }}
                 />
               </div>

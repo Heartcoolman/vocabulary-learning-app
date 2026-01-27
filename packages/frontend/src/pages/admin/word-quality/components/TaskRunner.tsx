@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckType, Task } from '../api';
 import { TaskProgress } from '../hooks';
-import { Play, CircleNotch } from '@phosphor-icons/react';
+import { Play, CircleNotch } from '../../../../components/Icon';
 import { G3_DURATION, G3_EASING } from '../../../../utils/animations';
 import { Spinner, InlineSpinner } from '../../../../components/ui/Spinner';
 
@@ -77,11 +77,7 @@ export const TaskRunner: React.FC<Props> = ({
                 disabled={loading}
                 className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? (
-                  <Spinner size="sm" color="white" />
-                ) : (
-                  <Play weight="fill" className="h-5 w-5" />
-                )}
+                {loading ? <Spinner size="sm" color="white" /> : <Play className="h-5 w-5" />}
                 启动检查
               </button>
             </>

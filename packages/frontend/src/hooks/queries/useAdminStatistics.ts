@@ -72,9 +72,8 @@ export interface SystemHealth {
   score: number; // 0-100
   issues: string[];
   metrics: {
-    activeRate: number; // 活跃率百分比
-    avgWordsPerBook: number; // 平均每词库单词数
-    avgRecordsPerUser: number; // 平均每用户学习记录数
+    avgWordsPerBook: number;
+    avgRecordsPerUser: number;
   };
 }
 
@@ -93,7 +92,6 @@ export function calculateSystemHealth(stats: AdminStatistics): SystemHealth {
       score: 0,
       issues: ['统计数据不可用'],
       metrics: {
-        activeRate: 0,
         avgWordsPerBook: 0,
         avgRecordsPerUser: 0,
       },
@@ -104,18 +102,8 @@ export function calculateSystemHealth(stats: AdminStatistics): SystemHealth {
   let score = 100;
 
   // 计算关键指标
-  const activeRate = stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers) * 100 : 0;
   const avgWordsPerBook = stats.totalWordBooks > 0 ? stats.totalWords / stats.totalWordBooks : 0;
   const avgRecordsPerUser = stats.totalUsers > 0 ? stats.totalRecords / stats.totalUsers : 0;
-
-  // 检查活跃率
-  if (activeRate < HEALTH_THRESHOLDS.ACTIVE_RATE.LOW) {
-    issues.push(`用户活跃率较低（< ${HEALTH_THRESHOLDS.ACTIVE_RATE.LOW}%）`);
-    score -= HEALTH_PENALTIES.LOW_ACTIVE_RATE;
-  } else if (activeRate < HEALTH_THRESHOLDS.ACTIVE_RATE.MEDIUM) {
-    issues.push(`用户活跃率偏低（< ${HEALTH_THRESHOLDS.ACTIVE_RATE.MEDIUM}%）`);
-    score -= HEALTH_PENALTIES.MEDIUM_ACTIVE_RATE;
-  }
 
   // 检查系统词库
   if (stats.systemWordBooks < HEALTH_THRESHOLDS.MIN_SYSTEM_WORDBOOKS) {
@@ -155,7 +143,6 @@ export function calculateSystemHealth(stats: AdminStatistics): SystemHealth {
     score,
     issues,
     metrics: {
-      activeRate,
       avgWordsPerBook,
       avgRecordsPerUser,
     },

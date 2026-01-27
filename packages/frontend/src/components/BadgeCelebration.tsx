@@ -1,4 +1,5 @@
 import { useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Badge } from '../types/amas-enhanced';
 import { Confetti, Star, Trophy, Medal, X } from './Icon';
@@ -115,7 +116,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
   const CategoryIcon = getCategoryIcon();
   const tierColor = getTierColor();
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isVisible && (
         <motion.div
@@ -189,7 +190,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
                 initial={{ scale: 0.9, rotate: -5, opacity: 0 }}
                 animate={{ scale: 1, rotate: 0, opacity: 1, transition: g3SpringBouncy }}
               >
-                <Confetti size={80} weight="duotone" color={IconColor.warning} />
+                <Confetti size={80} color={IconColor.warning} />
                 <motion.div
                   className="absolute -right-2 -top-2"
                   animate={{ scale: [1, 1.12, 1], rotate: [0, -6, 0] }}
@@ -219,7 +220,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
                   repeatDelay: 2,
                 }}
               >
-                <CategoryIcon size={48} weight="duotone" color={tierColor.icon} />
+                <CategoryIcon size={48} color={tierColor.icon} />
               </motion.div>
 
               <h3 className={`text-xl font-bold ${tierColor.text} mb-2`}>{badge.name}</h3>
@@ -259,6 +260,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

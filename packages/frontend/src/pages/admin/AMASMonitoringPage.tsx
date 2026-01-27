@@ -12,7 +12,7 @@ import {
   CaretDown,
   CaretUp,
 } from '../../components/Icon';
-import { useToast } from '../../components/ui';
+import { useToast, Spinner } from '../../components/ui';
 import apiClient from '../../services/client';
 import type {
   AMASMonitoringOverview,
@@ -103,7 +103,7 @@ export default function AMASMonitoringPage() {
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <CircleNotch className="animate-spin text-blue-500" size={48} weight="bold" />
+        <Spinner size="xl" color="primary" />
       </div>
     );
   }
@@ -114,15 +114,15 @@ export default function AMASMonitoringPage() {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Heartbeat size={32} weight="bold" className="text-rose-500" />
+            <Heartbeat size={32} className="text-rose-500" />
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AMAS 系统监控</h1>
           </div>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >
-            <ArrowsClockwise size={18} weight="bold" className={refreshing ? 'animate-spin' : ''} />
+            <ArrowsClockwise size={18} className={refreshing ? 'animate-spin' : ''} />
             刷新
           </button>
         </div>
@@ -179,8 +179,13 @@ export default function AMASMonitoringPage() {
           {(['realtime', 'daily', 'reports'] as TabType[]).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              onClick={() => {
+                if (tab !== activeTab && (tab === 'daily' || activeTab === 'daily')) {
+                  setLoading(true);
+                }
+                setActiveTab(tab);
+              }}
+              className={`rounded-button px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
@@ -194,7 +199,7 @@ export default function AMASMonitoringPage() {
         </div>
 
         {/* Tab Content */}
-        <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-slate-800">
+        <div className="rounded-card bg-white p-6 shadow-soft dark:bg-slate-800">
           {activeTab === 'realtime' && (
             <RealtimeTable
               data={aggregates as AMASAggregate15m[]}
@@ -235,7 +240,7 @@ function StatCard({
   className?: string;
 }) {
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm dark:bg-slate-800">
+    <div className="rounded-card bg-white p-5 shadow-soft dark:bg-slate-800">
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500 dark:text-gray-400">{title}</span>
         <span className={className}>{icon}</span>
@@ -318,7 +323,7 @@ function DailyTable({
   data: AMASAggregateDaily[];
   getAlertBadge: (level: string) => React.ReactNode;
 }) {
-  if (data.length === 0) {
+  if (data.length === 0 || !('totalEvents' in data[0])) {
     return <EmptyState message="暂无每日聚合数据" />;
   }
 
@@ -380,7 +385,7 @@ function ReportsPanel({
   return (
     <div className="space-y-4">
       {reports.map((report) => (
-        <div key={report.id} className="rounded-lg border border-gray-200 dark:border-slate-700">
+        <div key={report.id} className="rounded-card border border-gray-200 dark:border-slate-700">
           <button
             onClick={() => setExpandedReport(expandedReport === report.id ? null : report.id)}
             className="flex w-full items-center justify-between p-4 text-left"
@@ -442,7 +447,7 @@ function ReportsPanel({
                     {report.recommendations.map((rec, idx) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2 rounded-lg bg-gray-50 p-3 text-sm dark:bg-slate-700/50"
+                        className="flex items-start gap-2 rounded-button bg-gray-50 p-3 text-sm dark:bg-slate-700/50"
                       >
                         <span
                           className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${

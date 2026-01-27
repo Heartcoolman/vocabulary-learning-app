@@ -136,6 +136,29 @@ export class AuthClient extends BaseClient {
   }
 
   /**
+   * 上传用户头像
+   */
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetch(`${this.baseUrl}/api/users/me/avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.tokenManager.getToken()}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(error.message || 'Avatar upload failed');
+    }
+
+    return response.json();
+  }
+
+  /**
    * 设置认证令牌
    */
   setToken(token: string): void {

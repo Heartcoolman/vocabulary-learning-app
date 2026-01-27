@@ -78,33 +78,38 @@ vi.mock('../../../hooks/mutations', () => ({
 }));
 
 // Mock useToast hook
-vi.mock('../../../components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    showToast: vi.fn(),
-  }),
-  ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? (
-      <div data-testid="confirm-modal">
-        {children}
-        <button onClick={onConfirm}>确认</button>
-        <button onClick={onCancel}>取消</button>
-      </div>
-    ) : null,
-  AlertModal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? (
-      <div data-testid="alert-modal">
-        {children}
-        <button onClick={onClose}>关闭</button>
-      </div>
-    ) : null,
-  Modal: ({ isOpen, children }: any) => (isOpen ? <div data-testid="modal">{children}</div> : null),
-  Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
-  Progress: ({ value }: any) => <div data-testid="progress" data-value={value} />,
-}));
+vi.mock('../../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      showToast: vi.fn(),
+    }),
+    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+      isOpen ? (
+        <div data-testid="confirm-modal">
+          {children}
+          <button onClick={onConfirm}>确认</button>
+          <button onClick={onCancel}>取消</button>
+        </div>
+      ) : null,
+    AlertModal: ({ isOpen, onClose, children }: any) =>
+      isOpen ? (
+        <div data-testid="alert-modal">
+          {children}
+          <button onClick={onClose}>关闭</button>
+        </div>
+      ) : null,
+    Modal: ({ isOpen, children }: any) =>
+      isOpen ? <div data-testid="modal">{children}</div> : null,
+    Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
+    Progress: ({ value }: any) => <div data-testid="progress" data-value={value} />,
+  };
+});
 
 const mockStats = {
   totalUsers: 100,

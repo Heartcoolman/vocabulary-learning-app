@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Cube, GraduationCap, Scales, Check, CaretRight } from '@phosphor-icons/react';
+import { Eye, Cube, GraduationCap, Scales, Check, CaretRight } from '@/components/Icon';
 
 interface Layer {
   id: string;
@@ -37,7 +37,7 @@ const LAYERS: Layer[] = [
     subtitle: '自适应优化',
     description: '基于成功指标更新长期知识，优化记忆保持策略。',
     icon: GraduationCap,
-    color: 'text-indigo-600',
+    color: 'text-blue-600',
     station: { x: 620, y: 330 },
   },
   {

@@ -8,6 +8,7 @@
 import React, { forwardRef, memo, ButtonHTMLAttributes, ReactNode } from 'react';
 import { CircleNotch } from '../Icon';
 import { cn, Size } from './utils';
+import { Spinner } from './Spinner';
 
 export type ButtonVariant =
   | 'primary'
@@ -147,7 +148,7 @@ export const Button = memo(
           {...props}
         >
           {loading ? (
-            <CircleNotch size={iconSize} className="animate-spin" weight="bold" />
+            <Spinner size={size === 'xs' || size === 'sm' ? 'sm' : 'md'} color="current" />
           ) : (
             leftIcon
           )}

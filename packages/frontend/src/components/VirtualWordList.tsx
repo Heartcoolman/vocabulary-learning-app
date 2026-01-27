@@ -8,6 +8,7 @@ import { memo, useEffect, createContext, useContext, CSSProperties } from 'react
 import { List, useListCallbackRef, RowComponentProps } from 'react-window';
 import { Star, Target, Clock, CheckCircle, Warning, ArrowClockwise } from './Icon';
 import { IconColor } from '../utils/iconColors';
+import { highlightText } from '../utils/textHighlight';
 import {
   ITEM_HEIGHT,
   ITEM_GAP,
@@ -20,6 +21,7 @@ import {
 interface WordListContextValue {
   words: WordWithState[];
   onAdjustWord: (word: WordWithState, action: 'mastered' | 'needsPractice' | 'reset') => void;
+  searchQuery?: string;
 }
 
 const WordListContext = createContext<WordListContextValue | null>(null);
@@ -31,7 +33,8 @@ const WordItem = memo<{
   word: WordWithState;
   style: CSSProperties;
   onAdjustWord: (word: WordWithState, action: 'mastered' | 'needsPractice' | 'reset') => void;
-}>(({ word, style, onAdjustWord }) => {
+  searchQuery?: string;
+}>(({ word, style, onAdjustWord, searchQuery }) => {
   return (
     <div
       style={{
@@ -45,10 +48,12 @@ const WordItem = memo<{
           {/* 单词信息 */}
           <div className="flex-1">
             <h3 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">
-              {word.spelling}
+              {highlightText(word.spelling, searchQuery || '')}
             </h3>
             <p className="mb-2 text-gray-600 dark:text-gray-400">/{word.phonetic}/</p>
-            <p className="line-clamp-2 text-gray-700 dark:text-gray-300">{word.meanings[0]}</p>
+            <p className="line-clamp-2 text-gray-700 dark:text-gray-300">
+              {highlightText(word.meanings[0], searchQuery || '')}
+            </p>
           </div>
 
           {/* 学习状态 */}
@@ -72,7 +77,7 @@ const WordItem = memo<{
             <div className="flex flex-col items-center">
               <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">得分</span>
               <div className="flex items-center gap-1">
-                <Target size={16} weight="duotone" color={IconColor.target} />
+                <Target size={16} color={IconColor.target} />
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {Math.round(word.score)}
                 </span>
@@ -83,7 +88,7 @@ const WordItem = memo<{
             <div className="flex flex-col items-center">
               <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">下次复习</span>
               <div className="flex items-center gap-1">
-                <Clock size={16} weight="duotone" color={IconColor.time} />
+                <Clock size={16} color={IconColor.time} />
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {word.nextReviewDate}
                 </span>
@@ -113,7 +118,7 @@ const WordItem = memo<{
                 className="flex items-center gap-1 rounded-button bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
                 title="重置学习进度"
               >
-                <ArrowClockwise size={14} weight="bold" />
+                <ArrowClockwise size={14} />
                 重置
               </button>
             </div>
@@ -135,7 +140,7 @@ function Row({ index, style, ariaAttributes }: RowComponentProps<object>) {
     return <div {...ariaAttributes} style={style} />;
   }
 
-  const { words, onAdjustWord } = context;
+  const { words, onAdjustWord, searchQuery } = context;
   const word = words[index];
 
   if (!word) {
@@ -148,6 +153,7 @@ function Row({ index, style, ariaAttributes }: RowComponentProps<object>) {
         word={word}
         style={{ height: ITEM_HEIGHT, paddingBottom: ITEM_GAP }}
         onAdjustWord={onAdjustWord}
+        searchQuery={searchQuery}
       />
     </div>
   );
@@ -169,6 +175,7 @@ export default function VirtualWordList({
   words,
   onAdjustWord,
   containerHeight = 600,
+  searchQuery,
 }: VirtualWordListProps) {
   const [listRef, setListRef] = useListCallbackRef();
 
@@ -183,7 +190,7 @@ export default function VirtualWordList({
   const calculatedHeight = Math.min(containerHeight, words.length * ROW_HEIGHT);
 
   return (
-    <WordListContext.Provider value={{ words, onAdjustWord }}>
+    <WordListContext.Provider value={{ words, onAdjustWord, searchQuery }}>
       <div className="virtual-word-list">
         <List
           listRef={setListRef}

@@ -40,12 +40,7 @@ export default function StudyProgressPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <CircleNotch className="mx-auto mb-4 animate-spin" size={48} color="#3b82f6" />
           <p className="text-gray-600 dark:text-gray-400">正在分析你的学习进度...</p>
         </div>
       </div>
@@ -56,7 +51,7 @@ export default function StudyProgressPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-slate-900">
         <div className="w-full max-w-md rounded-card border border-red-100 bg-white p-8 text-center shadow-soft dark:border-red-900 dark:bg-slate-800">
-          <WarningCircle className="mx-auto mb-4 h-12 w-12 text-red-500" weight="bold" />
+          <WarningCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
           <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">无法加载进度数据</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">{error || '获取数据时发生错误'}</p>
           <button
@@ -95,7 +90,7 @@ export default function StudyProgressPage() {
         {isFullyLoaded && extendedProgress && (
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-              <TrendUp className="h-6 w-6 text-blue-500" weight="bold" />
+              <TrendUp className="h-6 w-6 text-blue-500" />
               学习里程碑
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -120,7 +115,7 @@ export default function StudyProgressPage() {
             {/* 学习连胜统计 */}
             <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                <Activity className="h-6 w-6 text-amber-500" weight="bold" />
+                <Activity className="h-6 w-6 text-amber-500" />
                 学习连胜
               </h3>
 
@@ -130,7 +125,7 @@ export default function StudyProgressPage() {
                     {extendedProgress.learningStreak}
                   </div>
                   <div className="absolute -right-8 top-0">
-                    <Fire size={32} weight="fill" className="text-orange-500" />
+                    <Fire size={32} className="text-orange-500" />
                   </div>
                 </div>
                 <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">连续学习天数</p>
@@ -140,8 +135,8 @@ export default function StudyProgressPage() {
                 {extendedProgress.learningStreak >= 7 && (
                   <div className="rounded-button border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
                     <p className="flex items-center gap-1 text-sm font-medium text-amber-800 dark:text-amber-400">
-                      <Confetti size={16} weight="fill" className="text-amber-600" />{' '}
-                      太棒了！你已经连续学习 {extendedProgress.learningStreak} 天了！
+                      <Confetti size={16} className="text-amber-600" /> 太棒了！你已经连续学习{' '}
+                      {extendedProgress.learningStreak} 天了！
                     </p>
                   </div>
                 )}
@@ -149,7 +144,7 @@ export default function StudyProgressPage() {
                 {extendedProgress.learningStreak < 7 && (
                   <div className="rounded-button border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                     <p className="flex items-center gap-1 text-sm font-medium text-blue-800 dark:text-blue-400">
-                      <Lightning size={16} weight="fill" className="text-blue-600" /> 再坚持{' '}
+                      <Lightning size={16} className="text-blue-600" /> 再坚持{' '}
                       {7 - extendedProgress.learningStreak} 天，达成一周学习目标！
                     </p>
                   </div>
@@ -186,7 +181,7 @@ export default function StudyProgressPage() {
         {isFullyLoaded && monthlyChartData.length > 0 && (
           <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-              <Calendar className="h-6 w-6 text-purple-500" weight="bold" />
+              <Calendar className="h-6 w-6 text-purple-500" />
               30天学习趋势
             </h3>
             <LineChart data={monthlyChartData} yAxisLabel="学习单词数" height={280} />
@@ -200,7 +195,7 @@ export default function StudyProgressPage() {
           <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-gray-200">
-                <TrendUp className="h-5 w-5 text-blue-500" weight="bold" />
+                <TrendUp className="h-5 w-5 text-blue-500" />
                 7日学习活动
               </h3>
             </div>
@@ -231,7 +226,7 @@ export default function StudyProgressPage() {
           <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-gray-200">
-                <Activity className="h-5 w-5 text-emerald-500" weight="bold" />
+                <Activity className="h-5 w-5 text-emerald-500" />
                 学习效率
               </h3>
             </div>

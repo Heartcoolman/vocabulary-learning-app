@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ChartBar, Warning, MagnifyingGlass } from '@phosphor-icons/react';
+import { ChartBar, Warning, MagnifyingGlass } from '../components/Icon';
+import { Spinner } from '../components/ui';
 import { useMasteryWords } from '../hooks/queries/useMasteryWords';
 import type { MasteryEvaluation } from '../types/word-mastery';
 import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
@@ -95,7 +96,7 @@ const WordMasteryPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-purple-500"></div>
+        <Spinner size="xl" color="primary" />
       </div>
     );
   }
@@ -125,7 +126,7 @@ const WordMasteryPage: React.FC = () => {
         {/* Header */}
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-800 dark:text-white">
-            <ChartBar className="text-purple-500" weight="duotone" />
+            <ChartBar size={28} className="text-purple-500" />
             单词掌握度分析
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

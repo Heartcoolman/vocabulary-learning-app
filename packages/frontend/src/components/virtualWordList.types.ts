@@ -18,4 +18,5 @@ export interface VirtualWordListProps {
   words: WordWithState[];
   onAdjustWord: (word: WordWithState, action: 'mastered' | 'needsPractice' | 'reset') => void;
   containerHeight?: number;
+  searchQuery?: string;
 }

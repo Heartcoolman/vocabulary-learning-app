@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import { amasClient } from '../../services/client';
 import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
@@ -110,7 +111,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
   const categoryColor = getCategoryColor(badge.category);
   const isUnlocked = !!badge.unlockedAt;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
@@ -125,7 +126,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600"
           aria-label="关闭"
         >
-          <X size={16} weight="bold" color={IconColor.secondary} />
+          <X size={16} color={IconColor.secondary} />
         </button>
 
         {/* 徽章图标 */}
@@ -225,7 +226,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         {/* 奖励说明 */}
         <div className="mt-6 rounded-card border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
           <div className="mb-2 flex items-center gap-2">
-            <Trophy size={20} weight="duotone" color={IconColor.primaryDark} />
+            <Trophy size={20} color={IconColor.primaryDark} />
             <span className="font-medium text-blue-900 dark:text-blue-300">奖励说明</span>
           </div>
           <p className="text-sm text-blue-700 dark:text-blue-400">
@@ -241,7 +242,8 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
           关闭
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

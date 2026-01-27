@@ -1,11 +1,13 @@
 import { useRoutes, BrowserRouter, useLocation, RouteObject } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { IconContext } from '@phosphor-icons/react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { ToastProvider } from './components/ui';
+import { ToastProvider, OfflineIndicator } from './components/ui';
 import Navigation from './components/Navigation';
 import SyncIndicator from './components/SyncIndicator';
+import { BroadcastListener } from './components/notification/BroadcastListener';
 import { routes } from './routes';
 import { queryClient } from './lib/queryClient';
 import { prefetchPriorityRoutes, prefetchPriorityData } from './routes/prefetch';
@@ -43,6 +45,9 @@ function AppContent() {
 
   return (
     <>
+      {/* 离线状态提示 */}
+      <OfflineIndicator position="top" />
+
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
         {!isStandalonePage && <Navigation />}
         <main role="main" className={isStandalonePage ? '' : 'pt-[72px]'}>
@@ -52,23 +57,28 @@ function AppContent() {
 
       {/* 同步状态指示器（仅登录时显示） */}
       {isAuthenticated && <SyncIndicator />}
+
+      {/* 广播监听器（仅登录时启用） */}
+      {isAuthenticated && <BroadcastListener />}
     </>
   );
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <IconContext.Provider value={{ weight: 'duotone' }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <ToastProvider>
+                <AppContent />
+              </ToastProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </IconContext.Provider>
   );
 }
 

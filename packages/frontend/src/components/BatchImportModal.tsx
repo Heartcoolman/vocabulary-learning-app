@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Warning, CheckCircle, CircleNotch, FileText } from './Icon';
 import FileUpload from './FileUpload';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
@@ -137,7 +138,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       role="dialog"
@@ -270,7 +271,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
             <div className="flex flex-col items-center justify-center space-y-6 py-8 text-center">
               {importError ? (
                 <div className="mb-2 rounded-full bg-red-100 p-4 text-red-600 dark:bg-red-900/30">
-                  <X size={48} weight="bold" />
+                  <X size={48} />
                 </div>
               ) : failedCount === 0 ? (
                 <div className="mb-2 rounded-full bg-green-100 p-4 text-green-600 dark:bg-green-900/30">
@@ -359,7 +360,8 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

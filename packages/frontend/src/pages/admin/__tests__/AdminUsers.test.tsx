@@ -85,23 +85,27 @@ vi.mock('@/services/client', () => {
 });
 
 // Mock useToast hook and ConfirmModal
-vi.mock('@/components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    showToast: vi.fn(),
-  }),
-  ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? (
-      <div data-testid="confirm-modal">
-        {children}
-        <button onClick={onConfirm}>确认</button>
-        <button onClick={onCancel}>取消</button>
-      </div>
-    ) : null,
-}));
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      showToast: vi.fn(),
+    }),
+    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+      isOpen ? (
+        <div data-testid="confirm-modal">
+          {children}
+          <button onClick={onConfirm}>确认</button>
+          <button onClick={onCancel}>取消</button>
+        </div>
+      ) : null,
+  };
+});
 
 vi.mock('@/components/Icon', async () => {
   const actual = await vi.importActual('@/components/Icon');

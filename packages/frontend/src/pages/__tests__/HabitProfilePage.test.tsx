@@ -55,14 +55,18 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-// Mock useToast
-vi.mock('../../components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  }),
-}));
+// Mock useToast (keep other UI exports like Spinner)
+vi.mock('../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+    }),
+  };
+});
 
 // Mock ChronotypeCard
 vi.mock('../../components/ChronotypeCard', () => ({

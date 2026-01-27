@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   useAdminStatistics,
-  useSystemHealth,
+  useSystemStatus,
+  usePerformanceMetrics,
   useVisualFatigueStats,
   useSystemVersion,
+  useCombinedHealth,
 } from '../../hooks/queries';
 import { useLLMPendingCount } from '../../hooks/queries/useLLMAdvisor';
 import { amasClient } from '../../services/client';
@@ -28,33 +30,34 @@ import {
   Robot,
   Download,
   XCircle,
+  Database,
+  Clock,
+  Timer,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
-import { ConfirmModal, AlertModal, Modal, Button, Progress } from '../../components/ui';
+import {
+  ConfirmModal,
+  AlertModal,
+  Modal,
+  Button,
+  Progress,
+  Spinner,
+  Select,
+} from '../../components/ui';
 import { useOTAUpdate, useRestartBackend } from '../../hooks/mutations';
 
 /** 颜色类名映射 */
-type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
+type ColorKey = 'blue' | 'green' | 'purple' | 'pink' | 'yellow' | 'red';
 
-/**
- * 根据健康分数返回对应的 Tailwind 颜色类
- */
-function getScoreColorClass(score: number): string {
-  if (score >= 90) return 'text-green-500';
-  if (score >= 75) return 'text-blue-500';
-  if (score >= 60) return 'text-yellow-500';
-  return 'text-red-500';
-}
-
-/**
- * 根据健康分数返回进度条背景色类
- */
-function getScoreBarColorClass(score: number): string {
-  if (score >= 90) return 'bg-green-500';
-  if (score >= 75) return 'bg-blue-500';
-  if (score >= 60) return 'bg-yellow-500';
-  return 'bg-red-500';
+/** 格式化运行时间 */
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}天 ${hours}小时`;
+  if (hours > 0) return `${hours}小时 ${minutes}分钟`;
+  return `${minutes}分钟`;
 }
 
 export default function AdminDashboard() {
@@ -62,7 +65,8 @@ export default function AdminDashboard() {
 
   // 使用新的 hooks
   const { data: stats, isLoading, error: statsError, refetch: refetchStats } = useAdminStatistics();
-  const { data: health } = useSystemHealth();
+  const { data: systemStatus, isLoading: isStatusLoading } = useSystemStatus();
+  const { data: perfMetrics } = usePerformanceMetrics();
   const {
     data: visualFatigueStats,
     isLoading: isVfLoading,
@@ -70,6 +74,12 @@ export default function AdminDashboard() {
   } = useVisualFatigueStats();
   const { data: llmPendingCount } = useLLMPendingCount();
   const { data: versionInfo } = useSystemVersion();
+  const {
+    data: combinedHealth,
+    businessHealth,
+    runtimeHealth,
+    isLoading: isHealthLoading,
+  } = useCombinedHealth();
   const {
     triggerUpdate,
     updateStatus,
@@ -95,6 +105,9 @@ export default function AdminDashboard() {
   const [isAmasLoading, setIsAmasLoading] = useState(false);
   const [amasError, setAmasError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+
+  // 自动刷新配置
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0); // 0 表示关闭
 
   // 对话框状态
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -162,6 +175,17 @@ export default function AdminDashboard() {
     loadAmasStrategy();
   }, []);
 
+  // 自动刷新定时器
+  useEffect(() => {
+    if (autoRefreshInterval <= 0) return;
+
+    const intervalId = setInterval(() => {
+      refetchStats();
+    }, autoRefreshInterval * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [autoRefreshInterval, refetchStats]);
+
   const handleResetAmas = async () => {
     setResetConfirm(true);
   };
@@ -191,19 +215,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // 使用新的健康度计算（从 hook 获取）
-  const systemHealth = health || { status: 'unknown' as const, score: 0, issues: [] };
-
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             正在加载...
           </p>
@@ -216,7 +232,7 @@ export default function AdminDashboard() {
     return (
       <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
         <div className="max-w-md text-center" role="alert" aria-live="assertive">
-          <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={64} color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">
             {statsError instanceof Error ? statsError.message : '无法加载统计数据'}
@@ -260,7 +276,7 @@ export default function AdminDashboard() {
       label: '系统词库',
       value: stats.systemWordBooks,
       icon: BookOpen,
-      color: 'indigo',
+      color: 'blue',
     },
     {
       label: '用户词库',
@@ -293,7 +309,6 @@ export default function AdminDashboard() {
       blue: 'bg-blue-50 text-blue-600',
       green: 'bg-green-50 text-green-600',
       purple: 'bg-purple-50 text-purple-600',
-      indigo: 'bg-indigo-50 text-indigo-600',
       pink: 'bg-pink-50 text-pink-600',
       yellow: 'bg-yellow-50 text-yellow-600',
       red: 'bg-red-50 text-red-600',
@@ -303,7 +318,31 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-8">
-      <h1 className="mb-8 text-3xl font-bold text-gray-900 dark:text-white">系统概览</h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">系统概览</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <Timer size={18} />
+            <span>自动刷新</span>
+          </div>
+          <select
+            value={autoRefreshInterval}
+            onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+            className="rounded-button border border-gray-300 px-3 py-1.5 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          >
+            <option value={0}>关闭</option>
+            <option value={30}>30秒</option>
+            <option value={60}>1分钟</option>
+            <option value={300}>5分钟</option>
+          </select>
+          {autoRefreshInterval > 0 && (
+            <span className="flex h-2 w-2">
+              <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+            </span>
+          )}
+        </div>
+      </div>
 
       <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => {
@@ -318,7 +357,7 @@ export default function AdminDashboard() {
                   card.color,
                 )}`}
               >
-                <IconComponent size={28} weight="duotone" />
+                <IconComponent size={28} />
               </div>
               <div className="mb-1 text-sm text-gray-600 dark:text-gray-400">{card.label}</div>
               <div className="text-3xl font-bold text-gray-900 dark:text-white">{card.value}</div>
@@ -330,110 +369,211 @@ export default function AdminDashboard() {
       {/* 系统健康度监控 */}
       <div className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-          <Pulse size={28} weight="duotone" className="text-blue-500" />
+          <Pulse size={28} className="text-blue-500" />
           系统健康度
         </h2>
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
-          {(() => {
-            const statusConfig: Record<
-              string,
-              { color: string; bgColor: string; icon: typeof CheckCircle; label: string }
-            > = {
-              excellent: {
-                color: 'text-green-600',
-                bgColor: 'bg-green-50',
-                icon: CheckCircle,
-                label: '优秀',
-              },
-              good: {
-                color: 'text-blue-600',
-                bgColor: 'bg-blue-50',
-                icon: CheckCircle,
-                label: '良好',
-              },
-              warning: {
-                color: 'text-yellow-600',
-                bgColor: 'bg-yellow-50',
-                icon: Warning,
-                label: '警告',
-              },
-              error: { color: 'text-red-600', bgColor: 'bg-red-50', icon: Warning, label: '异常' },
-              unknown: {
-                color: 'text-gray-600 dark:text-gray-400',
-                bgColor: 'bg-gray-50 dark:bg-slate-700',
-                icon: Pulse,
-                label: '未知',
-              },
-            };
-
-            const config = statusConfig[systemHealth.status];
-            const Icon = config.icon;
-
-            return (
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 ${config.bgColor} rounded-button`}>
-                      <Icon size={32} weight="bold" className={config.color} />
+          {isHealthLoading || isStatusLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner size="lg" color="primary" />
+            </div>
+          ) : systemStatus ? (
+            <div className="space-y-6">
+              {/* 综合健康度评分 */}
+              <div className="flex items-center gap-6 rounded-lg border border-gray-100 bg-gradient-to-r from-gray-50 to-white p-4 dark:border-slate-700 dark:from-slate-800/50 dark:to-slate-800">
+                <div
+                  className={`flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full ${
+                    combinedHealth?.status === 'excellent'
+                      ? 'bg-green-100 dark:bg-green-900/30'
+                      : combinedHealth?.status === 'good'
+                        ? 'bg-blue-100 dark:bg-blue-900/30'
+                        : combinedHealth?.status === 'warning'
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30'
+                          : 'bg-red-100 dark:bg-red-900/30'
+                  }`}
+                >
+                  <span
+                    className={`text-2xl font-bold ${
+                      combinedHealth?.status === 'excellent'
+                        ? 'text-green-600'
+                        : combinedHealth?.status === 'good'
+                          ? 'text-blue-600'
+                          : combinedHealth?.status === 'warning'
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                    }`}
+                  >
+                    {combinedHealth?.score ?? 0}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <div className="mb-2 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">综合健康度</h3>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                        combinedHealth?.status === 'excellent'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : combinedHealth?.status === 'good'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : combinedHealth?.status === 'warning'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}
+                    >
+                      {combinedHealth?.status === 'excellent'
+                        ? '优秀'
+                        : combinedHealth?.status === 'good'
+                          ? '良好'
+                          : combinedHealth?.status === 'warning'
+                            ? '警告'
+                            : '异常'}
+                    </span>
+                  </div>
+                  <div className="flex gap-6 text-sm">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">业务健康度：</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {combinedHealth?.businessScore ?? 0}
+                      </span>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                        系统状态：{config.label}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        健康度评分：{systemHealth.score}/100
-                      </p>
+                      <span className="text-gray-500 dark:text-gray-400">运行健康度：</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {combinedHealth?.runtimeScore ?? 0}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className={`text-3xl font-bold ${getScoreColorClass(systemHealth.score)}`}>
-                      {systemHealth.score}
+                  {combinedHealth?.issues && combinedHealth.issues.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {combinedHealth.issues.slice(0, 3).join(' · ')}
+                      {combinedHealth.issues.length > 3 && ` 等 ${combinedHealth.issues.length} 项`}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">健康分</div>
+                  )}
+                </div>
+              </div>
+
+              {/* 详细指标 */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* 整体状态 */}
+                <div className="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                      systemStatus.overall === 'healthy'
+                        ? 'bg-green-100 dark:bg-green-900/30'
+                        : systemStatus.overall === 'degraded'
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30'
+                          : 'bg-red-100 dark:bg-red-900/30'
+                    }`}
+                  >
+                    {systemStatus.overall === 'healthy' ? (
+                      <CheckCircle size={24} weight="fill" className="text-green-600" />
+                    ) : systemStatus.overall === 'degraded' ? (
+                      <Warning size={24} weight="fill" className="text-yellow-600" />
+                    ) : (
+                      <XCircle size={24} weight="fill" className="text-red-600" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">系统状态</p>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                      {systemStatus.overall === 'healthy'
+                        ? '健康'
+                        : systemStatus.overall === 'degraded'
+                          ? '降级'
+                          : '异常'}
+                    </h3>
                   </div>
                 </div>
 
-                {/* 健康度进度条 */}
-                <div className="mb-4">
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+                {/* 数据库状态 */}
+                <div className="flex flex-col justify-center rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                      <Database size={20} />
+                      <span className="font-semibold">数据库</span>
+                    </div>
+                    {(() => {
+                      const dbService = systemStatus.services.find((s) => s.name === 'Database');
+                      return (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                            dbService?.status === 'healthy'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          }`}
+                        >
+                          {dbService?.latency ? `${dbService.latency}ms` : 'N/A'}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {systemStatus.services.find((s) => s.name === 'Database')?.message || '未知'}
+                  </div>
+                </div>
+
+                {/* 内存使用 */}
+                <div className="flex flex-col justify-center rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                      <Database size={20} />
+                      <span className="font-semibold">内存</span>
+                    </div>
+                    <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                      {perfMetrics?.memoryUsage
+                        ? `${Math.round(perfMetrics.memoryUsage)} MB`
+                        : '--'}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
-                      className={`h-full transition-all duration-g3-slow ${getScoreBarColorClass(systemHealth.score)}`}
-                      style={{ width: `${systemHealth.score}%` }}
+                      className={`h-full transition-all duration-500 ${
+                        (perfMetrics?.memoryUsage ?? 0) > 1024
+                          ? 'bg-red-500'
+                          : (perfMetrics?.memoryUsage ?? 0) > 512
+                            ? 'bg-yellow-500'
+                            : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${Math.min((perfMetrics?.memoryUsage ?? 0) / 20, 100)}%` }}
                     />
                   </div>
                 </div>
 
-                {/* 问题列表 */}
-                {systemHealth.issues.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                      需要关注的问题：
-                    </h4>
-                    {systemHealth.issues.map((issue, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 rounded bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:bg-slate-900 dark:text-gray-300"
-                      >
-                        <Warning
-                          size={16}
-                          weight="bold"
-                          className="flex-shrink-0 text-yellow-600"
-                        />
-                        <span>{issue}</span>
-                      </div>
-                    ))}
+                {/* 运行时间 & 版本 */}
+                <div className="flex flex-col justify-center space-y-2 rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <Clock size={16} />
+                      <span className="text-xs">运行时间</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {formatUptime(systemStatus.uptime)}
+                    </span>
                   </div>
-                )}
+                  <div className="flex items-center justify-between border-t border-gray-200 pt-2 dark:border-slate-700">
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <Gear size={16} />
+                      <span className="text-xs">版本</span>
+                    </div>
+                    <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
+                      {versionInfo?.currentVersion ? `v${versionInfo.currentVersion}` : '--'}
+                    </span>
+                  </div>
+                </div>
               </div>
-            );
-          })()}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+              无法获取系统状态
+            </div>
+          )}
         </div>
       </div>
 
       {/* 快捷操作面板 */}
       <div className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-          <Gear size={28} weight="duotone" className="text-purple-500" />
+          <Gear size={28} className="text-purple-500" />
           快捷操作
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -443,11 +583,7 @@ export default function AdminDashboard() {
           >
             <div className="mb-2 flex items-center gap-3">
               <div className="rounded-button bg-blue-50 p-2 dark:bg-blue-900/30">
-                <UsersThree
-                  size={24}
-                  weight="duotone"
-                  className="text-blue-600 dark:text-blue-400"
-                />
+                <UsersThree size={24} className="text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white">用户管理</h3>
             </div>
@@ -460,11 +596,7 @@ export default function AdminDashboard() {
           >
             <div className="mb-2 flex items-center gap-3">
               <div className="rounded-button bg-purple-50 p-2 dark:bg-purple-900/30">
-                <Books
-                  size={24}
-                  weight="duotone"
-                  className="text-purple-600 dark:text-purple-400"
-                />
+                <Books size={24} className="text-purple-600 dark:text-purple-400" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white">词库管理</h3>
             </div>
@@ -476,8 +608,8 @@ export default function AdminDashboard() {
             className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-button bg-indigo-50 p-2 dark:bg-indigo-900/30">
-                <Gear size={24} weight="duotone" className="text-indigo-600 dark:text-indigo-400" />
+              <div className="rounded-button bg-blue-50 p-2 dark:bg-blue-900/30">
+                <Gear size={24} className="text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white">算法配置</h3>
             </div>
@@ -490,11 +622,7 @@ export default function AdminDashboard() {
           >
             <div className="mb-2 flex items-center gap-3">
               <div className="rounded-button bg-green-50 p-2 dark:bg-green-900/30">
-                <ChartBar
-                  size={24}
-                  weight="duotone"
-                  className="text-green-600 dark:text-green-400"
-                />
+                <ChartBar size={24} className="text-green-600 dark:text-green-400" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white">实验管理</h3>
             </div>
@@ -506,17 +634,17 @@ export default function AdminDashboard() {
       {/* AMAS 管理面板 */}
       <div className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-          <Brain size={28} weight="duotone" className="text-purple-500" />
+          <Brain size={28} className="text-purple-500" />
           AMAS 管理面板
         </h2>
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           {isAmasLoading ? (
             <div className="flex items-center justify-center py-8">
-              <CircleNotch className="animate-spin" size={32} weight="bold" color="#3b82f6" />
+              <Spinner size="lg" color="primary" />
             </div>
           ) : amasError ? (
             <div className="py-8 text-center">
-              <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+              <Warning size={48} color="#ef4444" className="mx-auto mb-4" />
               <p className="mb-4 text-gray-600 dark:text-gray-400">{amasError}</p>
               <button
                 onClick={loadAmasStrategy}
@@ -530,11 +658,7 @@ export default function AdminDashboard() {
               <div className="mb-6 grid gap-4 md:grid-cols-3">
                 <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Lightning
-                      size={20}
-                      weight="duotone"
-                      className="text-blue-600 dark:text-blue-400"
-                    />
+                    <Lightning size={20} className="text-blue-600 dark:text-blue-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">新单词比例</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -543,11 +667,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="rounded-button bg-green-50 p-4 dark:bg-green-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Pulse
-                      size={20}
-                      weight="duotone"
-                      className="text-green-600 dark:text-green-400"
-                    />
+                    <Pulse size={20} className="text-green-600 dark:text-green-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">难度级别</span>
                   </div>
                   <p className="text-2xl font-bold capitalize text-gray-900 dark:text-white">
@@ -556,11 +676,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="rounded-button bg-purple-50 p-4 dark:bg-purple-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <ChartBar
-                      size={20}
-                      weight="duotone"
-                      className="text-purple-600 dark:text-purple-400"
-                    />
+                    <ChartBar size={20} className="text-purple-600 dark:text-purple-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">批次大小</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -575,7 +691,7 @@ export default function AdminDashboard() {
                   disabled={isAmasLoading}
                   className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <ArrowClockwise size={18} weight="bold" />
+                  <ArrowClockwise size={18} />
                   刷新策略
                 </button>
                 <button
@@ -585,7 +701,7 @@ export default function AdminDashboard() {
                 >
                   {isResetting ? (
                     <>
-                      <CircleNotch className="animate-spin" size={18} weight="bold" />
+                      <Spinner className="animate-spin" size="sm" color="white" />
                       重置中...
                     </>
                   ) : (
@@ -608,17 +724,17 @@ export default function AdminDashboard() {
       {/* 视觉疲劳检测统计 */}
       <div className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-          <Eye size={28} weight="duotone" className="text-cyan-500" />
+          <Eye size={28} className="text-cyan-500" />
           视觉疲劳检测统计
         </h2>
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           {isVfLoading ? (
             <div className="flex items-center justify-center py-8">
-              <CircleNotch className="animate-spin" size={32} weight="bold" color="#06b6d4" />
+              <Spinner size="lg" color="primary" />
             </div>
           ) : vfError ? (
             <div className="py-8 text-center text-red-500">
-              <Warning size={48} weight="duotone" className="mx-auto mb-4 text-red-400" />
+              <Warning size={48} className="mx-auto mb-4 text-red-400" />
               <p>加载视觉疲劳数据失败</p>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {vfError instanceof Error ? vfError.message : '请检查后端服务是否正常'}
@@ -630,11 +746,7 @@ export default function AdminDashboard() {
               <div className="mb-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-button bg-cyan-50 p-4 dark:bg-cyan-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <ChartBar
-                      size={20}
-                      weight="duotone"
-                      className="text-cyan-600 dark:text-cyan-400"
-                    />
+                    <ChartBar size={20} className="text-cyan-600 dark:text-cyan-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">数据量</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -646,11 +758,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <UsersThree
-                      size={20}
-                      weight="duotone"
-                      className="text-blue-600 dark:text-blue-400"
-                    />
+                    <UsersThree size={20} className="text-blue-600 dark:text-blue-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">启用率</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -663,11 +771,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="rounded-button bg-amber-50 p-4 dark:bg-amber-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Pulse
-                      size={20}
-                      weight="duotone"
-                      className="text-amber-600 dark:text-amber-400"
-                    />
+                    <Pulse size={20} className="text-amber-600 dark:text-amber-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">平均疲劳度</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -679,11 +783,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="rounded-button bg-red-50 p-4 dark:bg-red-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Warning
-                      size={20}
-                      weight="duotone"
-                      className="text-red-600 dark:text-red-400"
-                    />
+                    <Warning size={20} className="text-red-600 dark:text-red-400" />
                     <span className="text-sm text-gray-600 dark:text-gray-400">高疲劳用户</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -758,11 +858,7 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-              <Eye
-                size={48}
-                weight="duotone"
-                className="mx-auto mb-4 text-gray-300 dark:text-gray-600"
-              />
+              <Eye size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-600" />
               <p>暂无视觉疲劳检测数据</p>
               <p className="mt-1 text-sm">用户启用摄像头检测后，数据将在此显示</p>
             </div>
@@ -774,7 +870,7 @@ export default function AdminDashboard() {
       {versionInfo && (
         <div className="mb-8">
           <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-            <Gear size={28} weight="duotone" className="text-gray-500" />
+            <Gear size={28} className="text-gray-500" />
             系统版本
           </h2>
           <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -823,7 +919,7 @@ export default function AdminDashboard() {
                   onClick={() => openRestartModal()}
                   className="inline-flex items-center gap-2 rounded-button bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
                 >
-                  <ArrowClockwise size={18} weight="bold" />
+                  <ArrowClockwise size={18} />
                   重启服务
                 </button>
                 {versionInfo.hasUpdate && (
@@ -842,7 +938,7 @@ export default function AdminDashboard() {
                       onClick={handleOpenUpdateModal}
                       className="inline-flex items-center gap-2 rounded-button bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
                     >
-                      <Download size={18} weight="bold" />
+                      <Download size={18} />
                       立即更新
                     </button>
                   </>
@@ -1006,11 +1102,7 @@ export default function AdminDashboard() {
             <>
               <div className="flex items-center gap-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
                 <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/40">
-                  <Lightning
-                    size={24}
-                    weight="duotone"
-                    className="text-blue-600 dark:text-blue-400"
-                  />
+                  <Lightning size={24} className="text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900 dark:text-white">

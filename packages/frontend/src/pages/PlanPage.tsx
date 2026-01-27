@@ -18,6 +18,7 @@ import {
   Plus,
   Gear,
 } from '../components/Icon';
+import { Spinner } from '../components/ui/Spinner';
 
 /**
  * PlanPage - 智能学习计划页面
@@ -198,12 +199,7 @@ export default function PlanPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400">正在加载学习计划...</p>
         </div>
       </div>
@@ -234,7 +230,7 @@ export default function PlanPage() {
         {/* 页面标题 */}
         <header className="mb-8">
           <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-            <Target size={32} weight="duotone" color="#3b82f6" />
+            <Target size={32} color="#3b82f6" />
             学习计划
           </h1>
           <p className="text-gray-600 dark:text-gray-400">智能规划你的学习目标，高效完成词汇学习</p>
@@ -243,7 +239,7 @@ export default function PlanPage() {
         {/* 无计划时显示创建按钮 */}
         {!plan ? (
           <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/20">
-            <Calendar size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
+            <Calendar size={64} color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
               还没有学习计划
             </h2>
@@ -254,7 +250,7 @@ export default function PlanPage() {
               onClick={() => setShowGenerateModal(true)}
               className="mx-auto flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
-              <Plus size={20} weight="bold" />
+              <Plus size={20} />
               创建学习计划
             </button>
           </div>
@@ -266,7 +262,7 @@ export default function PlanPage() {
               <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                    <Target size={24} weight="duotone" color="#2563eb" />
+                    <Target size={24} color="#2563eb" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">今日目标</p>
@@ -281,6 +277,9 @@ export default function PlanPage() {
                       <span className="text-gray-600 dark:text-gray-400">已完成</span>
                       <span className="font-medium text-blue-600">
                         {progress.completedToday} / {progress.targetToday}
+                        <span className="ml-1 text-gray-500 dark:text-gray-400">
+                          ({Math.round((progress.completedToday / progress.targetToday) * 100)}%)
+                        </span>
                       </span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-slate-700">
@@ -299,7 +298,7 @@ export default function PlanPage() {
               <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                    <CheckCircle size={24} weight="duotone" color="#16a34a" />
+                    <CheckCircle size={24} color="#16a34a" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">本周进度</p>
@@ -322,7 +321,7 @@ export default function PlanPage() {
               <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
-                    <ChartBar size={24} weight="duotone" color="#9333ea" />
+                    <ChartBar size={24} color="#9333ea" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">总体进度</p>
@@ -352,9 +351,9 @@ export default function PlanPage() {
                     }`}
                   >
                     {progress?.onTrack ? (
-                      <TrendUp size={24} weight="duotone" color="#16a34a" />
+                      <TrendUp size={24} color="#16a34a" />
                     ) : (
-                      <TrendDown size={24} weight="duotone" color="#ca8a04" />
+                      <TrendDown size={24} color="#ca8a04" />
                     )}
                   </div>
                   <div>
@@ -382,7 +381,7 @@ export default function PlanPage() {
               {/* 预计完成日期 */}
               <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                  <Calendar size={24} weight="duotone" color="#3b82f6" />
+                  <Calendar size={24} color="#3b82f6" />
                   预计完成日期
                 </h2>
                 <div className="py-6 text-center">
@@ -398,7 +397,7 @@ export default function PlanPage() {
                   </p>
                 </div>
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <Clock size={16} weight="regular" />
+                  <Clock size={16} />
                   <span>按当前进度计算</span>
                 </div>
               </div>
@@ -406,7 +405,7 @@ export default function PlanPage() {
               {/* 词书分配饼图 */}
               <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                  <Books size={24} weight="duotone" color="#a855f7" />
+                  <Books size={24} color="#a855f7" />
                   词书分配
                 </h2>
                 {plan.wordbookDistribution && plan.wordbookDistribution.length > 0 ? (
@@ -450,7 +449,7 @@ export default function PlanPage() {
             {plan.weeklyMilestones && plan.weeklyMilestones.length > 0 && (
               <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                  <Target size={24} weight="duotone" color="#f59e0b" />
+                  <Target size={24} color="#f59e0b" />
                   周里程碑
                 </h2>
                 <div className="space-y-4">
@@ -501,7 +500,7 @@ export default function PlanPage() {
                 onClick={() => setShowGenerateModal(true)}
                 className="flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
               >
-                <Plus size={20} weight="bold" />
+                <Plus size={20} />
                 重新生成计划
               </button>
               <button
@@ -512,7 +511,7 @@ export default function PlanPage() {
                 {isAdjusting ? (
                   <CircleNotch className="animate-spin" size={20} weight="bold" />
                 ) : (
-                  <Gear size={20} weight="bold" />
+                  <Gear size={20} />
                 )}
                 自动调整计划
               </button>
@@ -521,7 +520,7 @@ export default function PlanPage() {
                 className="flex items-center gap-2 rounded-button bg-green-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-green-600 active:scale-95"
               >
                 开始学习
-                <ArrowRight size={20} weight="bold" />
+                <ArrowRight size={20} />
               </button>
             </div>
           </>
@@ -538,7 +537,7 @@ export default function PlanPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-                <Target size={28} weight="duotone" color="#3b82f6" />
+                <Target size={28} color="#3b82f6" />
                 创建学习计划
               </h2>
 
@@ -602,7 +601,7 @@ export default function PlanPage() {
                 >
                   {isGenerating ? (
                     <>
-                      <CircleNotch className="animate-spin" size={20} weight="bold" />
+                      <Spinner className="animate-spin" size="sm" color="white" />
                       生成中...
                     </>
                   ) : (

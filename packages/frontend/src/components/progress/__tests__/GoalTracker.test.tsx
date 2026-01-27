@@ -290,7 +290,7 @@ describe('GoalTracker', () => {
     it('should have gradient background for estimation section', () => {
       const { container } = render(<GoalTracker {...defaultProps} />);
 
-      const gradientSection = container.querySelector('.from-indigo-50');
+      const gradientSection = container.querySelector('.from-blue-50');
       expect(gradientSection).toBeInTheDocument();
     });
   });

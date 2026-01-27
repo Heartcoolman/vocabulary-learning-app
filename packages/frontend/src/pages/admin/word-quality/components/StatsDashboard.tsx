@@ -1,11 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { QualityStats } from '../api';
-import { Books, WarningCircle, CheckCircle, Clock } from '@phosphor-icons/react';
-
-// Using Phosphor Icons as they seem to be used in the project (from package.json)
-// If not, I'll fallback to text or check Icon.tsx again.
-// package.json has "@phosphor-icons/react": "^2.1.10"
+import { Books, WarningCircle, CheckCircle, Clock } from '../../../../components/Icon';
 
 interface Props {
   stats?: QualityStats;
@@ -24,7 +20,7 @@ const Card = ({ title, value, icon: Icon, color, delay }: any) => (
       <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
     </div>
     <div className={`rounded-lg p-3 ${color}`}>
-      <Icon className="h-6 w-6 text-white" weight="fill" />
+      <Icon className="h-6 w-6 text-white" />
     </div>
   </motion.div>
 );
@@ -72,7 +68,7 @@ export const StatsDashboard: React.FC<Props> = ({ stats, loading }) => {
         title="上次检查"
         value={formatDate(stats?.lastCheck)}
         icon={Clock}
-        color="bg-indigo-500"
+        color="bg-blue-500"
         delay={0.3}
       />
     </div>

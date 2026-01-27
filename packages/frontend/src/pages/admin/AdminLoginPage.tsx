@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAdminAuthStore } from '../../stores/adminAuthStore';
+import { adminLogin } from '../../services/client/admin/AdminAuthClient';
 import { useToast } from '../../components/ui';
 import { Eye, EyeSlash, CircleNotch, ShieldCheck } from '../../components/Icon';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
-  const { login, logout, isAuthenticated, user, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, setAuth } = useAdminAuthStore();
   const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
@@ -17,16 +18,9 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      if (user?.role === 'ADMIN') {
-        navigate('/admin', { replace: true });
-      } else {
-        showToast('error', '权限不足，仅管理员可访问');
-        setError('权限不足，仅管理员可访问');
-        logout();
-        setIsLoading(false);
-      }
+      navigate('/admin', { replace: true });
     }
-  }, [isAuthenticated, user, authLoading, navigate, logout, showToast]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,14 +33,12 @@ export default function AdminLoginPage() {
 
     try {
       setIsLoading(true);
-      await login(email, password);
+      const { user, token } = await adminLogin(email, password);
+      setAuth(user, token);
+      showToast('success', '登录成功');
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败';
-      if (message.includes('ACCOUNT_BANNED') || message.includes('封禁')) {
-        setError('账号已被封禁');
-      } else {
-        setError(message);
-      }
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -60,21 +52,24 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-blue-50 px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-            <ShieldCheck size={32} className="text-blue-600" weight="duotone" />
+            <ShieldCheck size={32} className="text-blue-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">管理后台</h1>
           <p className="mt-2 text-sm text-gray-500">请使用管理员账号登录</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-xl bg-white p-8 shadow-lg">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6 rounded-card bg-white p-8 shadow-elevated"
+        >
           {error && (
             <div
               role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600"
+              className="rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-600"
             >
               {error}
             </div>
@@ -89,7 +84,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="mt-2 block w-full rounded-button border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               placeholder="admin@example.com"
               disabled={isLoading}
               autoComplete="email"
@@ -124,7 +119,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-button bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <>

@@ -17,13 +17,18 @@ vi.mock('react-dom', async () => {
   };
 });
 
-// Mock phosphor-icons
-vi.mock('@phosphor-icons/react', () => ({
+// Mock Icon components
+vi.mock('@/components/Icon', () => ({
   X: () => <span data-testid="icon-x">X</span>,
   ChartPie: () => <span data-testid="icon-chartpie">ChartPie</span>,
   Sliders: () => <span data-testid="icon-sliders">Sliders</span>,
   TrendUp: () => <span data-testid="icon-trendup">TrendUp</span>,
   Flask: () => <span data-testid="icon-flask">Flask</span>,
+  CircleNotch: ({ className }: { className?: string }) => (
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
+  ),
 }));
 
 // Mock child components

@@ -84,7 +84,7 @@ export default function ConfigHistoryPage() {
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="mb-2 flex items-center gap-3">
-          <Clock size={32} weight="duotone" className="text-blue-500" />
+          <Clock size={32} className="text-blue-500" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">配置历史</h1>
         </div>
         <p className="text-gray-600 dark:text-gray-400">查看所有算法配置的修改记录</p>
@@ -98,7 +98,6 @@ export default function ConfigHistoryPage() {
             <div className="relative">
               <MagnifyingGlass
                 size={20}
-                weight="bold"
                 className="absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400"
               />
               <input
@@ -225,7 +224,7 @@ function HistoryRecordCard({ record }: HistoryRecordCardProps) {
       <div className="mb-4 flex items-start justify-between">
         <div className="flex-1">
           <div className="mb-2 flex items-center gap-3">
-            <ArrowCounterClockwise size={20} weight="bold" className="text-blue-500" />
+            <ArrowCounterClockwise size={20} className="text-blue-500" />
             <span className="font-semibold text-gray-900 dark:text-white">{record.changedBy}</span>
             <span className="text-sm text-gray-500 dark:text-gray-400">修改了配置</span>
           </div>
@@ -241,7 +240,7 @@ function HistoryRecordCard({ record }: HistoryRecordCardProps) {
         </div>
 
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <Clock size={16} weight="bold" />
+          <Clock size={16} />
           {formatDate(record.timestamp)}
         </div>
       </div>

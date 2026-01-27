@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Clock, Target, Lightning, ChartLine, Info } from '@phosphor-icons/react';
+import { Brain, Clock, Target, Lightning, ChartLine, Info } from '@/components/Icon';
 import { DecisionFactor } from '../../types/explainability';
 
 interface DecisionFactorsProps {
@@ -27,7 +27,7 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors })
   return (
     <div className="animate-fade-in space-y-4">
       <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
-        <Brain className="h-6 w-6 text-indigo-500" />
+        <Brain className="h-6 w-6 text-blue-500" />
         决策因素解析
       </h3>
 
@@ -38,7 +38,7 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors })
             className="rounded-card border border-gray-100 bg-white p-4 shadow-soft transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800"
           >
             <div className="flex items-start gap-4">
-              <div className="rounded-button bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              <div className="rounded-button bg-blue-50 p-2 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                 {getIcon(factor.icon)}
               </div>
 
@@ -53,11 +53,11 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors })
                 <div className="mb-2 flex items-center gap-3">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-g3-slow"
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-g3-slow"
                       style={{ width: `${factor.score * 100}%` }}
                     />
                   </div>
-                  <span className="min-w-[3ch] text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                  <span className="min-w-[3ch] text-sm font-semibold text-blue-600 dark:text-blue-400">
                     {(factor.score * 100).toFixed(0)}
                   </span>
                 </div>

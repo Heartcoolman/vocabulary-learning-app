@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Graph, Brain, Gavel } from '@phosphor-icons/react';
+import { Eye, Graph, Brain, Gavel } from '@/components/Icon';
 
 const LAYERS = [
   {
@@ -196,7 +196,7 @@ export default function AboutLens() {
                   <div
                     className={`mb-2 rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur ${layer.color}`}
                   >
-                    <layer.icon weight="duotone" className="h-8 w-8" />
+                    <layer.icon className="h-8 w-8" />
                   </div>
                   <span
                     className={`text-xs font-bold uppercase tracking-widest ${layer.color} rounded-full bg-white/60 px-3 py-1`}
@@ -236,7 +236,7 @@ export default function AboutLens() {
                       className={`absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r ${layer.bgStart} ${layer.bgEnd}`}
                     />
                     <div className={`shrink-0 rounded-2xl bg-stone-50 p-6 ${layer.color}`}>
-                      <layer.icon size={48} weight="duotone" />
+                      <layer.icon size={48} />
                     </div>
                     <div className="flex-1 text-center md:text-left">
                       <h3 className="mb-2 text-3xl font-bold text-stone-900">

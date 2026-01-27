@@ -123,7 +123,7 @@ export function DecisionMetricsSection({
             <div className="flex items-center gap-2">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                 <div
-                  className="h-full rounded-full bg-indigo-500 transition-all"
+                  className="h-full rounded-full bg-blue-500 transition-all"
                   style={{ width: `${confidence * 100}%` }}
                 />
               </div>

@@ -9,6 +9,7 @@ export interface Notification {
   status: string;
   priority: string;
   metadata?: Record<string, unknown>;
+  broadcastId?: string;
   readAt?: number;
   createdAt: number;
   updatedAt: number;
@@ -23,6 +24,7 @@ interface ApiNotification {
   status: string;
   priority: string;
   metadata?: Record<string, unknown>;
+  broadcastId?: string;
   readAt?: string;
   createdAt: string;
   updatedAt: string;

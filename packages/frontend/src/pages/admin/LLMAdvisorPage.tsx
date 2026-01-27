@@ -182,7 +182,7 @@ export default function LLMAdvisorPage() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Robot size={32} weight="duotone" className="text-purple-500" />
+          <Robot size={32} className="text-purple-500" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">LLM 顾问</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">AI 驱动的参数优化建议</p>
@@ -196,7 +196,7 @@ export default function LLMAdvisorPage() {
           {triggering ? (
             <CircleNotch className="animate-spin" size={18} />
           ) : (
-            <Lightning size={18} weight="bold" />
+            <Lightning size={18} />
           )}
           {triggering ? '分析中...' : '立即分析'}
         </button>

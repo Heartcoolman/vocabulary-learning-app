@@ -124,7 +124,7 @@ export const Alert = memo(
               )}
               aria-label="关闭提示"
             >
-              <X size={16} weight="bold" />
+              <X size={16} />
             </button>
           )}
         </div>
@@ -207,7 +207,7 @@ export const AlertBanner = memo(
               )}
               aria-label="关闭提示"
             >
-              <X size={16} weight="bold" />
+              <X size={16} />
             </button>
           )}
         </div>

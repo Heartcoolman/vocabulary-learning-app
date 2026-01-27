@@ -32,6 +32,13 @@ const PlanPage = lazy(() => import('../pages/PlanPage'));
 const LearningProfilePage = lazy(() => import('../pages/LearningProfilePage'));
 const PreferencesPage = lazy(() => import('../pages/PreferencesPage'));
 
+// 语义搜索功能页面
+const ConfusionWordsPage = lazy(() => import('../pages/ConfusionWordsPage'));
+const SemanticSearchPage = lazy(() => import('../pages/SemanticSearchPage'));
+
+// 通知功能页面
+const NotificationCenterPage = lazy(() => import('../pages/NotificationCenterPage'));
+
 /**
  * 懒加载包装组件
  */
@@ -147,6 +154,24 @@ export const userRoutes: AppRoute[] = [
     meta: { title: '单词列表', requireAuth: true },
   },
   {
+    path: '/confusion-words',
+    element: (
+      <ProtectedLazy>
+        <ConfusionWordsPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '易混淆词', requireAuth: true },
+  },
+  {
+    path: '/semantic-search',
+    element: (
+      <ProtectedLazy>
+        <SemanticSearchPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '语义搜索', requireAuth: true },
+  },
+  {
     path: '/profile',
     element: (
       <ProtectedLazy>
@@ -255,6 +280,17 @@ export const userRoutes: AppRoute[] = [
       </ProtectedLazy>
     ),
     meta: { title: '偏好设置', requireAuth: true },
+  },
+
+  // 通知中心
+  {
+    path: '/notifications',
+    element: (
+      <ProtectedLazy>
+        <NotificationCenterPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '通知中心', requireAuth: true },
   },
 
   // 路径统一：重定向到主学习页面

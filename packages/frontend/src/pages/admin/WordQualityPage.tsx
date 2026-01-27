@@ -12,7 +12,7 @@ import {
 } from './word-quality/hooks';
 import { IssueStatus, CheckType, Task } from './word-quality/api';
 import { useToast } from '../../components/ui';
-import { Books } from '@phosphor-icons/react';
+import { Books } from '../../components/Icon';
 
 export default function WordQualityPage() {
   const { success, error, info } = useToast();

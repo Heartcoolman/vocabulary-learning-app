@@ -46,7 +46,7 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
                   className="flex h-7 w-7 items-center justify-center rounded-full"
                   style={{ backgroundColor: `${config.color}15` }}
                 >
-                  <Icon size={14} color={config.color} weight="fill" />
+                  <Icon size={14} color={config.color} />
                 </div>
                 <span className="text-xs font-semibold" style={{ color: config.color }}>
                   {config.label}

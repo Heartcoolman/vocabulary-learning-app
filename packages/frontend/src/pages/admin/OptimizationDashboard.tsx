@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Icon } from '@phosphor-icons/react';
+import type { Icon } from '../../components/Icon';
 import {
   Activity,
   ArrowsClockwise,
@@ -25,7 +25,7 @@ import {
 } from '../../components/Icon';
 import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
-import { useToast, ConfirmModal } from '../../components/ui';
+import { useToast, ConfirmModal, Spinner } from '../../components/ui';
 
 // ==================== Types ====================
 
@@ -65,14 +65,14 @@ interface OptimizationDiagnostics {
 
 const LoadingSpinner = () => (
   <div className="flex min-h-[400px] items-center justify-center">
-    <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
+    <Spinner size="lg" color="primary" />
   </div>
 );
 
 const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
   <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
     <div className="max-w-md text-center" role="alert" aria-live="assertive">
-      <WarningCircle size={64} className="mx-auto mb-4 text-red-500" weight="duotone" />
+      <WarningCircle size={64} className="mx-auto mb-4 text-red-500" />
       <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
       <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
       <button
@@ -101,7 +101,7 @@ const MetricCard = ({
   <div className="animate-g3-fade-in rounded-card border border-gray-200 bg-white/90 p-5 shadow-soft backdrop-blur dark:border-slate-700 dark:bg-slate-800/90">
     <div className="mb-2 flex items-start justify-between">
       <div className="rounded-button bg-gray-50 p-2 text-gray-500 dark:bg-slate-700 dark:text-gray-400">
-        <IconComponent size={20} weight="duotone" />
+        <IconComponent size={20} />
       </div>
       {trend && (
         <span
@@ -353,7 +353,7 @@ export default function OptimizationDashboard() {
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
-            <Lightning className="text-amber-500" weight="duotone" />
+            <Lightning className="text-amber-500" />
             优化分析仪表盘
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">

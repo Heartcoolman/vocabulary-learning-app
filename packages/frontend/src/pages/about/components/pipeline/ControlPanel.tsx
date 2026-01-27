@@ -6,15 +6,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Play,
-  Pause,
-  Lightning,
-  Warning,
-  Pulse,
-  CaretDown,
-  CircleNotch,
-} from '@phosphor-icons/react';
+import { Play, Pause, Lightning, Warning, Pulse, CaretDown, CircleNotch } from '@/components/Icon';
 import { g3SpringSnappy } from '@/utils/animations';
 import { FAULT_OPTIONS } from './constants';
 import type { FaultInjectionRequest, FaultInjectionResponse } from './types';
@@ -80,7 +72,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
             } `}
           >
-            <Lightning size={16} weight="fill" />
+            <Lightning size={16} />
             <span className="text-sm font-medium">故障注入</span>
             <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
               <CaretDown size={14} />

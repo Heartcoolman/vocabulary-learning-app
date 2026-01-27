@@ -8,14 +8,18 @@ import { MemoryRouter } from 'react-router-dom';
 import LLMAdvisorPage from '../LLMAdvisorPage';
 
 // Mock useToast hook
-vi.mock('@/components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
-}));
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+    }),
+  };
+});
 
 // Mock Icon components
 vi.mock('@/components/Icon', async (importOriginal) => {

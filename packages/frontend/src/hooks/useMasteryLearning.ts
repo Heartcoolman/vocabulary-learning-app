@@ -26,6 +26,7 @@ const END_SESSION_ENDPOINT = '/api/habit-profile/end-session';
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
   sessionId?: string;
+  seedWords?: WordItem[];
   getDialogPausedTime?: () => number;
   resetDialogPausedTime?: () => void;
 }
@@ -53,11 +54,13 @@ export function useMasteryLearning(
   const {
     targetMasteryCount: initialTargetCount = 20,
     sessionId,
+    seedWords,
     getDialogPausedTime,
     resetDialogPausedTime,
   } = options;
   const { user } = useAuth();
   const location = useLocation();
+  const isSeedSession = Array.isArray(seedWords) && seedWords.length > 0;
 
   // 状态
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +88,7 @@ export function useMasteryLearning(
   const saveCacheRef = useRef<() => void>(() => {});
   const latestAmasResultRef = useRef<AmasProcessResult | null>(null);
   const saveCache = useCallback(() => {
+    if (isSeedSession) return;
     const state = wordQueueRef.current.getQueueState();
     if (!state || !syncRef.current) return;
     const amasResult = latestAmasResultRef.current;
@@ -105,7 +109,7 @@ export function useMasteryLearning(
           }
         : undefined,
     });
-  }, [initialTargetCount, user?.id]);
+  }, [initialTargetCount, user?.id, isSeedSession]);
   saveCacheRef.current = saveCache;
 
   const sync = useMasterySync({
@@ -233,7 +237,7 @@ export function useMasteryLearning(
           };
         } | null = null;
 
-        if (!isReset && syncRef.current) {
+        if (!isReset && syncRef.current && !isSeedSession) {
           const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
           if (cache?.queueState?.masteredWordIds?.length || cache?.queueState?.totalQuestions) {
             // 只提取进度信息，不使用缓存的单词列表
@@ -248,8 +252,22 @@ export function useMasteryLearning(
           }
         }
 
-        // 总是从服务端获取最新单词列表（后端会自动排除已学习的单词）
-        const words = await getMasteryStudyWords(initialTargetCount);
+        const seedCount = seedWords?.length ?? 0;
+        const words = isSeedSession
+          ? {
+              words: seedWords ?? [],
+              meta: {
+                mode: 'custom',
+                targetCount: seedCount,
+                fetchCount: seedCount,
+                masteryThreshold: wordQueueRef.current.configRef.current.masteryThreshold,
+                maxQuestions: Math.max(
+                  wordQueueRef.current.configRef.current.maxTotalQuestions,
+                  seedCount * 3,
+                ),
+              },
+            }
+          : await getMasteryStudyWords(initialTargetCount);
         if (!isMountedRef.current) return;
 
         // 如果有缓存的进度，过滤掉已掌握的单词
@@ -320,7 +338,7 @@ export function useMasteryLearning(
         if (isMountedRef.current) setIsLoading(false);
       }
     },
-    [initialTargetCount, sessionId, user?.id],
+    [initialTargetCount, sessionId, user?.id, seedWords, isSeedSession],
   );
 
   // Effects
@@ -347,7 +365,7 @@ export function useMasteryLearning(
   }, [location.key]);
 
   useEffect(() => {
-    if (isLoading || wordQueue.isCompleted || !syncRef.current) return;
+    if (isSeedSession || isLoading || wordQueue.isCompleted || !syncRef.current) return;
     syncRef.current
       .fetchMoreWordsIfNeeded(
         wordQueue.progress.activeCount,
@@ -366,6 +384,7 @@ export function useMasteryLearning(
     isLoading,
     wordQueue.isCompleted,
     saveCache,
+    isSeedSession,
   ]);
 
   useEffect(() => {
@@ -471,7 +490,9 @@ export function useMasteryLearning(
   }, [wordQueue, saveCache]);
 
   const resetSession = useCallback(async () => {
-    sync.sessionCache.clearSessionCache();
+    if (!isSeedSession) {
+      sync.sessionCache.clearSessionCache();
+    }
     sync.retryQueue.clearQueue();
     sync.resetSyncCounter();
     wordQueue.resetQueue();
@@ -480,7 +501,7 @@ export function useMasteryLearning(
     currentSessionIdRef.current = '';
     sessionStartTimeRef.current = 0;
     await initSession(true);
-  }, [sync, wordQueue, initSession]);
+  }, [sync, wordQueue, initSession, isSeedSession]);
 
   return {
     currentWord: wordQueue.currentWord,

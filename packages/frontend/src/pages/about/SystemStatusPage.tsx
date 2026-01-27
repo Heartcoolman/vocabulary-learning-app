@@ -209,7 +209,7 @@ const AlgorithmCard = memo(function AlgorithmCard({
     fatigue_estimator: 'from-orange-500 to-orange-600',
     cognitive_profiler: 'from-pink-500 to-pink-600',
     motivation_tracker: 'from-teal-500 to-teal-600',
-    trend_analyzer: 'from-indigo-500 to-indigo-600',
+    trend_analyzer: 'from-blue-500 to-blue-600',
     actr_memory: 'from-amber-500 to-amber-600',
     fsrs: 'from-rose-500 to-rose-600',
     coldstart_manager: 'from-violet-500 to-violet-600',
@@ -284,7 +284,7 @@ const AlgorithmStatusPanel = memo(function AlgorithmStatusPanel({
     decision: {
       title: '决策层',
       icon: <Target size={16} className="text-blue-500" />,
-      gradient: 'from-blue-500/10 to-indigo-500/10',
+      gradient: 'from-blue-500/10 to-blue-500/10',
     },
     modeling: {
       title: '建模层',
@@ -717,8 +717,8 @@ const MemoryStatusPanel = memo(function MemoryStatusPanel({
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">最大追踪记录</div>
           </div>
-          <div className="rounded-button bg-indigo-50 p-3 text-center">
-            <div className="text-xl font-bold text-indigo-600">
+          <div className="rounded-button bg-blue-50 p-3 text-center">
+            <div className="text-xl font-bold text-blue-600">
               {data.actrConfig?.errorPenalty ?? 0.3}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">错误惩罚因子</div>
@@ -754,7 +754,7 @@ const FeatureFlagsPanel = memo(function FeatureFlagsPanel({
     {
       title: '学习算法',
       icon: <Brain size={16} className="text-purple-500" />,
-      gradient: 'from-purple-500/10 to-indigo-500/10',
+      gradient: 'from-purple-500/10 to-blue-500/10',
       borderColor: 'border-purple-200/60',
       keys: ['ensemble', 'thompsonSampling', 'heuristicBaseline', 'actrMemory'],
     },
@@ -834,11 +834,11 @@ const FeatureFlagsPanel = memo(function FeatureFlagsPanel({
   const totalCount = Object.keys(data.flags || {}).length;
 
   return (
-    <div className="transform-gpu rounded-card border border-gray-200/60 bg-gradient-to-br from-white via-white to-indigo-50/30 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800">
+    <div className="transform-gpu rounded-card border border-gray-200/60 bg-gradient-to-br from-white via-white to-blue-50/30 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800">
       {/* 标题栏 */}
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
-          <div className="rounded-button bg-gradient-to-br from-indigo-500 to-purple-600 p-2 text-white shadow-elevated">
+          <div className="rounded-button bg-gradient-to-br from-blue-500 to-purple-600 p-2 text-white shadow-elevated">
             <Timer size={18} />
           </div>
           功能运行状态
@@ -1079,7 +1079,7 @@ export default function SystemStatusPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-                <Activity className="text-blue-600" weight="duotone" />
+                <Activity className="text-blue-600" />
                 AMAS 系统状态
               </h1>
               {/* 数据源标识 */}

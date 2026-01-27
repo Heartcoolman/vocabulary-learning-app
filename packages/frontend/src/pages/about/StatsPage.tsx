@@ -69,7 +69,7 @@ function SystemVitality({
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
       <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
-          <Target size={80} weight="fill" className="text-emerald-500" />
+          <Target size={80} className="text-emerald-500" />
         </div>
         <div className="relative z-10">
           <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -88,7 +88,7 @@ function SystemVitality({
 
       <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
-          <Atom size={80} weight="fill" className="text-blue-500" />
+          <Atom size={80} className="text-blue-500" />
         </div>
         <div className="relative z-10">
           <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -107,7 +107,7 @@ function SystemVitality({
 
       <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
-          <Lightning size={80} weight="fill" className="text-amber-500" />
+          <Lightning size={80} className="text-amber-500" />
         </div>
         <div className="relative z-10">
           <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -124,7 +124,7 @@ function SystemVitality({
 
       <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
-          <Timer size={80} weight="fill" className="text-purple-500" />
+          <Timer size={80} className="text-purple-500" />
         </div>
         <div className="relative z-10">
           <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -501,7 +501,7 @@ export default function StatsPage() {
           <div>
             <div className="mb-2 flex items-center gap-3">
               <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white md:text-4xl">
-                <ShareNetwork className="text-blue-600" weight="duotone" />
+                <ShareNetwork className="text-blue-600" />
                 AMAS 神经网络监控
               </h1>
               {/* 数据源标识 */}
@@ -544,7 +544,7 @@ export default function StatsPage() {
           <div className="lg:col-span-3">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
-                <Brain className="text-indigo-500" />
+                <Brain className="text-blue-500" />
                 专家成员贡献榜 (Expert Members)
               </h2>
             </div>

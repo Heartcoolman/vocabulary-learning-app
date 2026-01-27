@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardFooter, CardVariant } from './Card';
 import { Button } from './Button';
-import { DotsThreeVertical, Star, ArrowRight, Check, User } from '../Icon';
+import { DotsThreeVertical, Star, ArrowRight, Check, User, Target } from '../Icon';
 
 /**
  * # Card 卡片组件
@@ -642,7 +642,7 @@ export const CardGrid: Story = {
       {[1, 2, 3, 4, 5, 6].map((i) => (
         <Card key={i} clickable className="w-48">
           <div className="mb-3 flex h-24 items-center justify-center rounded-button bg-gradient-to-br from-blue-100 to-blue-200">
-            <span className="text-2xl">🎯</span>
+            <Target size={32} className="text-blue-600" />
           </div>
           <h3 className="font-semibold text-gray-900">项目 {i}</h3>
           <p className="mt-1 text-sm text-gray-500">简短描述</p>

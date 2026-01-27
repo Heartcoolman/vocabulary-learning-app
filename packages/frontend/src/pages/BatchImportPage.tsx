@@ -189,7 +189,7 @@ export default function BatchImportPage() {
               className="rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700"
               aria-label="Go back"
             >
-              <ArrowLeft size={20} weight="bold" />
+              <ArrowLeft size={20} />
             </button>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">批量导入单词</h1>
           </div>
@@ -204,7 +204,7 @@ export default function BatchImportPage() {
             <div className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-6 p-8 duration-g3-normal">
               <div className="mb-4 text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                  <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400" weight="bold" />
+                  <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">选择目标词书</h2>
                 <p className="mt-2 text-gray-500 dark:text-gray-400">
@@ -268,10 +268,7 @@ export default function BatchImportPage() {
             <div className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-6 p-8 duration-g3-normal">
               <div className="mb-2 text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                  <UploadSimple
-                    className="h-8 w-8 text-blue-600 dark:text-blue-400"
-                    weight="bold"
-                  />
+                  <UploadSimple className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">上传数据文件</h2>
                 <p className="mt-2 text-gray-500 dark:text-gray-400">
@@ -282,7 +279,7 @@ export default function BatchImportPage() {
               <div className="mx-auto w-full max-w-xl space-y-6">
                 <div className="rounded-button border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-400">
                   <p className="mb-2 flex items-center gap-2 font-semibold">
-                    <FileText size={16} weight="bold" />
+                    <FileText size={16} />
                     文件格式要求:
                   </p>
                   <ul className="ml-1 list-inside list-disc space-y-1 opacity-90">
@@ -448,7 +445,7 @@ export default function BatchImportPage() {
             <div className="animate-in fade-in slide-in-from-bottom-4 flex h-full flex-col items-center justify-center p-8 text-center duration-g3-normal">
               {importError ? (
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-                  <X className="h-10 w-10 text-red-600" weight="bold" />
+                  <X className="h-10 w-10 text-red-600" />
                 </div>
               ) : failedCount === 0 ? (
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">

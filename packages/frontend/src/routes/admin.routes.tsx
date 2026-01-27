@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { AppRoute } from './types';
 import { PageLoader } from './components';
-import ProtectedRoute from '../components/ProtectedRoute';
+import AdminProtectedRoute from '../components/AdminProtectedRoute';
 
 // 懒加载 - 管理员页面
 const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
@@ -25,6 +25,8 @@ const WeeklyReportPage = lazy(() => import('../pages/admin/WeeklyReportPage'));
 const WordQualityPage = lazy(() => import('../pages/admin/WordQualityPage'));
 const LLMTasksPage = lazy(() => import('../pages/admin/LLMTasksPage'));
 const AMASMonitoringPage = lazy(() => import('../pages/admin/AMASMonitoringPage'));
+const SystemSettingsPage = lazy(() => import('../pages/admin/SystemSettingsPage'));
+const BroadcastPage = lazy(() => import('../pages/admin/BroadcastPage'));
 
 /**
  * 懒加载包装组件
@@ -217,6 +219,24 @@ const adminChildren: AppRoute[] = [
     ),
     meta: { title: 'AMAS监控', requireAuth: true, requireAdmin: true },
   },
+  {
+    path: 'settings',
+    element: (
+      <LazyWrapper>
+        <SystemSettingsPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '系统设置', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'broadcasts',
+    element: (
+      <LazyWrapper>
+        <BroadcastPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '广播管理', requireAuth: true, requireAdmin: true },
+  },
 ];
 
 /**
@@ -227,11 +247,11 @@ export const adminRoutes: AppRoute[] = [
   {
     path: '/admin',
     element: (
-      <ProtectedRoute requireAdmin>
+      <AdminProtectedRoute>
         <LazyWrapper>
           <AdminLayout />
         </LazyWrapper>
-      </ProtectedRoute>
+      </AdminProtectedRoute>
     ),
     meta: { title: '管理后台', requireAuth: true, requireAdmin: true },
     children: adminChildren,

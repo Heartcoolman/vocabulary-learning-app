@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Info, TrendUp, TrendDown, Minus } from '@phosphor-icons/react';
+import { Info, TrendUp, TrendDown, Minus } from '@/components/Icon';
 import { EnhancedExplanation } from '../types/explainability';
 
 interface Props {
@@ -58,17 +58,9 @@ export const DecisionTooltip: React.FC<Props> = ({ explanation }) => {
                   {explanation.factorContributions.map((factor, i) => (
                     <div key={i} className="flex items-start gap-2">
                       {factor.impact === 'positive' ? (
-                        <TrendUp
-                          size={16}
-                          className="mt-0.5 flex-shrink-0 text-green-600"
-                          weight="bold"
-                        />
+                        <TrendUp size={16} className="mt-0.5 flex-shrink-0 text-green-600" />
                       ) : factor.impact === 'negative' ? (
-                        <TrendDown
-                          size={16}
-                          className="mt-0.5 flex-shrink-0 text-red-600"
-                          weight="bold"
-                        />
+                        <TrendDown size={16} className="mt-0.5 flex-shrink-0 text-red-600" />
                       ) : (
                         <Minus size={16} className="mt-0.5 flex-shrink-0 text-gray-400" />
                       )}

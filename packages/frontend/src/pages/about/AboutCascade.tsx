@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Brain, Lightning, Scales, CaretRight } from '@phosphor-icons/react';
+import { Eye, Brain, Lightning, Scales, CaretRight } from '@/components/Icon';
 import { G3_DURATION, G3_EASING } from '../../utils/animations';
 
 interface Layer {
@@ -115,7 +115,6 @@ export default function AboutCascade() {
                       </h3>
                       <CaretRight
                         size={20}
-                        weight="bold"
                         className={`transition-transform duration-g3-normal ease-g3 ${activeId === layer.id ? 'rotate-90 text-slate-300' : 'text-slate-400'}`}
                       />
                     </div>
@@ -169,7 +168,6 @@ export default function AboutCascade() {
                   >
                     <layer.icon
                       size={14}
-                      weight="bold"
                       className={activeId === layer.id ? 'text-white' : 'text-slate-300'}
                     />
                   </motion.div>

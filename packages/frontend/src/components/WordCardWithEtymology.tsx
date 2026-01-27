@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TreeStructure, CaretDown } from '@phosphor-icons/react';
+import { TreeStructure, CaretDown } from '@/components/Icon';
 import WordCard, { WordCardProps } from './WordCard';
 import { MorphologyBreakdown } from './etymology';
 import { useWordEtymology } from '../hooks/queries/useEtymology';

@@ -112,19 +112,19 @@ function SyncIndicatorComponent() {
             </>
           ) : showSuccessIcon ? (
             <>
-              <Check size={24} weight="bold" className="animate-g3-fade-in text-green-500" />
+              <Check size={24} className="animate-g3-fade-in text-green-500" />
               <span className="animate-g3-fade-in text-sm font-medium text-green-600">
                 同步成功
               </span>
             </>
           ) : showErrorIcon ? (
             <>
-              <X size={24} weight="bold" className="animate-g3-fade-in text-red-500" />
+              <X size={24} className="animate-g3-fade-in text-red-500" />
               <span className="animate-g3-fade-in text-sm font-medium text-red-600">同步失败</span>
             </>
           ) : syncStatus.error ? (
             <>
-              <X size={20} weight="bold" className="text-red-500" />
+              <X size={20} className="text-red-500" />
               <span className="text-sm font-medium text-red-600">同步失败</span>
             </>
           ) : syncStatus.pendingChanges > 0 ? (
@@ -136,7 +136,7 @@ function SyncIndicatorComponent() {
             </>
           ) : (
             <>
-              <Check size={20} weight="bold" className="text-green-500" />
+              <Check size={20} className="text-green-500" />
               <span className="text-sm font-medium text-green-600">已同步</span>
             </>
           )}

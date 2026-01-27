@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Issue, IssueStatus, IssueSeverity } from '../api';
-import { X, Wrench } from '@phosphor-icons/react';
+import { X, Wrench } from '../../../../components/Icon';
 import { Button } from '../../../../components/ui/Button';
 import { Badge } from '../../../../components/ui/Badge';
 

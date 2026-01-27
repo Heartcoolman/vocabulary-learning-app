@@ -41,20 +41,20 @@ interface DecisionCardProps {
 }
 
 const DIFFICULTY_STYLES: Record<string, string> = {
-  easy: 'bg-green-100 text-green-700 border-green-200',
-  mid: 'bg-amber-100 text-amber-700 border-amber-200',
-  hard: 'bg-red-100 text-red-700 border-red-200',
+  easy: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700',
+  mid: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',
+  hard: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700',
 };
 
 function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardProps) {
   const difficultyStyle =
     DIFFICULTY_STYLES[decision.strategy.difficulty?.toLowerCase() || ''] ||
-    'bg-slate-100 text-slate-600 border-slate-200';
+    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600';
 
   const sourceStyle =
     source === 'real'
-      ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-      : 'bg-purple-100 text-purple-700 border-purple-200';
+      ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
+      : 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700';
 
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString('zh-CN', {
@@ -68,8 +68,8 @@ function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardPro
   const baseClasses =
     'p-3 mb-3 rounded-button cursor-pointer border transition-all duration-g3-fast group hover:shadow-elevated hover:scale-[1.01]';
   const selectedClasses = isSelected
-    ? 'bg-indigo-50/80 border-indigo-500 shadow-soft ring-1 ring-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-400 dark:ring-indigo-700'
-    : 'bg-white border-slate-200 hover:border-indigo-200 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-indigo-500';
+    ? 'bg-blue-50/80 border-blue-500 shadow-soft ring-1 ring-blue-200 dark:bg-blue-900/30 dark:border-blue-400 dark:ring-blue-700'
+    : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500';
 
   return (
     <div onClick={onClick} className={`${baseClasses} ${selectedClasses}`}>
@@ -92,7 +92,7 @@ function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardPro
 
       <div className="mb-1 flex items-center gap-2">
         <div
-          className={`rounded-md p-1 ${isSelected ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400' : 'bg-slate-100 text-slate-500 group-hover:text-indigo-500 dark:bg-slate-700 dark:text-gray-400 dark:group-hover:text-indigo-400'}`}
+          className={`rounded-md p-1 ${isSelected ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400' : 'bg-slate-100 text-slate-500 group-hover:text-blue-500 dark:bg-slate-700 dark:text-gray-400 dark:group-hover:text-blue-400'}`}
         >
           <GitBranch size={16} />
         </div>
@@ -317,11 +317,11 @@ export default function DashboardPage() {
         <div className="border-b border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
-              <Target size={18} weight="fill" className="text-indigo-500" />
+              <Target size={18} className="text-blue-500" />
               近期决策
             </h2>
             {isLoadingList && (
-              <CircleNotch size={16} weight="bold" className="animate-spin text-indigo-400" />
+              <CircleNotch size={16} weight="bold" className="animate-spin text-blue-400" />
             )}
           </div>
           {/* Tab Filter */}
@@ -413,7 +413,7 @@ export default function DashboardPage() {
       <main className="relative flex h-full flex-1 flex-col overflow-hidden">
         {isLoadingDetail && (
           <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-soft backdrop-blur dark:border-slate-700 dark:bg-slate-800/80 dark:text-gray-400">
-            <CircleNotch size={14} weight="bold" className="animate-spin text-indigo-500" />
+            <CircleNotch size={14} weight="bold" className="animate-spin text-blue-500" />
             Loading details...
           </div>
         )}

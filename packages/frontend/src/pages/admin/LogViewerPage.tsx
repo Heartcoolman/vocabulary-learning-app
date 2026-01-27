@@ -14,6 +14,7 @@ import {
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { adminClient } from '../../services/client';
+import { JsonHighlight } from '../../components/ui';
 
 // 日志级别类型
 type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
@@ -258,7 +259,7 @@ export default function LogViewerPage() {
     return (
       <div className="p-8">
         <div className="py-12 text-center">
-          <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={64} color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
@@ -285,7 +286,7 @@ export default function LogViewerPage() {
           {/* 总日志数 */}
           <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <File size={32} weight="duotone" className="text-gray-500" />
+              <File size={32} className="text-gray-500" />
             </div>
             <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
               {stats.total}
@@ -296,7 +297,7 @@ export default function LogViewerPage() {
           {/* ERROR 数量 */}
           <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <XCircle size={32} weight="duotone" className="text-red-500" />
+              <XCircle size={32} className="text-red-500" />
             </div>
             <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
               {stats.errorCount}
@@ -307,7 +308,7 @@ export default function LogViewerPage() {
           {/* WARN 数量 */}
           <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <WarningCircle size={32} weight="duotone" className="text-yellow-500" />
+              <WarningCircle size={32} className="text-yellow-500" />
             </div>
             <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
               {stats.warnCount}
@@ -318,7 +319,7 @@ export default function LogViewerPage() {
           {/* 前端日志数 */}
           <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <Info size={32} weight="duotone" className="text-purple-500" />
+              <Info size={32} className="text-purple-500" />
             </div>
             <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
               {stats.frontendCount}
@@ -329,7 +330,7 @@ export default function LogViewerPage() {
           {/* 后端日志数 */}
           <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <div className="mb-4 flex items-center justify-between">
-              <Info size={32} weight="duotone" className="text-green-500" />
+              <Info size={32} className="text-green-500" />
             </div>
             <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
               {stats.backendCount}
@@ -348,11 +349,10 @@ export default function LogViewerPage() {
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600"
             >
-              <MagnifyingGlass size={16} weight="bold" />
+              <MagnifyingGlass size={16} />
               <span>筛选</span>
               <CaretDown
                 size={16}
-                weight="bold"
                 className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
               />
             </button>
@@ -542,10 +542,8 @@ export default function LogViewerPage() {
 
                       {/* 展开的详细信息 */}
                       {expandedLogId === log.id && log.metadata && (
-                        <div className="mt-3 overflow-x-auto rounded bg-gray-900 p-3 text-xs text-gray-100">
-                          <pre className="whitespace-pre-wrap break-words">
-                            {JSON.stringify(log.metadata, null, 2)}
-                          </pre>
+                        <div className="mt-3">
+                          <JsonHighlight data={log.metadata} />
                         </div>
                       )}
                     </div>
@@ -568,7 +566,7 @@ export default function LogViewerPage() {
                     disabled={pagination.page === 1}
                     className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                   >
-                    <CaretLeft size={16} weight="bold" />
+                    <CaretLeft size={16} />
                   </button>
                   <div className="flex items-center gap-1">
                     {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
@@ -612,7 +610,7 @@ export default function LogViewerPage() {
                     disabled={pagination.page === pagination.totalPages}
                     className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                   >
-                    <CaretRight size={16} weight="bold" />
+                    <CaretRight size={16} />
                   </button>
                 </div>
               </div>

@@ -47,21 +47,25 @@ vi.mock('../../../components/ui/Toast', () => ({
 }));
 
 // Mock ui components (re-exports from Toast)
-vi.mock('../../../components/ui', () => ({
-  useToast: () => mockToast,
-  ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Modal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
-  ConfirmModal: ({ isOpen, onClose, onConfirm, title, message }: any) =>
-    isOpen ? (
-      <div data-testid="confirm-modal">
-        <h2>{title}</h2>
-        <p>{message}</p>
-        <button onClick={onConfirm}>Confirm</button>
-        <button onClick={onClose}>Cancel</button>
-      </div>
-    ) : null,
-  AlertModal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
-}));
+vi.mock('../../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => mockToast,
+    ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    Modal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
+    ConfirmModal: ({ isOpen, onClose, onConfirm, title, message }: any) =>
+      isOpen ? (
+        <div data-testid="confirm-modal">
+          <h2>{title}</h2>
+          <p>{message}</p>
+          <button onClick={onConfirm}>Confirm</button>
+          <button onClick={onClose}>Cancel</button>
+        </div>
+      ) : null,
+    AlertModal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
+  };
+});
 
 import LogAlertsPage from '../LogAlertsPage';
 

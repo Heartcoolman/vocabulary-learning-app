@@ -166,7 +166,7 @@ const EmptyResultPlaceholder = memo(function EmptyResultPlaceholder() {
   return (
     <div className="flex h-full min-h-[200px] items-center justify-center text-gray-400 dark:text-gray-500">
       <div className="text-center">
-        <Lightbulb size={48} weight="duotone" className="mx-auto mb-2" />
+        <Lightbulb size={48} className="mx-auto mb-2" />
         <p>调整参数并运行分析</p>
       </div>
     </div>
@@ -216,7 +216,7 @@ function AMASDetailPanelComponent({
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <Question size={24} weight="duotone" className="text-teal-500" />
+          <Question size={24} className="text-teal-500" />
           反事实分析
         </h2>
       </div>
@@ -246,7 +246,7 @@ function AMASDetailPanelComponent({
               </>
             ) : (
               <>
-                <Lightbulb size={18} weight="bold" />
+                <Lightbulb size={18} />
                 运行反事实分析
               </>
             )}

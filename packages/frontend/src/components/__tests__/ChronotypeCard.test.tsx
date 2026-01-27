@@ -247,14 +247,14 @@ describe('ChronotypeCard', () => {
       expect(iconContainer).toBeInTheDocument();
     });
 
-    it('should have indigo color for evening type', () => {
+    it('should have blue color for evening type', () => {
       const eveningData: ChronotypeProfile = {
         category: 'evening',
         peakHours: [21, 22, 23],
         confidence: 0.8,
       };
       const { container } = render(<ChronotypeCard data={eveningData} />);
-      const iconContainer = container.querySelector('.bg-indigo-100');
+      const iconContainer = container.querySelector('.bg-blue-100');
       expect(iconContainer).toBeInTheDocument();
     });
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CaretDown, CaretUp, Clock, Fire } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, Clock, Fire } from '@/components/Icon';
 import {
   MasteryEvaluation,
   ReviewTraceRecord,

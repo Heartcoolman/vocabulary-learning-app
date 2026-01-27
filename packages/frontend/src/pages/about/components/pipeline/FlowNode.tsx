@@ -16,11 +16,11 @@ import {
   ShieldCheck,
   TrendUp,
   Target,
-} from '@phosphor-icons/react';
+} from '@/components/Icon';
+import type { Icon } from '@/components/Icon';
 import { g3SpringStandard } from '@/utils/animations';
 import type { PipelineNode, NodeState, PipelineNodeType } from './types';
 import { NODE_TYPE_COLORS } from './constants';
-import type { Icon } from '@phosphor-icons/react';
 
 /** 节点位置信息 */
 export interface NodePositionInfo {

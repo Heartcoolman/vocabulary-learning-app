@@ -4,6 +4,7 @@ import StorageService from '../services/StorageService';
 import ApiClient, { type SessionStats } from '../services/client';
 import { handleError } from '../utils/errorHandler';
 import { learningLogger } from '../utils/logger';
+import { groupByDate } from '../utils/textHighlight';
 import {
   StateHistoryPoint,
   SignificantChange,
@@ -30,6 +31,7 @@ import {
   Play,
   Timer,
 } from '../components/Icon';
+import { Spinner } from '../components/ui';
 import { IconColor, chartColors } from '../utils/iconColors';
 
 interface WordStats {
@@ -411,6 +413,12 @@ export default function HistoryPage() {
     return filteredAndSortedStats.slice(start, start + itemsPerPage);
   }, [filteredAndSortedStats, currentPage]);
 
+  // 按日期分组（仅在按时间排序时启用）
+  const groupedStats = useMemo(() => {
+    if (sortBy !== 'time') return null;
+    return groupByDate(currentStats, (stat) => stat.lastStudied);
+  }, [currentStats, sortBy]);
+
   // 重置页码当筛选/排序改变时
   useEffect(() => {
     setCurrentPage(1);
@@ -434,12 +442,7 @@ export default function HistoryPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center dark:bg-slate-900">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color={IconColor.primary}
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             正在加载...
           </p>
@@ -490,7 +493,7 @@ export default function HistoryPage() {
                 : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
-            <BookOpen size={18} weight="bold" />
+            <BookOpen size={18} />
             单词统计
           </button>
           <button
@@ -501,7 +504,7 @@ export default function HistoryPage() {
                 : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
-            <ChartLine size={18} weight="bold" />
+            <ChartLine size={18} />
             状态历史
           </button>
           <button
@@ -512,7 +515,7 @@ export default function HistoryPage() {
                 : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
-            <Play size={18} weight="bold" />
+            <Play size={18} />
             学习会话
           </button>
         </div>
@@ -522,22 +525,12 @@ export default function HistoryPage() {
           <>
             {isLoadingSessions ? (
               <div className="py-12 text-center">
-                <CircleNotch
-                  className="mx-auto mb-4 animate-spin"
-                  size={48}
-                  weight="bold"
-                  color={IconColor.primary}
-                />
+                <Spinner className="mx-auto mb-4" size="xl" color="primary" />
                 <p className="text-gray-600 dark:text-gray-400">正在加载会话列表...</p>
               </div>
             ) : sessions.length === 0 ? (
               <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/30">
-                <Play
-                  size={64}
-                  weight="duotone"
-                  color={IconColor.primary}
-                  className="mx-auto mb-4"
-                />
+                <Play size={64} color={IconColor.primary} className="mx-auto mb-4" />
                 <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
                   暂无学习会话
                 </h2>
@@ -720,7 +713,7 @@ export default function HistoryPage() {
             {/* 日期范围选择器 */}
             <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-4 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <div className="flex items-center gap-4">
-                <Calendar size={20} weight="duotone" color={IconColor.primary} />
+                <Calendar size={20} color={IconColor.primary} />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   时间范围:
                 </span>
@@ -744,12 +737,7 @@ export default function HistoryPage() {
 
             {isLoadingState ? (
               <div className="py-12 text-center">
-                <CircleNotch
-                  className="mx-auto mb-4 animate-spin"
-                  size={48}
-                  weight="bold"
-                  color={IconColor.primary}
-                />
+                <Spinner className="mx-auto mb-4" size="xl" color="primary" />
                 <p className="text-gray-600 dark:text-gray-400">正在加载状态历史...</p>
               </div>
             ) : (
@@ -758,7 +746,7 @@ export default function HistoryPage() {
                 {cognitiveGrowth && (
                   <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                      <Brain size={24} weight="duotone" color={chartColors.memory} />
+                      <Brain size={24} color={chartColors.memory} />
                       认知成长对比（{cognitiveGrowth.period} 天）
                     </h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -775,9 +763,9 @@ export default function HistoryPage() {
                             }`}
                           >
                             {cognitiveGrowth.changes.memory.direction === 'up' ? (
-                              <ArrowUp size={16} weight="bold" />
+                              <ArrowUp size={16} />
                             ) : (
-                              <ArrowDown size={16} weight="bold" />
+                              <ArrowDown size={16} />
                             )}
                             <span className="text-sm font-bold">
                               {cognitiveGrowth.changes.memory.percent.toFixed(1)}%
@@ -808,9 +796,9 @@ export default function HistoryPage() {
                             }`}
                           >
                             {cognitiveGrowth.changes.speed.direction === 'up' ? (
-                              <ArrowUp size={16} weight="bold" />
+                              <ArrowUp size={16} />
                             ) : (
-                              <ArrowDown size={16} weight="bold" />
+                              <ArrowDown size={16} />
                             )}
                             <span className="text-sm font-bold">
                               {cognitiveGrowth.changes.speed.percent.toFixed(1)}%
@@ -841,9 +829,9 @@ export default function HistoryPage() {
                             }`}
                           >
                             {cognitiveGrowth.changes.stability.direction === 'up' ? (
-                              <ArrowUp size={16} weight="bold" />
+                              <ArrowUp size={16} />
                             ) : (
-                              <ArrowDown size={16} weight="bold" />
+                              <ArrowDown size={16} />
                             )}
                             <span className="text-sm font-bold">
                               {cognitiveGrowth.changes.stability.percent.toFixed(1)}%
@@ -869,7 +857,7 @@ export default function HistoryPage() {
                   <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <div className="mb-5 flex items-center justify-between">
                       <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                        <ChartLine size={24} weight="duotone" color={IconColor.primary} />
+                        <ChartLine size={24} color={IconColor.primary} />
                         状态历史趋势
                       </h2>
                       <span className="text-sm text-gray-400">
@@ -892,7 +880,7 @@ export default function HistoryPage() {
                 {significantChanges.length > 0 && (
                   <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                      <Target size={24} weight="duotone" color={IconColor.warning} />
+                      <Target size={24} color={IconColor.warning} />
                       显著变化
                     </h2>
                     <div className="space-y-3">
@@ -909,9 +897,9 @@ export default function HistoryPage() {
                             className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${change.isPositive ? 'bg-green-500' : 'bg-red-500'} `}
                           >
                             {change.direction === 'up' ? (
-                              <TrendUp size={20} weight="fill" color={IconColor.white} />
+                              <TrendUp size={20} color={IconColor.white} />
                             ) : (
-                              <TrendDown size={20} weight="fill" color={IconColor.white} />
+                              <TrendDown size={20} color={IconColor.white} />
                             )}
                           </div>
                           <div className="flex-1">
@@ -946,12 +934,7 @@ export default function HistoryPage() {
                   !cognitiveGrowth &&
                   significantChanges.length === 0 && (
                     <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/30">
-                      <ChartLine
-                        size={64}
-                        weight="duotone"
-                        color={IconColor.primary}
-                        className="mx-auto mb-4"
-                      />
+                      <ChartLine size={64} color={IconColor.primary} className="mx-auto mb-4" />
                       <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
                         暂无状态历史数据
                       </h2>
@@ -979,7 +962,6 @@ export default function HistoryPage() {
                 <BookOpen
                   className="mx-auto mb-6 animate-pulse"
                   size={96}
-                  weight="thin"
                   color={IconColor.muted}
                 />
                 <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
@@ -1000,7 +982,7 @@ export default function HistoryPage() {
                 <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
                   <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <div className="mb-2 flex items-center gap-3">
-                      <ChartBar size={32} weight="duotone" color={IconColor.primary} />
+                      <ChartBar size={32} color={IconColor.primary} />
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         总学习单词
                       </span>
@@ -1012,7 +994,7 @@ export default function HistoryPage() {
 
                   <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <div className="mb-2 flex items-center gap-3">
-                      <Target size={32} weight="duotone" color={chartColors.memory} />
+                      <Target size={32} color={chartColors.memory} />
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         平均正确率
                       </span>
@@ -1026,7 +1008,7 @@ export default function HistoryPage() {
 
                   <div className="rounded-card border border-green-200 bg-green-50 p-6 shadow-soft dark:border-green-800 dark:bg-green-900/30">
                     <div className="mb-2 flex items-center gap-3">
-                      <CheckCircle size={32} weight="duotone" color={IconColor.success} />
+                      <CheckCircle size={32} color={IconColor.success} />
                       <span className="text-sm font-medium text-green-700 dark:text-green-300">
                         已掌握
                       </span>
@@ -1036,7 +1018,7 @@ export default function HistoryPage() {
 
                   <div className="rounded-card border border-red-200 bg-red-50 p-6 shadow-soft dark:border-red-800 dark:bg-red-900/30">
                     <div className="mb-2 flex items-center gap-3">
-                      <Warning size={32} weight="duotone" color={IconColor.danger} />
+                      <Warning size={32} color={IconColor.danger} />
                       <span className="text-sm font-medium text-red-700 dark:text-red-300">
                         需复习
                       </span>
@@ -1073,7 +1055,7 @@ export default function HistoryPage() {
                               : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300 dark:hover:bg-green-900/70'
                           }`}
                         >
-                          <CheckCircle size={16} weight="bold" />
+                          <CheckCircle size={16} />
                           已掌握 ({statistics.mastered})
                         </button>
                         <button
@@ -1084,7 +1066,7 @@ export default function HistoryPage() {
                               : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:hover:bg-yellow-900/70'
                           }`}
                         >
-                          <Warning size={16} weight="bold" />
+                          <Warning size={16} />
                           需复习 ({statistics.reviewing})
                         </button>
                         <button
@@ -1095,7 +1077,7 @@ export default function HistoryPage() {
                               : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900/70'
                           }`}
                         >
-                          <Warning size={16} weight="bold" />
+                          <Warning size={16} />
                           未掌握 ({statistics.struggling})
                         </button>
                       </div>
@@ -1114,7 +1096,7 @@ export default function HistoryPage() {
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
-                          <Clock size={16} weight="bold" />
+                          <Clock size={16} />
                           最近学习
                         </button>
                         <button
@@ -1125,7 +1107,7 @@ export default function HistoryPage() {
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
-                          <TrendUp size={16} weight="bold" />
+                          <TrendUp size={16} />
                           正确率
                         </button>
                         <button
@@ -1136,7 +1118,7 @@ export default function HistoryPage() {
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
-                          <Hash size={16} weight="bold" />
+                          <Hash size={16} />
                           学习次数
                         </button>
                       </div>
@@ -1146,107 +1128,206 @@ export default function HistoryPage() {
 
                 {currentStats.length === 0 ? (
                   <div className="animate-g3-fade-in py-12 text-center">
-                    <MagnifyingGlass
-                      className="mx-auto mb-4"
-                      size={80}
-                      weight="thin"
-                      color={IconColor.muted}
-                    />
+                    <MagnifyingGlass className="mx-auto mb-4" size={80} color={IconColor.muted} />
                     <p className="text-lg text-gray-600 dark:text-gray-400">
                       没有找到符合条件的单词
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                      {currentStats.map((stat, index) => {
-                        const mastery = getMasteryLabel(stat.correctRate);
-                        return (
-                          <div
-                            key={stat.wordId}
-                            className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:bg-slate-800/80 ${mastery.border}`}
-                            style={{ animationDelay: `${index * 30}ms` }}
-                          >
-                            <div
-                              className={`absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${mastery.bg} ${mastery.color}`}
-                            >
-                              <mastery.icon size={10} weight="bold" />
-                              {mastery.label}
-                            </div>
-
-                            <div className="mb-4">
-                              <h3
-                                className="mb-0.5 truncate text-xl font-bold text-gray-900 dark:text-white"
-                                title={stat.spelling}
-                              >
-                                {stat.spelling}
-                              </h3>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatDate(stat.lastStudied)}
-                              </p>
-                            </div>
-
-                            <div className="mb-4 flex items-center justify-center">
-                              <div className="relative h-20 w-20">
-                                <svg className="h-20 w-20 -rotate-90 transform">
-                                  <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="36"
-                                    stroke="currentColor"
-                                    strokeWidth="6"
-                                    fill="none"
-                                    className="text-gray-200 dark:text-slate-700"
-                                  />
-                                  <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="36"
-                                    stroke="currentColor"
-                                    strokeWidth="6"
-                                    fill="none"
-                                    strokeDasharray={`${2 * Math.PI * 36}`}
-                                    strokeDashoffset={`${2 * Math.PI * 36 * (1 - stat.correctRate / 100)}`}
-                                    className={`transition-all duration-g3-slow ${
-                                      stat.correctRate >= 80
-                                        ? 'text-green-500'
-                                        : stat.correctRate >= 40
-                                          ? 'text-yellow-500'
-                                          : 'text-red-500'
-                                    }`}
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  <span
-                                    className={`text-lg font-bold ${getCorrectRateColor(stat.correctRate)}`}
+                    {groupedStats ? (
+                      // 按日期分组显示
+                      <div className="space-y-6">
+                        {Array.from(groupedStats.entries()).map(([dateKey, statsInGroup]) => (
+                          <div key={dateKey}>
+                            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                              <Calendar size={16} />
+                              {dateKey}
+                              <span className="text-xs text-gray-400">({statsInGroup.length})</span>
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                              {statsInGroup.map((stat, index) => {
+                                const mastery = getMasteryLabel(stat.correctRate);
+                                return (
+                                  <div
+                                    key={stat.wordId}
+                                    className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:bg-slate-800/80 ${mastery.border}`}
+                                    style={{ animationDelay: `${index * 30}ms` }}
                                   >
-                                    {stat.correctRate.toFixed(0)}%
-                                  </span>
+                                    <div
+                                      className={`absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${mastery.bg} ${mastery.color}`}
+                                    >
+                                      <mastery.icon size={10} />
+                                      {mastery.label}
+                                    </div>
+
+                                    <div className="mb-4">
+                                      <h3
+                                        className="mb-0.5 truncate text-xl font-bold text-gray-900 dark:text-white"
+                                        title={stat.spelling}
+                                      >
+                                        {stat.spelling}
+                                      </h3>
+                                    </div>
+
+                                    <div className="mb-4 flex items-center justify-center">
+                                      <div className="relative h-20 w-20">
+                                        <svg className="h-20 w-20 -rotate-90 transform">
+                                          <circle
+                                            cx="40"
+                                            cy="40"
+                                            r="36"
+                                            stroke="currentColor"
+                                            strokeWidth="6"
+                                            fill="none"
+                                            className="text-gray-200 dark:text-slate-700"
+                                          />
+                                          <circle
+                                            cx="40"
+                                            cy="40"
+                                            r="36"
+                                            stroke="currentColor"
+                                            strokeWidth="6"
+                                            fill="none"
+                                            strokeDasharray={`${2 * Math.PI * 36}`}
+                                            strokeDashoffset={`${2 * Math.PI * 36 * (1 - stat.correctRate / 100)}`}
+                                            className={`transition-all duration-g3-slow ${
+                                              stat.correctRate >= 80
+                                                ? 'text-green-500'
+                                                : stat.correctRate >= 40
+                                                  ? 'text-yellow-500'
+                                                  : 'text-red-500'
+                                            }`}
+                                            strokeLinecap="round"
+                                          />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                          <span
+                                            className={`text-lg font-bold ${getCorrectRateColor(stat.correctRate)}`}
+                                          >
+                                            {stat.correctRate.toFixed(0)}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
+                                      <div className="text-center">
+                                        <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                          次数
+                                        </p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                          {stat.attempts}
+                                        </p>
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                          正确
+                                        </p>
+                                        <p className="text-sm font-bold text-green-600">
+                                          {stat.correct}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      // 非时间排序时的平铺显示
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                        {currentStats.map((stat, index) => {
+                          const mastery = getMasteryLabel(stat.correctRate);
+                          return (
+                            <div
+                              key={stat.wordId}
+                              className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:bg-slate-800/80 ${mastery.border}`}
+                              style={{ animationDelay: `${index * 30}ms` }}
+                            >
+                              <div
+                                className={`absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${mastery.bg} ${mastery.color}`}
+                              >
+                                <mastery.icon size={10} />
+                                {mastery.label}
+                              </div>
+
+                              <div className="mb-4">
+                                <h3
+                                  className="mb-0.5 truncate text-xl font-bold text-gray-900 dark:text-white"
+                                  title={stat.spelling}
+                                >
+                                  {stat.spelling}
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatDate(stat.lastStudied)}
+                                </p>
+                              </div>
+
+                              <div className="mb-4 flex items-center justify-center">
+                                <div className="relative h-20 w-20">
+                                  <svg className="h-20 w-20 -rotate-90 transform">
+                                    <circle
+                                      cx="40"
+                                      cy="40"
+                                      r="36"
+                                      stroke="currentColor"
+                                      strokeWidth="6"
+                                      fill="none"
+                                      className="text-gray-200 dark:text-slate-700"
+                                    />
+                                    <circle
+                                      cx="40"
+                                      cy="40"
+                                      r="36"
+                                      stroke="currentColor"
+                                      strokeWidth="6"
+                                      fill="none"
+                                      strokeDasharray={`${2 * Math.PI * 36}`}
+                                      strokeDashoffset={`${2 * Math.PI * 36 * (1 - stat.correctRate / 100)}`}
+                                      className={`transition-all duration-g3-slow ${
+                                        stat.correctRate >= 80
+                                          ? 'text-green-500'
+                                          : stat.correctRate >= 40
+                                            ? 'text-yellow-500'
+                                            : 'text-red-500'
+                                      }`}
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span
+                                      className={`text-lg font-bold ${getCorrectRateColor(stat.correctRate)}`}
+                                    >
+                                      {stat.correctRate.toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
+                                <div className="text-center">
+                                  <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    次数
+                                  </p>
+                                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                    {stat.attempts}
+                                  </p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    正确
+                                  </p>
+                                  <p className="text-sm font-bold text-green-600">{stat.correct}</p>
                                 </div>
                               </div>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
-                              <div className="text-center">
-                                <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                  次数
-                                </p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">
-                                  {stat.attempts}
-                                </p>
-                              </div>
-                              <div className="text-center">
-                                <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                  正确
-                                </p>
-                                <p className="text-sm font-bold text-green-600">{stat.correct}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* 分页控件 */}
                     {totalPages > 1 && (

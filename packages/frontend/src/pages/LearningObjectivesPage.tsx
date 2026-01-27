@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ApiClient from '../services/client';
 import { LearningObjectives, LearningObjectiveMode } from '../types/learning-objectives';
 import { NotePencil, Books, Globe, Gear, Warning, CheckCircle } from '../components/Icon';
-import { IconProps } from '@phosphor-icons/react';
+import type { IconProps } from '../components/Icon';
 import {
   ModeCard,
   WeightSlider,

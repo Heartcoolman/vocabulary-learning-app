@@ -9,7 +9,7 @@ import {
   Cpu,
   Database,
   ChartBar,
-} from '@phosphor-icons/react';
+} from '@/components/Icon';
 
 const STAGES = [
   {
@@ -71,7 +71,7 @@ export default function AboutPipeline() {
           <div className="flex items-end justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
-                <GitCommit size={32} weight="duotone" />
+                <GitCommit size={32} />
                 AMAS 动态流水线
               </h2>
               <p className="mt-1 text-sm text-slate-500">
@@ -151,7 +151,7 @@ export default function AboutPipeline() {
               }}
               className="flex h-12 w-12 items-center justify-center rounded-lg text-white shadow-[0_0_30px_rgba(59,130,246,0.5)]"
             >
-              <Cpu size={24} weight="fill" />
+              <Cpu size={24} />
             </motion.div>
             <motion.div
               className="absolute inset-0 -z-10 rounded-lg blur-xl"

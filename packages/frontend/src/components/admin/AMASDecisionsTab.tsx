@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { CheckCircle, XCircle, Hourglass, Minus } from '../Icon';
 import ApiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy, DifficultyLevel } from '@danci/shared';
@@ -553,13 +554,15 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                         >
                           <div className="mb-2 flex items-center gap-3">
                             <span className="text-lg font-bold dark:text-slate-200">
-                              {stage.status === 'SUCCESS'
-                                ? '✓'
-                                : stage.status === 'FAILED'
-                                  ? '✗'
-                                  : stage.status === 'STARTED'
-                                    ? '⏳'
-                                    : '─'}
+                              {stage.status === 'SUCCESS' ? (
+                                <CheckCircle size={20} weight="fill" className="text-green-500" />
+                              ) : stage.status === 'FAILED' ? (
+                                <XCircle size={20} weight="fill" className="text-red-500" />
+                              ) : stage.status === 'STARTED' ? (
+                                <Hourglass size={20} className="text-yellow-500" />
+                              ) : (
+                                <Minus size={20} className="text-gray-400" />
+                              )}
                             </span>
                             <span className="flex-1 text-sm font-bold dark:text-slate-200">
                               {stage.stageName || stage.stage}

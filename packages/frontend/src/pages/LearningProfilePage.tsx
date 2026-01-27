@@ -107,7 +107,7 @@ const LearningProfilePage: React.FC = () => {
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin">
-            <Lightning className="h-8 w-8 text-blue-500" weight="bold" />
+            <Lightning className="h-8 w-8 text-blue-500" />
           </div>
           <p className="text-gray-600 dark:text-gray-400">正在加载学习档案...</p>
         </div>
@@ -128,7 +128,7 @@ const LearningProfilePage: React.FC = () => {
             onClick={handleRetry}
             className="flex w-full items-center justify-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
           >
-            <ArrowClockwise className="h-4 w-4" weight="bold" />
+            <ArrowClockwise className="h-4 w-4" />
             重新加载
           </button>
         </div>
@@ -149,7 +149,7 @@ const LearningProfilePage: React.FC = () => {
         {chronotype && (
           <div className="mb-6 rounded-button bg-white p-6 shadow-elevated dark:bg-slate-800">
             <div className="mb-4 flex items-center gap-3">
-              <Clock className="h-6 w-6 text-amber-500" weight="bold" />
+              <Clock className="h-6 w-6 text-amber-500" />
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white">生物钟分析</h2>
             </div>
 
@@ -242,7 +242,7 @@ const LearningProfilePage: React.FC = () => {
         {learningStyle && (
           <div className="mb-6 rounded-button bg-white p-6 shadow-elevated dark:bg-slate-800">
             <div className="mb-4 flex items-center gap-3">
-              <Brain className="h-6 w-6 text-blue-500" weight="bold" />
+              <Brain className="h-6 w-6 text-blue-500" />
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white">学习风格分析</h2>
             </div>
 
@@ -339,7 +339,7 @@ const LearningProfilePage: React.FC = () => {
         {/* 认知能力提示卡片 */}
         <div className="rounded-button bg-gradient-to-r from-purple-50 to-pink-50 p-6 shadow-elevated dark:from-purple-950 dark:to-pink-950">
           <div className="mb-3 flex items-center gap-3">
-            <Lightning className="h-6 w-6 text-purple-500" weight="bold" />
+            <Lightning className="h-6 w-6 text-purple-500" />
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white">个性化学习建议</h2>
           </div>
           <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">

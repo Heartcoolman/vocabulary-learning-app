@@ -103,7 +103,7 @@ function ControlSlider({
         step={0.05}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-indigo-500 transition-all hover:accent-indigo-400 dark:bg-slate-700"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-blue-500 transition-all hover:accent-blue-400 dark:bg-slate-700"
       />
     </div>
   );
@@ -428,7 +428,7 @@ export default function SimulationPage() {
         >
           <div>
             <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-              <Flask className="text-indigo-500" weight="duotone" />
+              <Flask className="text-blue-500" />
               The Decision Lab
             </h1>
             <p className="mt-1 text-gray-500 dark:text-gray-400">
@@ -472,12 +472,12 @@ export default function SimulationPage() {
                     onClick={() => handleScenarioChange(s.id)}
                     className={`rounded-card border p-3 text-left transition-all ${
                       selectedScenario === s.id
-                        ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500 dark:bg-indigo-900/30'
+                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 dark:bg-blue-900/30'
                         : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
                     }`}
                   >
                     <div
-                      className={`mb-2 ${selectedScenario === s.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}
+                      className={`mb-2 ${selectedScenario === s.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
                     >
                       <s.icon size={24} weight={selectedScenario === s.id ? 'fill' : 'regular'} />
                     </div>
@@ -527,7 +527,7 @@ export default function SimulationPage() {
                 </span>
                 <button
                   onClick={() => setInjectNoise(!injectNoise)}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${injectNoise ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${injectNoise ? 'bg-blue-500' : 'bg-gray-300'}`}
                 >
                   <div
                     className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${injectNoise ? 'left-6' : 'left-1'}`}
@@ -585,13 +585,9 @@ export default function SimulationPage() {
             <button
               onClick={runSimulation}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-card bg-indigo-600 py-4 font-bold text-white shadow-elevated shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:bg-gray-400 dark:disabled:bg-slate-600"
+              className="flex w-full items-center justify-center gap-2 rounded-card bg-blue-600 py-4 font-bold text-white shadow-elevated shadow-blue-500/20 transition-all hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-slate-600"
             >
-              {loading ? (
-                <Gear className="animate-spin" size={20} />
-              ) : (
-                <Flask size={20} weight="fill" />
-              )}
+              {loading ? <Gear className="animate-spin" size={20} /> : <Flask size={20} />}
               RUN SIMULATION
             </button>
           </motion.div>

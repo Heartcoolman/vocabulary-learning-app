@@ -19,7 +19,9 @@ import {
   WifiHigh,
   WifiSlash,
   CaretDoubleUp,
-} from '@phosphor-icons/react';
+  CheckCircle,
+  XCircle,
+} from '@/components/Icon';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 type DataMode = 'idle' | 'demo' | 'live';
@@ -250,7 +252,7 @@ function StateGauge({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <Icon size={20} weight="duotone" className="mb-1 text-gray-600" />
+          <Icon size={20} className="mb-1 text-gray-600" />
           <span className="text-lg font-bold text-gray-900">{percentage}%</span>
         </div>
       </div>
@@ -613,7 +615,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
                     className={`rounded-2xl p-3 text-white ${expandedStage.accentColor} transition-transform duration-500`}
                     style={{ transform: 'rotate(-5deg) scale(1.05)' }}
                   >
-                    <expandedStage.icon size={28} weight="duotone" />
+                    <expandedStage.icon size={28} />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">{expandedStage.title}</h2>
@@ -686,7 +688,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
         </div>
         <h1 className="mb-3 text-4xl font-bold text-gray-900 md:text-5xl">
           <span className="mb-1 block text-3xl text-slate-300 md:text-4xl">AMAS</span>
-          <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-blue-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
             Adaptive Intelligence
           </span>
         </h1>
@@ -724,7 +726,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
                     transform: isHovered ? 'scale(1.1) rotate(-3deg)' : 'scale(1) rotate(0)',
                   }}
                 >
-                  <stage.icon size={20} weight="duotone" />
+                  <stage.icon size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -775,7 +777,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
           setTimeout(onDismiss, 350);
         }}
       >
-        <CaretDoubleUp size={24} weight="bold" />
+        <CaretDoubleUp size={24} />
         <span className="text-xs font-medium uppercase tracking-widest">上滑进入</span>
       </div>
     </div>
@@ -1248,7 +1250,7 @@ export default function AboutDataFlow() {
           <div className="rounded-3xl border border-white/60 bg-white/85 p-12 shadow-lg ring-1 ring-black/[0.03]">
             <div className="flex flex-col items-center justify-center text-center">
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
-                <BookOpen size={40} weight="duotone" className="text-blue-500" />
+                <BookOpen size={40} className="text-blue-500" />
               </div>
               <h2 className="mb-2 text-xl font-bold text-gray-900">暂无学习数据</h2>
               <p className="mb-6 max-w-md text-gray-500">
@@ -1453,7 +1455,7 @@ export default function AboutDataFlow() {
                         <div className="relative z-10">
                           <div className="mb-3 flex items-center gap-2.5">
                             <div className={`rounded-xl p-2.5 ${c.bg} shadow-inner`}>
-                              <layer.icon size={22} weight="duotone" className={c.icon} />
+                              <layer.icon size={22} className={c.icon} />
                             </div>
                             <div>
                               <h3 className={`font-bold ${c.text}`}>{layer.title}</h3>
@@ -1563,7 +1565,7 @@ export default function AboutDataFlow() {
               {/* Algorithm Weights */}
               <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
                 <div className="mb-6 flex items-center gap-2">
-                  <Lightning size={20} weight="duotone" className="text-amber-500" />
+                  <Lightning size={20} className="text-amber-500" />
                   <h2 className="font-bold text-gray-900">算法集成权重</h2>
                 </div>
                 {currentFrame && <AlgorithmWheel weights={currentFrame.weights} />}
@@ -1589,7 +1591,7 @@ export default function AboutDataFlow() {
               {/* User State Gauges */}
               <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
                 <div className="mb-4 flex items-center gap-2">
-                  <Speedometer size={20} weight="duotone" className="text-blue-500" />
+                  <Speedometer size={20} className="text-blue-500" />
                   <h2 className="font-bold text-gray-900">用户状态</h2>
                 </div>
                 {currentFrame && (
@@ -1670,7 +1672,7 @@ export default function AboutDataFlow() {
               {/* Trend Lines */}
               <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
                 <div className="mb-6 flex items-center gap-2">
-                  <TrendUp size={20} weight="duotone" className="text-emerald-500" />
+                  <TrendUp size={20} className="text-emerald-500" />
                   <h2 className="font-bold text-gray-900">状态趋势</h2>
                 </div>
                 <div className="space-y-4">
@@ -1708,7 +1710,7 @@ export default function AboutDataFlow() {
             {/* Modeling Algorithms Panel */}
             <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
               <div className="mb-4 flex items-center gap-2">
-                <Brain size={20} weight="duotone" className="text-purple-500" />
+                <Brain size={20} className="text-purple-500" />
                 <h2 className="font-bold text-gray-900">建模层算法</h2>
                 <span className="ml-auto text-xs text-gray-400">Modeling Layer</span>
               </div>
@@ -1768,7 +1770,7 @@ export default function AboutDataFlow() {
             {/* Event Log */}
             <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
               <div className="mb-4 flex items-center gap-2">
-                <Pulse size={20} weight="duotone" className="text-purple-500" />
+                <Pulse size={20} className="text-purple-500" />
                 <h2 className="font-bold text-gray-900">事件日志</h2>
                 <span className="ml-auto text-xs text-gray-400">最近 {frames.length} 条</span>
               </div>
@@ -1785,9 +1787,17 @@ export default function AboutDataFlow() {
                         {new Date(frame.timestamp).toLocaleTimeString()}
                       </div>
                       <div
-                        className={`text-sm font-medium ${frame.rawEvent.isCorrect ? 'text-green-700' : 'text-red-700'}`}
+                        className={`flex items-center gap-1 text-sm font-medium ${frame.rawEvent.isCorrect ? 'text-green-700' : 'text-red-700'}`}
                       >
-                        {frame.rawEvent.isCorrect ? '✓ 正确' : '✗ 错误'}
+                        {frame.rawEvent.isCorrect ? (
+                          <>
+                            <CheckCircle size={14} weight="fill" /> 正确
+                          </>
+                        ) : (
+                          <>
+                            <XCircle size={14} weight="fill" /> 错误
+                          </>
+                        )}
                       </div>
                       <div className="text-xs text-gray-500">
                         {formatTime(frame.rawEvent.responseTime)}

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Brain, BookOpen, Gavel } from '@phosphor-icons/react';
+import { Eye, Brain, BookOpen, Gavel } from '@/components/Icon';
 
 const layers = [
   {
@@ -110,7 +110,7 @@ export default function AboutGlassStack() {
                     {layer.number}
                   </h2>
                   <div className="rounded-2xl bg-white/40 p-4 text-slate-700 shadow-sm">
-                    <layer.icon size={32} weight="duotone" />
+                    <layer.icon size={32} />
                   </div>
                 </div>
 
