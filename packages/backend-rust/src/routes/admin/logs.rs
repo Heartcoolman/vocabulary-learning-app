@@ -315,13 +315,13 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "QUERY_ERROR",
-                &e.to_string(),
+                e.to_string(),
             )
             .into_response()
         }
     };
 
-    let logs: Vec<LogEntry> = rows.iter().map(|r| parse_log_entry_pg(r)).collect();
+    let logs: Vec<LogEntry> = rows.iter().map(parse_log_entry_pg).collect();
     let total_pages = ((total as f64) / (page_size as f64)).ceil() as i64;
 
     (
@@ -418,13 +418,13 @@ async fn export_logs(State(state): State<AppState>, Query(query): Query<ExportQu
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "QUERY_ERROR",
-                &e.to_string(),
+                e.to_string(),
             )
             .into_response();
         }
     };
 
-    let logs: Vec<LogEntry> = rows.iter().map(|r| parse_log_entry_pg(r)).collect();
+    let logs: Vec<LogEntry> = rows.iter().map(parse_log_entry_pg).collect();
 
     match format {
         "csv" => {
@@ -625,7 +625,7 @@ async fn list_log_alerts(State(state): State<AppState>) -> Response {
 
     match rows {
         Ok(rows) => {
-            let rules: Vec<LogAlertRule> = rows.iter().map(|r| parse_alert_rule_pg(r)).collect();
+            let rules: Vec<LogAlertRule> = rows.iter().map(parse_alert_rule_pg).collect();
             (
                 StatusCode::OK,
                 Json(SuccessResponse {
@@ -638,7 +638,7 @@ async fn list_log_alerts(State(state): State<AppState>) -> Response {
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "QUERY_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -681,7 +681,7 @@ async fn create_log_alert(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -818,7 +818,7 @@ async fn update_log_alert(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -854,7 +854,7 @@ async fn delete_log_alert(State(state): State<AppState>, Path(id): Path<String>)
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "DELETE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -897,7 +897,7 @@ async fn get_log(State(state): State<AppState>, Path(id): Path<String>) -> Respo
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "QUERY_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }

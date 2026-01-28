@@ -23,8 +23,6 @@ import {
   ChartBar,
   Gauge,
   Flask,
-  ToggleLeft,
-  ToggleRight,
 } from '../../components/Icon';
 import {
   getPipelineLayerStatusWithSource,

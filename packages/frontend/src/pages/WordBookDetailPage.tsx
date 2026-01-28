@@ -14,7 +14,6 @@ import {
   Trash,
   ListNumbers,
   SpeakerHigh,
-  CircleNotch,
   Warning,
   CheckCircle,
   Target,
@@ -62,6 +61,7 @@ export default function WordBookDetailPage() {
     if (id) {
       loadWordBookDetail();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadWordBookDetail = async () => {

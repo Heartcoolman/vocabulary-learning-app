@@ -245,7 +245,7 @@ export const WithActions: Story = {
  * 展示进度条的渐进效果（静态展示不同进度）。
  */
 export const ProgressVariants: Story = {
-  render: (args) => (
+  render: (_args) => (
     <div className="space-y-4">
       <MasteryProgress
         progress={{

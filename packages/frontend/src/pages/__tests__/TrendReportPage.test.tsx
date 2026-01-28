@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import TrendReportPage from '../TrendReportPage';
 
 // Mock 导航
@@ -109,10 +109,10 @@ import ApiClient from '../../services/client';
 describe('TrendReportPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (ApiClient.getCurrentTrend as any).mockResolvedValue(mockTrendInfo);
-    (ApiClient.getTrendReport as any).mockResolvedValue(mockTrendReport);
-    (ApiClient.getTrendHistory as any).mockResolvedValue(mockTrendHistory);
-    (ApiClient.getIntervention as any).mockResolvedValue(mockIntervention);
+    (ApiClient.getCurrentTrend as Mock).mockResolvedValue(mockTrendInfo);
+    (ApiClient.getTrendReport as Mock).mockResolvedValue(mockTrendReport);
+    (ApiClient.getTrendHistory as Mock).mockResolvedValue(mockTrendHistory);
+    (ApiClient.getIntervention as Mock).mockResolvedValue(mockIntervention);
   });
 
   afterEach(() => {
@@ -296,10 +296,10 @@ describe('TrendReportPage', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no data', async () => {
-      (ApiClient.getCurrentTrend as any).mockResolvedValue(null);
-      (ApiClient.getTrendReport as any).mockResolvedValue(null);
-      (ApiClient.getTrendHistory as any).mockResolvedValue({ daily: [] });
-      (ApiClient.getIntervention as any).mockResolvedValue({ needsIntervention: false });
+      (ApiClient.getCurrentTrend as Mock).mockResolvedValue(null);
+      (ApiClient.getTrendReport as Mock).mockResolvedValue(null);
+      (ApiClient.getTrendHistory as Mock).mockResolvedValue({ daily: [] });
+      (ApiClient.getIntervention as Mock).mockResolvedValue({ needsIntervention: false });
 
       renderComponent();
 
@@ -309,10 +309,10 @@ describe('TrendReportPage', () => {
     });
 
     it('should show start learning button when no data', async () => {
-      (ApiClient.getCurrentTrend as any).mockResolvedValue(null);
-      (ApiClient.getTrendReport as any).mockResolvedValue(null);
-      (ApiClient.getTrendHistory as any).mockResolvedValue({ daily: [] });
-      (ApiClient.getIntervention as any).mockResolvedValue({ needsIntervention: false });
+      (ApiClient.getCurrentTrend as Mock).mockResolvedValue(null);
+      (ApiClient.getTrendReport as Mock).mockResolvedValue(null);
+      (ApiClient.getTrendHistory as Mock).mockResolvedValue({ daily: [] });
+      (ApiClient.getIntervention as Mock).mockResolvedValue({ needsIntervention: false });
 
       renderComponent();
 
@@ -324,7 +324,7 @@ describe('TrendReportPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (ApiClient.getCurrentTrend as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getCurrentTrend as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -334,7 +334,7 @@ describe('TrendReportPage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (ApiClient.getCurrentTrend as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getCurrentTrend as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -344,12 +344,12 @@ describe('TrendReportPage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (ApiClient.getCurrentTrend as any)
+      (ApiClient.getCurrentTrend as Mock)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockTrendInfo);
-      (ApiClient.getTrendReport as any).mockResolvedValue(mockTrendReport);
-      (ApiClient.getTrendHistory as any).mockResolvedValue(mockTrendHistory);
-      (ApiClient.getIntervention as any).mockResolvedValue(mockIntervention);
+      (ApiClient.getTrendReport as Mock).mockResolvedValue(mockTrendReport);
+      (ApiClient.getTrendHistory as Mock).mockResolvedValue(mockTrendHistory);
+      (ApiClient.getIntervention as Mock).mockResolvedValue(mockIntervention);
 
       renderComponent();
 

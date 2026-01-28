@@ -410,15 +410,14 @@ async fn check_word_quality(
     let mut issues = Vec::new();
     let mut suggestions = None;
 
-    if check_type == "FULL" || check_type == "MEANING" {
-        if word.meanings.is_empty() {
+    if (check_type == "FULL" || check_type == "MEANING")
+        && word.meanings.is_empty() {
             issues.push(QualityIssue {
                 field: "meanings".to_string(),
                 severity: "error".to_string(),
                 message: "单词缺少释义".to_string(),
             });
         }
-    }
 
     if check_type == "FULL" || check_type == "SPELLING" {
         let phonetic = word.phonetic.trim();

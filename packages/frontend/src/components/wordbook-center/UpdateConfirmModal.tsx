@@ -26,7 +26,7 @@ export function UpdateConfirmModal({
           词书 <span className="font-medium text-gray-900 dark:text-white">{update.name}</span>{' '}
           有新版本可用
         </p>
-        <div className="flex items-center justify-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-slate-700">
+        <div className="flex items-center justify-center gap-3 rounded-button bg-gray-50 p-3 dark:bg-slate-700">
           <span className="rounded bg-gray-200 px-2 py-1 font-mono text-sm dark:bg-slate-600">
             v{update.currentVersion || '?'}
           </span>

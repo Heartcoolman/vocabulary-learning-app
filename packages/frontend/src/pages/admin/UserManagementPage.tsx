@@ -41,6 +41,7 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
     if (userId && isOpen) {
       loadUserDetail();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, isOpen]);
 
   const loadUserDetail = async () => {
@@ -181,6 +182,7 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, searchQuery]);
 
   const loadUsers = async () => {
@@ -292,6 +294,7 @@ export default function UserManagementPage() {
     } finally {
       setIsBatchProcessing(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchConfirmModal.action, selectedUserIds, toast]);
 
   const closeBatchConfirmModal = useCallback(() => {

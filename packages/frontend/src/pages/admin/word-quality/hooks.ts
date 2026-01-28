@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { wordQualityApi, IssueFilters, StartTaskOptions, CheckType } from './api';
+import { wordQualityApi, IssueFilters, StartTaskOptions } from './api';
 import TokenManager from '../../../services/client/base/TokenManager';
 
 // --- Keys ---

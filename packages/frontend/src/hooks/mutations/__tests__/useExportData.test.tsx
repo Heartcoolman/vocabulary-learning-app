@@ -4,7 +4,7 @@
 
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useExportData, ExportDataParams } from '../useExportData';
 import { apiClient } from '../../../services/client';
 
@@ -54,7 +54,7 @@ describe('useExportData', () => {
       },
     ];
 
-    vi.mocked(apiClient.getWords).mockResolvedValue(mockWords as any);
+    (apiClient.getWords as Mock).mockResolvedValue(mockWords);
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() => useExportData({ onSuccess }), { wrapper });
@@ -90,7 +90,7 @@ describe('useExportData', () => {
       },
     ];
 
-    vi.mocked(apiClient.getWords).mockResolvedValue(mockWords as any);
+    (apiClient.getWords as Mock).mockResolvedValue(mockWords);
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() => useExportData({ onSuccess }), { wrapper });
@@ -124,10 +124,10 @@ describe('useExportData', () => {
       },
     ];
 
-    vi.mocked(apiClient.getRecords).mockResolvedValue({
+    (apiClient.getRecords as Mock).mockResolvedValue({
       records: mockRecords,
       pagination: { page: 1, pageSize: 10000, total: 1, totalPages: 1 },
-    } as any);
+    });
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() => useExportData({ onSuccess }), { wrapper });
@@ -162,7 +162,7 @@ describe('useExportData', () => {
       },
     ];
 
-    vi.mocked(apiClient.getWords).mockResolvedValue(mockWords as any);
+    (apiClient.getWords as Mock).mockResolvedValue(mockWords);
 
     const onProgress = vi.fn();
     const { result } = renderHook(() => useExportData({ onProgress }), { wrapper });
@@ -186,7 +186,7 @@ describe('useExportData', () => {
   });
 
   it('应该在导出失败时调用错误回调', async () => {
-    vi.mocked(apiClient.getWords).mockRejectedValue(new Error('获取数据失败'));
+    (apiClient.getWords as Mock).mockRejectedValue(new Error('获取数据失败'));
 
     const onError = vi.fn();
     const { result } = renderHook(() => useExportData({ onError }), { wrapper });
@@ -225,10 +225,10 @@ describe('useExportData', () => {
       },
     ];
 
-    vi.mocked(apiClient.getRecords).mockResolvedValue({
+    (apiClient.getRecords as Mock).mockResolvedValue({
       records: mockRecords,
       pagination: { page: 1, pageSize: 10000, total: 2, totalPages: 1 },
-    } as any);
+    });
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() => useExportData({ onSuccess }), { wrapper });
@@ -265,7 +265,7 @@ describe('useExportData', () => {
       },
     ];
 
-    vi.mocked(apiClient.getWords).mockResolvedValue(mockWords as any);
+    (apiClient.getWords as Mock).mockResolvedValue(mockWords);
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() => useExportData({ onSuccess }), { wrapper });

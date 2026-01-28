@@ -707,9 +707,7 @@ async fn fetch_new_words_in_range(
         .collect();
 
     let mut filtered: Vec<LearningWord> = with_diff
-        .iter()
-        .cloned()
-        .filter(|w| w.difficulty >= difficulty_range.min && w.difficulty <= difficulty_range.max)
+        .iter().filter(|&w| w.difficulty >= difficulty_range.min && w.difficulty <= difficulty_range.max).cloned()
         .collect();
 
     if filtered.len() < count {
@@ -1052,7 +1050,7 @@ async fn select_due_word_states(
 ) -> Result<Vec<WordStateRow>, sqlx::Error> {
     let pool = proxy.pool();
     let now_dt = DateTime::<Utc>::from_timestamp_millis(now_ms)
-        .unwrap_or_else(|| Utc::now())
+        .unwrap_or_else(Utc::now)
         .naive_utc();
 
     let mut qb = QueryBuilder::<sqlx::Postgres>::new(

@@ -595,7 +595,7 @@ describe('mastery', () => {
         responseTime: 2000,
       };
 
-      const decision = result.current.submitAnswerOptimistic(params);
+      result.current.submitAnswerOptimistic(params);
 
       expect(mockOptions.getQueueManager).toHaveBeenCalled();
     });

@@ -66,7 +66,7 @@ export default function AboutPipeline() {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-8">
-      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-xl bg-white font-mono shadow-lg">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-card bg-white font-mono shadow-elevated">
         <div className="border-b border-slate-200 p-8">
           <div className="flex items-end justify-between">
             <div>
@@ -108,10 +108,10 @@ export default function AboutPipeline() {
                 className="relative flex w-96 flex-shrink-0 flex-col items-center justify-center"
               >
                 <div
-                  className={`absolute top-1/2 h-32 w-1 -translate-y-1/2 bg-slate-300 transition-colors duration-500 ${progress >= idx * 33 ? 'bg-slate-400' : ''}`}
+                  className={`absolute top-1/2 h-32 w-1 -translate-y-1/2 bg-slate-300 transition-colors duration-g3-slow ${progress >= idx * 33 ? 'bg-slate-400' : ''}`}
                 />
                 <div
-                  className={`z-10 rounded-full border-2 bg-white p-4 transition-all duration-500 ${progress >= idx * 33 ? 'scale-110 border-current shadow-lg ' + stage.color : 'border-slate-300 grayscale'}`}
+                  className={`z-10 rounded-full border-2 bg-white p-4 transition-all duration-g3-slow ${progress >= idx * 33 ? 'scale-110 border-current shadow-elevated ' + stage.color : 'border-slate-300 grayscale'}`}
                 >
                   <stage.icon
                     size={32}
@@ -130,7 +130,7 @@ export default function AboutPipeline() {
                   </div>
                 </div>
                 <motion.div
-                  className="absolute bottom-8 right-12 rounded border border-slate-200 bg-white/80 p-2 text-xs shadow-sm backdrop-blur"
+                  className="absolute bottom-8 right-12 rounded border border-slate-200 bg-white/80 p-2 text-xs shadow-soft backdrop-blur"
                   animate={{
                     opacity: progress >= idx * 33 - 10 && progress <= idx * 33 + 40 ? 1 : 0.5,
                   }}
@@ -149,12 +149,12 @@ export default function AboutPipeline() {
                 scale: travelerScale,
                 rotate: travelerRotate,
               }}
-              className="flex h-12 w-12 items-center justify-center rounded-lg text-white shadow-[0_0_30px_rgba(59,130,246,0.5)]"
+              className="flex h-12 w-12 items-center justify-center rounded-button text-white shadow-[0_0_30px_rgba(59,130,246,0.5)]"
             >
               <Cpu size={24} />
             </motion.div>
             <motion.div
-              className="absolute inset-0 -z-10 rounded-lg blur-xl"
+              className="absolute inset-0 -z-10 rounded-button blur-xl"
               style={{ backgroundColor: travelerColor, opacity: 0.5 }}
             />
           </div>
@@ -163,7 +163,7 @@ export default function AboutPipeline() {
         <div className="flex items-center gap-4 border-t border-slate-200 bg-white p-6">
           <button
             onClick={() => setProgress(0)}
-            className="rounded p-2 text-slate-500 hover:bg-slate-100"
+            className="rounded-button p-2 text-slate-500 hover:bg-slate-100"
           >
             <Database size={20} />
           </button>
@@ -183,7 +183,7 @@ export default function AboutPipeline() {
           </div>
           <button
             onClick={() => setProgress(100)}
-            className="rounded p-2 text-slate-500 hover:bg-slate-100"
+            className="rounded-button p-2 text-slate-500 hover:bg-slate-100"
           >
             <ChartBar size={20} />
           </button>

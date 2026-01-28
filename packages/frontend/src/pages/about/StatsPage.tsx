@@ -348,7 +348,6 @@ function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | n
   }, [data]);
 
   const avgHalfLife = data?.avgHalfLife ?? 0;
-  const totalWords = data?.totalWords ?? 0;
 
   return (
     <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">

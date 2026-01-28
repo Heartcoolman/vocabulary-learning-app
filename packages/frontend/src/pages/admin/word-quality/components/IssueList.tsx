@@ -91,7 +91,7 @@ export const IssueListTable: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex min-h-[500px] flex-col rounded-xl border border-gray-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="flex min-h-[500px] flex-col rounded-card border border-gray-100 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-800">
       <div className="px-6 pt-4">
         <Tabs
           current={filterStatus}
@@ -106,7 +106,7 @@ export const IssueListTable: React.FC<Props> = ({
       <div className="flex items-center justify-between px-6 pb-4">
         <div className="text-sm text-gray-500 dark:text-gray-400">共找到 {total} 条记录</div>
         {selected.size > 0 && filterStatus === 'open' && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 flex items-center gap-2 duration-200">
+          <div className="animate-in fade-in slide-in-from-bottom-2 flex items-center gap-2 duration-g3-fast">
             <span className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               已选 {selected.size} 项
             </span>

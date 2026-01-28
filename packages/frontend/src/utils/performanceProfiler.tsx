@@ -138,6 +138,7 @@ class PerformanceMonitor {
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const performanceMonitor = new PerformanceMonitor();
 
 interface PerformanceProfilerProps {
@@ -163,6 +164,7 @@ export const PerformanceProfiler: React.FC<PerformanceProfilerProps> = ({ id, ch
 /**
  * HOC to wrap a component with performance profiler
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function withPerformanceProfiler<P extends object>(
   Component: React.ComponentType<P>,
   componentName: string,

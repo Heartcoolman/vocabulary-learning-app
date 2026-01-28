@@ -380,7 +380,7 @@ export default function SimulationPage() {
     setParams((prev) => ({
       ...prev,
       ...preset,
-      scenario: id === 'graduation' ? 'newUser' : (id as any),
+      scenario: id === 'graduation' ? 'newUser' : (id as SimulateRequest['scenario']),
       cognitive: { ...prev.cognitive, ...(preset.cognitive || {}) },
     }));
   };
@@ -400,8 +400,8 @@ export default function SimulationPage() {
       const data = await simulate(noisyParams);
 
       if (selectedScenario === 'graduation') {
-        (data.decisionProcess as any).decisionSource = 'ensemble';
-        (data.decisionProcess as any).phase = 'normal';
+        (data.decisionProcess as { decisionSource: string }).decisionSource = 'ensemble';
+        (data.decisionProcess as { phase: string }).phase = 'normal';
       }
 
       setResult(data as ExtendedSimulateResponse);

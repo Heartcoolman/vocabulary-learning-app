@@ -4,7 +4,7 @@
  * 根据用户状态和表现动态调整学习队列
  */
 
-import { useMutation, UseMutationOptions, useQueryClient } from '@tanstack/react-query';
+import { useMutation, UseMutationOptions } from '@tanstack/react-query';
 import { learningClient } from '../../services/client';
 import { AdjustWordsParams, AdjustWordsResponse } from '../../types/amas';
 
@@ -170,8 +170,6 @@ export interface AdjustWordsCallbacks {
 export function useAdjustWords(
   options?: Omit<UseMutationOptions<AdjustWordsResponse, Error, AdjustWordsParams>, 'mutationFn'>,
 ) {
-  const queryClient = useQueryClient();
-
   return useMutation<AdjustWordsResponse, Error, AdjustWordsParams>({
     mutationFn: async (params: AdjustWordsParams) => {
       return await learningClient.adjustLearningWords(params);

@@ -12,7 +12,6 @@ import LearningService from '../services/LearningService';
 import {
   Confetti,
   Books,
-  CircleNotch,
   Clock,
   WarningCircle,
   Brain,
@@ -138,6 +137,7 @@ export default function LearningPage() {
       // 组件卸载时记录会话结束（页面离开）
       trackingService.trackLearningPause('page_leave');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 疲劳提醒：当疲劳度超过阈值时弹出提醒
@@ -549,7 +549,7 @@ export default function LearningPage() {
                 <div className="mt-2">
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
-                      className="h-full rounded-full bg-purple-500 transition-all duration-300"
+                      className="h-full rounded-full bg-purple-500 transition-all duration-g3-normal"
                       style={{ width: `${confusionBatch.progress.percentage}%` }}
                     />
                   </div>

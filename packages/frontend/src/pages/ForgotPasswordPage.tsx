@@ -24,7 +24,7 @@ export const ForgotPasswordPage: React.FC = () => {
   if (status === 'success') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 dark:bg-slate-900">
-        <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-md dark:bg-slate-800">
+        <div className="w-full max-w-md rounded-button bg-white p-8 text-center shadow-elevated dark:bg-slate-800">
           <h2 className="mb-4 text-2xl font-bold text-gray-800 dark:text-white">邮件已发送</h2>
           <p className="mb-6 text-gray-600 dark:text-slate-300">
             如果该邮箱已注册，我们已发送了一封包含重置密码链接的邮件，请查收。

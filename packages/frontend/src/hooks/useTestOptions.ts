@@ -241,6 +241,8 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
         Math.random() > 0.5 ? [correctAnswer, randomDistractor] : [randomDistractor, correctAnswer];
       setTestOptions(fallbackOptions);
     }
+    // fallbackDistractorsKey is a memoized representation of fallbackDistractors
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentWord,
     allWords,

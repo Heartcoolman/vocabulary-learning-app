@@ -97,7 +97,7 @@ function ThemeCard({ cluster, threshold, isExpanded, onToggle, onStartBatch }: T
             <p className="py-4 text-center text-gray-500 dark:text-gray-400">该主题暂无混淆词对</p>
           ) : (
             <>
-              <div className="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-slate-700/50">
+              <div className="mb-4 rounded-button bg-gray-50 p-4 dark:bg-slate-700/50">
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   选择学习数量: {learningCount} 对
                 </label>
@@ -139,7 +139,7 @@ function ThemeCard({ cluster, threshold, isExpanded, onToggle, onStartBatch }: T
                 {pairs.slice(0, 6).map((pair, index) => (
                   <div
                     key={`${pair.word1.id}-${pair.word2.id}-${index}`}
-                    className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-slate-700/50"
+                    className="flex items-center justify-between rounded-button bg-gray-50 p-3 dark:bg-slate-700/50"
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-900 dark:text-white">
@@ -174,7 +174,7 @@ export default function ConfusionWordsPage() {
   const toast = useToast();
   const [threshold, setThreshold] = useState(0.15);
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null);
-  const [fallbackMode, setFallbackMode] = useState(false);
+  const [fallbackMode] = useState(false);
   const [wordBookId, setWordBookId] = useState<string | undefined>(undefined);
 
   const { stats } = useSemanticStats();

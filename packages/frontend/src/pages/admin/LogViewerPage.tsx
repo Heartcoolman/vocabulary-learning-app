@@ -31,7 +31,7 @@ interface LogEntry {
   module?: string;
   source: LogSource;
   userId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // 统计数据接口
@@ -88,10 +88,12 @@ export default function LogViewerPage() {
   useEffect(() => {
     loadStats();
     loadLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination.page]);
 
   // 加载统计数据

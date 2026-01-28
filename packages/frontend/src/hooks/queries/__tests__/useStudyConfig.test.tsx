@@ -9,7 +9,6 @@ import {
   useStudyConfig,
   useTodayWords,
   useStudyProgress,
-  type TodayWordsResponse,
   type StudyProgressResponse,
 } from '../useStudyConfig';
 import { apiClient } from '../../../services/client';
@@ -63,25 +62,6 @@ const mockStudyConfig: StudyConfig = {
   studyMode: 'sequential',
   createdAt: Date.now(),
   updatedAt: Date.now(),
-};
-
-const mockTodayWords: TodayWordsResponse = {
-  words: [
-    {
-      id: 'word-1',
-      spelling: 'test',
-      phonetic: '/test/',
-      meanings: ['测试'],
-      examples: ['This is a test.'],
-      isNew: true,
-    },
-  ],
-  progress: {
-    todayStudied: 10,
-    todayTarget: 30,
-    totalStudied: 100,
-    correctRate: 85,
-  },
 };
 
 const mockStudyProgress: StudyProgressResponse = {

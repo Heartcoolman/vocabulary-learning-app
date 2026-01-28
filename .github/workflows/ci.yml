@@ -208,13 +208,11 @@ jobs:
 
       - name: Clippy Lint (Native)
         working-directory: packages/native
-        run: cargo clippy --no-default-features -- -D warnings || echo "::warning::Clippy warnings in native crate"
-        continue-on-error: true
+        run: cargo clippy --no-default-features -- -D warnings
 
       - name: Clippy Lint (Backend)
         working-directory: packages/backend-rust
-        run: cargo clippy -- -D warnings || echo "::warning::Clippy warnings in backend crate"
-        continue-on-error: true
+        run: cargo clippy -- -D warnings
 
       - name: Check Rust Format
         run: |

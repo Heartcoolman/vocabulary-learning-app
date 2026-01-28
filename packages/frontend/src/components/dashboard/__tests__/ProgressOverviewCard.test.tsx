@@ -12,17 +12,17 @@ vi.mock('../../../components/Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../components/Icon')>();
   return {
     ...actual,
-    Trophy: ({ className }: any) => (
+    Trophy: ({ className }: { className?: string }) => (
       <span data-testid="icon-trophy" className={className}>
         Trophy
       </span>
     ),
-    Target: ({ className }: any) => (
+    Target: ({ className }: { className?: string }) => (
       <span data-testid="icon-target" className={className}>
         Target
       </span>
     ),
-    BookOpen: ({ className }: any) => (
+    BookOpen: ({ className }: { className?: string }) => (
       <span data-testid="icon-book" className={className}>
         Book
       </span>

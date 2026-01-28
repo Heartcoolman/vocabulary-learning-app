@@ -2,18 +2,20 @@
  * ExplainabilityModal Component Unit Tests
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ExplainabilityModal from '../ExplainabilityModal';
 import { explainabilityApi } from '../../../services/explainabilityApi';
 import type { AmasProcessResult } from '../../../types/amas';
+
+import type { ReactNode } from 'react';
 
 // Mock createPortal
 vi.mock('react-dom', async () => {
   const actual = await vi.importActual('react-dom');
   return {
     ...actual,
-    createPortal: (children: any) => children,
+    createPortal: (children: ReactNode) => children,
   };
 });
 
@@ -33,25 +35,25 @@ vi.mock('@/components/Icon', () => ({
 
 // Mock child components
 vi.mock('../DecisionFactors', () => ({
-  default: ({ factors }: any) => (
+  default: ({ factors }: { factors: unknown[] }) => (
     <div data-testid="decision-factors">DecisionFactors: {factors.length} items</div>
   ),
 }));
 
 vi.mock('../WeightRadarChart', () => ({
-  default: ({ weights }: any) => (
+  default: ({ weights }: { weights: unknown }) => (
     <div data-testid="weight-radar-chart">WeightRadarChart: {JSON.stringify(weights)}</div>
   ),
 }));
 
 vi.mock('../LearningCurveChart', () => ({
-  default: ({ data }: any) => (
+  default: ({ data }: { data: unknown[] }) => (
     <div data-testid="learning-curve-chart">LearningCurveChart: {data.length} points</div>
   ),
 }));
 
 vi.mock('../CounterfactualPanel', () => ({
-  default: ({ decisionId }: any) => (
+  default: ({ decisionId }: { decisionId: string }) => (
     <div data-testid="counterfactual-panel">CounterfactualPanel: {decisionId}</div>
   ),
 }));
@@ -114,8 +116,8 @@ const mockCurveResponse = {
 describe('ExplainabilityModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (explainabilityApi.getDecisionExplanation as any).mockResolvedValue(mockExplanationResponse);
-    (explainabilityApi.getLearningCurve as any).mockResolvedValue(mockCurveResponse);
+    (explainabilityApi.getDecisionExplanation as Mock).mockResolvedValue(mockExplanationResponse);
+    (explainabilityApi.getLearningCurve as Mock).mockResolvedValue(mockCurveResponse);
   });
 
   afterEach(() => {
@@ -185,7 +187,7 @@ describe('ExplainabilityModal', () => {
 
   describe('loading state', () => {
     it('should show loading spinner initially', async () => {
-      (explainabilityApi.getDecisionExplanation as any).mockImplementation(
+      (explainabilityApi.getDecisionExplanation as Mock).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve(mockExplanationResponse), 100)),
       );
 
@@ -296,8 +298,8 @@ describe('ExplainabilityModal', () => {
   describe('error handling', () => {
     it('should gracefully fallback to latestDecision when API fails', async () => {
       // When API fails with .catch(() => null), component uses latestDecision as fallback
-      (explainabilityApi.getDecisionExplanation as any).mockRejectedValue(new Error('API Error'));
-      (explainabilityApi.getLearningCurve as any).mockRejectedValue(new Error('API Error'));
+      (explainabilityApi.getDecisionExplanation as Mock).mockRejectedValue(new Error('API Error'));
+      (explainabilityApi.getLearningCurve as Mock).mockRejectedValue(new Error('API Error'));
 
       render(
         <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
@@ -332,7 +334,7 @@ describe('ExplainabilityModal', () => {
     });
 
     it('should handle empty learning curve data', async () => {
-      (explainabilityApi.getLearningCurve as any).mockResolvedValue({ points: [] });
+      (explainabilityApi.getLearningCurve as Mock).mockResolvedValue({ points: [] });
 
       render(
         <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,

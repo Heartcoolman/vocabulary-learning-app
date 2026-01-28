@@ -124,7 +124,7 @@ pub async fn list_broadcasts(
 ) -> Result<(Vec<Broadcast>, i64), sqlx::Error> {
     let select_cols = r#""id", "adminId", "title", "content", "target"::text as "target", "targetFilter", "priority"::text as "priority", "persistent", "expiresAt", "status"::text as "status", "targetCount", "deliveredCount", "createdAt""#;
 
-    let (count_sql, data_sql) = if let Some(ref status) = params.status {
+    let (count_sql, data_sql) = if params.status.is_some() {
         (
             r#"SELECT COUNT(*) FROM "broadcasts" WHERE "status"::text = $1"#.to_string(),
             format!(

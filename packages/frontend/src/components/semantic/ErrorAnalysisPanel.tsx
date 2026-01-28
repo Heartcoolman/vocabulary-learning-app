@@ -32,7 +32,7 @@ export const ErrorAnalysisPanel: React.FC = () => {
       : 0;
 
   return (
-    <div className="animate-g3-fade-in rounded-lg border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+    <div className="animate-g3-fade-in rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">错题语义分析</h3>
 
       <div className="mb-4 grid grid-cols-2 gap-4">

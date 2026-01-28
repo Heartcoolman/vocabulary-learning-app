@@ -22,7 +22,6 @@ import {
   Hash,
   BookOpen,
   MagnifyingGlass,
-  CircleNotch,
   ChartLine,
   Brain,
   ArrowUp,

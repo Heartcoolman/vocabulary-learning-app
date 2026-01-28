@@ -780,7 +780,6 @@ async fn update_session_progress(
     }
 
     separated.push(r#""updatedAt" = "#).push_bind(now);
-    drop(separated);
 
     qb.push(r#" WHERE "id" = "#).push_bind(session_id);
     let affected = qb
@@ -924,8 +923,8 @@ async fn select_user_sessions(
 
     let rows = sqlx::query(base)
         .bind(user_id)
-        .bind(limit as i64)
-        .bind(offset as i64)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;

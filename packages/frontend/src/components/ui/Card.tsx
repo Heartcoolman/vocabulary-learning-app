@@ -129,7 +129,7 @@ export const CardHeader = memo(
 
 CardHeader.displayName = 'CardHeader';
 
-export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {}
+export type CardContentProps = HTMLAttributes<HTMLDivElement>;
 
 export const CardContent = memo(
   forwardRef<HTMLDivElement, CardContentProps>(({ className, children, ...props }, ref) => {

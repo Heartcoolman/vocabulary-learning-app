@@ -1,18 +1,21 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
+import type { ReactNode, HTMLAttributes } from 'react';
 import SystemStatusPage from '../SystemStatusPage';
+
+type MockMotionProps = HTMLAttributes<HTMLElement> & { children?: ReactNode };
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
-    li: ({ children, ...props }: any) => <li {...props}>{children}</li>,
-    ul: ({ children, ...props }: any) => <ul {...props}>{children}</ul>,
+    div: ({ children, ...props }: MockMotionProps) => <div {...props}>{children}</div>,
+    span: ({ children, ...props }: MockMotionProps) => <span {...props}>{children}</span>,
+    p: ({ children, ...props }: MockMotionProps) => <p {...props}>{children}</p>,
+    li: ({ children, ...props }: MockMotionProps) => <li {...props}>{children}</li>,
+    ul: ({ children, ...props }: MockMotionProps) => <ul {...props}>{children}</ul>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock aboutApi
@@ -224,27 +227,27 @@ import {
 describe('SystemStatusPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getPipelineLayerStatusWithSource as any).mockResolvedValue({
+    (getPipelineLayerStatusWithSource as Mock).mockResolvedValue({
       data: mockPipelineStatus,
       source: 'virtual',
     });
-    (getAlgorithmStatusWithSource as any).mockResolvedValue({
+    (getAlgorithmStatusWithSource as Mock).mockResolvedValue({
       data: mockAlgorithmStatus,
       source: 'virtual',
     });
-    (getUserStateStatusWithSource as any).mockResolvedValue({
+    (getUserStateStatusWithSource as Mock).mockResolvedValue({
       data: mockUserStateStatus,
       source: 'virtual',
     });
-    (getMemoryStatusWithSource as any).mockResolvedValue({
+    (getMemoryStatusWithSource as Mock).mockResolvedValue({
       data: mockMemoryStatus,
       source: 'virtual',
     });
-    (getModuleHealthWithSource as any).mockResolvedValue({
+    (getModuleHealthWithSource as Mock).mockResolvedValue({
       data: mockFeatureFlags,
       source: 'virtual',
     });
-    (getOverviewStatsWithSource as any).mockResolvedValue({
+    (getOverviewStatsWithSource as Mock).mockResolvedValue({
       data: { todayDecisions: 0, activeUsers: 0, totalWords: 0, avgAccuracy: 0 },
       source: 'virtual',
     });
@@ -618,7 +621,7 @@ describe('SystemStatusPage', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      (getPipelineLayerStatusWithSource as any).mockRejectedValue(new Error('API Error'));
+      (getPipelineLayerStatusWithSource as Mock).mockRejectedValue(new Error('API Error'));
 
       renderComponent();
 

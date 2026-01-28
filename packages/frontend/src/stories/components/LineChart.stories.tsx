@@ -251,7 +251,7 @@ export const InCard: Story = {
  * 多个图表组合展示的场景。
  */
 export const MultipleCharts: Story = {
-  render: (args) => (
+  render: (_args) => (
     <div className="grid gap-6 md:grid-cols-2">
       <div className="card-elevated p-4">
         <LineChart data={wordsLearnedData} title="学习单词数" yAxisLabel="数量" height={220} />

@@ -4,7 +4,7 @@
 
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useBatchImport, useBatchDelete, useBatchCreateRecords } from '../useBatchOperations';
 import { wordClient, learningClient } from '../../../services/client';
 
@@ -242,7 +242,7 @@ describe('useBatchOperations', () => {
         },
       ];
 
-      vi.mocked(learningClient.batchCreateRecords).mockResolvedValue(mockRecords as any);
+      (learningClient.batchCreateRecords as Mock).mockResolvedValue(mockRecords);
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useBatchCreateRecords({ onSuccess }), { wrapper });
@@ -302,9 +302,9 @@ describe('useBatchOperations', () => {
         },
       ];
 
-      vi.mocked(learningClient.batchCreateRecords)
-        .mockResolvedValueOnce(mockBatch1 as any)
-        .mockResolvedValueOnce(mockBatch2 as any);
+      (learningClient.batchCreateRecords as Mock)
+        .mockResolvedValueOnce(mockBatch1)
+        .mockResolvedValueOnce(mockBatch2);
 
       const onProgress = vi.fn();
       const { result } = renderHook(() => useBatchCreateRecords({ onProgress }), { wrapper });

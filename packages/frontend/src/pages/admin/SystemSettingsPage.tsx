@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  adminSettingsClient,
-  SettingItem,
-  semanticClient,
-  HealthCheckResponse,
-} from '../../services/client';
+import { adminSettingsClient, SettingItem, semanticClient } from '../../services/client';
 import {
   Gear,
   FloppyDisk,

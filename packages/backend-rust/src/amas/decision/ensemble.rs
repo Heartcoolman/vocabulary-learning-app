@@ -30,19 +30,12 @@ pub struct SessionInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct PerformanceTracker {
     pub algorithms: HashMap<String, AlgorithmPerformance>,
     config: PerformanceTrackerConfig,
 }
 
-impl Default for PerformanceTracker {
-    fn default() -> Self {
-        Self {
-            algorithms: HashMap::new(),
-            config: PerformanceTrackerConfig::default(),
-        }
-    }
-}
 
 impl PerformanceTracker {
     pub fn new(config: PerformanceTrackerConfig) -> Self {

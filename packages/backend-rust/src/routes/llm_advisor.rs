@@ -356,7 +356,7 @@ fn llm_config_summary() -> LlmConfigSummaryDto {
 
 fn schedule_config() -> (bool, String) {
     let auto_analysis_enabled = env_string("LLM_AUTO_ANALYSIS")
-        .map(|v| v.trim().to_ascii_lowercase() != "false")
+        .map(|v| !v.trim().eq_ignore_ascii_case("false"))
         .unwrap_or(true);
     let schedule = env_string("LLM_WEEKLY_CRON").unwrap_or_else(|| "0 4 * * 0".to_string());
     (auto_analysis_enabled, schedule)

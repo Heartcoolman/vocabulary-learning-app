@@ -149,12 +149,13 @@ import { LearningClient } from './learning/LearningClient';
 import { AmasClient } from './amas/AmasClient';
 import { AdminClient } from './admin/AdminClient';
 import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
+// visualFatigueClient and opsEnhanceClient are imported from their re-exports above
 import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 import { NotificationClient } from './notification/NotificationClient';
 import { PreferencesClient } from './preferences/PreferencesClient';
 import { WordBookCenterClient } from './wordbook-center/WordBookCenterClient';
-import { SemanticClient, semanticClient } from './semantic/SemanticClient';
+import { semanticClient } from './semantic/SemanticClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();

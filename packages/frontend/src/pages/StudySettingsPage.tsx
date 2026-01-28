@@ -2,16 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/client';
 import { WordBook } from '../types/models';
-import {
-  CircleNotch,
-  Eye,
-  EyeSlash,
-  Camera,
-  Warning,
-  ArrowCounterClockwise,
-  SlidersHorizontal,
-  Brain,
-} from '../components/Icon';
+import { Eye, EyeSlash, Camera, Warning, ArrowCounterClockwise, Brain } from '../components/Icon';
 import { useToast, Spinner, ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 import { useStudyConfig } from '../hooks/queries';
@@ -19,7 +10,6 @@ import { useUpdateStudyConfig } from '../hooks/mutations';
 import { useVisualFatigueStore } from '../stores/visualFatigueStore';
 import {
   useAmasSettingsStore,
-  getDifficultyLabel,
   FATIGUE_SENSITIVITY_THRESHOLDS,
   type FatigueSensitivity,
   type FatigueAlertMode,

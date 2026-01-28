@@ -429,7 +429,7 @@ export function useMasteryLearning(
 
       // 先执行本地乐观更新
       const amasState = extractAmasState(latestAmasResult);
-      const localDecision = sync.submitAnswerOptimistic({
+      sync.submitAnswerOptimistic({
         wordId: word.id,
         isCorrect,
         responseTime,

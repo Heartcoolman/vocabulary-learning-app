@@ -3,7 +3,7 @@
  * 测试文件导入解析工具的功能
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parseCSVFile, parseJSONFile, parseImportFile, WordImportData } from '../importParsers';
+import { parseCSVFile, parseJSONFile, parseImportFile } from '../importParsers';
 
 // 创建模拟 File 对象
 function createMockFile(content: string, name: string, type: string): File {

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import type { WordEtymology, WordFamily, RootFeatures } from '@danci/shared';
 import { etymologyClient } from '../../services/client/etymology/EtymologyClient';
 
 const ETYMOLOGY_STALE_TIME = 30 * 60 * 1000;

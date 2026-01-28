@@ -68,7 +68,7 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginRequest>)
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "LOGIN_FAILED",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -105,7 +105,7 @@ async fn logout(State(state): State<AppState>, req: Request<Body>) -> Response {
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "LOGOUT_FAILED",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -255,7 +255,7 @@ async fn create_admin_user(
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "CREATE_FAILED",
-            &format!("创建管理员失败: {}", e),
+            format!("创建管理员失败: {}", e),
         )
         .into_response(),
     }

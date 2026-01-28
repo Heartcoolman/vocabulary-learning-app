@@ -25,8 +25,15 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
+interface DailyMissionCardProps {
+  onStart?: () => void;
+  totalWords?: number;
+  todayStudied?: number;
+  todayTarget?: number;
+}
+
 vi.mock('@/components/dashboard/DailyMissionCard', () => ({
-  DailyMissionCard: ({ onStart, totalWords, todayStudied, todayTarget }: any) => (
+  DailyMissionCard: ({ onStart, totalWords, todayStudied, todayTarget }: DailyMissionCardProps) => (
     <div data-testid="daily-mission-card">
       <span>Total: {totalWords}</span>
       <span>Studied: {todayStudied}</span>

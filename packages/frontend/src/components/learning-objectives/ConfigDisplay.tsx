@@ -1,5 +1,5 @@
 import React from 'react';
-import { LearningObjectives, LearningObjectiveMode } from '../../types/learning-objectives';
+import { LearningObjectives } from '../../types/learning-objectives';
 import { Gear } from '../Icon';
 
 interface ConfigDisplayProps {

@@ -41,16 +41,24 @@ export interface WorkerDetectionResult {
 }
 
 // 状态管理
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let faceLandmarker: any = null;
 let isInitialized = false;
 
 // WASM 算法实例
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmEarCalculator: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmPerclosCalculator: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmBlinkDetector: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmYawnDetector: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmHeadPoseEstimator: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmBlendshapeAnalyzer: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
 let wasmFatigueScoreCalculator: any = null;
 
 let config: WorkerInitConfig = {
@@ -145,7 +153,7 @@ async function handleInit(initConfig: WorkerInitConfig) {
 /**
  * 执行检测
  */
-function handleDetect(image: ImageBitmap, timestamp: number) {
+function handleDetect(image: ImageBitmap, _timestamp: number) {
   if (!isInitialized || !faceLandmarker) {
     image.close();
     return;
@@ -244,7 +252,6 @@ function processResult(
   const ear = earResult.avg_ear; // 平滑后的EAR (用于显示和PERCLOS)
   const rawEar = (earResult.left_ear + earResult.right_ear) / 2; // 原始EAR (用于眨眼检测)
   const earIsValid = earResult.is_valid;
-  const earConfidence = earResult.confidence;
   earResult.free();
 
   // 调试：输出 EAR 结果
@@ -320,6 +327,7 @@ function processResult(
   let headPose: HeadPose = { pitch: 0, yaw: 0, roll: 0 };
   let headStability = 1;
   let isHeadDropping = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WASM bindings require dynamic types
   let headPoseResult: any = null;
 
   if (result.facialTransformationMatrixes && result.facialTransformationMatrixes[0]) {

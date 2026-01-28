@@ -39,7 +39,7 @@ const HabitProfilePage: React.FC = () => {
       setIsRefetching(true);
       await apiClient.initializeHabitProfile();
       await fetchData();
-    } catch (err) {
+    } catch {
       toast.error('初始化失败');
     } finally {
       setIsRefetching(false);
@@ -52,7 +52,7 @@ const HabitProfilePage: React.FC = () => {
       await apiClient.persistHabitProfile();
       toast.success('保存成功');
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('保存失败');
     } finally {
       setIsSaving(false);

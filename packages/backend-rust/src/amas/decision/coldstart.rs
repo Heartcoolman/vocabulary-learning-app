@@ -156,13 +156,12 @@ impl ColdStartManager {
         let explore_samples = (self.state.update_count - classify_baseline).max(1);
 
         // Early exit only if we have enough explore samples AND accuracy is extreme
-        if explore_samples >= self.config.min_explore_samples {
-            if accuracy >= self.config.explore_high_accuracy
-                || accuracy <= self.config.explore_low_accuracy
+        if explore_samples >= self.config.min_explore_samples
+            && (accuracy >= self.config.explore_high_accuracy
+                || accuracy <= self.config.explore_low_accuracy)
             {
                 return self.finish_explore(accuracy);
             }
-        }
 
         if explore_samples >= self.config.explore_samples {
             return self.finish_explore(accuracy);
@@ -284,7 +283,7 @@ impl ColdStartManager {
 
     fn compute_stable_score(&self, accuracy: f64, signals: &ColdStartSignals) -> f64 {
         let mut score = 0.0;
-        if accuracy >= 0.6 && accuracy <= 0.85 {
+        if (0.6..=0.85).contains(&accuracy) {
             score += 1.0;
         }
         // Only apply signal-based scoring when signals are provided

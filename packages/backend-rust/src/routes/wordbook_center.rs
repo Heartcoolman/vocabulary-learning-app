@@ -668,7 +668,7 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
                 return json_error(
                     StatusCode::BAD_GATEWAY,
                     "CENTER_ERROR",
-                    &format!("词库中心返回错误: {}", resp.status()),
+                    format!("词库中心返回错误: {}", resp.status()),
                 )
                 .into_response();
             }
@@ -717,7 +717,7 @@ async fn browse_wordbooks(State(state): State<AppState>, req: Request<Body>) -> 
             json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_UNREACHABLE",
-                &format!("无法连接词库中心: {}", e),
+                format!("无法连接词库中心: {}", e),
             )
             .into_response()
         }
@@ -766,7 +766,7 @@ async fn get_wordbook_detail(
             return json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_ERROR",
-                &format!("词库中心返回错误: {}", detail_resp.status()),
+                format!("词库中心返回错误: {}", detail_resp.status()),
             )
             .into_response();
         }
@@ -836,7 +836,7 @@ async fn get_wordbook_detail(
         return json_error(
             StatusCode::BAD_GATEWAY,
             "CENTER_ERROR",
-            &format!("词库中心返回错误: {}", meta_resp.status()),
+            format!("词库中心返回错误: {}", meta_resp.status()),
         )
         .into_response();
     }
@@ -882,7 +882,7 @@ async fn get_wordbook_detail(
             return json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_ERROR",
-                &format!("获取单词列表失败: {}", words_resp.status()),
+                format!("获取单词列表失败: {}", words_resp.status()),
             )
             .into_response();
         }
@@ -1041,7 +1041,7 @@ async fn import_wordbook(
             return json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_ERROR",
-                &format!("词库中心返回错误: {}", detail_resp.status()),
+                format!("词库中心返回错误: {}", detail_resp.status()),
             )
             .into_response();
         }
@@ -1118,7 +1118,7 @@ async fn import_wordbook(
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "WRITE_ERROR",
-                &format!("创建词书失败: {}", e),
+                format!("创建词书失败: {}", e),
             )
             .into_response();
         }
@@ -1159,20 +1159,21 @@ async fn import_wordbook(
                     return json_error(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "IMPORT_ERROR",
-                        &format!("导入单词失败: {}", e),
+                        format!("导入单词失败: {}", e),
                     )
                     .into_response();
                 }
             }
         }
 
-        if let Err(_) = sqlx::query(
+        if sqlx::query(
             r#"UPDATE "word_books" SET "wordCount" = $1, "updatedAt" = NOW() WHERE "id" = $2"#,
         )
         .bind(imported_count)
         .bind(&wordbook_id)
         .execute(&mut *tx)
         .await
+        .is_err()
         {
             let _ = tx.rollback().await;
             return json_error(
@@ -1183,7 +1184,7 @@ async fn import_wordbook(
             .into_response();
         }
 
-        if let Err(_) = tx.commit().await {
+        if tx.commit().await.is_err() {
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "TX_COMMIT_ERROR",
@@ -1229,7 +1230,7 @@ async fn import_wordbook(
         return json_error(
             StatusCode::BAD_GATEWAY,
             "CENTER_ERROR",
-            &format!("词库中心返回错误: {}", meta_resp.status()),
+            format!("词库中心返回错误: {}", meta_resp.status()),
         )
         .into_response();
     }
@@ -1290,7 +1291,7 @@ async fn import_wordbook(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &format!("创建词书失败: {}", e),
+            format!("创建词书失败: {}", e),
         )
         .into_response();
     }
@@ -1330,7 +1331,7 @@ async fn import_wordbook(
             return json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_ERROR",
-                &format!("获取单词列表失败: {}", words_resp.status()),
+                format!("获取单词列表失败: {}", words_resp.status()),
             )
             .into_response();
         }
@@ -1380,7 +1381,7 @@ async fn import_wordbook(
                     return json_error(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "IMPORT_ERROR",
-                        &format!("导入单词失败: {}", e),
+                        format!("导入单词失败: {}", e),
                     )
                     .into_response();
                 }
@@ -1397,13 +1398,14 @@ async fn import_wordbook(
         }
     }
 
-    if let Err(_) = sqlx::query(
+    if sqlx::query(
         r#"UPDATE "word_books" SET "wordCount" = $1, "updatedAt" = NOW() WHERE "id" = $2"#,
     )
     .bind(imported_count)
     .bind(&wordbook_id)
     .execute(&mut *tx)
     .await
+    .is_err()
     {
         let _ = tx.rollback().await;
         return json_error(
@@ -1414,7 +1416,7 @@ async fn import_wordbook(
         .into_response();
     }
 
-    if let Err(_) = tx.commit().await {
+    if tx.commit().await.is_err() {
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "TX_COMMIT_ERROR",
@@ -1792,7 +1794,7 @@ async fn sync_wordbook(
             return json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_ERROR",
-                &format!("词库中心返回错误: {}", detail_resp.status()),
+                format!("词库中心返回错误: {}", detail_resp.status()),
             )
             .into_response();
         }
@@ -1854,7 +1856,7 @@ async fn sync_wordbook(
             return json_error(
                 StatusCode::BAD_GATEWAY,
                 "CENTER_ERROR",
-                &format!("词库中心返回错误: {}", meta_resp.status()),
+                format!("词库中心返回错误: {}", meta_resp.status()),
             )
             .into_response();
         }
@@ -1972,7 +1974,7 @@ async fn sync_wordbook(
                 return json_error(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "SYNC_ERROR",
-                    &format!("同步单词失败: {}", e),
+                    format!("同步单词失败: {}", e),
                 )
                 .into_response();
             }
@@ -2044,7 +2046,7 @@ async fn sync_wordbook(
         .into_response();
     }
 
-    if let Err(_) = tx.commit().await {
+    if tx.commit().await.is_err() {
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "TX_COMMIT_ERROR",

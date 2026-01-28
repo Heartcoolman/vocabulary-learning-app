@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -13,8 +13,6 @@ import {
 import { adminClient } from '../services/client';
 import { FileUpload } from '../components';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
-import { WordBook } from '../types/models';
-import { adminLogger } from '../utils/logger';
 import { useBatchImport, BatchOperationProgress } from '../hooks/mutations/useBatchOperations';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
@@ -29,7 +27,6 @@ const STEPS = [
 export default function BatchImportPage() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
 
   const [selectedBookId, setSelectedBookId] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
@@ -85,7 +82,6 @@ export default function BatchImportPage() {
 
     if (!selectedFile) return;
 
-    setIsLoading(true);
     try {
       const result = await parseImportFile(selectedFile);
       setParsedData(result.data);
@@ -98,8 +94,6 @@ export default function BatchImportPage() {
     } catch (err) {
       setValidationErrors([err instanceof Error ? err.message : '文件解析失败']);
       setCurrentStep(3);
-    } finally {
-      setIsLoading(false);
     }
   };
 

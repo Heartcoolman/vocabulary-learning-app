@@ -16,7 +16,7 @@ import React, {
   HTMLAttributes,
 } from 'react';
 import { CaretDown, Check, MagnifyingGlass, X } from '../Icon';
-import { cn, generateId, Keys, Size } from './utils';
+import { cn, generateId, Keys } from './utils';
 
 export interface SelectOption {
   /** 选项值 */
@@ -343,7 +343,7 @@ export const Select = memo(
                     {emptyContent}
                   </div>
                 ) : (
-                  filteredOptions.map((option, index) => {
+                  filteredOptions.map((option) => {
                     const isSelected = option.value === currentValue;
                     const enabledIndex = enabledOptions.findIndex((o) => o.value === option.value);
                     const isActive = enabledIndex === activeIndex;

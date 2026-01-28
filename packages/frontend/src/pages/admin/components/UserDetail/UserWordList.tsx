@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Books,
@@ -477,4 +477,5 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 export const UserWordList = memo(UserWordListComponent);
 
 // 导出辅助函数供其他组件使用
+// eslint-disable-next-line react-refresh/only-export-components
 export { getStateLabel, getStateColor, formatDate };

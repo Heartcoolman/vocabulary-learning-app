@@ -97,7 +97,7 @@ export default function AboutGlassStack() {
                   rotateX: distance * -2,
                 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                className={`absolute inset-0 rounded-[2rem] border ${layer.borderColor} bg-gradient-to-br ${layer.color} flex origin-bottom cursor-pointer flex-col p-8 shadow-2xl backdrop-blur-xl transition-all duration-300 hover:brightness-105`}
+                className={`absolute inset-0 rounded-[2rem] border ${layer.borderColor} bg-gradient-to-br ${layer.color} flex origin-bottom cursor-pointer flex-col p-8 shadow-2xl backdrop-blur-xl transition-all duration-g3-normal hover:brightness-105`}
                 style={{
                   zIndex,
                   background:
@@ -109,7 +109,7 @@ export default function AboutGlassStack() {
                   <h2 className="font-serif text-5xl tracking-tighter text-slate-900/10">
                     {layer.number}
                   </h2>
-                  <div className="rounded-2xl bg-white/40 p-4 text-slate-700 shadow-sm">
+                  <div className="rounded-card bg-white/40 p-4 text-slate-700 shadow-soft">
                     <layer.icon size={32} />
                   </div>
                 </div>

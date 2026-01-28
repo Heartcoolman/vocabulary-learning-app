@@ -299,7 +299,8 @@ describe('TrackingService', () => {
       });
 
       trackingService.trackInteraction('test', 'test');
-      const beforeStats = trackingService.getStats();
+      // Get stats before flush to verify queue state
+      trackingService.getStats();
 
       await trackingService.flush();
 

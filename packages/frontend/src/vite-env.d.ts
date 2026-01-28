@@ -15,7 +15,7 @@ declare module '/wasm/visual_fatigue_wasm.js' {
   // EAR Calculator
   export class EARCalculator {
     constructor(smoothing_factor?: number | null);
-    calculate(landmarks_js: any): EARResult;
+    calculate(landmarks_js: unknown): EARResult;
     calculate_from_coords(coords: Float64Array): EARResult;
     calculate_enhanced(coords: Float64Array): EnhancedEARResult;
     is_eye_closed(ear: number, threshold?: number | null): boolean;
@@ -100,10 +100,10 @@ declare module '/wasm/visual_fatigue_wasm.js' {
       window_size_seconds?: number | null,
     );
     calculate_mar(coords: Float64Array): MARResult;
-    calculate_mar_from_landmarks(landmarks_js: any): MARResult;
+    calculate_mar_from_landmarks(landmarks_js: unknown): MARResult;
     detect_yawn(mar: number, timestamp: number): YawnEvent | undefined;
     process(coords: Float64Array, timestamp: number): MARResult;
-    process_from_landmarks(landmarks_js: any, timestamp: number): MARResult;
+    process_from_landmarks(landmarks_js: unknown, timestamp: number): MARResult;
     get_last_yawn_event(): YawnEvent | undefined;
     get_stats(): YawnStats;
     get_yawn_count(): number;
@@ -142,7 +142,7 @@ declare module '/wasm/visual_fatigue_wasm.js' {
     );
     estimate_from_matrix(matrix: Float64Array): HeadPoseResult;
     estimate_from_landmarks(coords: Float64Array): HeadPoseResult;
-    estimate_from_landmarks_full(landmarks_js: any): HeadPoseResult;
+    estimate_from_landmarks_full(landmarks_js: unknown): HeadPoseResult;
     get_current_pose(): HeadPose;
     is_head_dropping(): boolean;
     reset(): void;
@@ -174,7 +174,7 @@ declare module '/wasm/visual_fatigue_wasm.js' {
       history_size?: number | null,
     );
     analyze(scores: Float64Array): BlendshapeAnalysis;
-    analyze_from_blendshapes(blendshapes_js: any): BlendshapeAnalysis;
+    analyze_from_blendshapes(blendshapes_js: unknown): BlendshapeAnalysis;
     is_squinting(): boolean;
     get_squint_intensity(): number;
     get_fatigue_expression(): number;
@@ -234,5 +234,5 @@ declare module '/wasm/visual_fatigue_wasm.js' {
   export function init(): void;
   export default function __wbg_init(
     module_or_path?: string | URL | Request | Response | BufferSource | WebAssembly.Module,
-  ): Promise<any>;
+  ): Promise<WebAssembly.Instance>;
 }

@@ -12,7 +12,7 @@ interface HabitHeatmapProps {
 
 export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, showCard = true }) => {
   // 支持 timePref 作为 data 的别名，向后兼容
-  const timeData = data ?? timePref ?? [];
+  const timeData = useMemo(() => data ?? timePref ?? [], [data, timePref]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 

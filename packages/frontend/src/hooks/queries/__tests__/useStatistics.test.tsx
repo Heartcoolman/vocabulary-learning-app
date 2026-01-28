@@ -2,9 +2,9 @@ import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { AuthContextType } from '../../../contexts/AuthContext';
 import { useStatistics, useStudyProgress, useUserStatistics } from '../useStatistics';
 import { apiClient } from '@/services/client';
-import StorageService from '../../../services/StorageService';
 import * as AuthContext from '../../../contexts/AuthContext';
 
 // Mock dependencies
@@ -56,8 +56,8 @@ describe('useStatistics', () => {
         weekdayHeat: { 0: 10, 1: 15, 2: 20, 3: 18, 4: 22, 5: 12, 6: 8 },
       };
 
-      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as any);
-      vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats as any);
+      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as AuthContextType);
+      vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -71,7 +71,7 @@ describe('useStatistics', () => {
     });
 
     it('should handle error when user is not logged in', async () => {
-      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: null } as any);
+      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: null } as AuthContextType);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -92,8 +92,8 @@ describe('useStatistics', () => {
         dailyAccuracy: [],
         weekdayHeat: {},
       };
-      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as any);
-      vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats as any);
+      vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as AuthContextType);
+      vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -128,7 +128,9 @@ describe('useStatistics', () => {
     });
 
     it('should auto-refresh every minute', async () => {
-      vi.mocked(apiClient.getStudyProgress).mockResolvedValue({} as any);
+      vi.mocked(apiClient.getStudyProgress).mockResolvedValue(
+        {} as ReturnType<typeof apiClient.getStudyProgress> extends Promise<infer T> ? T : never,
+      );
 
       const { result } = renderHook(() => useStudyProgress(), { wrapper });
 

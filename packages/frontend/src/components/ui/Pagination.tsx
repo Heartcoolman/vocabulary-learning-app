@@ -90,7 +90,7 @@ export const Pagination = memo(
         siblingCount = 1,
         size = 'md',
         disabled = false,
-        showEdges = true,
+        showEdges: _showEdges = true,
         className,
         ...props
       },

@@ -194,7 +194,7 @@ export default function AboutLens() {
                   transition={{ type: 'spring', stiffness: 40, damping: 15, mass: 1 }}
                 >
                   <div
-                    className={`mb-2 rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur ${layer.color}`}
+                    className={`mb-2 rounded-card bg-white/80 p-3 shadow-soft backdrop-blur ${layer.color}`}
                   >
                     <layer.icon className="h-8 w-8" />
                   </div>
@@ -231,11 +231,11 @@ export default function AboutLens() {
                 const layer = LAYERS.find((l) => l.id === selectedId);
                 if (!layer) return null;
                 return (
-                  <div className="relative flex flex-col items-center gap-8 overflow-hidden rounded-2xl border border-stone-100 bg-white p-8 shadow-xl md:flex-row md:items-start">
+                  <div className="relative flex flex-col items-center gap-8 overflow-hidden rounded-card border border-stone-100 bg-white p-8 shadow-floating md:flex-row md:items-start">
                     <div
                       className={`absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r ${layer.bgStart} ${layer.bgEnd}`}
                     />
-                    <div className={`shrink-0 rounded-2xl bg-stone-50 p-6 ${layer.color}`}>
+                    <div className={`shrink-0 rounded-card bg-stone-50 p-6 ${layer.color}`}>
                       <layer.icon size={48} />
                     </div>
                     <div className="flex-1 text-center md:text-left">

@@ -47,8 +47,9 @@ vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => mockAuthContext,
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
   AuthContext: {
-    Provider: ({ children }: any) => children,
-    Consumer: ({ children }: any) => children(mockAuthContext),
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+    Consumer: ({ children }: { children: (ctx: typeof mockAuthContext) => React.ReactNode }) =>
+      children(mockAuthContext),
   },
 }));
 
@@ -61,29 +62,43 @@ vi.mock('../hooks/useAuth', () => ({
 
 // Helper function to create motion component mock
 const createMotionComponent = (tag: string) => {
-  return ({ children, ...props }: any) => {
-    // Filter out framer-motion specific props
-    const {
-      initial,
-      animate,
-      exit,
-      transition,
-      variants,
-      whileHover,
-      whileTap,
-      whileFocus,
-      whileInView,
-      layout,
-      layoutId,
-      drag,
-      dragConstraints,
-      onDrag,
-      style,
-      ...rest
-    } = props;
-    return createElement(tag, { ...rest, style }, children);
+  return ({
+    children,
+    style,
+    ...rest
+  }: Record<string, unknown> & { children?: React.ReactNode; style?: React.CSSProperties }) => {
+    // Filter out framer-motion specific props by using rest spread
+    // The framer-motion props (initial, animate, exit, etc.) are captured in rest and ignored
+    return createElement(tag, { ...filterMotionProps(rest), style }, children);
   };
 };
+
+// Filter out framer-motion specific props
+function filterMotionProps(props: Record<string, unknown>): Record<string, unknown> {
+  const motionProps = [
+    'initial',
+    'animate',
+    'exit',
+    'transition',
+    'variants',
+    'whileHover',
+    'whileTap',
+    'whileFocus',
+    'whileInView',
+    'layout',
+    'layoutId',
+    'drag',
+    'dragConstraints',
+    'onDrag',
+  ];
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (!motionProps.includes(key)) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+}
 
 vi.mock('framer-motion', () => ({
   motion: {
@@ -1129,7 +1144,7 @@ class MockSpeechSynthesisUtterance {
   volume = 1;
   voice = null;
   onend: (() => void) | null = null;
-  onerror: ((event: any) => void) | null = null;
+  onerror: ((event: SpeechSynthesisErrorEvent) => void) | null = null;
   onstart: (() => void) | null = null;
   onpause: (() => void) | null = null;
   onresume: (() => void) | null = null;

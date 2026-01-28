@@ -7,6 +7,7 @@
 
 import * as React from 'react';
 import * as Sentry from '@sentry/react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { env } from '../config/env';
 
 // ============================================
@@ -80,7 +81,7 @@ class PerformanceTracker {
       });
       lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
       this.observers.push(lcpObserver);
-    } catch (e) {
+    } catch {
       // LCP 不支持
     }
 
@@ -99,7 +100,7 @@ class PerformanceTracker {
       });
       fidObserver.observe({ type: 'first-input', buffered: true });
       this.observers.push(fidObserver);
-    } catch (e) {
+    } catch {
       // FID 不支持
     }
 
@@ -121,7 +122,7 @@ class PerformanceTracker {
       });
       clsObserver.observe({ type: 'layout-shift', buffered: true });
       this.observers.push(clsObserver);
-    } catch (e) {
+    } catch {
       // CLS 不支持
     }
 
@@ -139,7 +140,7 @@ class PerformanceTracker {
       });
       fcpObserver.observe({ type: 'paint', buffered: true });
       this.observers.push(fcpObserver);
-    } catch (e) {
+    } catch {
       // FCP 不支持
     }
 
@@ -561,7 +562,7 @@ export function createErrorBoundary(
             eventId: eventId ?? undefined,
             resetError,
           }),
-        onError: (error: unknown, componentStack: string, eventId: string) => {
+        onError: (error: unknown, componentStack: string, _eventId: string) => {
           // 记录额外的组件堆栈信息
           Sentry.setContext('component_stack', {
             stack: componentStack,

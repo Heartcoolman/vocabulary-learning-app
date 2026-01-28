@@ -100,7 +100,7 @@ describe('MemoryTraceChart', () => {
     });
 
     it('should display empty message when trace is undefined', () => {
-      render(<MemoryTraceChart trace={undefined as any} />);
+      render(<MemoryTraceChart trace={undefined!} />);
 
       expect(screen.getByText('暂无记忆轨迹数据')).toBeInTheDocument();
     });

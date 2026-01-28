@@ -192,6 +192,8 @@ export interface UserSegmentInfo {
 
 // ==================== 响应类型 ====================
 
+// ListResponse is kept for potential future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ListResponse<T> {
   data: T[];
   total: number;

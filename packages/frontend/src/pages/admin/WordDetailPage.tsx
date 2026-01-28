@@ -44,6 +44,7 @@ export default function WordDetailPage() {
     if (userId && wordId) {
       loadData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, wordId]);
 
   const loadData = async () => {

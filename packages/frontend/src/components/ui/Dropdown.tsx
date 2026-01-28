@@ -203,7 +203,7 @@ export const Dropdown = memo(
                 placementStyles[placement],
               )}
             >
-              {items.map((item, index) => {
+              {items.map((item, _index) => {
                 if (item.divider) {
                   return (
                     <div

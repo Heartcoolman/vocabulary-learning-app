@@ -21,82 +21,88 @@ vi.mock('@/components/ui', async (importOriginal) => {
   };
 });
 
+interface IconProps {
+  className?: string;
+  size?: number;
+  weight?: string;
+}
+
 // Mock Icon components
 vi.mock('@/components/Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/Icon')>();
   return {
     ...actual,
-    Robot: ({ className, size, weight }: any) => (
+    Robot: ({ className }: IconProps) => (
       <span data-testid="robot-icon" className={className}>
         Robot
       </span>
     ),
-    Lightning: ({ className, size, weight }: any) => (
+    Lightning: ({ className }: IconProps) => (
       <span data-testid="lightning-icon" className={className}>
         Lightning
       </span>
     ),
-    CheckCircle: ({ className, size }: any) => (
+    CheckCircle: ({ className }: IconProps) => (
       <span data-testid="check-circle-icon" className={className}>
         CheckCircle
       </span>
     ),
-    XCircle: ({ className, size }: any) => (
+    XCircle: ({ className }: IconProps) => (
       <span data-testid="x-circle-icon" className={className}>
         XCircle
       </span>
     ),
-    Warning: ({ className, size }: any) => (
+    Warning: ({ className }: IconProps) => (
       <span data-testid="warning-icon" className={className}>
         Warning
       </span>
     ),
-    ArrowsClockwise: ({ className, size }: any) => (
+    ArrowsClockwise: ({ className }: IconProps) => (
       <span data-testid="arrows-clockwise-icon" className={className}>
         ArrowsClockwise
       </span>
     ),
-    Eye: ({ className, size }: any) => (
+    Eye: ({ className }: IconProps) => (
       <span data-testid="eye-icon" className={className}>
         Eye
       </span>
     ),
-    CaretDown: ({ className, size }: any) => (
+    CaretDown: ({ className }: IconProps) => (
       <span data-testid="caret-down-icon" className={className}>
         CaretDown
       </span>
     ),
-    CaretUp: ({ className, size }: any) => (
+    CaretUp: ({ className }: IconProps) => (
       <span data-testid="caret-up-icon" className={className}>
         CaretUp
       </span>
     ),
-    Lightbulb: ({ className, size }: any) => (
+    Lightbulb: ({ className }: IconProps) => (
       <span data-testid="lightbulb-icon" className={className}>
         Lightbulb
       </span>
     ),
-    Gear: ({ className, size }: any) => (
+    Gear: ({ className }: IconProps) => (
       <span data-testid="gear-icon" className={className}>
         Gear
       </span>
     ),
-    ChartLine: ({ className, size }: any) => (
+    ChartLine: ({ className }: IconProps) => (
       <span data-testid="chart-line-icon" className={className}>
         ChartLine
       </span>
     ),
-    Brain: ({ className, size }: any) => (
+    Brain: ({ className }: IconProps) => (
       <span data-testid="brain-icon" className={className}>
         Brain
       </span>
     ),
-    Shield: ({ className, size }: any) => (
+    Shield: ({ className }: IconProps) => (
       <span data-testid="shield-icon" className={className}>
         Shield
       </span>
     ),
-    CircleNotch: ({ className, size, weight }: any) => (
+    CircleNotch: ({ className }: IconProps) => (
       <span data-testid="loading-spinner" className={className}>
         Loading
       </span>
@@ -206,7 +212,8 @@ const mockRejectSuggestion = vi.fn();
 vi.mock('../../../services/llmAdvisorApi', () => ({
   getLLMConfig: () => mockGetLLMConfig(),
   checkLLMHealth: () => mockCheckLLMHealth(),
-  getSuggestions: (params: any) => mockGetSuggestions(params),
+  getSuggestions: (params: { status?: string; page?: number; pageSize?: number }) =>
+    mockGetSuggestions(params),
   triggerAnalysis: () => mockTriggerAnalysis(),
   approveSuggestion: (id: string, items: string[], notes?: string) =>
     mockApproveSuggestion(id, items, notes),

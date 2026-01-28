@@ -8,22 +8,22 @@ import { MasteryStatsCard } from '../MasteryStatsCard';
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
-  CheckCircle: ({ className }: any) => (
+  CheckCircle: ({ className }: { className?: string }) => (
     <span data-testid="icon-check-circle" className={className}>
       ✓
     </span>
   ),
-  Clock: ({ className }: any) => (
+  Clock: ({ className }: { className?: string }) => (
     <span data-testid="icon-clock" className={className}>
       Clock
     </span>
   ),
-  Fire: ({ className }: any) => (
+  Fire: ({ className }: { className?: string }) => (
     <span data-testid="icon-fire" className={className}>
       Fire
     </span>
   ),
-  BookOpen: ({ className }: any) => (
+  BookOpen: ({ className }: { className?: string }) => (
     <span data-testid="icon-book-open" className={className}>
       Book
     </span>

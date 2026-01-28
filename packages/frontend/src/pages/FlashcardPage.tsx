@@ -18,8 +18,6 @@ export default function FlashcardPage() {
     submitAnswer,
     advanceToNext,
     resetSession,
-    allWords,
-    error,
   } = useMasteryLearning({ targetMasteryCount: 20 });
 
   const { isPlaying: isPronouncing, play: playPronunciation } = useAutoPlayPronunciation({

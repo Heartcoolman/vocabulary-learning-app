@@ -11,22 +11,22 @@ vi.mock('../../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../Icon')>();
   return {
     ...actual,
-    Trophy: ({ className }: any) => (
+    Trophy: ({ className }: { className?: string }) => (
       <span data-testid="icon-trophy" className={className}>
         Trophy
       </span>
     ),
-    Star: ({ className }: any) => (
+    Star: ({ className }: { className?: string }) => (
       <span data-testid="icon-star" className={className}>
         Star
       </span>
     ),
-    Target: ({ className }: any) => (
+    Target: ({ className }: { className?: string }) => (
       <span data-testid="icon-target" className={className}>
         Target
       </span>
     ),
-    Lightning: ({ className }: any) => (
+    Lightning: ({ className }: { className?: string }) => (
       <span data-testid="icon-zap" className={className}>
         Zap
       </span>
@@ -289,7 +289,7 @@ describe('MilestoneCard', () => {
   describe('achieved state', () => {
     it('should show achieved badge with correct styling', () => {
       const achievedMilestone = { ...defaultMilestone, achieved: true };
-      const { container } = render(<MilestoneCard milestone={achievedMilestone} />);
+      render(<MilestoneCard milestone={achievedMilestone} />);
 
       const badge = screen.getByText('已达成');
       expect(badge.classList.contains('text-green-600')).toBe(true);
@@ -297,7 +297,7 @@ describe('MilestoneCard', () => {
 
     it('should show achieved badge in white background', () => {
       const achievedMilestone = { ...defaultMilestone, achieved: true };
-      const { container } = render(<MilestoneCard milestone={achievedMilestone} />);
+      render(<MilestoneCard milestone={achievedMilestone} />);
 
       const badgeContainer = screen.getByText('已达成').closest('div');
       expect(badgeContainer?.classList.contains('bg-white')).toBe(true);

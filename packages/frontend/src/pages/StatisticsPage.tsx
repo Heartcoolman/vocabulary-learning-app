@@ -6,7 +6,6 @@ import {
   Clock,
   TrendUp,
   ArrowLeft,
-  CircleNotch,
   Warning,
 } from '../components/Icon';
 import { Spinner } from '../components/ui';

@@ -2,18 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { ChartBar, Warning, MagnifyingGlass } from '../components/Icon';
 import { Spinner } from '../components/ui';
 import { useMasteryWords } from '../hooks/queries/useMasteryWords';
-import type { MasteryEvaluation } from '../types/word-mastery';
 import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
 import { MasteryWordItem } from '../components/word-mastery/MasteryWordItem';
 import { WordMasteryDetailModal } from '../components/word-mastery/WordMasteryDetailModal';
 import { MasteryDistributionChart } from '../components/progress/MasteryDistributionChart';
-
-interface WordWithMastery {
-  id: string;
-  spelling: string;
-  meanings: string;
-  mastery: MasteryEvaluation | null;
-}
 
 type FilterType = 'all' | 'mastered' | 'learning' | 'review';
 

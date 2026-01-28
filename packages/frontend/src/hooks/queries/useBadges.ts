@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { apiClient } from '../../services/client';
-import type { Badge, BadgeProgress } from '../../types/amas-enhanced';
 
 /**
  * 获取用户所有徽章的 Query Hook

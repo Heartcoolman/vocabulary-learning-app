@@ -306,10 +306,8 @@ pub async fn get_pipeline_status(proxy: &DatabaseProxy) -> Result<PipelineStatus
     // 优化层特殊处理：定时任务（每天凌晨3点），7天内有执行过就算healthy
     let optimization_status = if optimization_count > 0 {
         "healthy".to_string()
-    } else if optimization_last_run.is_some() {
-        "warning".to_string() // 有历史记录但最近7天无活动
     } else {
-        "warning".to_string() // 无历史记录，可能刚部署
+        "warning".to_string() // 无近期活动或刚部署
     };
 
     let perception_count = base_count;

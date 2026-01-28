@@ -782,7 +782,7 @@ async fn select_notification(
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|row| map_pg_notification_row(&row)).transpose()?)
+    row.map(|row| map_pg_notification_row(&row)).transpose()
 }
 
 async fn build_stats(

@@ -31,6 +31,7 @@ const BroadcastPage = lazy(() => import('../pages/admin/BroadcastPage'));
 /**
  * 懒加载包装组件
  */
+// eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );

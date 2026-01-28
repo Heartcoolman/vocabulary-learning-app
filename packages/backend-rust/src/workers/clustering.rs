@@ -29,15 +29,13 @@ pub async fn run_clustering_cycle(
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(DEFAULT_KNN_K)
-        .max(1)
-        .min(20);
+        .clamp(1, 20);
 
     let distance_threshold: f64 = std::env::var("CLUSTERING_DISTANCE_THRESHOLD")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(DEFAULT_DISTANCE_THRESHOLD)
-        .max(0.05)
-        .min(0.5);
+        .clamp(0.05, 0.5);
 
     let (embedded_count, total_count) = get_embedding_stats(&db).await?;
 

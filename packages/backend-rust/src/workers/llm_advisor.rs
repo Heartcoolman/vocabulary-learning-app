@@ -29,11 +29,11 @@ pub async fn run_weekly_analysis(db: Arc<DatabaseProxy>) -> Result<(), super::Wo
         return Ok(());
     }
 
-    let system_stats = collect_system_stats(&pool).await?;
-    let user_patterns = analyze_user_patterns(&pool).await?;
+    let system_stats = collect_system_stats(pool).await?;
+    let user_patterns = analyze_user_patterns(pool).await?;
     let analysis_result = generate_analysis(&llm, &system_stats, &user_patterns).await;
 
-    store_analysis_result(&pool, &analysis_result).await?;
+    store_analysis_result(pool, &analysis_result).await?;
 
     let duration = start.elapsed();
     info!(
@@ -225,7 +225,7 @@ fn parse_analysis_response(
     }
 
     let parsed: LLMResponse = serde_json::from_str(json_str.trim())
-        .map_err(|e| crate::services::llm_provider::LLMError::Json(e))?;
+        .map_err(crate::services::llm_provider::LLMError::Json)?;
 
     Ok(AnalysisResult {
         id: String::new(),

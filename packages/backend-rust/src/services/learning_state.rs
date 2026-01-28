@@ -8,21 +8,18 @@ use crate::db::DatabaseProxy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Default)]
 pub enum WordState {
+    #[default]
     New,
     Learning,
     Reviewing,
     Mastered,
 }
 
-impl Default for WordState {
-    fn default() -> Self {
-        Self::New
-    }
-}
 
 impl WordState {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "LEARNING" => Self::Learning,
             "REVIEWING" => Self::Reviewing,
@@ -201,7 +198,7 @@ fn parse_word_learning_state(row: &sqlx::postgres::PgRow) -> Result<WordLearning
         word_id: row
             .try_get("wordId")
             .map_err(|e| format!("解析失败: {e}"))?,
-        state: WordState::from_str(
+        state: WordState::parse(
             row.try_get::<String, _>("state")
                 .unwrap_or_default()
                 .as_str(),
@@ -283,7 +280,7 @@ pub async fn get_due_words(
     .map_err(|e| format!("查询失败: {e}"))?;
 
     rows.iter()
-        .map(|row| parse_word_learning_state(row))
+        .map(parse_word_learning_state)
         .collect()
 }
 
@@ -309,7 +306,7 @@ pub async fn get_words_by_state(
     .map_err(|e| format!("查询失败: {e}"))?;
 
     rows.iter()
-        .map(|row| parse_word_learning_state(row))
+        .map(parse_word_learning_state)
         .collect()
 }
 
@@ -648,7 +645,7 @@ pub async fn get_memory_trace(
                 timestamp: ts_ms,
                 is_correct: row.try_get("isCorrect").unwrap_or(false),
                 response_time: row.try_get("responseTime").unwrap_or(0),
-                seconds_ago: ((now - ts_ms) / 1000) as i64,
+                seconds_ago: ((now - ts_ms) / 1000),
             }
         })
         .collect())

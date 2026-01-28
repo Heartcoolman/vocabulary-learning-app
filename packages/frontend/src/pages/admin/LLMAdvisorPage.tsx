@@ -66,12 +66,12 @@ export default function LLMAdvisorPage() {
       setWorkerStatus(configData.worker);
       setSuggestions(suggestionsData.items);
       setTotal(suggestionsData.total);
-    } catch (error) {
+    } catch {
       toast.error('加载数据失败');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, toast]);
 
   // 单独加载健康检查（避免阻塞页面）
   const loadHealth = useCallback(async () => {
@@ -103,7 +103,7 @@ export default function LLMAdvisorPage() {
       const result = await triggerAnalysis();
       toast.success(`分析完成，建议ID: ${result.suggestionId}`);
       loadData();
-    } catch (error) {
+    } catch {
       toast.error('触发分析失败');
     } finally {
       setTriggering(false);
@@ -124,7 +124,7 @@ export default function LLMAdvisorPage() {
       setSelectedSuggestion(null);
       setSelectedItems(new Set());
       loadData();
-    } catch (error) {
+    } catch {
       toast.error('审批失败');
     } finally {
       setApproving(false);
@@ -140,7 +140,7 @@ export default function LLMAdvisorPage() {
       toast.success('建议已拒绝');
       setSelectedSuggestion(null);
       loadData();
-    } catch (error) {
+    } catch {
       toast.error('拒绝失败');
     } finally {
       setRejecting(false);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleNotch, Info, Shield, User as UserIcon } from '../../components/Icon';
+import { Info, Shield, User as UserIcon } from '../../components/Icon';
 import { useToast, ConfirmModal, Spinner, Tooltip } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 import {

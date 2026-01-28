@@ -1154,7 +1154,7 @@ async fn explain_decision(
     let pool = proxy.pool();
 
     match crate::services::explainability::get_decision_explanation(
-        &pool,
+        pool,
         &auth_user.id,
         query.decision_id.as_deref(),
     )
@@ -1215,7 +1215,7 @@ async fn get_decision_timeline(
     let limit = query.limit.unwrap_or(50).min(200);
 
     match crate::services::explainability::get_decision_timeline(
-        &pool,
+        pool,
         &auth_user.id,
         limit,
         query.cursor.as_deref(),
@@ -1269,7 +1269,7 @@ async fn counterfactual(
 
     let pool = proxy.pool();
 
-    match crate::services::explainability::run_counterfactual(&pool, &auth_user.id, input).await {
+    match crate::services::explainability::run_counterfactual(pool, &auth_user.id, input).await {
         Ok(Some(result)) => Json(SuccessResponse {
             success: true,
             data: result,
@@ -1411,7 +1411,7 @@ async fn get_learning_curve(
     let start_date = today - Duration::days(days as i64);
 
     let pool = proxy.pool();
-    let points = select_learning_curve_pg(&pool, &user.id, start_date).await?;
+    let points = select_learning_curve_pg(pool, &user.id, start_date).await?;
 
     let mastery_values: Vec<f64> = points.iter().map(|p| p.mastery).collect();
     let trend = compute_mastery_trend(&mastery_values);
@@ -1503,9 +1503,9 @@ async fn get_phase(
     let (proxy, user) = require_user(&state, &headers).await?;
     let pool = proxy.pool();
 
-    let phase = match load_cold_start_phase(&pool, &user.id).await? {
+    let phase = match load_cold_start_phase(pool, &user.id).await? {
         Some(value) => value,
-        None => infer_phase_from_interactions(&pool, &user.id).await?,
+        None => infer_phase_from_interactions(pool, &user.id).await?,
     };
 
     Ok(Json(SuccessResponse {
@@ -1602,7 +1602,7 @@ async fn get_trend_intervention(
     let (proxy, user) = require_user(&state, &headers).await?;
     let pool = proxy.pool();
 
-    let (trend_state, consecutive_days) = load_current_trend(&pool, &user.id).await?;
+    let (trend_state, consecutive_days) = load_current_trend(pool, &user.id).await?;
     let result = compute_intervention(&trend_state, consecutive_days);
 
     Ok(Json(SuccessResponse {

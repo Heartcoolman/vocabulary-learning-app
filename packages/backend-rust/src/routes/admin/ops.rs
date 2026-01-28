@@ -782,7 +782,7 @@ async fn trigger_clustering(State(state): State<AppState>) -> Response {
             json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "CLUSTERING_FAILED",
-                &format!("聚类任务执行失败: {}", e),
+                format!("聚类任务执行失败: {}", e),
             )
             .into_response()
         }

@@ -247,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 /**
  * 使用认证上下文的Hook
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { DATA_CACHE_CONFIG, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
 import { apiClient } from '../../services/client';
-import type { UserState } from '../../types/amas';
 
 /**
  * 获取AMAS用户状态的Query Hook

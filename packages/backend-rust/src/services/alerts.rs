@@ -14,7 +14,7 @@ pub enum AlertSeverity {
 }
 
 impl AlertSeverity {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "warning" => Self::Warning,
             "critical" => Self::Critical,
@@ -32,7 +32,7 @@ pub enum AlertStatus {
 }
 
 impl AlertStatus {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "firing" => Self::Firing,
             "resolved" => Self::Resolved,

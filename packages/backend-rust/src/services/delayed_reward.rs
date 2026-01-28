@@ -25,7 +25,7 @@ impl RewardStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "PROCESSING" => Self::Processing,
             "DONE" => Self::Done,
@@ -104,7 +104,7 @@ pub async fn enqueue_delayed_reward(
     .map_err(|e| format!("写入失败: {e}"))?;
 
     if let Some(row) = result {
-        return Ok(parse_reward_queue_pg(&row)?);
+        return parse_reward_queue_pg(&row);
     }
 
     get_by_idempotency_key(proxy, &input.idempotency_key)
@@ -297,7 +297,7 @@ fn parse_reward_queue_pg(row: &sqlx::postgres::PgRow) -> Result<RewardQueueItem,
             .try_get::<DateTime<Utc>, _>("dueTs")
             .map(|d| d.timestamp_millis())
             .unwrap_or(0),
-        status: RewardStatus::from_str(
+        status: RewardStatus::parse(
             row.try_get::<String, _>("status")
                 .unwrap_or_default()
                 .as_str(),

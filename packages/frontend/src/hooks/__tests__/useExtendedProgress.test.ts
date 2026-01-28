@@ -11,7 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useExtendedProgress, ExtendedProgressData } from '../useExtendedProgress';
+import { useExtendedProgress } from '../useExtendedProgress';
 import type { Word, WordLearningState } from '../../types/models';
 import { WordState } from '../../types';
 

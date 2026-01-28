@@ -2,19 +2,23 @@
  * WordMasteryDetailModal Component Unit Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render as rtlRender, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WordMasteryDetailModal } from '../WordMasteryDetailModal';
 import { apiClient } from '../../../services/client';
 import { ApiError } from '../../../services/client';
 
+import type { ReactNode } from 'react';
+
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: { children?: ReactNode; [key: string]: unknown }) => (
+      <div {...props}>{children}</div>
+    ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock Icon components
@@ -22,42 +26,42 @@ vi.mock('../../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../Icon')>();
   return {
     ...actual,
-    X: ({ className }: any) => (
+    X: ({ className }: { className?: string }) => (
       <span data-testid="icon-x" className={className}>
         X
       </span>
     ),
-    Clock: ({ className }: any) => (
+    Clock: ({ className }: { className?: string }) => (
       <span data-testid="icon-clock" className={className}>
         Clock
       </span>
     ),
-    Fire: ({ className }: any) => (
+    Fire: ({ className }: { className?: string }) => (
       <span data-testid="icon-fire" className={className}>
         Fire
       </span>
     ),
-    ChartLine: ({ className }: any) => (
+    ChartLine: ({ className }: { className?: string }) => (
       <span data-testid="icon-chartline" className={className}>
         Chart
       </span>
     ),
-    Warning: ({ className }: any) => (
+    Warning: ({ className }: { className?: string }) => (
       <span data-testid="icon-warning" className={className}>
         Warning
       </span>
     ),
-    CheckCircle: ({ className }: any) => (
+    CheckCircle: ({ className }: { className?: string }) => (
       <span data-testid="icon-check" className={className}>
         Check
       </span>
     ),
-    CircleNotch: ({ className }: any) => (
+    CircleNotch: ({ className }: { className?: string }) => (
       <span data-testid="icon-loading" className={className}>
         Loading
       </span>
     ),
-    Lightbulb: ({ className }: any) => (
+    Lightbulb: ({ className }: { className?: string }) => (
       <span data-testid="icon-lightbulb" className={className}>
         Lightbulb
       </span>
@@ -67,7 +71,7 @@ vi.mock('../../Icon', async (importOriginal) => {
 
 // Mock MemoryTraceChart
 vi.mock('../MemoryTraceChart', () => ({
-  MemoryTraceChart: ({ trace }: any) => (
+  MemoryTraceChart: ({ trace }: { trace?: unknown[] }) => (
     <div data-testid="memory-trace-chart">MemoryTraceChart: {trace?.length || 0} records</div>
   ),
 }));
@@ -171,11 +175,11 @@ const mockIntervalData = {
 describe('WordMasteryDetailModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getLearnedWords as any).mockResolvedValue([mockWordData]);
-    (apiClient.getWordById as any).mockResolvedValue(mockWordData);
-    (apiClient.getWordMasteryDetail as any).mockResolvedValue(mockMasteryData);
-    (apiClient.getWordMasteryTrace as any).mockResolvedValue(mockTraceData);
-    (apiClient.getWordMasteryInterval as any).mockResolvedValue(mockIntervalData);
+    (apiClient.getLearnedWords as Mock).mockResolvedValue([mockWordData]);
+    (apiClient.getWordById as Mock).mockResolvedValue(mockWordData);
+    (apiClient.getWordMasteryDetail as Mock).mockResolvedValue(mockMasteryData);
+    (apiClient.getWordMasteryTrace as Mock).mockResolvedValue(mockTraceData);
+    (apiClient.getWordMasteryInterval as Mock).mockResolvedValue(mockIntervalData);
   });
 
   // ==================== Rendering Tests ====================
@@ -194,7 +198,7 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should show loading state initially', async () => {
-      (apiClient.getLearnedWords as any).mockImplementation(
+      (apiClient.getLearnedWords as Mock).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve([mockWordData]), 100)),
       );
 
@@ -278,7 +282,7 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should show "已掌握" badge when isLearned is true', async () => {
-      (apiClient.getWordMasteryDetail as any).mockResolvedValue({
+      (apiClient.getWordMasteryDetail as Mock).mockResolvedValue({
         ...mockMasteryData,
         isLearned: true,
       });
@@ -291,7 +295,7 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should show "学习中" badge for score >= 0.4 and < 0.7', async () => {
-      (apiClient.getWordMasteryDetail as any).mockResolvedValue({
+      (apiClient.getWordMasteryDetail as Mock).mockResolvedValue({
         ...mockMasteryData,
         score: 0.5,
       });
@@ -304,7 +308,7 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should show "需复习" badge for score < 0.4', async () => {
-      (apiClient.getWordMasteryDetail as any).mockResolvedValue({
+      (apiClient.getWordMasteryDetail as Mock).mockResolvedValue({
         ...mockMasteryData,
         score: 0.3,
       });
@@ -388,8 +392,8 @@ describe('WordMasteryDetailModal', () => {
 
   describe('error handling', () => {
     it('should display error message when word not found', async () => {
-      (apiClient.getLearnedWords as any).mockResolvedValue([]);
-      (apiClient.getWordById as any).mockRejectedValue(new ApiError('Not Found', 404));
+      (apiClient.getLearnedWords as Mock).mockResolvedValue([]);
+      (apiClient.getWordById as Mock).mockRejectedValue(new ApiError('Not Found', 404));
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -399,8 +403,8 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should display error message when API fails', async () => {
-      (apiClient.getLearnedWords as any).mockResolvedValue([]);
-      (apiClient.getWordById as any).mockRejectedValue(new Error('网络请求失败'));
+      (apiClient.getLearnedWords as Mock).mockResolvedValue([]);
+      (apiClient.getWordById as Mock).mockRejectedValue(new Error('网络请求失败'));
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -410,8 +414,8 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should show retry button on error', async () => {
-      (apiClient.getLearnedWords as any).mockResolvedValue([]);
-      (apiClient.getWordById as any).mockRejectedValue(new Error('网络请求失败'));
+      (apiClient.getLearnedWords as Mock).mockResolvedValue([]);
+      (apiClient.getWordById as Mock).mockRejectedValue(new Error('网络请求失败'));
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -421,8 +425,8 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should retry loading when retry button clicked', async () => {
-      (apiClient.getLearnedWords as any).mockResolvedValue([]);
-      (apiClient.getWordById as any)
+      (apiClient.getLearnedWords as Mock).mockResolvedValue([]);
+      (apiClient.getWordById as Mock)
         .mockRejectedValueOnce(new Error('网络请求失败'))
         .mockResolvedValueOnce(mockWordData);
 
@@ -447,13 +451,13 @@ describe('WordMasteryDetailModal', () => {
 
   describe('empty state', () => {
     it('should show empty state when no mastery and no trace', async () => {
-      (apiClient.getWordMasteryDetail as any).mockResolvedValue(null);
-      (apiClient.getWordMasteryTrace as any).mockResolvedValue({
+      (apiClient.getWordMasteryDetail as Mock).mockResolvedValue(null);
+      (apiClient.getWordMasteryTrace as Mock).mockResolvedValue({
         wordId: 'word-1',
         trace: [],
         count: 0,
       });
-      (apiClient.getWordMasteryInterval as any).mockResolvedValue(null);
+      (apiClient.getWordMasteryInterval as Mock).mockResolvedValue(null);
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 

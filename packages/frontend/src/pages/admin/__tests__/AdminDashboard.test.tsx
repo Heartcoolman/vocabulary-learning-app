@@ -8,6 +8,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminDashboard from '../AdminDashboard';
 
+import type { ReactNode } from 'react';
+
 const createTestQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -77,6 +79,33 @@ vi.mock('../../../hooks/mutations', () => ({
   }),
 }));
 
+interface ConfirmModalProps {
+  isOpen?: boolean;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  children?: ReactNode;
+}
+
+interface AlertModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  children?: ReactNode;
+}
+
+interface ModalProps {
+  isOpen?: boolean;
+  children?: ReactNode;
+}
+
+interface ButtonProps {
+  children?: ReactNode;
+  onClick?: () => void;
+}
+
+interface ProgressProps {
+  value?: number;
+}
+
 // Mock useToast hook
 vi.mock('../../../components/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../components/ui')>();
@@ -89,7 +118,7 @@ vi.mock('../../../components/ui', async (importOriginal) => {
       info: vi.fn(),
       showToast: vi.fn(),
     }),
-    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: ConfirmModalProps) =>
       isOpen ? (
         <div data-testid="confirm-modal">
           {children}
@@ -97,17 +126,17 @@ vi.mock('../../../components/ui', async (importOriginal) => {
           <button onClick={onCancel}>取消</button>
         </div>
       ) : null,
-    AlertModal: ({ isOpen, onClose, children }: any) =>
+    AlertModal: ({ isOpen, onClose, children }: AlertModalProps) =>
       isOpen ? (
         <div data-testid="alert-modal">
           {children}
           <button onClick={onClose}>关闭</button>
         </div>
       ) : null,
-    Modal: ({ isOpen, children }: any) =>
+    Modal: ({ isOpen, children }: ModalProps) =>
       isOpen ? <div data-testid="modal">{children}</div> : null,
-    Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
-    Progress: ({ value }: any) => <div data-testid="progress" data-value={value} />,
+    Button: ({ children, onClick }: ButtonProps) => <button onClick={onClick}>{children}</button>,
+    Progress: ({ value }: ProgressProps) => <div data-testid="progress" data-value={value} />,
   };
 });
 

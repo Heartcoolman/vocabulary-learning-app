@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   useAdminStatistics,
@@ -36,15 +36,7 @@ import {
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
-import {
-  ConfirmModal,
-  AlertModal,
-  Modal,
-  Button,
-  Progress,
-  Spinner,
-  Select,
-} from '../../components/ui';
+import { ConfirmModal, AlertModal, Modal, Button, Progress, Spinner } from '../../components/ui';
 import { useOTAUpdate, useRestartBackend } from '../../hooks/mutations';
 
 /** 颜色类名映射 */
@@ -74,12 +66,7 @@ export default function AdminDashboard() {
   } = useVisualFatigueStats();
   const { data: llmPendingCount } = useLLMPendingCount();
   const { data: versionInfo } = useSystemVersion();
-  const {
-    data: combinedHealth,
-    businessHealth,
-    runtimeHealth,
-    isLoading: isHealthLoading,
-  } = useCombinedHealth();
+  const { data: combinedHealth, isLoading: isHealthLoading } = useCombinedHealth();
   const {
     triggerUpdate,
     updateStatus,
@@ -380,7 +367,7 @@ export default function AdminDashboard() {
           ) : systemStatus ? (
             <div className="space-y-6">
               {/* 综合健康度评分 */}
-              <div className="flex items-center gap-6 rounded-lg border border-gray-100 bg-gradient-to-r from-gray-50 to-white p-4 dark:border-slate-700 dark:from-slate-800/50 dark:to-slate-800">
+              <div className="flex items-center gap-6 rounded-button border border-gray-100 bg-gradient-to-r from-gray-50 to-white p-4 dark:border-slate-700 dark:from-slate-800/50 dark:to-slate-800">
                 <div
                   className={`flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full ${
                     combinedHealth?.status === 'excellent'
@@ -455,7 +442,7 @@ export default function AdminDashboard() {
               {/* 详细指标 */}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {/* 整体状态 */}
-                <div className="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div className="flex items-center gap-4 rounded-button border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
                   <div
                     className={`flex h-12 w-12 items-center justify-center rounded-full ${
                       systemStatus.overall === 'healthy'
@@ -486,7 +473,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 数据库状态 */}
-                <div className="flex flex-col justify-center rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div className="flex flex-col justify-center rounded-button border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                       <Database size={20} />
@@ -513,7 +500,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 内存使用 */}
-                <div className="flex flex-col justify-center rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div className="flex flex-col justify-center rounded-button border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                       <Database size={20} />
@@ -527,7 +514,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
-                      className={`h-full transition-all duration-500 ${
+                      className={`h-full transition-all duration-g3-slow ${
                         (perfMetrics?.memoryUsage ?? 0) > 1024
                           ? 'bg-red-500'
                           : (perfMetrics?.memoryUsage ?? 0) > 512
@@ -540,7 +527,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 运行时间 & 版本 */}
-                <div className="flex flex-col justify-center space-y-2 rounded-lg border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div className="flex flex-col justify-center space-y-2 rounded-button border border-gray-100 bg-gray-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <Clock size={16} />
@@ -1100,7 +1087,7 @@ export default function AdminDashboard() {
             </div>
           ) : (!updateStatus || updateStatus.stage === 'idle') && !isTriggering && !triggerError ? (
             <>
-              <div className="flex items-center gap-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+              <div className="flex items-center gap-4 rounded-button bg-blue-50 p-4 dark:bg-blue-900/20">
                 <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/40">
                   <Lightning size={24} className="text-blue-600 dark:text-blue-400" />
                 </div>

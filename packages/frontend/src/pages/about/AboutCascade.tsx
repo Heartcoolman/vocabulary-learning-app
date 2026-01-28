@@ -98,11 +98,11 @@ export default function AboutCascade() {
                   scale: activeId === layer.id ? 1.02 : 1,
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className={`relative cursor-pointer overflow-hidden rounded-xl border backdrop-blur-md transition-colors duration-g3-normal ${activeId === layer.id ? 'bg-white shadow-xl ring-1 ring-slate-900/5' : `${layer.bg} border-transparent shadow-sm hover:border-slate-200`}`}
+                className={`relative cursor-pointer overflow-hidden rounded-card border backdrop-blur-md transition-colors duration-g3-normal ${activeId === layer.id ? 'bg-white shadow-floating ring-1 ring-slate-900/5' : `${layer.bg} border-transparent shadow-soft hover:border-slate-200`}`}
               >
                 <div className="flex items-start gap-5 p-6">
                   <div
-                    className={`rounded-xl p-3.5 transition-colors duration-g3-normal ${activeId === layer.id ? layer.accent + ' text-white' : 'bg-white ' + layer.color}`}
+                    className={`rounded-card p-3.5 transition-colors duration-g3-normal ${activeId === layer.id ? layer.accent + ' text-white' : 'bg-white ' + layer.color}`}
                   >
                     <layer.icon size={28} weight={activeId === layer.id ? 'fill' : 'bold'} />
                   </div>
@@ -153,7 +153,7 @@ export default function AboutCascade() {
         </div>
 
         <div className="sticky top-0 hidden h-screen w-72 flex-col justify-center py-20 lg:flex">
-          <div className="rounded-2xl border border-white bg-white/80 p-8 shadow-lg backdrop-blur-xl">
+          <div className="rounded-card border border-white bg-white/80 p-8 shadow-elevated backdrop-blur-xl">
             <div className="relative space-y-8">
               <div className="absolute bottom-4 left-[15px] top-4 w-0.5 bg-slate-100" />
               {LAYERS.map((layer) => (

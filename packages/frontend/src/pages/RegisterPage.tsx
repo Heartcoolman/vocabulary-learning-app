@@ -82,7 +82,7 @@ export default function RegisterPage() {
    */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
-      handleSubmit(e as any);
+      handleSubmit(e as React.FormEvent);
     }
   };
 

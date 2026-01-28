@@ -89,7 +89,7 @@ export default function CausalInferencePage() {
         }
       }
     },
-    [], // 移除 toast 依赖，防止无限循环
+    [toast],
   );
 
   const loadDiagnostics = useCallback(async (signal?: AbortSignal) => {

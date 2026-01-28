@@ -47,7 +47,7 @@ export default function AboutLayout() {
         {/* 标题区 */}
         <div className="border-b border-white/20 p-8 dark:border-slate-700/20">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-600 shadow-lg shadow-blue-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-card bg-gradient-to-br from-blue-600 to-blue-600 shadow-elevated shadow-blue-500/20">
               <Sparkle size={20} className="text-white" />
             </div>
             <div>
@@ -73,7 +73,7 @@ export default function AboutLayout() {
                 key={item.path}
                 to={item.path}
                 aria-current={finalActive ? 'page' : undefined}
-                className={`group flex items-center gap-3 rounded-2xl px-5 py-3.5 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                className={`group flex items-center gap-3 rounded-card px-5 py-3.5 text-sm font-medium transition-all duration-g3-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                   finalActive
                     ? 'bg-white text-blue-600 shadow-soft shadow-slate-200/50 ring-1 ring-black/5 dark:bg-slate-700 dark:text-blue-400 dark:shadow-none'
                     : 'text-slate-500 hover:bg-white/50 hover:text-slate-900 hover:shadow-sm dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'
@@ -82,7 +82,7 @@ export default function AboutLayout() {
                 <IconComponent
                   size={18}
                   weight={finalActive ? 'fill' : 'regular'}
-                  className={`transition-transform duration-300 ${finalActive ? 'scale-110' : 'group-hover:scale-110'}`}
+                  className={`transition-transform duration-g3-normal ${finalActive ? 'scale-110' : 'group-hover:scale-110'}`}
                 />
                 <span>{item.label}</span>
                 {finalActive && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-500" />}
@@ -95,12 +95,12 @@ export default function AboutLayout() {
         <div className="border-t border-white/20 p-6 dark:border-slate-700/20">
           <Link
             to="/login"
-            className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-medium text-white shadow-lg shadow-slate-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl active:translate-y-0 dark:bg-blue-600 dark:shadow-blue-500/20 dark:hover:bg-blue-500"
+            className="group flex w-full items-center justify-center gap-2 rounded-card bg-slate-900 px-4 py-3.5 text-sm font-medium text-white shadow-elevated shadow-slate-900/20 transition-all duration-g3-normal hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-floating active:translate-y-0 dark:bg-blue-600 dark:shadow-blue-500/20 dark:hover:bg-blue-500"
           >
             <span>开始学习</span>
             <ArrowRight
               size={16}
-              className="transition-transform duration-300 group-hover:translate-x-1"
+              className="transition-transform duration-g3-normal group-hover:translate-x-1"
             />
           </Link>
           <p className="mt-4 text-center text-xs font-medium uppercase tracking-wider text-slate-400">

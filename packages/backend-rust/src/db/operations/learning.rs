@@ -16,7 +16,7 @@ pub enum WordState {
 }
 
 impl WordState {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "LEARNING" => Self::Learning,
             "REVIEWING" => Self::Reviewing,
@@ -326,7 +326,7 @@ fn map_word_learning_state(row: &sqlx::postgres::PgRow) -> WordLearningState {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
         word_id: row.try_get("wordId").unwrap_or_default(),
-        state: WordState::from_str(
+        state: WordState::parse(
             row.try_get::<String, _>("state")
                 .unwrap_or_default()
                 .as_str(),

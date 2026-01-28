@@ -31,6 +31,7 @@ export default function WordDetailModal({
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, wordId]);
 
   const loadData = async () => {
@@ -62,7 +63,7 @@ export default function WordDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <ChartLine size={24} className="text-blue-500" />
@@ -143,7 +144,7 @@ function HistoryTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4 rounded-lg bg-gray-50 p-4 dark:bg-slate-900">
+      <div className="grid grid-cols-3 gap-4 rounded-button bg-gray-50 p-4 dark:bg-slate-900">
         <div className="text-center">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalReviews}</div>
           <div className="text-sm text-gray-500 dark:text-gray-400">总复习次数</div>
@@ -162,7 +163,7 @@ function HistoryTab({
         {history.records.map((record, index) => (
           <div
             key={record.id || index}
-            className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"
+            className="flex items-center justify-between rounded-button border border-gray-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"
           >
             <div className="flex items-center gap-3">
               {record.isCorrect ? (
@@ -207,7 +208,7 @@ function FlagsTab({
       {flags.map((flag) => (
         <div
           key={flag.id}
-          className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-900"
+          className="rounded-button border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-900"
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-800 dark:text-yellow-300">

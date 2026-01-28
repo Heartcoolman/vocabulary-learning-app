@@ -1,13 +1,13 @@
 import { useEffect, ReactNode } from 'react';
 import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
-import { useToastStore, ToastType } from '../../stores';
+import { useToastStore } from '../../stores';
 import { IconColor } from '../../utils/iconColors';
 
 interface CustomToastOptions {
   duration?: number;
 }
 
-// 导出hook供其他组件使用
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const showToast = useToastStore((state) => state.showToast);
   const showCustom = useToastStore((state) => state.showCustom);

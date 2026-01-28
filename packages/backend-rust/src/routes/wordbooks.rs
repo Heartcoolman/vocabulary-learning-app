@@ -249,8 +249,9 @@ pub async fn create_wordbook(State(state): State<AppState>, req: Request<Body>) 
                 .into_response();
             }
             let trimmed = value.trim().to_string();
-            if !trimmed.is_empty()
-                && !(trimmed.starts_with("http://") || trimmed.starts_with("https://"))
+            if !(trimmed.is_empty()
+                || trimmed.starts_with("http://")
+                || trimmed.starts_with("https://"))
             {
                 return json_error(
                     StatusCode::BAD_REQUEST,
@@ -430,7 +431,7 @@ pub async fn update_wordbook(State(state): State<AppState>, req: Request<Body>) 
             )
             .into_response();
         }
-        if !url.trim().is_empty() && !(url.starts_with("http://") || url.starts_with("https://")) {
+        if !(url.trim().is_empty() || url.starts_with("http://") || url.starts_with("https://")) {
             return json_error(
                 StatusCode::BAD_REQUEST,
                 "BAD_REQUEST",
@@ -1274,9 +1275,9 @@ async fn select_words_in_word_book_paginated(
 
 fn get_query_param<'a>(query: &'a str, key: &str) -> Option<&'a str> {
     query.split('&').find_map(|pair| {
-        let mut parts = pair.splitn(2, '=');
-        let k = parts.next()?;
-        let v = parts.next()?;
+        let (k, v) = pair.split_once('=')?;
+        
+        
         if k == key {
             Some(v)
         } else {

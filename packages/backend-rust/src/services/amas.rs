@@ -406,7 +406,7 @@ pub async fn get_learning_curve(
     let start_date = today - Duration::days(days as i64);
 
     let pool = proxy.pool();
-    let points = select_learning_curve_pg(&pool, user_id, start_date).await?;
+    let points = select_learning_curve_pg(pool, user_id, start_date).await?;
 
     let mastery_values: Vec<f64> = points.iter().map(|p| p.mastery).collect();
     let trend = compute_mastery_trend(&mastery_values);
@@ -475,9 +475,9 @@ fn compute_mastery_trend(values: &[f64]) -> String {
 // ========== get_phase ==========
 pub async fn get_phase(proxy: &DatabaseProxy, user_id: &str) -> Result<PhaseResult, String> {
     let pool = proxy.pool();
-    let phase = match load_cold_start_phase(&pool, user_id).await? {
+    let phase = match load_cold_start_phase(pool, user_id).await? {
         Some(p) => p,
-        None => infer_phase_from_interactions(&pool, user_id).await?,
+        None => infer_phase_from_interactions(pool, user_id).await?,
     };
     Ok(PhaseResult {
         description: phase_description(&phase).to_string(),
@@ -554,7 +554,7 @@ pub async fn get_trend_intervention(
     user_id: &str,
 ) -> Result<InterventionResult, String> {
     let pool = proxy.pool();
-    let (trend_state, consecutive_days) = load_current_trend(&pool, user_id).await?;
+    let (trend_state, consecutive_days) = load_current_trend(pool, user_id).await?;
     Ok(compute_intervention(&trend_state, consecutive_days))
 }
 

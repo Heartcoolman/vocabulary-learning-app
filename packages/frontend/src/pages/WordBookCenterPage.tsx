@@ -1,11 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  wordBookCenterClient,
-  CenterWordBook,
-  CenterWordBookDetail as DetailType,
-  authClient,
-} from '../services/client';
+import { wordBookCenterClient, CenterWordBook, authClient } from '../services/client';
 import {
   CenterWordBookCard,
   CenterWordBookDetail,
@@ -47,11 +42,7 @@ export default function WordBookCenterPage() {
 
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  const {
-    data: config,
-    isLoading: configLoading,
-    error: configError,
-  } = useQuery({
+  const { data: config, isLoading: configLoading } = useQuery({
     queryKey: ['wordbook-center', 'config'],
     queryFn: () => wordBookCenterClient.getConfig(),
   });
@@ -287,7 +278,7 @@ export default function WordBookCenterPage() {
               </h2>
 
               {config && (
-                <div className="mb-4 rounded-lg bg-gray-50 p-3 text-sm dark:bg-slate-700/50">
+                <div className="mb-4 rounded-button bg-gray-50 p-3 text-sm dark:bg-slate-700/50">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500 dark:text-gray-400">当前使用:</span>
                     <span

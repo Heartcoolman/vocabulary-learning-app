@@ -48,13 +48,13 @@ async fn create_broadcast(
         Err(BroadcastError::InvalidTarget(t)) => json_error(
             StatusCode::BAD_REQUEST,
             "INVALID_TARGET",
-            &format!("无效目标: {}", t),
+            format!("无效目标: {}", t),
         )
         .into_response(),
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "BROADCAST_FAILED",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -113,7 +113,7 @@ async fn list_broadcasts(
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "LIST_FAILED",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -139,7 +139,7 @@ async fn get_broadcast(State(state): State<AppState>, Path(id): Path<String>) ->
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "GET_FAILED",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -195,7 +195,7 @@ async fn list_audit_logs(
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "LIST_FAILED",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }

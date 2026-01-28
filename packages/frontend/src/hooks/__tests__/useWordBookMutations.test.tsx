@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import {
   useCreateWordBook,
   useUpdateWordBook,
@@ -69,7 +69,7 @@ describe('useWordBookMutations', () => {
 
   describe('useCreateWordBook', () => {
     it('should create word book successfully', async () => {
-      (wordBookClient.createWordBook as any).mockResolvedValue(mockWordBook);
+      (wordBookClient.createWordBook as Mock).mockResolvedValue(mockWordBook);
 
       const { result } = renderHook(() => useCreateWordBook(), { wrapper });
 
@@ -90,7 +90,7 @@ describe('useWordBookMutations', () => {
     });
 
     it('should invalidate queries after creation', async () => {
-      (wordBookClient.createWordBook as any).mockResolvedValue(mockWordBook);
+      (wordBookClient.createWordBook as Mock).mockResolvedValue(mockWordBook);
 
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -114,7 +114,7 @@ describe('useWordBookMutations', () => {
 
     it('should handle errors', async () => {
       const error = new Error('创建失败');
-      (wordBookClient.createWordBook as any).mockRejectedValue(error);
+      (wordBookClient.createWordBook as Mock).mockRejectedValue(error);
 
       const { result } = renderHook(() => useCreateWordBook(), { wrapper });
 
@@ -133,7 +133,7 @@ describe('useWordBookMutations', () => {
   describe('useUpdateWordBook', () => {
     it('should update word book successfully', async () => {
       const updatedBook = { ...mockWordBook, name: '更新后的名称' };
-      (wordBookClient.updateWordBook as any).mockResolvedValue(updatedBook);
+      (wordBookClient.updateWordBook as Mock).mockResolvedValue(updatedBook);
 
       const { result } = renderHook(() => useUpdateWordBook(), { wrapper });
 
@@ -155,7 +155,7 @@ describe('useWordBookMutations', () => {
 
   describe('useDeleteWordBook', () => {
     it('should delete word book successfully', async () => {
-      (wordBookClient.deleteWordBook as any).mockResolvedValue(undefined);
+      (wordBookClient.deleteWordBook as Mock).mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useDeleteWordBook(), { wrapper });
 
@@ -169,7 +169,7 @@ describe('useWordBookMutations', () => {
     });
 
     it('should invalidate queries after deletion', async () => {
-      (wordBookClient.deleteWordBook as any).mockResolvedValue(undefined);
+      (wordBookClient.deleteWordBook as Mock).mockResolvedValue(undefined);
 
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -192,7 +192,7 @@ describe('useWordBookMutations', () => {
 
     it('should rollback on error', async () => {
       const error = new Error('删除失败');
-      (wordBookClient.deleteWordBook as any).mockRejectedValue(error);
+      (wordBookClient.deleteWordBook as Mock).mockRejectedValue(error);
 
       // 设置初始缓存数据
       const initialBooks = [mockWordBook];
@@ -230,7 +230,7 @@ describe('useWordBookMutations', () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      (wordBookClient.addWordToWordBook as any).mockResolvedValue(mockWord);
+      (wordBookClient.addWordToWordBook as Mock).mockResolvedValue(mockWord);
 
       const { result } = renderHook(() => useAddWordToWordBook(), { wrapper });
 
@@ -254,7 +254,7 @@ describe('useWordBookMutations', () => {
 
   describe('useRemoveWordFromWordBook', () => {
     it('should remove word from word book successfully', async () => {
-      (wordBookClient.removeWordFromWordBook as any).mockResolvedValue(undefined);
+      (wordBookClient.removeWordFromWordBook as Mock).mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useRemoveWordFromWordBook(), { wrapper });
 
@@ -274,7 +274,7 @@ describe('useWordBookMutations', () => {
   describe('useBatchImportWords', () => {
     it('should batch import words successfully', async () => {
       const mockResult = { imported: 10, failed: 0 };
-      (wordClient.batchImportWords as any).mockResolvedValue(mockResult);
+      (wordClient.batchImportWords as Mock).mockResolvedValue(mockResult);
 
       const { result } = renderHook(() => useBatchImportWords(), { wrapper });
 

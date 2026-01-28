@@ -200,7 +200,7 @@ pub async fn create_record(
 
     let pool = proxy.pool();
     let timestamp_dt = DateTime::<Utc>::from_timestamp_millis(ts_ms)
-        .unwrap_or_else(|| Utc::now())
+        .unwrap_or_else(Utc::now)
         .naive_utc();
     sqlx::query(
         r#"
@@ -335,7 +335,7 @@ pub async fn batch_create_records(
     qb.push_values(valid.iter(), |mut b, record| {
         let id = Uuid::new_v4().to_string();
         let timestamp_dt = DateTime::<Utc>::from_timestamp_millis(record.timestamp_ms)
-            .unwrap_or_else(|| Utc::now())
+            .unwrap_or_else(Utc::now)
             .naive_utc();
         b.push_bind(id);
         b.push_bind(user_id);
@@ -502,7 +502,7 @@ fn resolve_selected_answer(input: &CreateRecordInput) -> String {
     input
         .selected_answer
         .as_deref()
-        .or_else(|| input.selected_option.as_deref())
+        .or(input.selected_option.as_deref())
         .unwrap_or("")
         .to_string()
 }
@@ -636,7 +636,7 @@ async fn record_word_review_trace(
 ) -> Result<(), sqlx::Error> {
     let pool = proxy.pool();
     let ts = DateTime::<Utc>::from_timestamp_millis(timestamp_ms)
-        .unwrap_or_else(|| Utc::now())
+        .unwrap_or_else(Utc::now)
         .naive_utc();
     let _ = sqlx::query(
         r#"
@@ -718,7 +718,7 @@ async fn select_existing_record_keys(
             qb.push(" OR ");
         }
         let ts_dt = DateTime::<Utc>::from_timestamp_millis(record.timestamp_ms)
-            .unwrap_or_else(|| Utc::now())
+            .unwrap_or_else(Utc::now)
             .naive_utc();
         qb.push("(\"wordId\" = ");
         qb.push_bind(&record.input.word_id);
@@ -752,8 +752,8 @@ async fn get_paginated_records(
 
     let pool = proxy.pool();
     let (data, total) = tokio::try_join!(
-        select_answer_records_pg(&pool, user_id, session_id, page_size, offset),
-        count_answer_records_pg(&pool, user_id, session_id),
+        select_answer_records_pg(pool, user_id, session_id, page_size, offset),
+        count_answer_records_pg(pool, user_id, session_id),
     )?;
 
     let total_pages = if total > 0 {
@@ -1175,7 +1175,7 @@ async fn calculate_weekday_heat(
     for row in rows {
         let dow: i32 = row.try_get("dow").unwrap_or(0);
         let count: i32 = row.try_get("count").unwrap_or(0);
-        if dow >= 0 && dow < 7 {
+        if (0..7).contains(&dow) {
             heat[dow as usize] = count;
         }
     }
@@ -1209,7 +1209,7 @@ async fn calculate_mastery_distribution(
     for row in rows {
         let level: i32 = row.try_get("level").unwrap_or(0);
         let count: i64 = row.try_get("count").unwrap_or(0);
-        if level >= 0 && level <= 5 {
+        if (0..=5).contains(&level) {
             distribution[level as usize].count = count;
         }
     }

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Rollout Hooks - 灰度发布 React Hooks
  *
@@ -12,7 +13,6 @@ import {
   useContext,
   createContext,
   ReactNode,
-  ReactElement,
   isValidElement,
 } from 'react';
 import {

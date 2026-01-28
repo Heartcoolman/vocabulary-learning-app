@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckType, Task } from '../api';
 import { TaskProgress } from '../hooks';
-import { Play, CircleNotch } from '../../../../components/Icon';
+import { Play } from '../../../../components/Icon';
 import { G3_DURATION, G3_EASING } from '../../../../utils/animations';
 import { Spinner, InlineSpinner } from '../../../../components/ui/Spinner';
 
@@ -45,7 +45,7 @@ export const TaskRunner: React.FC<Props> = ({
   const remaining = Math.max(0, total - processed);
 
   return (
-    <div className="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="mb-6 rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
         {/* Left: Controls */}
         <div className="w-full flex-1">
@@ -62,7 +62,7 @@ export const TaskRunner: React.FC<Props> = ({
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value as CheckType)}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300"
+                className="rounded-button border border-gray-200 bg-gray-50 px-4 py-2 text-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300"
                 disabled={loading}
               >
                 {CHECK_TYPES.map((t) => (
@@ -75,7 +75,7 @@ export const TaskRunner: React.FC<Props> = ({
                 type="button"
                 onClick={() => onStart(selectedType)}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-button bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? <Spinner size="sm" color="white" /> : <Play className="h-5 w-5" />}
                 启动检查

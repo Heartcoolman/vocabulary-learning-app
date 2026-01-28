@@ -132,7 +132,7 @@ export default function AboutNeuralHub() {
             animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           />
-          <div className="relative z-10 flex h-20 w-20 flex-col items-center justify-center rounded-full border-2 border-blue-100 bg-white shadow-lg">
+          <div className="relative z-10 flex h-20 w-20 flex-col items-center justify-center rounded-full border-2 border-blue-100 bg-white shadow-elevated">
             <User size={32} className="mb-1 text-blue-600" />
             <span className="text-[10px] font-bold tracking-wider text-blue-900">用户</span>
           </div>
@@ -159,7 +159,7 @@ export default function AboutNeuralHub() {
             >
               <motion.button
                 onClick={() => setActiveNode(isActive ? null : node.id)}
-                className={`group relative flex h-16 w-16 flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-md transition-all duration-300 hover:shadow-xl ${isActive ? 'z-20 ring-4 ring-blue-100 ring-offset-2' : 'z-10'}`}
+                className={`group relative flex h-16 w-16 flex-col items-center justify-center rounded-card border border-slate-100 bg-white shadow-elevated transition-all duration-g3-normal hover:shadow-floating ${isActive ? 'z-20 ring-4 ring-blue-100 ring-offset-2' : 'z-10'}`}
                 whileHover={{ scale: 1.1 }}
                 animate={
                   isRippleActive
@@ -168,7 +168,7 @@ export default function AboutNeuralHub() {
                 }
               >
                 <node.icon size={28} className={node.color} />
-                <span className="absolute -bottom-6 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-sm">
+                <span className="absolute -bottom-6 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-600 shadow-soft backdrop-blur-sm">
                   {node.label}
                 </span>
               </motion.button>
@@ -183,7 +183,7 @@ export default function AboutNeuralHub() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="absolute -bottom-48 left-1/2 z-30 w-80 -translate-x-1/2 rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-xl"
+              className="absolute -bottom-48 left-1/2 z-30 w-80 -translate-x-1/2 rounded-card border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-xl"
             >
               {(() => {
                 const node = NODES.find((n) => n.id === activeNode);
@@ -193,7 +193,7 @@ export default function AboutNeuralHub() {
                     <div className="mb-4 flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`rounded-xl bg-slate-50 p-2.5 ${node.color} ring-1 ring-slate-100`}
+                          className={`rounded-card bg-slate-50 p-2.5 ${node.color} ring-1 ring-slate-100`}
                         >
                           <node.icon size={24} />
                         </div>

@@ -5,7 +5,6 @@ import {
   Play,
   CheckCircle,
   XCircle,
-  Warning,
   ArrowsClockwise,
   Clock,
   Eye,
@@ -486,7 +485,7 @@ function VariantList({
 function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">任务详情</h2>
           <button
@@ -555,7 +554,7 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
 
             <div>
               <label className="text-sm text-gray-500 dark:text-gray-400">输入参数</label>
-              <pre className="mt-1 overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-slate-900">
+              <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
                 {JSON.stringify(task.input, null, 2)}
               </pre>
             </div>
@@ -563,7 +562,7 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
             {task.output && (
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">输出结果</label>
-                <pre className="mt-1 overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-slate-900">
+                <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
                   {JSON.stringify(task.output, null, 2)}
                 </pre>
               </div>
@@ -572,7 +571,7 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
             {task.error && (
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">错误信息</label>
-                <p className="mt-1 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                <p className="mt-1 rounded-button bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
                   {task.error}
                 </p>
               </div>
@@ -599,7 +598,7 @@ function VariantDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">内容变体详情</h2>
           <button
@@ -637,7 +636,7 @@ function VariantDetailModal({
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   原始值
                 </label>
-                <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-slate-900">
+                <pre className="overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
                   {variant.originalValue ? JSON.stringify(variant.originalValue, null, 2) : '(空)'}
                 </pre>
               </div>
@@ -645,7 +644,7 @@ function VariantDetailModal({
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   AI 生成值
                 </label>
-                <pre className="overflow-x-auto rounded-lg bg-blue-50 p-3 text-xs dark:bg-blue-900/20">
+                <pre className="overflow-x-auto rounded-button bg-blue-50 p-3 text-xs dark:bg-blue-900/20">
                   {JSON.stringify(variant.generatedValue, null, 2)}
                 </pre>
               </div>
@@ -657,13 +656,13 @@ function VariantDetailModal({
           <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
             <button
               onClick={onReject}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
+              className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
             >
               拒绝
             </button>
             <button
               onClick={onApprove}
-              className="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+              className="rounded-button bg-green-500 px-4 py-2 text-white hover:bg-green-600"
             >
               批准应用
             </button>

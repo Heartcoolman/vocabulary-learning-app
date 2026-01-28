@@ -1,18 +1,21 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
+import type { ReactNode, HTMLAttributes } from 'react';
 import StatsPage from '../StatsPage';
+
+type MockMotionProps = HTMLAttributes<HTMLElement> & { children?: ReactNode };
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
-    li: ({ children, ...props }: any) => <li {...props}>{children}</li>,
-    ul: ({ children, ...props }: any) => <ul {...props}>{children}</ul>,
+    div: ({ children, ...props }: MockMotionProps) => <div {...props}>{children}</div>,
+    span: ({ children, ...props }: MockMotionProps) => <span {...props}>{children}</span>,
+    p: ({ children, ...props }: MockMotionProps) => <p {...props}>{children}</p>,
+    li: ({ children, ...props }: MockMotionProps) => <li {...props}>{children}</li>,
+    ul: ({ children, ...props }: MockMotionProps) => <ul {...props}>{children}</ul>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock aboutApi
@@ -106,28 +109,28 @@ import {
 describe('StatsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getOverviewStatsWithSource as any).mockResolvedValue({
+    (getOverviewStatsWithSource as Mock).mockResolvedValue({
       data: mockOverviewStats,
       source: 'virtual',
     });
-    (getAlgorithmDistribution as any).mockResolvedValue(mockAlgorithmDistribution);
-    (getAlgorithmTrend as any).mockResolvedValue({
+    (getAlgorithmDistribution as Mock).mockResolvedValue(mockAlgorithmDistribution);
+    (getAlgorithmTrend as Mock).mockResolvedValue({
       thompson: [45, 48, 50, 52, 55, 53, 56, 58, 60, 62],
       linucb: [40, 42, 43, 45, 46, 48, 50, 49, 51, 53],
       actr: [35, 36, 38, 40, 41, 43, 44, 46, 47, 48],
       heuristic: [30, 31, 32, 33, 35, 36, 37, 38, 39, 40],
       coldstart: [20, 22, 24, 23, 25, 26, 27, 28, 29, 30],
     });
-    (getPerformanceMetrics as any).mockResolvedValue(mockPerformanceMetrics);
-    (getOptimizationEvents as any).mockResolvedValue(mockOptimizationEvents);
-    (getMasteryRadar as any).mockResolvedValue(mockMasteryRadar);
-    (getLearningModeDistribution as any).mockResolvedValue({
+    (getPerformanceMetrics as Mock).mockResolvedValue(mockPerformanceMetrics);
+    (getOptimizationEvents as Mock).mockResolvedValue(mockOptimizationEvents);
+    (getMasteryRadar as Mock).mockResolvedValue(mockMasteryRadar);
+    (getLearningModeDistribution as Mock).mockResolvedValue({
       exam: 0.1,
       daily: 0.7,
       travel: 0.1,
       custom: 0.1,
     });
-    (getHalfLifeDistribution as any).mockResolvedValue({
+    (getHalfLifeDistribution as Mock).mockResolvedValue({
       avgHalfLife: 4.5,
       totalWords: 150000,
       distribution: [
@@ -409,7 +412,7 @@ describe('StatsPage', () => {
 
   describe('Empty State', () => {
     it('should handle empty optimization events', async () => {
-      (getOptimizationEvents as any).mockResolvedValue([]);
+      (getOptimizationEvents as Mock).mockResolvedValue([]);
 
       renderComponent();
 
@@ -421,7 +424,7 @@ describe('StatsPage', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      (getOverviewStatsWithSource as any).mockRejectedValue(new Error('API Error'));
+      (getOverviewStatsWithSource as Mock).mockRejectedValue(new Error('API Error'));
 
       renderComponent();
 

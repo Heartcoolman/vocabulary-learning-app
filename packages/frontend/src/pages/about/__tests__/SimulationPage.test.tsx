@@ -1,18 +1,21 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
+import type { ReactNode, HTMLAttributes } from 'react';
 import SimulationPage from '../SimulationPage';
+
+type MockMotionProps = HTMLAttributes<HTMLElement> & { children?: ReactNode };
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    header: ({ children, ...props }: any) => <header {...props}>{children}</header>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
+    div: ({ children, ...props }: MockMotionProps) => <div {...props}>{children}</div>,
+    header: ({ children, ...props }: MockMotionProps) => <header {...props}>{children}</header>,
+    button: ({ children, ...props }: MockMotionProps) => <button {...props}>{children}</button>,
+    span: ({ children, ...props }: MockMotionProps) => <span {...props}>{children}</span>,
+    p: ({ children, ...props }: MockMotionProps) => <p {...props}>{children}</p>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock aboutApi
@@ -81,7 +84,7 @@ import { simulate } from '../../../services/aboutApi';
 describe('SimulationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (simulate as any).mockResolvedValue(mockSimulateResponse);
+    (simulate as Mock).mockResolvedValue(mockSimulateResponse);
   });
 
   afterEach(() => {
@@ -357,7 +360,7 @@ describe('SimulationPage', () => {
         resolvePromise = resolve;
       });
 
-      (simulate as any).mockReturnValue(pendingPromise);
+      (simulate as Mock).mockReturnValue(pendingPromise);
 
       renderComponent();
 
@@ -379,7 +382,7 @@ describe('SimulationPage', () => {
 
   describe('Error Handling', () => {
     it('should handle simulation error gracefully', async () => {
-      (simulate as any).mockRejectedValue(new Error('Simulation failed'));
+      (simulate as Mock).mockRejectedValue(new Error('Simulation failed'));
 
       renderComponent();
 

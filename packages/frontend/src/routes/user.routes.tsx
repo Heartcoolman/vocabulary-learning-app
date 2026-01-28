@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
-import { AppRoute } from './types';
+import type { AppRoute } from './types';
 import { PageLoader } from './components';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -39,16 +39,12 @@ const SemanticSearchPage = lazy(() => import('../pages/SemanticSearchPage'));
 // 通知功能页面
 const NotificationCenterPage = lazy(() => import('../pages/NotificationCenterPage'));
 
-/**
- * 懒加载包装组件
- */
+// eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );
 
-/**
- * 受保护的懒加载路由包装
- */
+// eslint-disable-next-line react-refresh/only-export-components
 const ProtectedLazy = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>
     <LazyWrapper>{children}</LazyWrapper>

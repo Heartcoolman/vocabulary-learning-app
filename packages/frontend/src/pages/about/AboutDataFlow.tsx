@@ -588,7 +588,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
 
       {/* 详情面板 */}
       <div
-        className="fixed inset-0 z-[60] flex items-center justify-center p-6 transition-all duration-300"
+        className="fixed inset-0 z-[60] flex items-center justify-center p-6 transition-all duration-g3-normal"
         style={{
           opacity: expandedStage ? 1 : 0,
           pointerEvents: expandedStage ? 'auto' : 'none',
@@ -597,7 +597,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
         onClick={() => setExpandedIndex(null)}
       >
         <div
-          className="relative w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-300"
+          className="relative w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-g3-normal"
           style={{
             borderTop: expandedStage
               ? `4px solid ${expandedStage.borderColor}`
@@ -612,7 +612,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
               <div className={`p-6 ${expandedStage.bgColor}`}>
                 <div className="mb-4 flex items-center gap-4">
                   <div
-                    className={`rounded-2xl p-3 text-white ${expandedStage.accentColor} transition-transform duration-500`}
+                    className={`rounded-card p-3 text-white ${expandedStage.accentColor} transition-transform duration-g3-slow`}
                     style={{ transform: 'rotate(-5deg) scale(1.05)' }}
                   >
                     <expandedStage.icon size={28} />
@@ -655,7 +655,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
                   {expandedStage.features.map((feature, idx) => (
                     <div
                       key={idx}
-                      className="rounded-xl border border-gray-100 bg-gray-50 p-4 transition-all duration-300"
+                      className="rounded-card border border-gray-100 bg-gray-50 p-4 transition-all duration-g3-normal"
                       style={{
                         opacity: expandedStage ? 1 : 0,
                         transform: expandedStage ? 'translateY(0)' : 'translateY(10px)',
@@ -676,7 +676,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
       </div>
 
       <div
-        className="relative z-10 mb-8 text-center transition-all duration-500 ease-out"
+        className="relative z-10 mb-8 text-center transition-all duration-g3-slow ease-out"
         style={{
           opacity: mounted ? 1 : 0,
           transform: mounted ? 'translateY(0)' : 'translateY(20px)',
@@ -701,7 +701,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
           return (
             <div
               key={stage.title}
-              className={`cursor-pointer rounded-2xl border bg-white/90 p-4 transition-all duration-300 ease-out ${stage.bgColor}`}
+              className={`cursor-pointer rounded-card border bg-white/90 p-4 transition-all duration-g3-normal ease-out ${stage.bgColor}`}
               style={{
                 opacity: mounted ? 1 : 0,
                 transform: mounted
@@ -721,7 +721,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
             >
               <div className="flex items-start gap-3">
                 <div
-                  className={`rounded-xl p-2 text-white transition-transform duration-300 ${stage.accentColor}`}
+                  className={`rounded-card p-2 text-white transition-transform duration-g3-normal ${stage.accentColor}`}
                   style={{
                     transform: isHovered ? 'scale(1.1) rotate(-3deg)' : 'scale(1) rotate(0)',
                   }}
@@ -743,7 +743,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
                   </p>
 
                   <div
-                    className="overflow-hidden transition-all duration-300 ease-out"
+                    className="overflow-hidden transition-all duration-g3-normal ease-out"
                     style={{
                       maxHeight: isHovered ? '100px' : '0px',
                       opacity: isHovered ? 1 : 0,
@@ -770,7 +770,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
       </div>
 
       <div
-        className="relative z-10 flex animate-bounce cursor-pointer flex-col items-center gap-1 text-gray-400 transition-opacity duration-500"
+        className="relative z-10 flex animate-bounce cursor-pointer flex-col items-center gap-1 text-gray-400 transition-opacity duration-g3-slow"
         style={{ opacity: mounted ? 1 : 0, transitionDelay: '500ms' }}
         onClick={() => {
           setIsExiting(true);
@@ -1211,7 +1211,7 @@ export default function AboutDataFlow() {
             {mode === 'idle' && (
               <button
                 onClick={startDemo}
-                className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
+                className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
               >
                 <Play size={18} />
                 启动演示
@@ -1221,13 +1221,13 @@ export default function AboutDataFlow() {
               <>
                 <button
                   onClick={stopDemo}
-                  className="rounded-lg border border-gray-200 bg-white p-2 transition-colors hover:bg-gray-50"
+                  className="rounded-button border border-gray-200 bg-white p-2 transition-colors hover:bg-gray-50"
                 >
                   <Pause size={20} />
                 </button>
                 <button
                   onClick={simulateDataFlow}
-                  className="rounded-lg border border-gray-200 bg-white p-2 transition-colors hover:bg-gray-50"
+                  className="rounded-button border border-gray-200 bg-white p-2 transition-colors hover:bg-gray-50"
                 >
                   <ArrowClockwise size={20} />
                 </button>
@@ -1236,7 +1236,7 @@ export default function AboutDataFlow() {
             {mode === 'live' && (
               <button
                 onClick={stopLiveMode}
-                className="flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
+                className="flex items-center gap-2 rounded-button bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
               >
                 <Pause size={18} />
                 停止监听
@@ -1247,7 +1247,7 @@ export default function AboutDataFlow() {
 
         {/* Empty State */}
         {mode === 'idle' && !currentFrame && (
-          <div className="rounded-3xl border border-white/60 bg-white/85 p-12 shadow-lg ring-1 ring-black/[0.03]">
+          <div className="rounded-3xl border border-white/60 bg-white/85 p-12 shadow-elevated ring-1 ring-black/[0.03]">
             <div className="flex flex-col items-center justify-center text-center">
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
                 <BookOpen size={40} className="text-blue-500" />
@@ -1260,14 +1260,14 @@ export default function AboutDataFlow() {
               <div className="mb-6 flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={startDemo}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-blue-500 px-6 py-3 text-white transition-colors hover:bg-blue-600"
+                  className="flex items-center justify-center gap-2 rounded-button bg-blue-500 px-6 py-3 text-white transition-colors hover:bg-blue-600"
                 >
                   <Play size={20} />
                   启动演示模式
                 </button>
                 <a
                   href="/learn"
-                  className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-6 py-3 text-gray-700 transition-colors hover:bg-gray-50"
+                  className="flex items-center justify-center gap-2 rounded-button border border-gray-200 px-6 py-3 text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   <GraduationCap size={20} />
                   去学习
@@ -1278,7 +1278,7 @@ export default function AboutDataFlow() {
                   <input
                     type="email"
                     placeholder="输入用户邮箱启动实时监听"
-                    className="flex-1 rounded-lg border border-gray-200 px-4 py-2 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                    className="flex-1 rounded-button border border-gray-200 px-4 py-2 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         const input = e.currentTarget.value.trim();
@@ -1293,7 +1293,7 @@ export default function AboutDataFlow() {
                       )?.value.trim();
                       if (input) startLiveMode(input);
                     }}
-                    className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
+                    className="flex items-center gap-2 rounded-button bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
                   >
                     <WifiHigh size={18} />
                     实时监听
@@ -1303,7 +1303,7 @@ export default function AboutDataFlow() {
                   输入要监听的用户邮箱，当该用户学习时数据会实时显示
                 </p>
               </div>
-              <div className="mt-8 max-w-lg rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="mt-8 max-w-lg rounded-button border border-green-200 bg-green-50 p-4">
                 <div className="flex items-start gap-3">
                   <Info size={20} className="mt-0.5 flex-shrink-0 text-green-600" />
                   <div className="text-left text-sm text-green-800">
@@ -1322,7 +1322,7 @@ export default function AboutDataFlow() {
         {/* Pipeline - only show when has data */}
         {(mode !== 'idle' || currentFrame) && (
           <>
-            <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-8 shadow-xl ring-1 ring-black/[0.03]">
+            <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-8 shadow-floating ring-1 ring-black/[0.03]">
               {/* Ambient Particles - CSS animated */}
               <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-3xl">
                 {ambientParticles.map((p) => (
@@ -1428,7 +1428,7 @@ export default function AboutDataFlow() {
                             : '0 2px 8px -2px rgba(0,0,0,0.06)',
                         }}
                         transition={CARD_SPRING}
-                        className={`relative rounded-2xl border p-5 transition-colors ${
+                        className={`relative rounded-card border p-5 transition-colors ${
                           isActive
                             ? `bg-white/95 ${c.border} ring-2 ring-offset-2 ring-offset-slate-50 ${c.ring}`
                             : 'border-white/70 bg-white/80 hover:bg-white/90'
@@ -1437,7 +1437,7 @@ export default function AboutDataFlow() {
                         {isActive && (
                           <>
                             <motion.div
-                              className="absolute inset-0 rounded-2xl"
+                              className="absolute inset-0 rounded-card"
                               initial={{ opacity: 0 }}
                               animate={{ opacity: [0.06, 0.12, 0.06] }}
                               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
@@ -1454,7 +1454,7 @@ export default function AboutDataFlow() {
                         )}
                         <div className="relative z-10">
                           <div className="mb-3 flex items-center gap-2.5">
-                            <div className={`rounded-xl p-2.5 ${c.bg} shadow-inner`}>
+                            <div className={`rounded-card p-2.5 ${c.bg} shadow-inner`}>
                               <layer.icon size={22} className={c.icon} />
                             </div>
                             <div>
@@ -1563,7 +1563,7 @@ export default function AboutDataFlow() {
             {/* Bottom Panels */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Algorithm Weights */}
-              <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
+              <div className="rounded-card border border-white/60 bg-white/85 p-6 shadow-elevated ring-1 ring-black/[0.03]">
                 <div className="mb-6 flex items-center gap-2">
                   <Lightning size={20} className="text-amber-500" />
                   <h2 className="font-bold text-gray-900">算法集成权重</h2>
@@ -1573,7 +1573,7 @@ export default function AboutDataFlow() {
                   {ALGORITHMS.map((algo) => (
                     <div
                       key={algo.id}
-                      className="flex items-center gap-2 rounded-lg bg-gray-50 p-2"
+                      className="flex items-center gap-2 rounded-button bg-gray-50 p-2"
                     >
                       <div
                         className="h-3 w-3 rounded-full"
@@ -1589,7 +1589,7 @@ export default function AboutDataFlow() {
               </div>
 
               {/* User State Gauges */}
-              <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
+              <div className="rounded-card border border-white/60 bg-white/85 p-6 shadow-elevated ring-1 ring-black/[0.03]">
                 <div className="mb-4 flex items-center gap-2">
                   <Speedometer size={20} className="text-blue-500" />
                   <h2 className="font-bold text-gray-900">用户状态</h2>
@@ -1619,19 +1619,19 @@ export default function AboutDataFlow() {
                     <div className="border-t border-gray-100 pt-4">
                       <div className="mb-3 text-center text-xs text-gray-500">疲劳分解</div>
                       <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-lg bg-red-50 p-2 text-center">
+                        <div className="rounded-button bg-red-50 p-2 text-center">
                           <div className="text-lg font-bold text-red-700">
                             {Math.round((currentFrame.state.fatigue ?? 0) * 100)}%
                           </div>
                           <div className="text-xs text-red-600">行为疲劳</div>
                         </div>
-                        <div className="rounded-lg bg-rose-50 p-2 text-center">
+                        <div className="rounded-button bg-rose-50 p-2 text-center">
                           <div className="text-lg font-bold text-rose-700">
                             {Math.round((currentFrame.state.visualFatigue ?? 0) * 100)}%
                           </div>
                           <div className="text-xs text-rose-600">视觉疲劳</div>
                         </div>
-                        <div className="rounded-lg bg-orange-50 p-2 text-center">
+                        <div className="rounded-button bg-orange-50 p-2 text-center">
                           <div className="text-lg font-bold text-orange-700">
                             {Math.round(
                               (currentFrame.state.fusedFatigue ?? currentFrame.state.fatigue) * 100,
@@ -1645,19 +1645,19 @@ export default function AboutDataFlow() {
                     <div className="border-t border-gray-100 pt-4">
                       <div className="mb-3 text-center text-xs text-gray-500">认知档案</div>
                       <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-lg bg-purple-50 p-2 text-center">
+                        <div className="rounded-button bg-purple-50 p-2 text-center">
                           <div className="text-lg font-bold text-purple-700">
                             {Math.round(currentFrame.state.cognitive.mem * 100)}%
                           </div>
                           <div className="text-xs text-purple-600">记忆</div>
                         </div>
-                        <div className="rounded-lg bg-cyan-50 p-2 text-center">
+                        <div className="rounded-button bg-cyan-50 p-2 text-center">
                           <div className="text-lg font-bold text-cyan-700">
                             {Math.round(currentFrame.state.cognitive.speed * 100)}%
                           </div>
                           <div className="text-xs text-cyan-600">速度</div>
                         </div>
-                        <div className="rounded-lg bg-green-50 p-2 text-center">
+                        <div className="rounded-button bg-green-50 p-2 text-center">
                           <div className="text-lg font-bold text-green-700">
                             {Math.round(currentFrame.state.cognitive.stability * 100)}%
                           </div>
@@ -1670,7 +1670,7 @@ export default function AboutDataFlow() {
               </div>
 
               {/* Trend Lines */}
-              <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
+              <div className="rounded-card border border-white/60 bg-white/85 p-6 shadow-elevated ring-1 ring-black/[0.03]">
                 <div className="mb-6 flex items-center gap-2">
                   <TrendUp size={20} className="text-emerald-500" />
                   <h2 className="font-bold text-gray-900">状态趋势</h2>
@@ -1690,7 +1690,7 @@ export default function AboutDataFlow() {
                   </div>
                 </div>
                 {currentFrame && (
-                  <div className="mt-6 rounded-lg bg-gray-50 p-3">
+                  <div className="mt-6 rounded-button bg-gray-50 p-3">
                     <div className="mb-2 flex items-center gap-2">
                       <Clock size={16} className="text-gray-400" />
                       <span className="text-xs text-gray-500">最近奖励</span>
@@ -1708,7 +1708,7 @@ export default function AboutDataFlow() {
             </div>
 
             {/* Modeling Algorithms Panel */}
-            <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
+            <div className="rounded-card border border-white/60 bg-white/85 p-6 shadow-elevated ring-1 ring-black/[0.03]">
               <div className="mb-4 flex items-center gap-2">
                 <Brain size={20} className="text-purple-500" />
                 <h2 className="font-bold text-gray-900">建模层算法</h2>
@@ -1742,7 +1742,7 @@ export default function AboutDataFlow() {
                     return (
                       <div
                         key={algo.id}
-                        className="rounded-xl border border-gray-100 bg-gray-50 p-3"
+                        className="rounded-card border border-gray-100 bg-gray-50 p-3"
                       >
                         <div className="flex items-center justify-between">
                           <div className="text-sm font-medium text-gray-900">{algo.name}</div>
@@ -1768,7 +1768,7 @@ export default function AboutDataFlow() {
             </div>
 
             {/* Event Log */}
-            <div className="rounded-2xl border border-white/60 bg-white/85 p-6 shadow-lg ring-1 ring-black/[0.03]">
+            <div className="rounded-card border border-white/60 bg-white/85 p-6 shadow-elevated ring-1 ring-black/[0.03]">
               <div className="mb-4 flex items-center gap-2">
                 <Pulse size={20} className="text-purple-500" />
                 <h2 className="font-bold text-gray-900">事件日志</h2>
@@ -1781,7 +1781,7 @@ export default function AboutDataFlow() {
                       key={frame.id}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className={`flex-shrink-0 rounded-lg border p-3 ${frame.rawEvent.isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+                      className={`flex-shrink-0 rounded-button border p-3 ${frame.rawEvent.isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
                     >
                       <div className="text-xs text-gray-500">
                         {new Date(frame.timestamp).toLocaleTimeString()}

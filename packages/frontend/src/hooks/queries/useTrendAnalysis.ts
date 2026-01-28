@@ -1,12 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '../../lib/queryKeys';
 import { apiClient } from '../../services/client';
-import type {
-  TrendInfo,
-  TrendHistoryItem,
-  TrendReport,
-  InterventionResult,
-} from '../../types/amas-enhanced';
+import type { TrendInfo, TrendReport, InterventionResult } from '../../types/amas-enhanced';
 
 /**
  * 趋势分析查询键

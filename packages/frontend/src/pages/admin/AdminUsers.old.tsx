@@ -47,6 +47,7 @@ export default function AdminUsers() {
     }
     isSearchChangeRef.current = false;
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search]);
 
   const loadUsers = async () => {

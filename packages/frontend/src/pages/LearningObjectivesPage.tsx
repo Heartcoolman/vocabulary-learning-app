@@ -122,7 +122,7 @@ export const LearningObjectivesPage: React.FC = () => {
         (response as { data?: LearningObjectives }).data || (response as LearningObjectives);
       setObjectives(data);
       showSuccessMessage(`已切换到${MODE_CONFIGS[mode].label}`);
-    } catch (_err) {
+    } catch {
       setError('切换模式失败');
     } finally {
       setSaving(false);
@@ -152,7 +152,7 @@ export const LearningObjectivesPage: React.FC = () => {
       await ApiClient.updateLearningObjectives(objectives);
       showSuccessMessage('配置已保存');
       setError(null);
-    } catch (_err) {
+    } catch {
       setError('保存失败');
     } finally {
       setSaving(false);

@@ -368,6 +368,7 @@ export default function TrendReportPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDays]);
 
   const loadData = async () => {

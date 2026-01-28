@@ -7,7 +7,6 @@ import {
   Clock,
   Star,
   Warning,
-  CircleNotch,
   ChartBar,
   Sparkle,
   Coffee,

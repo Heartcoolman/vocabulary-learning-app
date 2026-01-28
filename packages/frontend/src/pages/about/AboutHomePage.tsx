@@ -82,21 +82,21 @@ function StageCard({
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/40 bg-white/60 p-8 shadow-xl shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
+      className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/40 bg-white/60 p-8 shadow-floating shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
     >
       <div
         aria-hidden="true"
-        className={`absolute -right-12 -top-12 h-40 w-40 rounded-full ${bgColor} blur-3xl transition-transform duration-500 group-hover:scale-125 motion-reduce:transition-none`}
+        className={`absolute -right-12 -top-12 h-40 w-40 rounded-full ${bgColor} blur-3xl transition-transform duration-g3-slow group-hover:scale-125 motion-reduce:transition-none`}
       />
       <div
         aria-hidden="true"
-        className={`absolute -bottom-8 -left-8 h-32 w-32 rounded-full ${bgColor} opacity-50 blur-2xl transition-transform duration-500 group-hover:scale-125 motion-reduce:transition-none`}
+        className={`absolute -bottom-8 -left-8 h-32 w-32 rounded-full ${bgColor} opacity-50 blur-2xl transition-transform duration-g3-slow group-hover:scale-125 motion-reduce:transition-none`}
       />
 
       <div className="relative z-10 mb-6 flex items-start justify-between">
         <div
           aria-hidden="true"
-          className={`flex h-16 w-16 items-center justify-center rounded-2xl ${bgColor} text-slate-700 shadow-sm ring-1 ring-white/50 transition-colors group-hover:bg-white group-hover:text-blue-600 dark:text-slate-300 dark:ring-slate-600/50 dark:group-hover:bg-slate-700 dark:group-hover:text-blue-400`}
+          className={`flex h-16 w-16 items-center justify-center rounded-card ${bgColor} text-slate-700 shadow-soft ring-1 ring-white/50 transition-colors group-hover:bg-white group-hover:text-blue-600 dark:text-slate-300 dark:ring-slate-600/50 dark:group-hover:bg-slate-700 dark:group-hover:text-blue-400`}
         >
           {icon}
         </div>

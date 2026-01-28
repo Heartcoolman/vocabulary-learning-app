@@ -95,7 +95,7 @@ pub async fn verify_request_token_cached(
     }
 
     let pool = proxy.pool();
-    let user = verify_with_postgres(&pool, &claims.user_id, &token_hash).await?;
+    let user = verify_with_postgres(pool, &claims.user_id, &token_hash).await?;
 
     if let Some(cache) = cache {
         cache.set(&cache_key, &user, SESSION_TTL).await;

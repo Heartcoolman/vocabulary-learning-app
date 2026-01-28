@@ -254,8 +254,7 @@ async fn get_trace(
     let limit = query
         .limit
         .unwrap_or(DEFAULT_TRACE_LIMIT)
-        .max(1)
-        .min(MAX_TRACE_LIMIT);
+        .clamp(1, MAX_TRACE_LIMIT);
     let trace = select_review_trace(proxy.as_ref(), &user.id, word_id.trim(), limit).await?;
 
     Ok(Json(SuccessResponse {

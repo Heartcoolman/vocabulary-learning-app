@@ -23,9 +23,15 @@ vi.mock('../../../services/client', () => ({
   apiClient: mockApiClient,
 }));
 
+import type { ReactNode } from 'react';
+
 vi.mock('framer-motion', () => {
+  interface MotionProps {
+    children?: ReactNode;
+    [key: string]: unknown;
+  }
   const createMotionComponent = (tag: string) => {
-    return ({ children, ...props }: any) => {
+    return ({ children, ...props }: MotionProps) => {
       const Tag = tag as keyof JSX.IntrinsicElements;
       const filteredProps = { ...props };
       delete filteredProps.initial;
@@ -49,7 +55,7 @@ vi.mock('framer-motion', () => {
       h2: createMotionComponent('h2'),
       h3: createMotionComponent('h3'),
     },
-    AnimatePresence: ({ children }: any) => children,
+    AnimatePresence: ({ children }: { children?: ReactNode }) => children,
   };
 });
 

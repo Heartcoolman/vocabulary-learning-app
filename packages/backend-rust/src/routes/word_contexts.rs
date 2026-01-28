@@ -882,7 +882,7 @@ async fn assert_word_accessible(
     word_id: &str,
 ) -> Result<(), AppError> {
     let pool = proxy.pool();
-    let ok = is_word_accessible_pg(&pool, user_id, word_id).await?;
+    let ok = is_word_accessible_pg(pool, user_id, word_id).await?;
 
     if ok {
         Ok(())
@@ -901,7 +901,7 @@ async fn assert_context_accessible(
     context_id: &str,
 ) -> Result<(), AppError> {
     let pool = proxy.pool();
-    let ok = is_context_accessible_pg(&pool, user_id, context_id).await?;
+    let ok = is_context_accessible_pg(pool, user_id, context_id).await?;
 
     if ok {
         Ok(())
@@ -920,7 +920,7 @@ async fn count_accessible_words(
     word_ids: &[String],
 ) -> Result<i64, AppError> {
     let pool = proxy.pool();
-    count_accessible_words_pg(&pool, user_id, word_ids).await
+    count_accessible_words_pg(pool, user_id, word_ids).await
 }
 
 async fn count_accessible_contexts(
@@ -929,7 +929,7 @@ async fn count_accessible_contexts(
     context_ids: &[String],
 ) -> Result<i64, AppError> {
     let pool = proxy.pool();
-    count_accessible_contexts_pg(&pool, user_id, context_ids).await
+    count_accessible_contexts_pg(pool, user_id, context_ids).await
 }
 
 async fn is_word_accessible_pg(
@@ -1068,7 +1068,7 @@ async fn select_context_rows(
     options: &ContextQueryOptions,
 ) -> Result<Vec<ContextRow>, AppError> {
     let pool = proxy.pool();
-    select_context_rows_pg(&pool, word_id, options).await
+    select_context_rows_pg(pool, word_id, options).await
 }
 
 async fn select_context_rows_pg(
@@ -1076,7 +1076,7 @@ async fn select_context_rows_pg(
     word_id: &str,
     options: &ContextQueryOptions,
 ) -> Result<Vec<ContextRow>, AppError> {
-    let sort_order = if options.sort_order.to_ascii_lowercase() == "asc" {
+    let sort_order = if options.sort_order.eq_ignore_ascii_case("asc") {
         "ASC"
     } else {
         "DESC"
@@ -1184,7 +1184,7 @@ async fn select_random_context(
 }
 
 fn sort_contexts_by_metadata(contexts: &mut [ContextRow], field: &str, order: &str) {
-    let asc = order.to_ascii_lowercase() == "asc";
+    let asc = order.eq_ignore_ascii_case("asc");
     contexts.sort_by(|a, b| {
         let va = metadata_number(a.metadata.as_ref(), field);
         let vb = metadata_number(b.metadata.as_ref(), field);

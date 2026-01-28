@@ -6,7 +6,6 @@
  * 支持加载状态和禁用状态
  */
 import React, { forwardRef, memo, ButtonHTMLAttributes, ReactNode } from 'react';
-import { CircleNotch } from '../Icon';
 import { cn, Size } from './utils';
 import { Spinner } from './Spinner';
 
@@ -95,14 +94,6 @@ const iconOnlySizeStyles: Record<Size, string> = {
   xl: 'w-14 h-14',
 };
 
-const iconSizeMap: Record<Size, number> = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 20,
-};
-
 export const Button = memo(
   forwardRef<HTMLButtonElement, ButtonProps>(
     (
@@ -122,7 +113,6 @@ export const Button = memo(
       ref,
     ) => {
       const isDisabled = disabled || loading;
-      const iconSize = iconSizeMap[size];
 
       return (
         <button

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import ProfilePage from '../ProfilePage';
 
 // Mock 导航
@@ -45,6 +45,16 @@ vi.mock('../../services/StorageService', () => ({
   },
 }));
 
+interface ConfirmModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onConfirm?: () => void;
+  title?: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+}
+
 // Mock useToast
 const mockToast = {
   success: vi.fn(),
@@ -57,7 +67,15 @@ vi.mock('../../components/ui', async () => {
   return {
     ...actual,
     useToast: () => mockToast,
-    ConfirmModal: ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText }: any) =>
+    ConfirmModal: ({
+      isOpen,
+      onClose,
+      onConfirm,
+      title,
+      message,
+      confirmText,
+      cancelText,
+    }: ConfirmModalProps) =>
       isOpen ? (
         <div data-testid="confirm-modal">
           <h2>{title}</h2>
@@ -77,7 +95,7 @@ import StorageService from '../../services/StorageService';
 describe('ProfilePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useAuth as any).mockReturnValue({
+    (useAuth as Mock).mockReturnValue({
       user: mockUser,
       logout: mockLogout,
     });
@@ -118,7 +136,7 @@ describe('ProfilePage', () => {
     });
 
     it('should show login prompt when user is not logged in', () => {
-      (useAuth as any).mockReturnValue({
+      (useAuth as Mock).mockReturnValue({
         user: null,
         logout: mockLogout,
       });
@@ -168,7 +186,7 @@ describe('ProfilePage', () => {
 
   describe('Password Change', () => {
     beforeEach(() => {
-      (apiClient.updatePassword as any).mockResolvedValue({});
+      (apiClient.updatePassword as Mock).mockResolvedValue({});
     });
 
     it('should show error when fields are empty', async () => {
@@ -269,7 +287,7 @@ describe('ProfilePage', () => {
 
   describe('Cache Management', () => {
     it('should sync data when clicking refresh cache button', async () => {
-      (StorageService.syncToCloud as any).mockResolvedValue(undefined);
+      (StorageService.syncToCloud as Mock).mockResolvedValue(undefined);
 
       renderComponent();
       fireEvent.click(screen.getByText('数据管理'));
@@ -303,7 +321,7 @@ describe('ProfilePage', () => {
     });
 
     it('should clear cache when confirmed', async () => {
-      (StorageService.deleteDatabase as any).mockResolvedValue(undefined);
+      (StorageService.deleteDatabase as Mock).mockResolvedValue(undefined);
 
       renderComponent();
       fireEvent.click(screen.getByText('数据管理'));
@@ -375,7 +393,7 @@ describe('ProfilePage', () => {
 
   describe('Login Redirect', () => {
     it('should navigate to login page when user is not logged in and clicks login button', () => {
-      (useAuth as any).mockReturnValue({
+      (useAuth as Mock).mockReturnValue({
         user: null,
         logout: mockLogout,
       });

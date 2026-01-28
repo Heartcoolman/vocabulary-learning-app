@@ -350,7 +350,7 @@ describe('aboutApi', () => {
       };
       mockFetch.mockResolvedValueOnce(createMockResponse(mixedDecisions));
 
-      const result = await getRecentDecisions(true);
+      await getRecentDecisions(true);
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/recent-decisions?mixed=true',

@@ -2,7 +2,7 @@
  * MasteryWordItem Component Unit Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MasteryWordItem } from '../MasteryWordItem';
 import apiClient from '../../../services/client';
@@ -12,22 +12,22 @@ import type { MasteryEvaluation } from '../../../types/word-mastery';
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
-  CaretDown: ({ size, className }: any) => (
+  CaretDown: ({ className }: { className?: string }) => (
     <span data-testid="icon-caret-down" className={className}>
       ▼
     </span>
   ),
-  CaretUp: ({ size, className }: any) => (
+  CaretUp: ({ className }: { className?: string }) => (
     <span data-testid="icon-caret-up" className={className}>
       ▲
     </span>
   ),
-  Clock: ({ size, className }: any) => (
+  Clock: ({ className }: { className?: string }) => (
     <span data-testid="icon-clock" className={className}>
       Clock
     </span>
   ),
-  Fire: ({ size, className }: any) => (
+  Fire: ({ className }: { className?: string }) => (
     <span data-testid="icon-fire" className={className}>
       Fire
     </span>
@@ -36,7 +36,7 @@ vi.mock('@phosphor-icons/react', () => ({
 
 // Mock MemoryTraceChart
 vi.mock('./MemoryTraceChart', () => ({
-  MemoryTraceChart: ({ trace }: any) => (
+  MemoryTraceChart: ({ trace }: { trace: unknown[] }) => (
     <div data-testid="memory-trace-chart">MemoryTraceChart: {trace.length} records</div>
   ),
 }));
@@ -109,8 +109,8 @@ const mockIntervalResponse = {
 describe('MasteryWordItem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getWordMasteryTrace as any).mockResolvedValue(mockTraceResponse);
-    (apiClient.getWordMasteryInterval as any).mockResolvedValue(mockIntervalResponse);
+    (apiClient.getWordMasteryTrace as Mock).mockResolvedValue(mockTraceResponse);
+    (apiClient.getWordMasteryInterval as Mock).mockResolvedValue(mockIntervalResponse);
   });
 
   // ==================== Rendering Tests ====================
@@ -412,7 +412,7 @@ describe('MasteryWordItem', () => {
 
   describe('error handling', () => {
     it('should handle API error gracefully', async () => {
-      (apiClient.getWordMasteryTrace as any).mockRejectedValue(new Error('API Error'));
+      (apiClient.getWordMasteryTrace as Mock).mockRejectedValue(new Error('API Error'));
 
       render(
         <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,

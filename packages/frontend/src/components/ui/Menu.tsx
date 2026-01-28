@@ -450,7 +450,7 @@ MenuGroup.displayName = 'MenuGroup';
 /* ========================================
  * MenuDivider 组件 - 分割线
  * ======================================== */
-export interface MenuDividerProps extends HTMLAttributes<HTMLLIElement> {}
+export type MenuDividerProps = HTMLAttributes<HTMLLIElement>;
 
 export const MenuDivider = memo(
   forwardRef<HTMLLIElement, MenuDividerProps>(({ className, ...props }, ref) => {

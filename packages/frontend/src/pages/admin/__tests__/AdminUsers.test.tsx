@@ -84,6 +84,13 @@ vi.mock('@/services/client', () => {
   };
 });
 
+interface ConfirmModalProps {
+  isOpen?: boolean;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  children?: React.ReactNode;
+}
+
 // Mock useToast hook and ConfirmModal
 vi.mock('@/components/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui')>();
@@ -96,7 +103,7 @@ vi.mock('@/components/ui', async (importOriginal) => {
       info: vi.fn(),
       showToast: vi.fn(),
     }),
-    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: ConfirmModalProps) =>
       isOpen ? (
         <div data-testid="confirm-modal">
           {children}

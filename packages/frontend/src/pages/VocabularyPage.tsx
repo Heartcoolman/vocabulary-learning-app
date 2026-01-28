@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Word, WordBook } from '../types/models';
-import { Books, MagnifyingGlass, X, User, Target, Shuffle, ArrowRight } from '../components/Icon';
+import { WordBook } from '../types/models';
+import { Books, MagnifyingGlass, X, User, Shuffle, ArrowRight } from '../components/Icon';
 import { useToast, Modal, Spinner } from '../components/ui';
 import { ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
@@ -24,9 +24,6 @@ import { buildSeedWords } from '../utils/learningSeed';
 
 type ViewMode = 'wordbooks' | 'themes';
 
-// 搜索结果类型
-type SearchResult = Word & { wordBook?: { id: string; name: string; type: string } };
-
 /**
  * VocabularyPage - 词库管理页面（重构为词书列表）
  */
@@ -34,7 +31,7 @@ export default function VocabularyPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'system' | 'user'>('system');
-  const [viewMode, setViewMode] = useState<ViewMode>('wordbooks');
+  const [viewMode] = useState<ViewMode>('wordbooks');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newBookName, setNewBookName] = useState('');
   const [newBookDesc, setNewBookDesc] = useState('');

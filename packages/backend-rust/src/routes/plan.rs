@@ -120,7 +120,7 @@ async fn generate_plan(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     if let Some(target_days) = payload.target_days {
-        if target_days < 1 || target_days > 365 {
+        if !(1..=365).contains(&target_days) {
             return Err(json_error(
                 StatusCode::BAD_REQUEST,
                 "BAD_REQUEST",
@@ -130,7 +130,7 @@ async fn generate_plan(
     }
 
     if let Some(daily_target) = payload.daily_target {
-        if daily_target < 1 || daily_target > 200 {
+        if !(1..=200).contains(&daily_target) {
             return Err(json_error(
                 StatusCode::BAD_REQUEST,
                 "BAD_REQUEST",
@@ -610,7 +610,7 @@ async fn fetch_progress_metrics(
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-    let total_completed = count_learned_words(&pool, user_id).await?;
+    let total_completed = count_learned_words(pool, user_id).await?;
 
     Ok((completed_today, weekly_completed, total_completed))
 }

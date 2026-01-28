@@ -28,7 +28,7 @@ impl ExperimentStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "RUNNING" => Self::Running,
             "PAUSED" => Self::Paused,
@@ -56,7 +56,7 @@ impl TrafficAllocation {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "EVEN" => Self::Even,
             "DYNAMIC" => Self::Dynamic,
@@ -194,7 +194,7 @@ pub async fn create_experiment(
     let experiment_id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now();
     let now_str = now.to_rfc3339();
-    let traffic_allocation = TrafficAllocation::from_str(&input.traffic_allocation);
+    let traffic_allocation = TrafficAllocation::parse(&input.traffic_allocation);
 
     let pool = proxy.pool();
 

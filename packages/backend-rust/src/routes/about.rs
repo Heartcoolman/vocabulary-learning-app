@@ -535,7 +535,7 @@ async fn simulate_batch(
         let word_idx = ((seed >> 16) % 50) + 1;
         let word_id = format!("word_{:03}", word_idx);
         let dwell_time = response_time + 500 + ((seed >> 24) % 1500) as i64;
-        let hint_used = (seed >> 32) % 10 == 0;
+        let hint_used = (seed >> 32).is_multiple_of(10);
         let pause_count = ((seed >> 40) % 3) as i32;
         let rt_cv = 0.1 + ((seed >> 48) % 40) as f64 / 100.0;
         let recent_accuracy = 0.5 + ((seed >> 52) % 40) as f64 / 100.0;
@@ -1213,7 +1213,7 @@ async fn stats_recent_decisions(
             .await
             .unwrap_or_default()
             .iter()
-            .map(|r| decision_record_to_recent(r))
+            .map(decision_record_to_recent)
             .collect()
     } else {
         Vec::new()
@@ -2042,10 +2042,8 @@ async fn probe_delayed_reward_health(pool: &sqlx::PgPool) -> ModuleHealthStatus 
         Ok(Some((done, pending))) => {
             let status = if done > 0 || pending < 100 {
                 "healthy"
-            } else if pending >= 100 {
-                "warning" // Queue backlog
             } else {
-                "warning"
+                "warning" // Queue backlog or no activity
             };
             ModuleHealthStatus {
                 enabled: true,

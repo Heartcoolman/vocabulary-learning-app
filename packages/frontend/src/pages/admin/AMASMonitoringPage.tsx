@@ -8,7 +8,6 @@ import {
   ChartLine,
   Clock,
   Lightning,
-  CircleNotch,
   CaretDown,
   CaretUp,
 } from '../../components/Icon';
@@ -16,7 +15,6 @@ import { useToast, Spinner } from '../../components/ui';
 import apiClient from '../../services/client';
 import type {
   AMASMonitoringOverview,
-  AMASAggregatesResponse,
   AMASAggregate15m,
   AMASAggregateDaily,
   AMASHealthReport,

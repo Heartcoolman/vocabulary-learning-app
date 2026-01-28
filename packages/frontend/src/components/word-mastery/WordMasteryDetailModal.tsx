@@ -245,7 +245,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               </div>
 
               {data.mastery.suggestion && (
-                <div className="mt-6 rounded-xl bg-blue-50 p-4 dark:bg-blue-900/30">
+                <div className="mt-6 rounded-card bg-blue-50 p-4 dark:bg-blue-900/30">
                   <p className="text-sm text-blue-700 dark:text-blue-300">
                     {data.mastery.suggestion}
                   </p>
@@ -253,7 +253,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               )}
 
               {data.mastery.fatigueWarning && (
-                <div className="mt-4 rounded-xl bg-amber-50 p-4 dark:bg-amber-900/30">
+                <div className="mt-4 rounded-card bg-amber-50 p-4 dark:bg-amber-900/30">
                   <p className="text-sm text-amber-700 dark:text-amber-300">
                     {data.mastery.fatigueWarning}
                   </p>

@@ -34,7 +34,7 @@ vi.mock('../../../hooks/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../hooks/queries')>();
   return {
     ...actual,
-    useConfigHistory: (...args: any[]) => mockUseConfigHistory(...args),
+    useConfigHistory: (...args: unknown[]) => mockUseConfigHistory(...args),
   };
 });
 

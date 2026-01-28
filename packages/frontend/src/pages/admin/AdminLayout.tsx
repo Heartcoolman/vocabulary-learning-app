@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Gear,
   Clock,
-  CircleNotch,
   FileText,
   Bell,
   Target,
@@ -24,7 +23,6 @@ import {
   Queue,
   Heartbeat,
 } from '../../components/Icon';
-import { useToast } from '../../components/ui';
 
 function VersionDisplay() {
   const { data: versionInfo } = useSystemVersion();

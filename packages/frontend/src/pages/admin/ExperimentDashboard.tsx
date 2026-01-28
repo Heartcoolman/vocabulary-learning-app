@@ -688,14 +688,14 @@ const ExperimentDetail = ({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) {
-      const err = e as Error;
-      adminLogger.error({ err: e }, '导出实验数据失败');
+    } catch (_e) {
+      adminLogger.error({ err: _e }, '导出实验数据失败');
     }
   };
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [experimentId]);
 
   if (loading) {

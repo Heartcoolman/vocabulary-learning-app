@@ -314,15 +314,12 @@ impl EventBus {
         let mut sent_count = 0usize;
 
         for (_, subscriber) in subscribers.iter() {
-            if subscriber.matches(&envelope) {
-                match subscriber.sender.send(envelope.clone()) {
-                    Ok(_) => sent_count += 1,
-                    Err(_) => {}
-                }
+            if subscriber.matches(&envelope) && subscriber.sender.send(envelope.clone()).is_ok() {
+                sent_count += 1;
             }
         }
 
-        if let Err(_) = self.global_sender.send(envelope.clone()) {
+        if self.global_sender.send(envelope.clone()).is_err() {
             debug!("No global subscribers for event");
         }
 

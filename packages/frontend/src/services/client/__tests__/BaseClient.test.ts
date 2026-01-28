@@ -3,7 +3,7 @@
  * 测试 API 客户端基类的核心功能
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { BaseClient, ApiError, ApiResponse } from '../base/BaseClient';
+import { BaseClient, ApiError } from '../base/BaseClient';
 import TokenManager from '../base/TokenManager';
 
 // 创建一个具体的测试类继承 BaseClient
