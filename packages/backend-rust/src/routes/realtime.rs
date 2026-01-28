@@ -441,7 +441,16 @@ async fn user_stream(
     Path(target_user_id): Path<String>,
     Query(query): Query<StreamQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, _user) = require_user(&state, &headers, query.token.clone()).await?;
+    let (_proxy, user) = require_user(&state, &headers, query.token.clone()).await?;
+
+    // Security: Only allow users to access their own stream, or admins to access any stream
+    if user.id != target_user_id && user.role != "ADMIN" {
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "无权访问其他用户的实时流",
+        ));
+    }
 
     let allowed = allowed_event_types();
     let event_types = query.event_types.as_ref().map(|raw| {
