@@ -66,6 +66,14 @@ export default defineConfig({
         text: '更新日志',
         items: [{ text: '变更记录', link: '/CHANGELOG' }],
       },
+      {
+        text: '关于',
+        items: [
+          { text: '关于我们', link: '/ABOUT' },
+          { text: '隐私政策', link: '/PRIVACY' },
+          { text: '服务条款', link: '/TERMS' },
+        ],
+      },
     ],
 
     socialLinks: [

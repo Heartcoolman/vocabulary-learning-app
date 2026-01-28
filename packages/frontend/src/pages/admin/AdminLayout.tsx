@@ -22,6 +22,7 @@ import {
   Sparkle,
   Queue,
   Heartbeat,
+  Activity,
 } from '../../components/Icon';
 
 function VersionDisplay() {
@@ -72,6 +73,7 @@ export default function AdminLayout() {
     { path: '/admin/llm-advisor', label: 'LLM 顾问', icon: Robot },
     { path: '/admin/llm-tasks', label: 'LLM 任务', icon: Queue },
     { path: '/admin/amas-monitoring', label: 'AMAS 监控', icon: Heartbeat },
+    { path: '/admin/workflow-monitor', label: '工作流监控', icon: Activity },
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
     { path: '/admin/weekly-report', label: '运营周报', icon: ChartLine },
     { path: '/admin/broadcasts', label: '广播通知', icon: Bell },

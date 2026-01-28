@@ -10,6 +10,7 @@ import RegisterPage from '../pages/RegisterPage';
 const ForbiddenPage = lazy(() => import('../pages/ForbiddenPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage'));
+const HomePage = lazy(() => import('../pages/HomePage'));
 
 // eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -21,6 +22,15 @@ const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
  * 无需登录即可访问的页面
  */
 export const publicRoutes: AppRoute[] = [
+  {
+    path: '/',
+    element: (
+      <LazyWrapper>
+        <HomePage />
+      </LazyWrapper>
+    ),
+    meta: { title: '首页', requireAuth: false },
+  },
   {
     path: '/login',
     element: <LoginPage />,

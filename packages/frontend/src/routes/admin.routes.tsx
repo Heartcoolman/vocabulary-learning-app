@@ -27,6 +27,7 @@ const LLMTasksPage = lazy(() => import('../pages/admin/LLMTasksPage'));
 const AMASMonitoringPage = lazy(() => import('../pages/admin/AMASMonitoringPage'));
 const SystemSettingsPage = lazy(() => import('../pages/admin/SystemSettingsPage'));
 const BroadcastPage = lazy(() => import('../pages/admin/BroadcastPage'));
+const WorkflowMonitorPage = lazy(() => import('../pages/admin/WorkflowMonitorPage'));
 
 /**
  * 懒加载包装组件
@@ -237,6 +238,15 @@ const adminChildren: AppRoute[] = [
       </LazyWrapper>
     ),
     meta: { title: '广播管理', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'workflow-monitor',
+    element: (
+      <LazyWrapper>
+        <WorkflowMonitorPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '工作流监控', requireAuth: true, requireAdmin: true },
   },
 ];
 

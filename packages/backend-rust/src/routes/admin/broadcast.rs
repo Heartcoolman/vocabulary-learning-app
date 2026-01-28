@@ -4,9 +4,11 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 
 use crate::db::operations::broadcast as broadcast_ops;
 use crate::response::json_error;
+use crate::routes::realtime;
 use crate::services::admin_auth::AdminAuthUser;
 use crate::services::broadcast::{self, BroadcastError, CreateBroadcastRequest};
 use crate::state::AppState;
@@ -15,6 +17,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", post(create_broadcast).get(list_broadcasts))
         .route("/online-stats", get(get_online_stats))
+        .route("/online-users", get(get_online_users))
         .route("/audit", get(list_audit_logs))
         .route("/:id", get(get_broadcast))
 }
@@ -150,6 +153,102 @@ async fn get_online_stats() -> Response {
     Json(SuccessResponse {
         success: true,
         data: stats,
+    })
+    .into_response()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OnlineUsersQuery {
+    page: Option<i64>,
+    limit: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OnlineUserDetail {
+    user_id: String,
+    email: String,
+    name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OnlineUsersPagination {
+    total: usize,
+    page: usize,
+    limit: usize,
+    total_pages: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OnlineUsersResponse {
+    success: bool,
+    data: Vec<OnlineUserDetail>,
+    pagination: OnlineUsersPagination,
+}
+
+async fn get_online_users(
+    State(state): State<AppState>,
+    Query(query): Query<OnlineUsersQuery>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    let page = query.page.unwrap_or(1).max(1) as usize;
+    let limit = query.limit.unwrap_or(20).clamp(1, 100) as usize;
+    let mut online_ids = realtime::get_online_user_ids_async().await;
+    online_ids.sort();
+    let total = online_ids.len();
+    let total_pages = (total + limit - 1) / limit.max(1);
+    let offset = (page.saturating_sub(1)).saturating_mul(limit);
+
+    let page_ids: Vec<String> = online_ids.into_iter().skip(offset).take(limit).collect();
+
+    if page_ids.is_empty() {
+        return Json(OnlineUsersResponse {
+            success: true,
+            data: Vec::new(),
+            pagination: OnlineUsersPagination { total, page, limit, total_pages },
+        })
+        .into_response();
+    }
+
+    let rows = match sqlx::query(
+        r#"SELECT "id", "email", "username" FROM "users" WHERE "id" = ANY($1) ORDER BY array_position($1, "id")"#,
+    )
+    .bind(&page_ids)
+    .fetch_all(proxy.pool())
+    .await
+    {
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!(error = %e, "fetch online users failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "LIST_FAILED", "查询失败")
+                .into_response();
+        }
+    };
+
+    let users: Vec<OnlineUserDetail> = rows
+        .into_iter()
+        .map(|row| OnlineUserDetail {
+            user_id: row.try_get("id").unwrap_or_default(),
+            email: row.try_get("email").unwrap_or_default(),
+            name: row.try_get("username").ok(),
+        })
+        .collect();
+
+    Json(OnlineUsersResponse {
+        success: true,
+        data: users,
+        pagination: OnlineUsersPagination { total, page, limit, total_pages },
     })
     .into_response()
 }
