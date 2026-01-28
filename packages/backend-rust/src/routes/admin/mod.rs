@@ -29,7 +29,10 @@ mod users;
 mod version;
 mod wordbooks;
 
-pub use auth::{protected_router as auth_protected_router, public_router as auth_public_router, require_admin_auth};
+pub use auth::{
+    protected_router as auth_protected_router, public_router as auth_public_router,
+    require_admin_auth,
+};
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {

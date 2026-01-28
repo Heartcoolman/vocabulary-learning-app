@@ -498,26 +498,21 @@ pub async fn get_insight_by_id(proxy: &DatabaseProxy, id: &str) -> Result<Option
 
 fn build_segment_filter(segment: Option<&str>) -> String {
     match segment {
-        Some("new") => {
-            r#"WHERE u."createdAt" >= NOW() - INTERVAL '7 days'"#.to_string()
-        }
-        Some("active") => {
-            r#"WHERE EXISTS (
+        Some("new") => r#"WHERE u."createdAt" >= NOW() - INTERVAL '7 days'"#.to_string(),
+        Some("active") => r#"WHERE EXISTS (
                 SELECT 1 FROM "answer_records" ar2
                 WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
-            )"#.to_string()
-        }
-        Some("at_risk") => {
-            r#"WHERE NOT EXISTS (
+            )"#
+        .to_string(),
+        Some("at_risk") => r#"WHERE NOT EXISTS (
                 SELECT 1 FROM "answer_records" ar2
                 WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '14 days'
             ) AND EXISTS (
                 SELECT 1 FROM "answer_records" ar3
                 WHERE ar3."userId" = u."id" AND ar3."timestamp" >= NOW() - INTERVAL '30 days'
-            )"#.to_string()
-        }
-        Some("returning") => {
-            r#"WHERE EXISTS (
+            )"#
+        .to_string(),
+        Some("returning") => r#"WHERE EXISTS (
                 SELECT 1 FROM "answer_records" ar2
                 WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
             ) AND NOT EXISTS (
@@ -525,8 +520,8 @@ fn build_segment_filter(segment: Option<&str>) -> String {
                 WHERE ar3."userId" = u."id"
                 AND ar3."timestamp" >= NOW() - INTERVAL '21 days'
                 AND ar3."timestamp" < NOW() - INTERVAL '7 days'
-            )"#.to_string()
-        }
+            )"#
+        .to_string(),
         _ => String::new(),
     }
 }
@@ -534,23 +529,20 @@ fn build_segment_filter(segment: Option<&str>) -> String {
 fn build_segment_filter_for_user(segment: Option<&str>) -> String {
     match segment {
         Some("new") => r#"u."createdAt" >= NOW() - INTERVAL '7 days'"#.to_string(),
-        Some("active") => {
-            r#"EXISTS (
+        Some("active") => r#"EXISTS (
                 SELECT 1 FROM "answer_records" ar2
                 WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
-            )"#.to_string()
-        }
-        Some("at_risk") => {
-            r#"NOT EXISTS (
+            )"#
+        .to_string(),
+        Some("at_risk") => r#"NOT EXISTS (
                 SELECT 1 FROM "answer_records" ar2
                 WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '14 days'
             ) AND EXISTS (
                 SELECT 1 FROM "answer_records" ar3
                 WHERE ar3."userId" = u."id" AND ar3."timestamp" >= NOW() - INTERVAL '30 days'
-            )"#.to_string()
-        }
-        Some("returning") => {
-            r#"EXISTS (
+            )"#
+        .to_string(),
+        Some("returning") => r#"EXISTS (
                 SELECT 1 FROM "answer_records" ar2
                 WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
             ) AND NOT EXISTS (
@@ -558,8 +550,8 @@ fn build_segment_filter_for_user(segment: Option<&str>) -> String {
                 WHERE ar3."userId" = u."id"
                 AND ar3."timestamp" >= NOW() - INTERVAL '21 days'
                 AND ar3."timestamp" < NOW() - INTERVAL '7 days'
-            )"#.to_string()
-        }
+            )"#
+        .to_string(),
         _ => "TRUE".to_string(),
     }
 }

@@ -276,13 +276,11 @@ fn is_retryable(status: reqwest::StatusCode) -> bool {
 }
 
 async fn db_setting(proxy: &DatabaseProxy, key: &str) -> Option<String> {
-    sqlx::query_scalar::<_, String>(
-        r#"SELECT "value" FROM "system_settings" WHERE "key" = $1"#,
-    )
-    .bind(key)
-    .fetch_optional(proxy.pool())
-    .await
-    .ok()
-    .flatten()
-    .filter(|v| !v.trim().is_empty())
+    sqlx::query_scalar::<_, String>(r#"SELECT "value" FROM "system_settings" WHERE "key" = $1"#)
+        .bind(key)
+        .fetch_optional(proxy.pool())
+        .await
+        .ok()
+        .flatten()
+        .filter(|v| !v.trim().is_empty())
 }

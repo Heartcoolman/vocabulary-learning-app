@@ -228,9 +228,7 @@ pub async fn find_similar_words(
         .collect())
 }
 
-pub async fn get_embedding_stats(
-    proxy: &DatabaseProxy,
-) -> Result<(i64, i64), sqlx::Error> {
+pub async fn get_embedding_stats(proxy: &DatabaseProxy) -> Result<(i64, i64), sqlx::Error> {
     let row = sqlx::query(
         r#"
         SELECT

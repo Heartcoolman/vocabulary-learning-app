@@ -368,7 +368,12 @@ async fn export_logs(State(state): State<AppState>, Query(query): Query<ExportQu
     let levels: Vec<&str> = query
         .level
         .as_ref()
-        .map(|l| l.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect())
+        .map(|l| {
+            l.split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
 
     if !levels.is_empty() {
@@ -410,8 +415,12 @@ async fn export_logs(State(state): State<AppState>, Query(query): Query<ExportQu
     let rows = match q.fetch_all(pg).await {
         Ok(r) => r,
         Err(e) => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string())
-                .into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                &e.to_string(),
+            )
+            .into_response();
         }
     };
 

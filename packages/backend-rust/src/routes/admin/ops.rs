@@ -669,11 +669,19 @@ async fn get_segments(State(state): State<AppState>) -> Response {
     };
 
     match segment_classifier::get_multidimensional_segment_analysis(&proxy).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(e) => {
             tracing::warn!(error = %e, "segment analysis query failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", "分群分析查询失败")
-                .into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_FAILED",
+                "分群分析查询失败",
+            )
+            .into_response()
         }
     }
 }
@@ -706,11 +714,19 @@ async fn get_retention(
     let cohort_days = query.cohort_days.unwrap_or(30).clamp(7, 90);
 
     match segment_classifier::calculate_retention(&proxy, period_type, cohort_days).await {
-        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
         Err(e) => {
             tracing::warn!(error = %e, "retention calculation failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", "留存率计算失败")
-                .into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_FAILED",
+                "留存率计算失败",
+            )
+            .into_response()
         }
     }
 }

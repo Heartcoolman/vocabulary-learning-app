@@ -868,21 +868,33 @@ pub async fn upload_avatar(State(state): State<AppState>, req: Request<Body>) ->
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")
-            .into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                .into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     if body_bytes.len() > MAX_AVATAR_SIZE {
-        return json_error(StatusCode::BAD_REQUEST, "FILE_TOO_LARGE", "文件大小不能超过2MB")
-            .into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "FILE_TOO_LARGE",
+            "文件大小不能超过2MB",
+        )
+        .into_response();
     }
 
     let content_type = parts
@@ -896,16 +908,25 @@ pub async fn upload_avatar(State(state): State<AppState>, req: Request<Body>) ->
         "image/png" => "png",
         "image/webp" => "webp",
         _ => {
-            return json_error(StatusCode::BAD_REQUEST, "INVALID_FORMAT", "仅支持 jpg/png/webp 格式")
-                .into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "INVALID_FORMAT",
+                "仅支持 jpg/png/webp 格式",
+            )
+            .into_response();
         }
     };
 
-    let upload_dir = std::env::var("AVATAR_UPLOAD_DIR").unwrap_or_else(|_| "./uploads/avatars".to_string());
+    let upload_dir =
+        std::env::var("AVATAR_UPLOAD_DIR").unwrap_or_else(|_| "./uploads/avatars".to_string());
     if let Err(e) = std::fs::create_dir_all(&upload_dir) {
         tracing::error!(error = %e, "Failed to create avatar upload directory");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误")
-            .into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let filename = format!("{}.{}", auth_user.id, ext);
@@ -913,26 +934,33 @@ pub async fn upload_avatar(State(state): State<AppState>, req: Request<Body>) ->
 
     if let Err(e) = std::fs::write(&file_path, &body_bytes) {
         tracing::error!(error = %e, "Failed to write avatar file");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误")
-            .into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let avatar_url = format!("/uploads/avatars/{}", filename);
 
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
-    if let Err(e) = sqlx::query(
-        r#"UPDATE "users" SET "avatarUrl" = $1, "updatedAt" = $2 WHERE "id" = $3"#,
-    )
-    .bind(&avatar_url)
-    .bind(now)
-    .bind(&auth_user.id)
-    .execute(pool)
-    .await
+    if let Err(e) =
+        sqlx::query(r#"UPDATE "users" SET "avatarUrl" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
+            .bind(&avatar_url)
+            .bind(now)
+            .bind(&auth_user.id)
+            .execute(pool)
+            .await
     {
         tracing::error!(error = %e, "Failed to update avatar url in database");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误")
-            .into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     Json(serde_json::json!({

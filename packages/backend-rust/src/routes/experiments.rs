@@ -477,15 +477,26 @@ async fn export_experiment(
     match format {
         "csv" => {
             let mut csv_content = String::new();
-            csv_content.push_str("variant_id,variant_name,is_control,sample_count,average_reward,std_dev,weight\n");
+            csv_content.push_str(
+                "variant_id,variant_name,is_control,sample_count,average_reward,std_dev,weight\n",
+            );
             for variant in &experiment.variants {
-                let metrics = experiment.metrics.iter().find(|m| m.variant_id == variant.id);
+                let metrics = experiment
+                    .metrics
+                    .iter()
+                    .find(|m| m.variant_id == variant.id);
                 let (sample_count, avg_reward, std_dev) = metrics
                     .map(|m| (m.sample_count, m.average_reward, m.std_dev))
                     .unwrap_or((0, 0.0, 0.0));
                 csv_content.push_str(&format!(
                     "{},{},{},{},{:.6},{:.6},{:.4}\n",
-                    variant.id, variant.name, variant.is_control, sample_count, avg_reward, std_dev, variant.weight
+                    variant.id,
+                    variant.name,
+                    variant.is_control,
+                    sample_count,
+                    avg_reward,
+                    std_dev,
+                    variant.weight
                 ));
             }
             csv_content.push_str(&format!("\n# Experiment: {}\n", experiment.name));
@@ -497,10 +508,16 @@ async fn export_experiment(
             csv_content.push_str(&format!("# Exported At: {}\n", exported_at));
 
             Ok((
-                [(axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8"),
-                 (axum::http::header::CONTENT_DISPOSITION, &format!("attachment; filename=\"experiment-{}.csv\"", experiment_id))],
+                [
+                    (axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+                    (
+                        axum::http::header::CONTENT_DISPOSITION,
+                        &format!("attachment; filename=\"experiment-{}.csv\"", experiment_id),
+                    ),
+                ],
                 csv_content,
-            ).into_response())
+            )
+                .into_response())
         }
         _ => {
             let export_data = ExportDataDto {
@@ -511,7 +528,8 @@ async fn export_experiment(
             Ok(Json(SuccessResponse {
                 success: true,
                 data: export_data,
-            }).into_response())
+            })
+            .into_response())
         }
     }
 }

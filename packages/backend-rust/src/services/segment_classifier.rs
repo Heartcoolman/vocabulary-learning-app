@@ -58,7 +58,9 @@ pub async fn classify_user(
         return Ok(UserSegment::New);
     };
 
-    let created_at: NaiveDateTime = row.try_get("created_at").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("created_at")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let total_records: i64 = row.try_get("total_records").unwrap_or(0);
     let last_activity_ms: Option<i64> = row.try_get("last_activity").ok();
     let study_days_7d: i64 = row.try_get("study_days_7d").unwrap_or(0);
@@ -316,9 +318,21 @@ pub async fn get_multidimensional_segment_analysis(
     }
 
     let mut counts: HashMap<SegmentKey, i64> = HashMap::new();
-    let mut prof_summary = DimensionSummary { high: 0, medium: 0, low: 0 };
-    let mut pace_summary = DimensionSummary { high: 0, medium: 0, low: 0 };
-    let mut act_summary = DimensionSummary { high: 0, medium: 0, low: 0 };
+    let mut prof_summary = DimensionSummary {
+        high: 0,
+        medium: 0,
+        low: 0,
+    };
+    let mut pace_summary = DimensionSummary {
+        high: 0,
+        medium: 0,
+        low: 0,
+    };
+    let mut act_summary = DimensionSummary {
+        high: 0,
+        medium: 0,
+        low: 0,
+    };
     let mut qualified_users = 0i64;
 
     for row in rows {
@@ -354,19 +368,39 @@ pub async fn get_multidimensional_segment_analysis(
             ActivityLevel::Low => act_summary.low += 1,
         }
 
-        let key = SegmentKey { proficiency, learning_pace, activity };
+        let key = SegmentKey {
+            proficiency,
+            learning_pace,
+            activity,
+        };
         *counts.entry(key).or_insert(0) += 1;
     }
 
-    let proficiency_levels = [ProficiencyLevel::High, ProficiencyLevel::Medium, ProficiencyLevel::Low];
-    let learning_pace_levels = [LearningPaceLevel::High, LearningPaceLevel::Medium, LearningPaceLevel::Low];
-    let activity_levels = [ActivityLevel::High, ActivityLevel::Medium, ActivityLevel::Low];
+    let proficiency_levels = [
+        ProficiencyLevel::High,
+        ProficiencyLevel::Medium,
+        ProficiencyLevel::Low,
+    ];
+    let learning_pace_levels = [
+        LearningPaceLevel::High,
+        LearningPaceLevel::Medium,
+        LearningPaceLevel::Low,
+    ];
+    let activity_levels = [
+        ActivityLevel::High,
+        ActivityLevel::Medium,
+        ActivityLevel::Low,
+    ];
 
     let mut segments = Vec::with_capacity(27);
     for &proficiency in &proficiency_levels {
         for &learning_pace in &learning_pace_levels {
             for &activity in &activity_levels {
-                let key = SegmentKey { proficiency, learning_pace, activity };
+                let key = SegmentKey {
+                    proficiency,
+                    learning_pace,
+                    activity,
+                };
                 let count = *counts.get(&key).unwrap_or(&0);
                 segments.push(SegmentCombinationCount {
                     proficiency,

@@ -220,7 +220,9 @@ impl EmailService {
             let html_body = html_body.to_string();
 
             move || {
-                send_smtp_sync(&host, port, &user, &password, &from, &to, &subject, &html_body)
+                send_smtp_sync(
+                    &host, port, &user, &password, &from, &to, &subject, &html_body,
+                )
             }
         })
         .await
@@ -255,7 +257,9 @@ fn send_smtp_sync(
     macro_rules! read_response {
         () => {{
             use std::io::Read;
-            let n = stream.read(&mut buf).map_err(|e| EmailError::Smtp(e.to_string()))?;
+            let n = stream
+                .read(&mut buf)
+                .map_err(|e| EmailError::Smtp(e.to_string()))?;
             String::from_utf8_lossy(&buf[..n]).to_string()
         }};
     }

@@ -15,7 +15,9 @@ const DEFAULT_MIN_COVERAGE: f64 = 0.5;
 const MIN_CLUSTER_SIZE: usize = 3;
 const MAX_CLUSTER_SIZE: usize = 50;
 
-pub async fn run_clustering_cycle(db: Arc<DatabaseProxy>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn run_clustering_cycle(
+    db: Arc<DatabaseProxy>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Clustering cycle started");
 
     let min_coverage: f64 = std::env::var("CLUSTERING_MIN_COVERAGE")
@@ -76,14 +78,12 @@ pub async fn run_clustering_cycle(db: Arc<DatabaseProxy>) -> Result<(), Box<dyn 
 
     let mut tx = db.pool().begin().await?;
 
-    let deleted = sqlx::query(
-        r#"DELETE FROM "word_clusters" WHERE "model" = $1 AND "dim" = $2"#,
-    )
-    .bind(model)
-    .bind(dim)
-    .execute(&mut *tx)
-    .await?
-    .rows_affected();
+    let deleted = sqlx::query(r#"DELETE FROM "word_clusters" WHERE "model" = $1 AND "dim" = $2"#)
+        .bind(model)
+        .bind(dim)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
 
     info!(deleted = deleted, "Cleared old clusters");
 

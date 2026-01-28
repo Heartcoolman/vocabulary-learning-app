@@ -59,14 +59,18 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginRequest>)
             expires_at: result.expires_at,
         })
         .into_response(),
-        Err(AdminAuthError::InvalidCredentials) => {
-            json_error(StatusCode::UNAUTHORIZED, "INVALID_CREDENTIALS", "邮箱或密码错误")
-                .into_response()
-        }
-        Err(e) => {
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "LOGIN_FAILED", &e.to_string())
-                .into_response()
-        }
+        Err(AdminAuthError::InvalidCredentials) => json_error(
+            StatusCode::UNAUTHORIZED,
+            "INVALID_CREDENTIALS",
+            "邮箱或密码错误",
+        )
+        .into_response(),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "LOGIN_FAILED",
+            &e.to_string(),
+        )
+        .into_response(),
     }
 }
 
@@ -98,10 +102,12 @@ async fn logout(State(state): State<AppState>, req: Request<Body>) -> Response {
             message: "登出成功",
         })
         .into_response(),
-        Err(e) => {
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "LOGOUT_FAILED", &e.to_string())
-                .into_response()
-        }
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "LOGOUT_FAILED",
+            &e.to_string(),
+        )
+        .into_response(),
     }
 }
 
@@ -190,8 +196,12 @@ async fn create_admin_user(
     };
 
     if payload.email.is_empty() || payload.password.is_empty() || payload.username.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "INVALID_INPUT", "邮箱、密码和用户名不能为空")
-            .into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "INVALID_INPUT",
+            "邮箱、密码和用户名不能为空",
+        )
+        .into_response();
     }
 
     match admin_ops::find_admin_by_email(proxy.as_ref(), &payload.email).await {

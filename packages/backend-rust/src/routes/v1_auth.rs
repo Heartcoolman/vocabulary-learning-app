@@ -189,12 +189,11 @@ pub async fn request_password_reset(
         return success_reset_response();
     }
 
-    let user_id = match crate::db::operations::user::get_user_id_by_email(proxy.as_ref(), &email)
-        .await
-    {
-        Ok(Some(id)) => id,
-        _ => return success_reset_response(),
-    };
+    let user_id =
+        match crate::db::operations::user::get_user_id_by_email(proxy.as_ref(), &email).await {
+            Ok(Some(id)) => id,
+            _ => return success_reset_response(),
+        };
 
     if let Ok(Some(last_request)) =
         crate::db::operations::user::get_last_reset_request_time(proxy.as_ref(), &user_id).await

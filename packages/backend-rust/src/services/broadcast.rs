@@ -179,9 +179,7 @@ async fn resolve_target_users(
             }
             Ok(vec![])
         }
-        "group" => {
-            Ok(vec![])
-        }
+        "group" => Ok(vec![]),
         _ => Err(BroadcastError::InvalidTarget(target.to_string())),
     }
 }

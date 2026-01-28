@@ -81,8 +81,12 @@ pub async fn find_admin_by_email(
     .await?;
 
     Ok(row.map(|r| {
-        let created_at: NaiveDateTime = r.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let updated_at: NaiveDateTime = r.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let created_at: NaiveDateTime = r
+            .try_get("createdAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
+        let updated_at: NaiveDateTime = r
+            .try_get("updatedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let last_login_at: Option<NaiveDateTime> = r.try_get("lastLoginAt").ok();
         let password_hash: String = r.try_get("passwordHash").unwrap_or_default();
 
@@ -118,8 +122,12 @@ pub async fn find_admin_by_id(
     .await?;
 
     Ok(row.map(|r| {
-        let created_at: NaiveDateTime = r.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let updated_at: NaiveDateTime = r.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let created_at: NaiveDateTime = r
+            .try_get("createdAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
+        let updated_at: NaiveDateTime = r
+            .try_get("updatedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let last_login_at: Option<NaiveDateTime> = r.try_get("lastLoginAt").ok();
 
         AdminUser {
@@ -138,13 +146,11 @@ pub async fn update_admin_last_login(
     proxy: &DatabaseProxy,
     admin_id: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"UPDATE "admin_users" SET "lastLoginAt" = $2 WHERE "id" = $1"#,
-    )
-    .bind(admin_id)
-    .bind(Utc::now().naive_utc())
-    .execute(proxy.pool())
-    .await?;
+    sqlx::query(r#"UPDATE "admin_users" SET "lastLoginAt" = $2 WHERE "id" = $1"#)
+        .bind(admin_id)
+        .bind(Utc::now().naive_utc())
+        .execute(proxy.pool())
+        .await?;
     Ok(())
 }
 
@@ -204,13 +210,19 @@ pub async fn verify_admin_session(
         return Ok(None);
     };
 
-    let expires_at: NaiveDateTime = row.try_get("expiresAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let expires_at: NaiveDateTime = row
+        .try_get("expiresAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     if expires_at < Utc::now().naive_utc() {
         return Ok(None);
     }
 
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let last_login_at: Option<NaiveDateTime> = row.try_get("lastLoginAt").ok();
 
     Ok(Some(AdminUser {

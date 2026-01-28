@@ -90,12 +90,11 @@ pub async fn update_for_word(
     .await?;
 
     // Get word's wordbook
-    let word_book_id: Option<String> = sqlx::query_scalar(
-        r#"SELECT "wordBookId" FROM "words" WHERE "id" = $1"#,
-    )
-    .bind(word_id)
-    .fetch_optional(db.pool())
-    .await?;
+    let word_book_id: Option<String> =
+        sqlx::query_scalar(r#"SELECT "wordBookId" FROM "words" WHERE "id" = $1"#)
+            .bind(word_id)
+            .fetch_optional(db.pool())
+            .await?;
 
     let word_book_id = match word_book_id {
         Some(id) => id,
@@ -203,11 +202,9 @@ async fn fetch_confusion_pairs(
 async fn build_word_cluster_map(
     db: &DatabaseProxy,
 ) -> Result<HashMap<String, Vec<String>>, sqlx::Error> {
-    let rows = sqlx::query(
-        r#"SELECT "id", "wordIds" FROM "word_clusters""#,
-    )
-    .fetch_all(db.pool())
-    .await?;
+    let rows = sqlx::query(r#"SELECT "id", "wordIds" FROM "word_clusters""#)
+        .fetch_all(db.pool())
+        .await?;
 
     let mut map: HashMap<String, Vec<String>> = HashMap::new();
 

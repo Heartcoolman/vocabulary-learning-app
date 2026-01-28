@@ -38,8 +38,7 @@ pub async fn process_pending_embeddings(
     let mut failed = 0usize;
 
     for batch in items.chunks(BATCH_SIZE) {
-        let (inputs, hashes): (Vec<_>, Vec<_>) =
-            batch.iter().map(build_input_and_hash).unzip();
+        let (inputs, hashes): (Vec<_>, Vec<_>) = batch.iter().map(build_input_and_hash).unzip();
 
         let vectors = match embedder.embed_texts(&inputs).await {
             Ok(v) => v,
@@ -51,7 +50,11 @@ pub async fn process_pending_embeddings(
         };
 
         if vectors.len() != batch.len() {
-            error!(expected = batch.len(), actual = vectors.len(), "Batch size mismatch");
+            error!(
+                expected = batch.len(),
+                actual = vectors.len(),
+                "Batch size mismatch"
+            );
             failed += batch.len();
             continue;
         }

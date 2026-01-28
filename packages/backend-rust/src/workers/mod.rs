@@ -375,8 +375,8 @@ impl WorkerManager {
             .unwrap_or(false);
 
         if enable_embedding {
-            let schedule = std::env::var("EMBEDDING_SCHEDULE")
-                .unwrap_or_else(|_| "0 */5 * * * *".to_string());
+            let schedule =
+                std::env::var("EMBEDDING_SCHEDULE").unwrap_or_else(|_| "0 */5 * * * *".to_string());
             let db = Arc::clone(&self.db_proxy);
             let shutdown_rx = self.shutdown_tx.subscribe();
             let job = Job::new_async(&schedule, move |_uuid, _lock| {
@@ -404,8 +404,8 @@ impl WorkerManager {
             .unwrap_or(false);
 
         if enable_clustering {
-            let schedule = std::env::var("CLUSTERING_SCHEDULE")
-                .unwrap_or_else(|_| "0 0 4 * * 0".to_string());
+            let schedule =
+                std::env::var("CLUSTERING_SCHEDULE").unwrap_or_else(|_| "0 0 4 * * 0".to_string());
             let db = Arc::clone(&self.db_proxy);
             let shutdown_rx = self.shutdown_tx.subscribe();
             let job = Job::new_async(&schedule, move |_uuid, _lock| {

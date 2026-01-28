@@ -553,12 +553,10 @@ pub fn router(state: AppState) -> Router {
 
     app = app.nest("/api/about", about::router());
     // Admin auth routes: public (login/logout) + protected (me/users)
-    let admin_auth_router = admin::auth_public_router().merge(
-        admin::auth_protected_router().layer(middleware::from_fn_with_state(
-            middleware_state.clone(),
-            admin::require_admin_auth,
-        )),
-    );
+    let admin_auth_router =
+        admin::auth_public_router().merge(admin::auth_protected_router().layer(
+            middleware::from_fn_with_state(middleware_state.clone(), admin::require_admin_auth),
+        ));
     app = app.nest("/api/admin/auth", admin_auth_router);
     // Admin protected routes (all other admin endpoints)
     app = app.nest(

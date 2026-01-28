@@ -275,7 +275,9 @@ async fn run_migrate_admins() {
         let email: String = row.try_get("email").unwrap_or_default();
         let password_hash: String = row.try_get("passwordHash").unwrap_or_default();
         let username: String = row.try_get("username").unwrap_or_default();
-        let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+        let created_at: chrono::NaiveDateTime = row
+            .try_get("createdAt")
+            .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
 
         let admin_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now().naive_utc();
@@ -311,5 +313,8 @@ async fn run_migrate_admins() {
         }
     }
 
-    println!("Migration complete: {} migrated, {} skipped", migrated, skipped);
+    println!(
+        "Migration complete: {} migrated, {} skipped",
+        migrated, skipped
+    );
 }

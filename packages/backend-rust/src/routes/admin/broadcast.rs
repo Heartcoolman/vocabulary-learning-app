@@ -45,10 +45,12 @@ async fn create_broadcast(
             data: result,
         })
         .into_response(),
-        Err(BroadcastError::InvalidTarget(t)) => {
-            json_error(StatusCode::BAD_REQUEST, "INVALID_TARGET", &format!("无效目标: {}", t))
-                .into_response()
-        }
+        Err(BroadcastError::InvalidTarget(t)) => json_error(
+            StatusCode::BAD_REQUEST,
+            "INVALID_TARGET",
+            &format!("无效目标: {}", t),
+        )
+        .into_response(),
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "BROADCAST_FAILED",
@@ -133,9 +135,7 @@ async fn get_broadcast(State(state): State<AppState>, Path(id): Path<String>) ->
             data: b,
         })
         .into_response(),
-        Ok(None) => {
-            json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "广播不存在").into_response()
-        }
+        Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "广播不存在").into_response(),
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "GET_FAILED",

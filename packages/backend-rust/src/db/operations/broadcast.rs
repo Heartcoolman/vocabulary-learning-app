@@ -170,7 +170,9 @@ pub async fn list_broadcasts(
     let broadcasts = rows
         .into_iter()
         .map(|row| {
-            let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+            let created_at: NaiveDateTime = row
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
             let expires_at: Option<NaiveDateTime> = row.try_get("expiresAt").ok();
 
             Broadcast {
@@ -204,7 +206,9 @@ pub async fn get_broadcast_by_id(
         .await?;
 
     Ok(row.map(|row| {
-        let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let created_at: NaiveDateTime = row
+            .try_get("createdAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let expires_at: Option<NaiveDateTime> = row.try_get("expiresAt").ok();
 
         Broadcast {
@@ -297,7 +301,9 @@ pub async fn list_audit_logs(
     Ok(rows
         .into_iter()
         .map(|row| {
-            let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+            let created_at: NaiveDateTime = row
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
             BroadcastAuditLog {
                 id: row.try_get("id").unwrap_or_default(),
                 broadcast_id: row.try_get("broadcastId").unwrap_or_default(),

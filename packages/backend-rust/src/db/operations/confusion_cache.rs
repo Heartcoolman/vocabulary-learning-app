@@ -61,10 +61,7 @@ pub async fn insert_confusion_pair(
     Ok(id)
 }
 
-pub async fn delete_by_word_id(
-    proxy: &DatabaseProxy,
-    word_id: &str,
-) -> Result<u64, sqlx::Error> {
+pub async fn delete_by_word_id(proxy: &DatabaseProxy, word_id: &str) -> Result<u64, sqlx::Error> {
     let result = sqlx::query(
         r#"
         DELETE FROM "confusion_pairs_cache"

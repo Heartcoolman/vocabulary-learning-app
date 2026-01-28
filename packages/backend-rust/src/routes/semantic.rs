@@ -16,15 +16,15 @@ use crate::db::operations::confusion_cache::{
     find_by_cluster, find_by_wordbook, get_cache_stats, get_cluster_confusion_counts,
 };
 use crate::db::operations::content::get_words_by_ids;
-use crate::workers::confusion_cache::rebuild_confusion_cache;
 use crate::db::operations::embeddings::{
-    find_similar_words, get_embedding_stats, get_word_embedding, semantic_search_words,
-    select_words_missing_embeddings, upsert_word_embedding,
+    find_similar_words, get_embedding_stats, get_word_embedding, select_words_missing_embeddings,
+    semantic_search_words, upsert_word_embedding,
 };
 use crate::db::DatabaseProxy;
 use crate::response::{json_error, AppError};
 use crate::services::embedding_provider::EmbeddingProvider;
 use crate::state::AppState;
+use crate::workers::confusion_cache::rebuild_confusion_cache;
 
 #[derive(Debug, Serialize)]
 struct SuccessResponse<T> {
@@ -205,11 +205,7 @@ async fn search(
 
     let query_embedding = embedder.embed_text(&payload.query).await.map_err(|e| {
         tracing::warn!(error = %e, "Embedding generation failed");
-        json_error(
-            StatusCode::BAD_GATEWAY,
-            "EMBEDDING_ERROR",
-            "向量生成失败",
-        )
+        json_error(StatusCode::BAD_GATEWAY, "EMBEDDING_ERROR", "向量生成失败")
     })?;
 
     let results = semantic_search_words(
@@ -559,7 +555,11 @@ async fn confusion_pairs(
 
     let threshold = payload.threshold.unwrap_or(0.15).clamp(0.05, 0.3);
     let page = payload.page.unwrap_or(1).max(1);
-    let page_size = payload.page_size.or(payload.limit).unwrap_or(20).clamp(1, 100);
+    let page_size = payload
+        .page_size
+        .or(payload.limit)
+        .unwrap_or(20)
+        .clamp(1, 100);
     let offset = (page - 1) * page_size;
     let limit = page_size;
 
@@ -853,18 +853,19 @@ async fn cluster_detail(
         )
     })?;
 
-    let cluster = cluster.ok_or_else(|| {
-        json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "聚类不存在")
-    })?;
+    let cluster =
+        cluster.ok_or_else(|| json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "聚类不存在"))?;
 
-    let words = get_words_by_ids(&proxy, &cluster.word_ids).await.map_err(|e| {
-        tracing::warn!(error = %e, "Failed to fetch cluster words");
-        json_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "FETCH_ERROR",
-            "获取聚类单词失败",
-        )
-    })?;
+    let words = get_words_by_ids(&proxy, &cluster.word_ids)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Failed to fetch cluster words");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "FETCH_ERROR",
+                "获取聚类单词失败",
+            )
+        })?;
 
     let word_map: HashMap<String, _> = words.into_iter().map(|w| (w.id.clone(), w)).collect();
 
