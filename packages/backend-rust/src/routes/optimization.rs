@@ -338,7 +338,8 @@ fn params_to_vec(params: &OptimizationParams) -> Vec<f64> {
 }
 
 fn vec_to_params(params: &[f64]) -> OptimizationParams {
-    let interval_scale = params.first()
+    let interval_scale = params
+        .first()
         .copied()
         .unwrap_or(DEFAULT_PARAMS.interval_scale);
     let new_ratio = params.get(1).copied().unwrap_or(DEFAULT_PARAMS.new_ratio);

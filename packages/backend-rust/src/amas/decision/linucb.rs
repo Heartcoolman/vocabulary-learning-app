@@ -123,7 +123,12 @@ impl LinUCBModel {
     fn init_interaction_model(&mut self, interaction_dim: usize) {
         self.interaction_dim = interaction_dim;
         self.interaction_a = vec![vec![0.0; interaction_dim]; interaction_dim];
-        for (i, row) in self.interaction_a.iter_mut().enumerate().take(interaction_dim) {
+        for (i, row) in self
+            .interaction_a
+            .iter_mut()
+            .enumerate()
+            .take(interaction_dim)
+        {
             row[i] = 1.0;
         }
         self.interaction_b = vec![0.0; interaction_dim];

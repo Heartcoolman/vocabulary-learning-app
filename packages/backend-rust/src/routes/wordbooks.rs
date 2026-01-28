@@ -1276,8 +1276,7 @@ async fn select_words_in_word_book_paginated(
 fn get_query_param<'a>(query: &'a str, key: &str) -> Option<&'a str> {
     query.split('&').find_map(|pair| {
         let (k, v) = pair.split_once('=')?;
-        
-        
+
         if k == key {
             Some(v)
         } else {

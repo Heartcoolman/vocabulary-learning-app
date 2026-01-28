@@ -12,7 +12,6 @@ pub enum DifficultyLevel {
     Hard,
 }
 
-
 impl DifficultyLevel {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -50,7 +49,6 @@ pub enum TrendState {
     Down,
 }
 
-
 impl TrendState {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -81,7 +79,6 @@ pub enum UserType {
     Cautious,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
@@ -91,7 +88,6 @@ pub enum ColdStartPhase {
     Explore,
     Normal,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -495,7 +491,6 @@ pub struct DecisionExplanation {
     pub changes: Vec<String>,
     pub text: String,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

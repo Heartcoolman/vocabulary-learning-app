@@ -29,13 +29,11 @@ pub struct SessionInfo {
     pub duration_minutes: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PerformanceTracker {
     pub algorithms: HashMap<String, AlgorithmPerformance>,
     config: PerformanceTrackerConfig,
 }
-
 
 impl PerformanceTracker {
     pub fn new(config: PerformanceTrackerConfig) -> Self {

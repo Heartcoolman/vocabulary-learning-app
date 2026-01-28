@@ -288,7 +288,9 @@ pub async fn get_today_words(
     });
 
     let filtered_due: Vec<DueCandidate> = due_candidates
-        .iter().filter(|&d| d.difficulty >= range.min && d.difficulty <= range.max).cloned()
+        .iter()
+        .filter(|&d| d.difficulty >= range.min && d.difficulty <= range.max)
+        .cloned()
         .collect();
 
     let daily_target = config.daily_word_count.max(0) as usize;
@@ -766,7 +768,9 @@ fn choose_new_words(
         .collect();
 
     let mut filtered: Vec<(StudyWordBase, f64)> = with_difficulty
-        .iter().filter(|&(_, d)| *d >= range.min && *d <= range.max).cloned()
+        .iter()
+        .filter(|&(_, d)| *d >= range.min && *d <= range.max)
+        .cloned()
         .collect();
 
     if filtered.len() < target {

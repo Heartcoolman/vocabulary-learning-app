@@ -227,8 +227,7 @@ pub async fn get_word_etymology(
 
     for row in &rows {
         let morpheme_type_str: String = row.get("type");
-        let morpheme_type =
-            MorphemeType::parse(&morpheme_type_str).unwrap_or(MorphemeType::Root);
+        let morpheme_type = MorphemeType::parse(&morpheme_type_str).unwrap_or(MorphemeType::Root);
         let surface: String = row.get("surface");
         let meaning: Option<String> = row.get("meaning");
         let meaning_zh: Option<String> = row.get("meaningZh");

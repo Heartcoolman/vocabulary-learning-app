@@ -17,7 +17,6 @@ pub enum WordState {
     Mastered,
 }
 
-
 impl WordState {
     pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
@@ -279,9 +278,7 @@ pub async fn get_due_words(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    rows.iter()
-        .map(parse_word_learning_state)
-        .collect()
+    rows.iter().map(parse_word_learning_state).collect()
 }
 
 pub async fn get_words_by_state(
@@ -305,9 +302,7 @@ pub async fn get_words_by_state(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    rows.iter()
-        .map(parse_word_learning_state)
-        .collect()
+    rows.iter().map(parse_word_learning_state).collect()
 }
 
 pub async fn get_word_score(

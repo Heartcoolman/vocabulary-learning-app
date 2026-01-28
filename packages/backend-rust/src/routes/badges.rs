@@ -156,7 +156,9 @@ async fn get_all_badges(
         } else {
             let current = current_value_for_condition(&condition, &stats);
             let pct = if condition.value > 0.0 {
-                ((current / condition.value) * 100.0).round().clamp(0.0, 100.0)
+                ((current / condition.value) * 100.0)
+                    .round()
+                    .clamp(0.0, 100.0)
             } else {
                 0.0
             };
@@ -230,7 +232,9 @@ async fn get_badge_detail(
     } else {
         let current = current_value_for_condition(&condition, &stats);
         let pct = if condition.value > 0.0 {
-            ((current / condition.value) * 100.0).round().clamp(0.0, 100.0)
+            ((current / condition.value) * 100.0)
+                .round()
+                .clamp(0.0, 100.0)
         } else {
             0.0
         };

@@ -159,9 +159,9 @@ impl ColdStartManager {
         if explore_samples >= self.config.min_explore_samples
             && (accuracy >= self.config.explore_high_accuracy
                 || accuracy <= self.config.explore_low_accuracy)
-            {
-                return self.finish_explore(accuracy);
-            }
+        {
+            return self.finish_explore(accuracy);
+        }
 
         if explore_samples >= self.config.explore_samples {
             return self.finish_explore(accuracy);

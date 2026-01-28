@@ -707,7 +707,9 @@ async fn fetch_new_words_in_range(
         .collect();
 
     let mut filtered: Vec<LearningWord> = with_diff
-        .iter().filter(|&w| w.difficulty >= difficulty_range.min && w.difficulty <= difficulty_range.max).cloned()
+        .iter()
+        .filter(|&w| w.difficulty >= difficulty_range.min && w.difficulty <= difficulty_range.max)
+        .cloned()
         .collect();
 
     if filtered.len() < count {
