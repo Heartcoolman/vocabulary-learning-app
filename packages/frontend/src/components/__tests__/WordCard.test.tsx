@@ -2,20 +2,29 @@
  * WordCard Component Unit Tests
  */
 
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import WordCard from '../WordCard';
 
+type MotionDivProps = ComponentPropsWithoutRef<'div'>;
+type MotionButtonProps = ComponentPropsWithoutRef<'button'>;
+type MotionHeadingProps = ComponentPropsWithoutRef<'h2'>;
+type MotionSpanProps = ComponentPropsWithoutRef<'span'>;
+type MotionParagraphProps = ComponentPropsWithoutRef<'p'>;
+type MotionPresenceProps = { children?: ReactNode };
+type IconStarProps = { weight?: string; color?: string };
+
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    h2: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
+    div: ({ children, ...props }: MotionDivProps) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }: MotionButtonProps) => <button {...props}>{children}</button>,
+    h2: ({ children, ...props }: MotionHeadingProps) => <h2 {...props}>{children}</h2>,
+    span: ({ children, ...props }: MotionSpanProps) => <span {...props}>{children}</span>,
+    p: ({ children, ...props }: MotionParagraphProps) => <p {...props}>{children}</p>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: MotionPresenceProps) => <>{children}</>,
 }));
 
 // Mock Icon components
@@ -23,7 +32,7 @@ vi.mock('../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../Icon')>();
   return {
     ...actual,
-    Star: ({ weight, color }: any) => (
+    Star: ({ weight, color }: IconStarProps) => (
       <span data-testid="star" data-weight={weight} data-color={color}>
         ★
       </span>

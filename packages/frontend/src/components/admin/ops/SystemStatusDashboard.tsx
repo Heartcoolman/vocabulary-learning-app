@@ -546,7 +546,8 @@ export const SystemStatusDashboard: React.FC = () => {
     try {
       await Promise.all([fetchHealth(), fetchMetrics()]);
       setLastUpdate(new Date());
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to refresh status dashboard:', error);
       setError('获取数据失败');
     } finally {
       setLoading(false);
