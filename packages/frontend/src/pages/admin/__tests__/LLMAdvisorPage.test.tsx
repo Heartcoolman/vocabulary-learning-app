@@ -509,6 +509,11 @@ describe('LLMAdvisorPage', () => {
     it('should render status filter dropdown', async () => {
       renderWithRouter();
 
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
+      });
+
       await waitFor(() => {
         expect(screen.getByRole('combobox')).toBeInTheDocument();
       });
@@ -517,24 +522,34 @@ describe('LLMAdvisorPage', () => {
     it('should have all status options', async () => {
       renderWithRouter();
 
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
+      });
+
       await waitFor(() => {
         const select = screen.getByRole('combobox');
         expect(select).toBeInTheDocument();
+        expect(select).toHaveTextContent('全部');
       });
-
-      const select = screen.getByRole('combobox');
-      expect(select).toHaveTextContent('全部');
     });
 
     it('should filter suggestions on status change', async () => {
       renderWithRouter();
 
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
+      });
+
       await waitFor(() => {
         expect(screen.getByRole('combobox')).toBeInTheDocument();
       });
 
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: 'approved' } });
+      await waitFor(() => {
+        const select = screen.getByRole('combobox');
+        fireEvent.change(select, { target: { value: 'approved' } });
+      });
 
       await waitFor(() => {
         expect(mockGetSuggestions).toHaveBeenCalledWith({
@@ -774,6 +789,11 @@ describe('LLMAdvisorPage', () => {
       const checkbox = screen.getByRole('checkbox');
       fireEvent.click(checkbox);
 
+      // Wait for approve button to appear with selected count
+      await waitFor(() => {
+        expect(screen.getByText('应用选中项 (1)')).toBeInTheDocument();
+      });
+
       // Click approve button
       const approveButton = screen.getByText('应用选中项 (1)');
       fireEvent.click(approveButton);
@@ -857,6 +877,11 @@ describe('LLMAdvisorPage', () => {
     it('should have refresh button', async () => {
       renderWithRouter();
 
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
+      });
+
       await waitFor(() => {
         expect(screen.getAllByTestId('arrows-clockwise-icon').length).toBeGreaterThan(0);
       });
@@ -864,6 +889,11 @@ describe('LLMAdvisorPage', () => {
 
     it('should reload data on refresh click', async () => {
       renderWithRouter();
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
+      });
 
       await waitFor(() => {
         expect(screen.getAllByTestId('arrows-clockwise-icon').length).toBeGreaterThan(0);
