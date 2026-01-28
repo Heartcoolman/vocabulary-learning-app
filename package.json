@@ -9,6 +9,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
+    "test:e2e": "pnpm exec playwright test tests/e2e --reporter=list,html --pass-with-no-tests",
     "test:1:backend-rust": "cd packages/backend-rust && cargo test",
     "test:4:frontend-components": "pnpm --filter @danci/frontend test:components",
     "test:5:frontend-pages": "pnpm --filter @danci/frontend test:pages",
