@@ -165,7 +165,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <Brain size={24} weight="duotone" className="text-purple-500" />
+          <Brain size={24} className="text-purple-500" />
           决策解释
         </h2>
         <button
@@ -174,7 +174,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
           className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
           title="刷新"
         >
-          <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
+          <ArrowClockwise size={20} className={isLoading ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -186,7 +186,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
       ) : error ? (
         /* 错误状态 */
         <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-          <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={48} color="#ef4444" className="mx-auto mb-4" />
           <p>{error}</p>
         </div>
       ) : explanation ? (
@@ -266,12 +266,12 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
                 {Object.entries(explanation.weights).map(([algo, weight]) => (
                   <div
                     key={algo}
-                    className="flex items-center gap-2 rounded-button bg-indigo-50 px-3 py-2 dark:bg-indigo-900/30"
+                    className="flex items-center gap-2 rounded-button bg-blue-50 px-3 py-2 dark:bg-blue-900/30"
                   >
-                    <span className="text-sm font-medium capitalize text-indigo-700 dark:text-indigo-300">
+                    <span className="text-sm font-medium capitalize text-blue-700 dark:text-blue-300">
                       {algo}
                     </span>
-                    <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">
+                    <span className="text-sm font-bold text-blue-900 dark:text-blue-200">
                       {((weight as number) * 100).toFixed(1)}%
                     </span>
                   </div>

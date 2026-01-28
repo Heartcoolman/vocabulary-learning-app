@@ -20,16 +20,23 @@ vi.mock('react-router-dom', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
+import type { ReactNode } from 'react';
+
+interface MotionProps {
+  children?: ReactNode;
+  [key: string]: unknown;
+}
+
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    h2: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
+    div: ({ children, ...props }: MotionProps) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }: MotionProps) => <button {...props}>{children}</button>,
+    h2: ({ children, ...props }: MotionProps) => <h2 {...props}>{children}</h2>,
+    span: ({ children, ...props }: MotionProps) => <span {...props}>{children}</span>,
+    p: ({ children, ...props }: MotionProps) => <p {...props}>{children}</p>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock Icon components - 使用相对路径 (LearningPage 使用 ../components/Icon)
@@ -39,7 +46,7 @@ vi.mock('../../components/Icon', async (importOriginal) => {
     ...actual,
     Confetti: () => <span data-testid="confetti-icon">confetti</span>,
     Books: () => <span data-testid="books-icon">books</span>,
-    CircleNotch: ({ className }: any) => (
+    CircleNotch: ({ className }: { className?: string }) => (
       <span data-testid="loading-icon" className={className}>
         loading
       </span>
@@ -48,7 +55,7 @@ vi.mock('../../components/Icon', async (importOriginal) => {
     WarningCircle: () => <span data-testid="warning-icon">warning</span>,
     Brain: () => <span data-testid="brain-icon">brain</span>,
     ChartPie: () => <span data-testid="chart-icon">chart</span>,
-    Lightbulb: ({ weight }: any) => (
+    Lightbulb: ({ weight }: { weight?: string }) => (
       <span data-testid="lightbulb-icon" data-weight={weight}>
         lightbulb
       </span>
@@ -74,9 +81,33 @@ vi.mock('../../services/LearningService', () => ({
   },
 }));
 
+interface WordCardProps {
+  word?: { spelling: string };
+  onPronounce?: () => void;
+  isPronouncing?: boolean;
+}
+
+interface TestOptionsProps {
+  options: string[];
+  onSelect: (option: string) => void;
+  showResult?: boolean;
+  selectedAnswer?: string;
+}
+
+interface MasteryProgressProps {
+  progress?: { masteredCount: number; targetCount: number; totalQuestions: number };
+  isCompleted?: boolean;
+  headerActions?: ReactNode;
+}
+
+interface ModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
 // Mock child components - 使用相对路径
 vi.mock('../../components/WordCard', () => ({
-  default: ({ word, onPronounce, isPronouncing }: any) => (
+  default: ({ word, onPronounce, isPronouncing }: WordCardProps) => (
     <div data-testid="word-card">
       <span data-testid="word-spelling">{word?.spelling}</span>
       <button
@@ -91,7 +122,7 @@ vi.mock('../../components/WordCard', () => ({
 }));
 
 vi.mock('../../components/TestOptions', () => ({
-  default: ({ options, onSelect, showResult, selectedAnswer }: any) => (
+  default: ({ options, onSelect, showResult, selectedAnswer }: TestOptionsProps) => (
     <div data-testid="test-options" role="group" aria-label="测试选项">
       {options.map((option: string, index: number) => (
         <button
@@ -109,7 +140,7 @@ vi.mock('../../components/TestOptions', () => ({
 }));
 
 vi.mock('../../components/MasteryProgress', () => ({
-  default: ({ progress, isCompleted, headerActions }: any) => (
+  default: ({ progress, isCompleted, headerActions }: MasteryProgressProps) => (
     <div data-testid="mastery-progress" role="region" aria-label="掌握模式学习进度">
       <span data-testid="mastered-count">{progress?.masteredCount}</span>
       <span data-testid="target-count">{progress?.targetCount}</span>
@@ -122,13 +153,13 @@ vi.mock('../../components/MasteryProgress', () => ({
 
 // Mock components from index barrel file
 vi.mock('../../components', () => ({
-  StatusModal: ({ isOpen, onClose }: any) =>
+  StatusModal: ({ isOpen, onClose }: ModalProps) =>
     isOpen ? (
       <div data-testid="status-modal">
         <button onClick={onClose}>关闭</button>
       </div>
     ) : null,
-  SuggestionModal: ({ isOpen, onClose }: any) =>
+  SuggestionModal: ({ isOpen, onClose }: ModalProps) =>
     isOpen ? (
       <div data-testid="suggestion-modal">
         <button onClick={onClose}>关闭</button>
@@ -141,12 +172,16 @@ vi.mock('../../components/LearningModeSelector', () => ({
 }));
 
 vi.mock('../../components/explainability/ExplainabilityModal', () => ({
-  default: ({ isOpen, onClose }: any) =>
+  default: ({ isOpen, onClose }: ModalProps) =>
     isOpen ? (
       <div data-testid="explainability-modal">
         <button onClick={onClose}>关闭</button>
       </div>
     ) : null,
+}));
+
+vi.mock('../../components/semantic/RelatedWordsPanel', () => ({
+  RelatedWordsPanel: () => null,
 }));
 
 // Mock logger
@@ -644,7 +679,8 @@ describe('LearningPage', () => {
 
       render(<LearningPage />);
 
-      expect(screen.getByText('当前学习策略')).toBeInTheDocument();
+      // Bottom bar shows current word status (new/review)
+      expect(screen.getByText('新词')).toBeInTheDocument();
     });
 
     it('should show analyzing message when no AMAS result', () => {

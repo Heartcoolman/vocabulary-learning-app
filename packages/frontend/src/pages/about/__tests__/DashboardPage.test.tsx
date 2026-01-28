@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import DashboardPage from '../DashboardPage';
 
 // Mock aboutApi
@@ -85,8 +85,12 @@ vi.mock('../../../utils/logger', () => ({
 }));
 
 // Mock DecisionDetailPanel
+interface DecisionDetailPanelProps {
+  decision?: { pseudoId: string; decisionSource: string } | null;
+}
+
 vi.mock('../components/DecisionDetailPanel', () => ({
-  DecisionDetailPanel: ({ decision }: any) => (
+  DecisionDetailPanel: ({ decision }: DecisionDetailPanelProps) => (
     <div data-testid="decision-detail-panel">
       {decision ? (
         <>
@@ -109,9 +113,9 @@ import {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getMixedDecisions as any).mockResolvedValue(mockMixedDecisions);
-    (getDecisionDetail as any).mockResolvedValue(mockDecisionDetail);
-    (subscribeToDecisions as any).mockReturnValue(vi.fn());
+    (getMixedDecisions as Mock).mockResolvedValue(mockMixedDecisions);
+    (getDecisionDetail as Mock).mockResolvedValue(mockDecisionDetail);
+    (subscribeToDecisions as Mock).mockReturnValue(vi.fn());
   });
 
   afterEach(() => {
@@ -294,7 +298,7 @@ describe('DashboardPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (getMixedDecisions as any).mockRejectedValue(new Error('连接失败'));
+      (getMixedDecisions as Mock).mockRejectedValue(new Error('连接失败'));
 
       renderComponent();
 
@@ -304,7 +308,7 @@ describe('DashboardPage', () => {
     });
 
     it('should show error when loading detail fails', async () => {
-      (getDecisionDetail as any).mockRejectedValue(new Error('获取详情失败'));
+      (getDecisionDetail as Mock).mockRejectedValue(new Error('获取详情失败'));
 
       renderComponent();
 
@@ -316,7 +320,7 @@ describe('DashboardPage', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no decisions', async () => {
-      (getMixedDecisions as any).mockResolvedValue({
+      (getMixedDecisions as Mock).mockResolvedValue({
         real: [],
         virtual: [],
       });
@@ -329,7 +333,7 @@ describe('DashboardPage', () => {
     });
 
     it('should show specific empty message for real tab', async () => {
-      (getMixedDecisions as any).mockResolvedValue({
+      (getMixedDecisions as Mock).mockResolvedValue({
         real: [],
         virtual: mockMixedDecisions.virtual,
       });

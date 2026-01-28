@@ -294,7 +294,7 @@ async fn search_words_inner(state: AppState, req: Request<Body>, strict: bool) -
     }
 
     let limit = limit_raw.parse::<i64>().ok().unwrap_or(20);
-    if strict && (limit < 1 || limit > 100) {
+    if strict && !(1..=100).contains(&limit) {
         return json_error(
             StatusCode::BAD_REQUEST,
             "INVALID_LIMIT",

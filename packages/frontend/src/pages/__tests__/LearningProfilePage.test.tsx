@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import LearningProfilePage from '../LearningProfilePage';
 
 // Mock 导航
@@ -56,8 +56,8 @@ import apiClient from '../../services/client';
 describe('LearningProfilePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getChronotypeProfile as any).mockResolvedValue(mockChronotypeData);
-    (apiClient.getLearningStyleProfile as any).mockResolvedValue(mockLearningStyleData);
+    (apiClient.getChronotypeProfile as Mock).mockResolvedValue(mockChronotypeData);
+    (apiClient.getLearningStyleProfile as Mock).mockResolvedValue(mockLearningStyleData);
   });
 
   afterEach(() => {
@@ -162,7 +162,7 @@ describe('LearningProfilePage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (apiClient.getChronotypeProfile as any).mockRejectedValue(new Error('加载失败'));
+      (apiClient.getChronotypeProfile as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -172,7 +172,7 @@ describe('LearningProfilePage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (apiClient.getChronotypeProfile as any).mockRejectedValue(new Error('加载失败'));
+      (apiClient.getChronotypeProfile as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -182,10 +182,10 @@ describe('LearningProfilePage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (apiClient.getChronotypeProfile as any)
+      (apiClient.getChronotypeProfile as Mock)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockChronotypeData);
-      (apiClient.getLearningStyleProfile as any).mockResolvedValue(mockLearningStyleData);
+      (apiClient.getLearningStyleProfile as Mock).mockResolvedValue(mockLearningStyleData);
 
       renderComponent();
 
@@ -203,7 +203,7 @@ describe('LearningProfilePage', () => {
 
   describe('Empty State', () => {
     it('should show data insufficient message when no peak hours', async () => {
-      (apiClient.getChronotypeProfile as any).mockResolvedValue({
+      (apiClient.getChronotypeProfile as Mock).mockResolvedValue({
         ...mockChronotypeData,
         peakHours: [],
       });

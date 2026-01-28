@@ -67,17 +67,21 @@ export interface BatchResult {
 // --- API Client ---
 
 export class WordQualityApi extends BaseClient {
-  protected async get<T>(url: string, params?: Record<string, any>): Promise<T> {
-    const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
+  protected async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+    const query = params
+      ? '?' + new URLSearchParams(params as Record<string, string>).toString()
+      : '';
     return this.request<T>(url + query, { method: 'GET' });
   }
 
-  protected async getFull<T>(url: string, params?: Record<string, any>): Promise<T> {
-    const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
+  protected async getFull<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+    const query = params
+      ? '?' + new URLSearchParams(params as Record<string, string>).toString()
+      : '';
     return this.requestFull<T>(url + query, { method: 'GET' });
   }
 
-  protected async post<T>(url: string, body?: any): Promise<T> {
+  protected async post<T>(url: string, body?: unknown): Promise<T> {
     return this.request<T>(url, {
       method: 'POST',
       body: JSON.stringify(body),
@@ -108,7 +112,7 @@ export class WordQualityApi extends BaseClient {
   ): Promise<{ items: Issue[]; total: number }> {
     const res = await this.getFull<{ success: boolean; data: Issue[]; total: number }>(
       `/api/admin/quality/wordbooks/${wordbookId}/issues`,
-      filters,
+      filters as Record<string, unknown> | undefined,
     );
     return { items: res.data, total: res.total };
   }

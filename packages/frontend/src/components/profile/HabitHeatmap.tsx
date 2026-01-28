@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Info, Moon, SunHorizon, Sun, CloudSun, SunDim, MoonStars } from '@phosphor-icons/react';
+import { Info, Moon, SunHorizon, Sun, CloudSun, SunDim, MoonStars } from '@/components/Icon';
 
 interface HabitHeatmapProps {
   /** 24小时时段数据数组 */
@@ -12,7 +12,7 @@ interface HabitHeatmapProps {
 
 export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, showCard = true }) => {
   // 支持 timePref 作为 data 的别名，向后兼容
-  const timeData = data ?? timePref ?? [];
+  const timeData = useMemo(() => data ?? timePref ?? [], [data, timePref]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -62,12 +62,12 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
   // useMemo 性能优化：时段分组汇总数据
   const timeGroupData = useMemo(() => {
     return [
-      { label: '凌晨', range: [0, 6], Icon: Moon, color: 'text-indigo-500' },
+      { label: '凌晨', range: [0, 6], Icon: Moon, color: 'text-blue-500' },
       { label: '上午', range: [6, 12], Icon: SunHorizon, color: 'text-orange-400' },
       { label: '中午', range: [12, 14], Icon: Sun, color: 'text-yellow-500' },
       { label: '下午', range: [14, 18], Icon: CloudSun, color: 'text-amber-500' },
       { label: '晚上', range: [18, 22], Icon: SunDim, color: 'text-orange-600' },
-      { label: '深夜', range: [22, 24], Icon: MoonStars, color: 'text-indigo-600' },
+      { label: '深夜', range: [22, 24], Icon: MoonStars, color: 'text-blue-600' },
     ].map(({ label, range, Icon, color }) => {
       const sum = timeData.slice(range[0], range[1]).reduce((a, b) => a + b, 0);
       const intensity = sum / maxVal / (range[1] - range[0]);
@@ -171,7 +171,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
                     : 'bg-gray-50 dark:bg-slate-700'
               }`}
             >
-              <Icon size={24} weight="duotone" className={`mx-auto ${color}`} />
+              <Icon size={24} className={`mx-auto ${color}`} />
               <p className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300">{label}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{sum.toFixed(0)}</p>
             </div>

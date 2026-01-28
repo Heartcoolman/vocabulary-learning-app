@@ -13,7 +13,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { wordClient, learningClient } from '../../services/client';
-import type { Word, AnswerRecord } from '../../types/models';
+import type { AnswerRecord } from '../../types/models';
 import { WordImportData } from '../../utils/importParsers';
 
 /**
@@ -227,7 +227,7 @@ export function useBatchImport(options?: {
 
   return useMutation({
     mutationFn: async (params: BatchImportParams): Promise<BatchImportResult> => {
-      const { wordBookId, words, batchSize = 100 } = params;
+      const { wordBookId, words } = params;
 
       options?.onProgress?.({
         progress: 0,

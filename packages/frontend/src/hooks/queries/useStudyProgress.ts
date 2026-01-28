@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult, useQueryClient } from '@tanstack/react-query';
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
 import { apiClient, type StudyProgress } from '../../services/client';

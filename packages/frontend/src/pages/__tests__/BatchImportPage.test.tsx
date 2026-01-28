@@ -15,7 +15,7 @@ vi.mock('react-router-dom', () => ({
 
 // Mock React Query hooks
 const mockUseBatchImport = vi.fn();
-let mockQueryData: any = [];
+let mockQueryData: unknown[] = [];
 let mockQueryLoading = false;
 let mockQueryError: Error | null = null;
 
@@ -33,7 +33,8 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('@/hooks/mutations/useBatchOperations', () => ({
-  useBatchImport: (options: any) => mockUseBatchImport(options),
+  useBatchImport: (options: { onSuccess?: () => void; onError?: () => void }) =>
+    mockUseBatchImport(options),
 }));
 
 vi.mock('@/components', () => ({

@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from '../Icon';
 import { Button } from './Button';
 
@@ -50,7 +51,7 @@ export function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
       <div
@@ -77,10 +78,10 @@ export function Modal({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="rounded-button p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-700 dark:hover:text-gray-200"
+                className="rounded-button p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-slate-700 dark:hover:text-gray-200"
                 aria-label="关闭"
               >
-                <X size={20} weight="bold" />
+                <X size={20} />
               </button>
             )}
           </div>
@@ -89,7 +90,8 @@ export function Modal({
         {/* Body */}
         <div className="p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

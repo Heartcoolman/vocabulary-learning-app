@@ -1,6 +1,6 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Database, Pulse, ArrowRight, Pencil } from '../components/Icon';
+import { User, Lock, Database, Pulse, ArrowRight, Pencil, Camera } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/client';
 import StorageService from '../services/StorageService';
@@ -36,6 +36,11 @@ export default function ProfilePage() {
   // 确认弹窗状态
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [clearCacheConfirm, setClearCacheConfirm] = useState(false);
+
+  // 头像上传状态
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   /**
    * 处理修改密码
@@ -125,6 +130,51 @@ export default function ProfilePage() {
     setEditUsername('');
   };
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('仅支持 JPG、PNG、WebP 格式');
+      return;
+    }
+
+    // 验证文件大小 (最大 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('文件大小不能超过 2MB');
+      return;
+    }
+
+    // 预览
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarPreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // 上传
+    setAvatarLoading(true);
+    try {
+      await apiClient.uploadAvatar(file);
+      await refreshUser();
+      toast.success('头像已更新');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '上传失败');
+      setAvatarPreview(null);
+    } finally {
+      setAvatarLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   /**
    * 手动刷新缓存
    */
@@ -203,7 +253,7 @@ export default function ProfilePage() {
                   } `}
                   aria-current={activeTab === tab.id ? 'page' : undefined}
                 >
-                  <Icon size={18} weight="bold" />
+                  <Icon size={18} />
                   {tab.label}
                 </button>
               );
@@ -220,6 +270,50 @@ export default function ProfilePage() {
                 <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">基本信息</h2>
 
                 <div className="space-y-4">
+                  {/* 头像上传 */}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
+                      头像
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <div
+                        onClick={handleAvatarClick}
+                        className="group relative h-20 w-20 cursor-pointer overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700"
+                      >
+                        {avatarPreview || (user as { avatarUrl?: string }).avatarUrl ? (
+                          <img
+                            src={avatarPreview || (user as { avatarUrl?: string }).avatarUrl}
+                            alt="用户头像"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-gray-400 dark:text-gray-500">
+                            {user.username?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                          <Camera size={24} className="text-white" />
+                        </div>
+                        {avatarLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <p>点击更换头像</p>
+                        <p className="text-xs">支持 JPG、PNG、WebP，最大 2MB</p>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">
                       用户名
@@ -257,7 +351,7 @@ export default function ProfilePage() {
                           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-700 dark:hover:text-gray-300"
                           title="编辑用户名"
                         >
-                          <Pencil size={14} weight="bold" />
+                          <Pencil size={14} />
                         </button>
                       </div>
                     )}
@@ -460,10 +554,10 @@ export default function ProfilePage() {
 
           {activeTab === 'habit' && (
             <div className="max-w-2xl space-y-6">
-              <div className="rounded-card border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-soft dark:border-indigo-900 dark:from-indigo-950 dark:to-purple-950">
+              <div className="rounded-card border border-blue-100 bg-gradient-to-br from-blue-50 to-purple-50 p-8 shadow-soft dark:border-blue-900 dark:from-blue-950 dark:to-purple-950">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-card bg-indigo-500">
-                    <Pulse size={24} weight="bold" className="text-white" />
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-card bg-blue-500">
+                    <Pulse size={24} className="text-white" />
                   </div>
                   <div className="flex-1">
                     <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
@@ -475,10 +569,10 @@ export default function ProfilePage() {
                     </p>
                     <button
                       onClick={() => navigate('/habit-profile')}
-                      className="inline-flex items-center gap-2 rounded-button bg-indigo-600 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-indigo-700 hover:shadow-elevated active:scale-95"
+                      className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-700 hover:shadow-elevated active:scale-95"
                     >
                       查看完整分析
-                      <ArrowRight size={18} weight="bold" />
+                      <ArrowRight size={18} />
                     </button>
                   </div>
                 </div>
@@ -491,19 +585,19 @@ export default function ProfilePage() {
                 </h3>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
                     <span>生物钟类型分析（早鸟型 / 夜猫子型）</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
                     <span>学习节奏评估（快节奏 / 慢节奏）</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
                     <span>动机模式识别（学习动力来源分析）</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
                     <span>学习热力图（活跃时段可视化）</span>
                   </li>
                 </ul>

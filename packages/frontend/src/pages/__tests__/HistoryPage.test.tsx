@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import HistoryPage from '../HistoryPage';
 
 // Mock 导航
@@ -63,13 +63,13 @@ import ApiClient from '../../services/client';
 describe('HistoryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (StorageService.getStudyStatistics as any).mockResolvedValue({
+    (StorageService.getStudyStatistics as Mock).mockResolvedValue({
       wordStats: mockWordStats,
     });
-    (StorageService.getWords as any).mockResolvedValue(mockWords);
-    (ApiClient.getStateHistory as any).mockResolvedValue({ history: [] });
-    (ApiClient.getCognitiveGrowth as any).mockResolvedValue(null);
-    (ApiClient.getSignificantChanges as any).mockResolvedValue({ changes: [] });
+    (StorageService.getWords as Mock).mockResolvedValue(mockWords);
+    (ApiClient.getStateHistory as Mock).mockResolvedValue({ history: [] });
+    (ApiClient.getCognitiveGrowth as Mock).mockResolvedValue(null);
+    (ApiClient.getSignificantChanges as Mock).mockResolvedValue({ changes: [] });
   });
 
   afterEach(() => {
@@ -139,7 +139,7 @@ describe('HistoryPage', () => {
 
     it('should show loading state initially', () => {
       // Make the promise never resolve
-      (StorageService.getStudyStatistics as any).mockImplementation(() => new Promise(() => {}));
+      (StorageService.getStudyStatistics as Mock).mockImplementation(() => new Promise(() => {}));
 
       renderComponent();
 
@@ -247,7 +247,7 @@ describe('HistoryPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (StorageService.getStudyStatistics as any).mockRejectedValue(new Error('加载失败'));
+      (StorageService.getStudyStatistics as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -258,7 +258,7 @@ describe('HistoryPage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (StorageService.getStudyStatistics as any).mockRejectedValue(new Error('加载失败'));
+      (StorageService.getStudyStatistics as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -270,10 +270,10 @@ describe('HistoryPage', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no learning records', async () => {
-      (StorageService.getStudyStatistics as any).mockResolvedValue({
+      (StorageService.getStudyStatistics as Mock).mockResolvedValue({
         wordStats: new Map(),
       });
-      (StorageService.getWords as any).mockResolvedValue([]);
+      (StorageService.getWords as Mock).mockResolvedValue([]);
 
       renderComponent();
 
@@ -283,10 +283,10 @@ describe('HistoryPage', () => {
     });
 
     it('should show start learning button when no records', async () => {
-      (StorageService.getStudyStatistics as any).mockResolvedValue({
+      (StorageService.getStudyStatistics as Mock).mockResolvedValue({
         wordStats: new Map(),
       });
-      (StorageService.getWords as any).mockResolvedValue([]);
+      (StorageService.getWords as Mock).mockResolvedValue([]);
 
       renderComponent();
 
@@ -296,10 +296,10 @@ describe('HistoryPage', () => {
     });
 
     it('should navigate to home when clicking start learning', async () => {
-      (StorageService.getStudyStatistics as any).mockResolvedValue({
+      (StorageService.getStudyStatistics as Mock).mockResolvedValue({
         wordStats: new Map(),
       });
-      (StorageService.getWords as any).mockResolvedValue([]);
+      (StorageService.getWords as Mock).mockResolvedValue([]);
 
       renderComponent();
 

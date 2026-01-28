@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChartPie } from './Icon';
 import AmasStatus from './AmasStatus';
 
@@ -11,13 +12,13 @@ interface StatusModalProps {
 const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusModalProps) => {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
       <div className="relative w-full max-w-md animate-g3-scale-in overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-slate-700">
           <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-            <ChartPie size={24} weight="duotone" />
+            <ChartPie size={24} />
             <h3 className="text-lg font-bold">学习状态监控</h3>
           </div>
           <button
@@ -25,7 +26,7 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
             className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-700 dark:hover:text-gray-300"
             aria-label="关闭"
           >
-            <X size={20} weight="bold" />
+            <X size={20} />
           </button>
         </div>
 
@@ -44,7 +45,8 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

@@ -54,7 +54,7 @@ export function CenterWordBookDetail({
             <p className="mt-4 text-gray-600 dark:text-gray-400">{error}</p>
             <button
               onClick={onClose}
-              className="mt-6 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
+              className="mt-6 rounded-button bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
             >
               关闭
             </button>
@@ -83,10 +83,10 @@ export function CenterWordBookDetail({
             <img
               src={detail.coverImage}
               alt={detail.name}
-              className="h-24 w-24 rounded-lg object-cover"
+              className="h-24 w-24 rounded-button object-cover"
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+            <div className="flex h-24 w-24 items-center justify-center rounded-button bg-blue-100 dark:bg-blue-900/30">
               <Books className="h-10 w-10 text-blue-400 dark:text-blue-500" />
             </div>
           )}
@@ -179,14 +179,14 @@ export function CenterWordBookDetail({
         <div className="flex justify-end gap-3 pt-4">
           <button
             onClick={onClose}
-            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
+            className="rounded-button bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
           >
             取消
           </button>
           <button
             onClick={handleImport}
             disabled={importing}
-            className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-all duration-g3-fast hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {importing ? (
               <>

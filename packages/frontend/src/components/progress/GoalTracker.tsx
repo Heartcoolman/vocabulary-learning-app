@@ -23,7 +23,7 @@ export const GoalTracker = ({
   return (
     <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-        <Target className="h-6 w-6 text-blue-500" weight="duotone" />
+        <Target className="h-6 w-6 text-blue-500" />
         学习目标追踪
       </h3>
 
@@ -32,7 +32,7 @@ export const GoalTracker = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-blue-500" weight="bold" />
+              <Calendar className="h-4 w-4 text-blue-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">每日目标</span>
             </div>
             <span className="text-sm font-bold text-blue-600">
@@ -62,11 +62,11 @@ export const GoalTracker = ({
 
           {dailyPercentage >= 100 ? (
             <p className="flex items-center gap-1 text-xs font-medium text-green-600">
-              <Confetti size={14} weight="fill" /> 太棒了！今日目标已完成！
+              <Confetti size={14} /> 太棒了！今日目标已完成！
             </p>
           ) : dailyPercentage >= 80 ? (
             <p className="flex items-center gap-1 text-xs font-medium text-blue-600">
-              <Lightning size={14} weight="fill" /> 快完成了，继续加油！
+              <Lightning size={14} /> 快完成了，继续加油！
             </p>
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -79,7 +79,7 @@ export const GoalTracker = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <TrendUp className="h-4 w-4 text-purple-500" weight="bold" />
+              <TrendUp className="h-4 w-4 text-purple-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">本周目标</span>
             </div>
             <span className="text-sm font-bold text-purple-600">
@@ -106,16 +106,16 @@ export const GoalTracker = ({
         {/* 预计完成时间 */}
         {estimatedDaysToComplete !== null && estimatedDaysToComplete > 0 && (
           <div className="border-t border-gray-100 pt-4 dark:border-slate-700">
-            <div className="rounded-button bg-gradient-to-r from-indigo-50 to-purple-50 p-4 dark:from-indigo-900/20 dark:to-purple-900/20">
+            <div className="rounded-button bg-gradient-to-r from-blue-50 to-purple-50 p-4 dark:from-blue-900/20 dark:to-purple-900/20">
               <div className="mb-2 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-400" weight="bold" />
+                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">
                   完成预测
                 </span>
               </div>
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 按当前进度，预计{' '}
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                <span className="font-bold text-blue-600 dark:text-blue-400">
                   {estimatedDaysToComplete} 天
                 </span>{' '}
                 后达成学习目标

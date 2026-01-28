@@ -198,7 +198,7 @@ BreadcrumbLink.displayName = 'BreadcrumbLink';
 /* ========================================
  * BreadcrumbEllipsis 组件 - 折叠省略
  * ======================================== */
-export interface BreadcrumbEllipsisProps extends HTMLAttributes<HTMLSpanElement> {}
+export type BreadcrumbEllipsisProps = HTMLAttributes<HTMLSpanElement>;
 
 export const BreadcrumbEllipsis = memo(
   forwardRef<HTMLSpanElement, BreadcrumbEllipsisProps>(({ className, ...props }, ref) => {
@@ -229,7 +229,7 @@ BreadcrumbEllipsis.displayName = 'BreadcrumbEllipsis';
 /* ========================================
  * BreadcrumbSeparator 组件 - 自定义分隔符
  * ======================================== */
-export interface BreadcrumbSeparatorProps extends HTMLAttributes<HTMLSpanElement> {}
+export type BreadcrumbSeparatorProps = HTMLAttributes<HTMLSpanElement>;
 
 export const BreadcrumbSeparator = memo(
   forwardRef<HTMLSpanElement, BreadcrumbSeparatorProps>(

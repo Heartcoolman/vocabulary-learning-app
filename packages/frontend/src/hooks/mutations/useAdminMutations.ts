@@ -275,7 +275,7 @@ export interface FlagAnomalyParams {
 export function useFlagAnomaly() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, FlagAnomalyParams>({
+  return useMutation<unknown, Error, FlagAnomalyParams>({
     mutationFn: async ({ userId, wordId, ...data }) => {
       return await adminClient.flagAnomalyRecord(userId, wordId, data);
     },

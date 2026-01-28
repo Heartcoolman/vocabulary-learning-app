@@ -47,9 +47,9 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
         return {
           label: '夜猫子 (Night Owl)',
           icon: Moon,
-          color: 'text-indigo-600 dark:text-indigo-400',
-          bg: 'bg-indigo-100 dark:bg-indigo-900/30',
-          gradient: 'from-indigo-500 to-purple-500',
+          color: 'text-blue-600 dark:text-blue-400',
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          gradient: 'from-blue-500 to-purple-500',
           desc: '你在夜晚思维更敏捷,适合进行深度学习。',
         };
       case 'intermediate':
@@ -78,12 +78,12 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
       <div className="flex items-start justify-between border-b border-gray-50 p-6 dark:border-slate-700">
         <div className="flex items-center gap-3">
           <div className={`rounded-card p-3 ${config.bg} ${config.color}`}>
-            <Icon size={24} weight="duotone" />
+            <Icon size={24} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h3>
             <div className="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <TrendUp size={14} weight="bold" />
+              <TrendUp size={14} />
               <span>置信度: {(profile.confidence * 100).toFixed(0)}%</span>
 
               {/* Confidence Bar */}
@@ -133,7 +133,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
                       {hour}:00{' '}
                       {isPeak ? (
                         <>
-                          <Sparkle size={12} weight="fill" /> 黄金时间
+                          <Sparkle size={12} /> 黄金时间
                         </>
                       ) : (
                         ''

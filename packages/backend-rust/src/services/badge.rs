@@ -17,7 +17,7 @@ pub enum BadgeCategory {
 }
 
 impl BadgeCategory {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "ACCURACY" => Self::Accuracy,
             "LEARNING" => Self::Learning,
@@ -39,7 +39,7 @@ pub enum BadgeConditionType {
 }
 
 impl BadgeConditionType {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "accuracy" => Self::Accuracy,
             "words_learned" => Self::WordsLearned,
@@ -469,7 +469,7 @@ async fn get_user_stats(pool: &PgPool, user_id: &str) -> Result<UserStats, Strin
 }
 
 fn check_badge_eligibility(condition: &BadgeCondition, stats: &UserStats) -> bool {
-    let ctype = BadgeConditionType::from_str(&condition.condition_type);
+    let ctype = BadgeConditionType::parse(&condition.condition_type);
     match ctype {
         BadgeConditionType::Streak => stats.consecutive_days >= condition.value as i64,
         BadgeConditionType::Accuracy => {
@@ -517,7 +517,7 @@ fn check_cognitive_improvement(condition: &BadgeCondition, stats: &UserStats) ->
 }
 
 fn get_current_value_for_condition(condition: &BadgeCondition, stats: &UserStats) -> f64 {
-    let ctype = BadgeConditionType::from_str(&condition.condition_type);
+    let ctype = BadgeConditionType::parse(&condition.condition_type);
     match ctype {
         BadgeConditionType::Streak => stats.consecutive_days as f64,
         BadgeConditionType::Accuracy => stats.recent_accuracy,

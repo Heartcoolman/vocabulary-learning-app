@@ -263,7 +263,8 @@ describe('AudioService', () => {
     });
 
     it('should log errors when playback fails', async () => {
-      const { logger } = await import('../../utils/logger');
+      // Import logger to ensure it's available for error logging
+      await import('../../utils/logger');
 
       try {
         // Trigger an error by calling play

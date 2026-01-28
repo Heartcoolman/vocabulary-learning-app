@@ -4,7 +4,7 @@
  * 徽章标签，用于状态指示和数量展示
  */
 import React, { forwardRef, memo, HTMLAttributes, ReactNode } from 'react';
-import { cn, Size, Variant } from './utils';
+import { cn, Variant } from './utils';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   /** 变体 */

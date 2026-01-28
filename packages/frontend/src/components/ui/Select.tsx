@@ -16,7 +16,7 @@ import React, {
   HTMLAttributes,
 } from 'react';
 import { CaretDown, Check, MagnifyingGlass, X } from '../Icon';
-import { cn, generateId, Keys, Size } from './utils';
+import { cn, generateId, Keys } from './utils';
 
 export interface SelectOption {
   /** 选项值 */
@@ -343,7 +343,7 @@ export const Select = memo(
                     {emptyContent}
                   </div>
                 ) : (
-                  filteredOptions.map((option, index) => {
+                  filteredOptions.map((option) => {
                     const isSelected = option.value === currentValue;
                     const enabledIndex = enabledOptions.findIndex((o) => o.value === option.value);
                     const isActive = enabledIndex === activeIndex;
@@ -371,11 +371,7 @@ export const Select = memo(
                         {option.icon && <span className="flex-shrink-0">{option.icon}</span>}
                         <span className="flex-1 truncate text-left">{option.label}</span>
                         {isSelected && (
-                          <Check
-                            size={iconSize}
-                            weight="bold"
-                            className="flex-shrink-0 text-blue-500"
-                          />
+                          <Check size={iconSize} className="flex-shrink-0 text-blue-500" />
                         )}
                       </button>
                     );
@@ -871,7 +867,7 @@ export const MultiSelect = memo(
                               : 'border-gray-300 dark:border-slate-500',
                           )}
                         >
-                          {isSelected && <Check size={12} weight="bold" className="text-white" />}
+                          {isSelected && <Check size={12} className="text-white" />}
                         </span>
                         {option.icon && <span className="flex-shrink-0">{option.icon}</span>}
                         <span className="flex-1 truncate text-left">{option.label}</span>

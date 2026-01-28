@@ -128,7 +128,7 @@ export default function PreferencesPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="max-w-md px-4 text-center">
-          <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={64} color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
@@ -160,17 +160,17 @@ export default function PreferencesPage() {
               className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
               aria-label="返回"
             >
-              <ArrowLeft size={20} weight="bold" />
+              <ArrowLeft size={20} />
             </button>
             <div className="flex items-center gap-2">
-              <GearSix size={28} weight="duotone" className="text-blue-500" />
+              <GearSix size={28} className="text-blue-500" />
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">偏好设置</h1>
             </div>
           </div>
           <button
             onClick={handleReset}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 transition-all hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700"
+            className="flex items-center gap-2 rounded-button border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 transition-all hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700"
           >
             <ArrowCounterClockwise size={16} />
             重置
@@ -178,24 +178,24 @@ export default function PreferencesPage() {
         </div>
 
         {saveSuccess && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-green-700 dark:bg-green-900/20 dark:text-green-400">
-            <Check size={20} weight="bold" />
+          <div className="flex items-center gap-2 rounded-button bg-green-50 px-4 py-3 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+            <Check size={20} />
             保存成功
           </div>
         )}
 
         {error && preferences && (
-          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+          <div className="rounded-button bg-red-50 px-4 py-3 text-red-700 dark:bg-red-900/20 dark:text-red-400">
             {error}
           </div>
         )}
 
-        <div className="mb-6 flex gap-2 rounded-lg border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-6 flex gap-2 rounded-button border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-button px-4 py-2.5 text-sm font-medium transition-all ${
                 activeTab === tab.key
                   ? 'bg-blue-500 text-white'
                   : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700'
@@ -207,7 +207,7 @@ export default function PreferencesPage() {
           ))}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+        <div className="rounded-card border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
           {activeTab === 'learning' && (
             <LearningTab
               preferences={preferences.learning}
@@ -265,7 +265,7 @@ function LearningTab({
                 value={preferences.dailyGoalWords}
                 onChange={(e) => onUpdate({ dailyGoalWords: parseInt(e.target.value) || 10 })}
                 disabled={disabled}
-                className="w-24 rounded-lg border border-gray-200 bg-white px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                className="w-24 rounded-button border border-gray-200 bg-white px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
           )}
@@ -282,7 +282,7 @@ function LearningTab({
               value={preferences.preferredStudyTimeStart || '08:00'}
               onChange={(e) => onUpdate({ preferredStudyTimeStart: e.target.value })}
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div>
@@ -292,7 +292,7 @@ function LearningTab({
               value={preferences.preferredStudyTimeEnd || '22:00'}
               onChange={(e) => onUpdate({ preferredStudyTimeEnd: e.target.value })}
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
         </div>
@@ -304,7 +304,7 @@ function LearningTab({
           value={preferences.preferredDifficulty || 'medium'}
           onChange={(e) => onUpdate({ preferredDifficulty: e.target.value })}
           disabled={disabled}
-          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
           <option value="easy">简单 - 更多复习，较少新词</option>
           <option value="medium">中等 - 平衡复习与新词</option>
@@ -355,7 +355,7 @@ function NotificationTab({
           value={preferences.reminderFrequency}
           onChange={(e) => onUpdate({ reminderFrequency: e.target.value })}
           disabled={disabled}
-          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
           <option value="daily">每天</option>
           <option value="weekly">每周</option>
@@ -373,7 +373,7 @@ function NotificationTab({
               value={preferences.quietHoursStart || '22:00'}
               onChange={(e) => onUpdate({ quietHoursStart: e.target.value })}
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div>
@@ -383,7 +383,7 @@ function NotificationTab({
               value={preferences.quietHoursEnd || '08:00'}
               onChange={(e) => onUpdate({ quietHoursEnd: e.target.value })}
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
         </div>
@@ -415,7 +415,7 @@ function UiTab({
               key={theme.value}
               onClick={() => onUpdate({ theme: theme.value })}
               disabled={disabled}
-              className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex-1 rounded-button border px-4 py-3 text-sm font-medium transition-all ${
                 preferences.theme === theme.value
                   ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
@@ -433,7 +433,7 @@ function UiTab({
           value={preferences.language}
           onChange={(e) => onUpdate({ language: e.target.value })}
           disabled={disabled}
-          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          className="w-full rounded-button border border-gray-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
           <option value="zh-CN">简体中文</option>
           <option value="zh-TW">繁體中文</option>

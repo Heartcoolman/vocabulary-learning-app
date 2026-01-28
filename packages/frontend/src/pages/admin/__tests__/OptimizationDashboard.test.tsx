@@ -22,35 +22,39 @@ vi.mock('../../../components/ui/Toast', () => ({
 }));
 
 // Mock ui components (re-exports from Toast)
-vi.mock('../../../components/ui', () => ({
-  useToast: () => mockToast,
-  ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
-    isOpen ? <div>{children}</div> : null,
-  ConfirmModal: ({
-    isOpen,
-    onClose,
-    onConfirm,
-    title,
-    message,
-  }: {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    title: string;
-    message: string;
-  }) =>
-    isOpen ? (
-      <div data-testid="confirm-modal">
-        <h2>{title}</h2>
-        <p>{message}</p>
-        <button onClick={onConfirm}>Confirm</button>
-        <button onClick={onClose}>Cancel</button>
-      </div>
-    ) : null,
-  AlertModal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
-    isOpen ? <div>{children}</div> : null,
-}));
+vi.mock('../../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => mockToast,
+    ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
+      isOpen ? <div>{children}</div> : null,
+    ConfirmModal: ({
+      isOpen,
+      onClose,
+      onConfirm,
+      title,
+      message,
+    }: {
+      isOpen: boolean;
+      onClose: () => void;
+      onConfirm: () => void;
+      title: string;
+      message: string;
+    }) =>
+      isOpen ? (
+        <div data-testid="confirm-modal">
+          <h2>{title}</h2>
+          <p>{message}</p>
+          <button onClick={onConfirm}>Confirm</button>
+          <button onClick={onClose}>Cancel</button>
+        </div>
+      ) : null,
+    AlertModal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
+      isOpen ? <div>{children}</div> : null,
+  };
+});
 
 // Mock ApiClient - use vi.hoisted to ensure it's available when mock factory runs
 const mockApiClient = vi.hoisted(() => ({
@@ -211,7 +215,7 @@ describe('OptimizationDashboard', () => {
     it('should show loading state initially', () => {
       renderWithRouter();
 
-      expect(screen.getAllByTestId('refresh-icon').length).toBeGreaterThan(0);
+      expect(screen.getByRole('status', { name: /加载中/ })).toBeInTheDocument();
     });
   });
 

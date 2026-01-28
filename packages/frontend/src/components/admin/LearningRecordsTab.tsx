@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Clock, Hash, BookOpen, ArrowClockwise } from '@phosphor-icons/react';
+import { CheckCircle, XCircle, Clock, Hash, BookOpen, ArrowClockwise } from '../Icon';
 import { useLearningData } from '../../hooks/useLearningData';
 import { DISPLAY_CONFIG } from '../../constants/systemHealth';
 
@@ -48,7 +48,7 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
             </p>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            <Hash size={20} weight="bold" />
+            <Hash size={20} />
           </div>
         </div>
 
@@ -80,7 +80,7 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
             </p>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
-            <BookOpen size={20} weight="bold" />
+            <BookOpen size={20} />
           </div>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
             className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
             title="刷新列表"
           >
-            <ArrowClockwise size={18} weight="bold" />
+            <ArrowClockwise size={18} />
           </button>
         </div>
 

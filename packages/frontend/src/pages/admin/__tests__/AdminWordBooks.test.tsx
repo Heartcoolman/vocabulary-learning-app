@@ -8,17 +8,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import AdminWordBooks from '../AdminWordBooks';
 
-const mockWordBooks = [
-  {
-    id: 'wb1',
-    name: 'TOEFL词汇',
-    description: 'TOEFL考试核心词汇',
-    wordCount: 500,
-    type: 'SYSTEM',
-  },
-  { id: 'wb2', name: 'GRE词汇', description: 'GRE考试必备词汇', wordCount: 800, type: 'SYSTEM' },
-];
-
 const mockNavigate = vi.fn();
 
 vi.mock('react-router-dom', async () => {
@@ -53,72 +42,67 @@ vi.mock('@/services/client', () => ({
   },
 }));
 
+import type { ReactNode } from 'react';
+
+interface ConfirmModalProps {
+  isOpen?: boolean;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  children?: ReactNode;
+}
+
+interface ModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  children?: ReactNode;
+}
+
 // Mock useToast hook and Modal components
-vi.mock('@/components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    showToast: vi.fn(),
-  }),
-  ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? (
-      <div data-testid="confirm-modal">
-        {children}
-        <button onClick={onConfirm}>确认</button>
-        <button onClick={onCancel}>取消</button>
-      </div>
-    ) : null,
-  Modal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? (
-      <div data-testid="modal">
-        {children}
-        <button onClick={onClose}>关闭</button>
-      </div>
-    ) : null,
-}));
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      showToast: vi.fn(),
+    }),
+    ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: ConfirmModalProps) =>
+      isOpen ? (
+        <div data-testid="confirm-modal">
+          {children}
+          <button onClick={onConfirm}>确认</button>
+          <button onClick={onCancel}>取消</button>
+        </div>
+      ) : null,
+    Modal: ({ isOpen, onClose, children }: ModalProps) =>
+      isOpen ? (
+        <div data-testid="modal">
+          {children}
+          <button onClick={onClose}>关闭</button>
+        </div>
+      ) : null,
+  };
+});
 
 vi.mock('@/components/Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/Icon')>();
   return {
     ...actual,
-    Books: ({
-      size,
-      weight,
-      color,
-      className,
-    }: {
-      size?: number;
-      weight?: string;
-      color?: string;
-      className?: string;
-    }) => (
+    Books: ({ className }: { className?: string }) => (
       <span data-testid="icon-books" className={className}>
         📚
       </span>
     ),
-    CircleNotch: ({
-      className,
-      size,
-      weight,
-      color,
-    }: {
-      className?: string;
-      size?: number;
-      weight?: string;
-      color?: string;
-    }) => (
+    CircleNotch: ({ className }: { className?: string }) => (
       <span data-testid="loading-spinner" className={className}>
         Loading
       </span>
     ),
-    UploadSimple: ({ size, weight }: { size?: number; weight?: string }) => (
-      <span data-testid="icon-upload">📤</span>
-    ),
-    NotePencil: ({ size, weight }: { size?: number; weight?: string }) => (
-      <span data-testid="icon-edit">✏️</span>
-    ),
+    UploadSimple: () => <span data-testid="icon-upload">📤</span>,
+    NotePencil: () => <span data-testid="icon-edit">✏️</span>,
   };
 });
 

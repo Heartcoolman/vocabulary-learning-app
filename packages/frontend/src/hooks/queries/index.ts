@@ -226,5 +226,28 @@ export {
   useInsights,
   useInsight,
   useSegments,
+  useSegmentAnalysis,
   useGenerateInsight,
+  // 留存率
+  useRetention,
 } from './useOpsEnhance';
+
+// ==================== 语义搜索相关 ====================
+export { useSemanticSearch } from './useSemanticSearch';
+export { useSimilarWords } from './useSimilarWords';
+export { useSemanticStats } from './useSemanticStats';
+export { useConfusionPairs } from './useConfusionPairs';
+export { useConfusionByCluster, useConfusionCacheStatus } from './useConfusionByCluster';
+export { useErrorAnalysis } from './useErrorAnalysis';
+export { useWordClusters, useClusterDetail } from './useWordClusters';
+
+// ==================== 通知相关 ====================
+export {
+  useNotifications,
+  useNotificationStats,
+  useMarkAsRead,
+  useBatchMarkAsRead,
+  useMarkAllAsRead,
+  useDeleteNotification,
+  useBatchDeleteNotifications,
+} from './useNotifications';

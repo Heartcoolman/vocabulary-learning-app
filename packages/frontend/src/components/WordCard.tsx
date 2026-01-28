@@ -1,6 +1,6 @@
 import { useEffect, useRef, memo, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Star, Clock, Target, SpeakerHigh } from './Icon';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, Clock, Target, SpeakerHigh, CircleNotch } from './Icon';
 import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
 import { trackingService } from '../services/TrackingService';
 import { IconColor } from '../utils/iconColors';
@@ -17,6 +17,8 @@ export interface WordCardProps {
   word: WordCardWord;
   onPronounce: () => void;
   isPronouncing: boolean;
+  isAudioLoading?: boolean;
+  recentMasteryHistory?: number[];
   masteryLevel?: number;
   wordScore?: number;
   nextReviewDate?: string;
@@ -31,6 +33,8 @@ function WordCard({
   word,
   onPronounce,
   isPronouncing,
+  isAudioLoading,
+  recentMasteryHistory,
   masteryLevel,
   wordScore,
   nextReviewDate,
@@ -84,16 +88,45 @@ function WordCard({
             handlePronounce();
           }
         }}
-        disabled={isPronouncing}
+        disabled={isPronouncing || isAudioLoading}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         transition={g3SpringSnappy}
         className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-elevated hover:bg-blue-600 hover:shadow-floating ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
-        aria-label={isPronouncing ? '正在播放发音' : `播放 ${word.spelling} 的发音，或按空格键`}
+        aria-label={
+          isAudioLoading
+            ? '正在加载音频'
+            : isPronouncing
+              ? '正在播放发音'
+              : `播放 ${word.spelling} 的发音，或按空格键`
+        }
         aria-pressed={isPronouncing}
         title="播放发音 (空格键)"
       >
-        <SpeakerHigh size={32} weight="fill" className="text-white" aria-hidden="true" />
+        <AnimatePresence mode="wait">
+          {isAudioLoading ? (
+            <motion.span
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, rotate: 360 }}
+              exit={{ opacity: 0 }}
+              transition={{ rotate: { duration: 0.8, repeat: Infinity, ease: 'linear' } }}
+              aria-hidden="true"
+            >
+              <CircleNotch size={32} weight="bold" className="text-white" />
+            </motion.span>
+          ) : (
+            <motion.span
+              key="speaker"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              aria-hidden="true"
+            >
+              <SpeakerHigh size={32} weight="fill" className="text-white" />
+            </motion.span>
+          )}
+        </AnimatePresence>
       </motion.button>
 
       {/* 单词拼写 */}
@@ -150,6 +183,27 @@ function WordCard({
                     />
                   ))}
                 </div>
+                {recentMasteryHistory && recentMasteryHistory.length > 1 && (
+                  <div className="mt-1.5 flex items-center gap-0.5" title="近期掌握趋势">
+                    {recentMasteryHistory.slice(-5).map((val, idx, arr) => {
+                      const prev = arr[idx - 1];
+                      const trend =
+                        idx === 0 ? 'same' : val > prev ? 'up' : val < prev ? 'down' : 'same';
+                      return (
+                        <div
+                          key={idx}
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            trend === 'up'
+                              ? 'bg-green-500'
+                              : trend === 'down'
+                                ? 'bg-red-400'
+                                : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -158,7 +212,7 @@ function WordCard({
               <div className="flex flex-col items-center">
                 <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">单词得分</span>
                 <div className="flex items-center gap-1">
-                  <Target size={18} weight="duotone" color={IconColor.target} />
+                  <Target size={18} color={IconColor.target} />
                   <span
                     className="text-lg font-bold text-gray-900 dark:text-white"
                     aria-label={`得分: ${Math.round(wordScore)} 分`}
@@ -174,7 +228,7 @@ function WordCard({
               <div className="flex flex-col items-center">
                 <span className="mb-1 text-xs text-gray-500 dark:text-gray-400">下次复习</span>
                 <div className="flex items-center gap-1">
-                  <Clock size={18} weight="duotone" color={IconColor.time} />
+                  <Clock size={18} color={IconColor.time} />
                   <span
                     className="text-sm font-medium text-gray-900 dark:text-white"
                     aria-label={`下次复习: ${nextReviewDate}`}
@@ -196,11 +250,24 @@ function arePropsEqual(prevProps: WordCardProps, nextProps: WordCardProps): bool
   // 比较基本属性
   if (
     prevProps.isPronouncing !== nextProps.isPronouncing ||
+    prevProps.isAudioLoading !== nextProps.isAudioLoading ||
     prevProps.masteryLevel !== nextProps.masteryLevel ||
     prevProps.wordScore !== nextProps.wordScore ||
     prevProps.nextReviewDate !== nextProps.nextReviewDate
   ) {
     return false;
+  }
+
+  // 比较 recentMasteryHistory
+  const prevHistory = prevProps.recentMasteryHistory;
+  const nextHistory = nextProps.recentMasteryHistory;
+  if (prevHistory !== nextHistory) {
+    if (!prevHistory || !nextHistory || prevHistory.length !== nextHistory.length) {
+      return false;
+    }
+    for (let i = 0; i < prevHistory.length; i++) {
+      if (prevHistory[i] !== nextHistory[i]) return false;
+    }
   }
 
   // 深度比较 word 对象

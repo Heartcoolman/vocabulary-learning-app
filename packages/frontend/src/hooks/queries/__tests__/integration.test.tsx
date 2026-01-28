@@ -195,9 +195,7 @@ describe('React Query Integration Tests', () => {
         weeklyTrend: [10, 15, 20, 25, 30, 35, 25],
       };
 
-      let resolveCount = 0;
       mockApiClient.getStudyProgress.mockImplementation(() => {
-        resolveCount++;
         return Promise.resolve(mockProgress);
       });
 
@@ -732,8 +730,8 @@ describe('React Query Integration Tests', () => {
       mockApiClient.getStudyProgress.mockResolvedValue(mockProgress);
 
       // 使用 enabled 选项控制查询执行
-      const { result, rerender } = renderHook(
-        ({ enabled }) =>
+      const { rerender } = renderHook(
+        ({ enabled: _enabled }) =>
           renderHook(() => useStudyProgress(), {
             wrapper,
           }),

@@ -339,7 +339,7 @@ fn params_to_vec(params: &OptimizationParams) -> Vec<f64> {
 
 fn vec_to_params(params: &[f64]) -> OptimizationParams {
     let interval_scale = params
-        .get(0)
+        .first()
         .copied()
         .unwrap_or(DEFAULT_PARAMS.interval_scale);
     let new_ratio = params.get(1).copied().unwrap_or(DEFAULT_PARAMS.new_ratio);
@@ -757,7 +757,7 @@ async fn trigger_cycle_inner(
     let suggested_params = sample_params(&state);
 
     let pool = proxy.pool();
-    let evaluation_value = evaluate_recent_learning_effect_pg(&pool).await?;
+    let evaluation_value = evaluate_recent_learning_effect_pg(pool).await?;
 
     let mut evaluated = false;
     if let Some(value) = evaluation_value {

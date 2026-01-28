@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Clock, Fire, BookOpen } from '@phosphor-icons/react';
+import { CheckCircle, Clock, Fire, BookOpen } from '@/components/Icon';
 
 interface MasteryStatsCardProps {
   label: string;

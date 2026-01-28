@@ -236,7 +236,7 @@ impl RateLimiter {
             .config
             .window_ms
             .saturating_sub(now_ms.saturating_sub(entry.window_start_ms));
-        let reset_after_seconds = (reset_after_ms + 999) / 1000;
+        let reset_after_seconds = reset_after_ms.div_ceil(1000);
 
         RateLimitCheck {
             allowed,

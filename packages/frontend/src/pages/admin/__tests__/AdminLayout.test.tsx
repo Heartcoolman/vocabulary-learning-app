@@ -5,76 +5,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminLayout from '../AdminLayout';
-
-const mockNavigate = vi.fn();
-const mockAdminUser = {
-  id: 'admin-1',
-  username: 'admin',
-  email: 'admin@test.com',
-  role: 'ADMIN' as const,
-  rewardProfile: 'default',
-  createdAt: '2024-01-01',
-  updatedAt: '2024-01-01',
-};
-const mockNormalUser = {
-  id: 'user-1',
-  username: 'user',
-  email: 'user@test.com',
-  role: 'USER' as const,
-  rewardProfile: 'default',
-  createdAt: '2024-01-01',
-  updatedAt: '2024-01-01',
-};
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
   };
 });
-
-vi.mock('@/services/client', () => ({
-  default: {
-    getCurrentUser: vi.fn().mockResolvedValue({
-      id: 'admin-1',
-      username: 'admin',
-      email: 'admin@test.com',
-      role: 'ADMIN',
-      rewardProfile: 'default',
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-01',
-    }),
-  },
-}));
-
-// Mock useToast hook
-vi.mock('@/components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    showToast: vi.fn(),
-  }),
-}));
-
-// Mock useSystemVersion hook
-vi.mock('@/hooks/queries/useSystemVersion', () => ({
-  useSystemVersion: () => ({
-    data: {
-      currentVersion: '0.1.0',
-      latestVersion: '0.1.0',
-      hasUpdate: false,
-      releaseUrl: null,
-      releaseNotes: null,
-      publishedAt: null,
-    },
-    isLoading: false,
-    error: null,
-  }),
-}));
 
 vi.mock('@/components/Icon', async () => {
   const actual = await vi.importActual('@/components/Icon');
@@ -94,11 +33,70 @@ vi.mock('@/components/Icon', async () => {
   };
 });
 
+// Mock notification hooks
+vi.mock('@/hooks/queries', () => ({
+  useNotifications: vi.fn(() => ({ data: [], isLoading: false })),
+  useNotificationStats: vi.fn(() => ({ data: { unread: 0 } })),
+  useMarkAsRead: vi.fn(() => ({ mutate: vi.fn() })),
+  useSystemVersion: vi.fn(() => ({
+    data: {
+      currentVersion: '0.1.0',
+      latestVersion: '0.1.0',
+      hasUpdate: false,
+      releaseUrl: null,
+      releaseNotes: null,
+      publishedAt: null,
+    },
+    isLoading: false,
+    error: null,
+  })),
+}));
+
+// Mock admin auth store
+vi.mock('@/stores/adminAuthStore', () => ({
+  useAdminAuthStore: vi.fn(() => ({
+    user: {
+      id: 'admin-1',
+      username: 'admin',
+      email: 'admin@test.com',
+    },
+    clearAuth: vi.fn(),
+  })),
+}));
+
+// Mock admin auth client
+vi.mock('@/services/client/admin/AdminAuthClient', () => ({
+  adminLogout: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock useToast hook
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      showToast: vi.fn(),
+    }),
+  };
+});
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
 const renderWithRouter = (initialEntries = ['/admin']) => {
+  const queryClient = createQueryClient();
   return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <AdminLayout />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <AdminLayout />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 };
 
@@ -107,16 +105,8 @@ describe('AdminLayout', () => {
     vi.clearAllMocks();
   });
 
-  describe('loading state', () => {
-    it('should show loading indicator initially', () => {
-      renderWithRouter();
-
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-    });
-  });
-
   describe('admin access', () => {
-    it('should render admin layout for admin user', async () => {
+    it('should render admin layout', async () => {
       renderWithRouter();
 
       await waitFor(() => {
@@ -129,28 +119,6 @@ describe('AdminLayout', () => {
 
       await waitFor(() => {
         expect(screen.getByText('admin')).toBeInTheDocument();
-      });
-    });
-
-    it('should redirect non-admin users', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.getCurrentUser).mockResolvedValue(mockNormalUser);
-
-      renderWithRouter();
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/');
-      });
-    });
-
-    it('should redirect to login on auth error', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.getCurrentUser).mockRejectedValue(new Error('Unauthorized'));
-
-      renderWithRouter();
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/login');
       });
     });
   });
@@ -196,11 +164,11 @@ describe('AdminLayout', () => {
       });
     });
 
-    it('should render back to home link', async () => {
+    it('should render logout button', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('返回主页')).toBeInTheDocument();
+        expect(screen.getByText('退出登录')).toBeInTheDocument();
       });
     });
   });

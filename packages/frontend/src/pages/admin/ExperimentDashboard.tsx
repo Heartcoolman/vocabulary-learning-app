@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Icon } from '@phosphor-icons/react';
+import type { Icon } from '../../components/Icon';
 import {
   Activity,
   UsersThree,
@@ -21,6 +21,7 @@ import {
   Stop,
   Trash,
   Eye,
+  DownloadSimple,
 } from '../../components/Icon';
 import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
@@ -143,7 +144,7 @@ const StatusBadge = ({
     <span
       className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${color}`}
     >
-      <Icon size={14} weight="bold" />
+      <Icon size={14} />
       {label}
     </span>
   );
@@ -161,7 +162,7 @@ const MetricCard = ({ label, value, subtext, icon: Icon, trend }: MetricCardProp
   <div className="animate-g3-fade-in rounded-card border border-gray-200 bg-white/90 p-5 shadow-soft backdrop-blur dark:border-slate-700 dark:bg-slate-800/90">
     <div className="mb-2 flex items-start justify-between">
       <div className="rounded-button bg-gray-50 p-2 text-gray-500 dark:bg-slate-700 dark:text-gray-400">
-        <Icon size={20} weight="duotone" />
+        <Icon size={20} />
       </div>
       {trend && (
         <span
@@ -362,7 +363,7 @@ const CreateExperimentModal = ({
       <div className="max-h-[90vh] w-full max-w-2xl animate-g3-scale-in overflow-y-auto rounded-card bg-white shadow-2xl">
         <div className="border-b border-gray-200 p-6">
           <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-            <Plus className="text-blue-600" weight="bold" />
+            <Plus className="text-blue-600" />
             创建新实验
           </h2>
         </div>
@@ -517,7 +518,7 @@ const ExperimentList = ({
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
+        <ArrowsClockwise className="animate-spin text-blue-500" size={32} />
       </div>
     );
   }
@@ -528,7 +529,7 @@ const ExperimentList = ({
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
-            <Flask className="text-indigo-600" weight="duotone" />
+            <Flask className="text-blue-600" />
             A/B 测试实验管理
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">创建和管理算法对比实验</p>
@@ -538,7 +539,7 @@ const ExperimentList = ({
             onClick={onCreate}
             className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
           >
-            <Plus size={18} weight="bold" />
+            <Plus size={18} />
             创建实验
           </button>
           <button
@@ -546,7 +547,7 @@ const ExperimentList = ({
             className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
             title="刷新"
           >
-            <ArrowsClockwise size={18} weight="bold" />
+            <ArrowsClockwise size={18} />
           </button>
         </div>
       </div>
@@ -554,14 +555,14 @@ const ExperimentList = ({
       {/* 实验列表 */}
       {!experiments || experiments.length === 0 ? (
         <div className="flex min-h-[400px] animate-g3-fade-in flex-col items-center justify-center rounded-card border border-gray-200 bg-white p-8 dark:border-slate-700 dark:bg-slate-800">
-          <Flask size={64} className="mb-4 text-gray-300 dark:text-gray-600" weight="duotone" />
+          <Flask size={64} className="mb-4 text-gray-300 dark:text-gray-600" />
           <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">暂无实验</h2>
           <p className="mb-6 text-gray-500 dark:text-gray-400">创建您的第一个 A/B 测试实验</p>
           <button
             onClick={onCreate}
             className="flex items-center gap-2 rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
           >
-            <Plus size={18} weight="bold" />
+            <Plus size={18} />
             创建实验
           </button>
         </div>
@@ -603,7 +604,7 @@ const ExperimentList = ({
                       className="flex items-center gap-1 rounded-button bg-green-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
                       title="启动实验"
                     >
-                      <Play size={16} weight="bold" />
+                      <Play size={16} />
                       启动
                     </button>
                   )}
@@ -613,7 +614,7 @@ const ExperimentList = ({
                       className="flex items-center gap-1 rounded-button bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
                       title="停止实验"
                     >
-                      <Stop size={16} weight="bold" />
+                      <Stop size={16} />
                       停止
                     </button>
                   )}
@@ -622,7 +623,7 @@ const ExperimentList = ({
                     className="flex items-center gap-1 rounded-button bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
                     title="查看详情"
                   >
-                    <Eye size={16} weight="bold" />
+                    <Eye size={16} />
                     详情
                   </button>
                   {exp.status !== 'RUNNING' && (
@@ -631,7 +632,7 @@ const ExperimentList = ({
                       className="flex items-center gap-1 rounded-button bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
                       title="删除实验"
                     >
-                      <Trash size={16} weight="bold" />
+                      <Trash size={16} />
                     </button>
                   )}
                 </div>
@@ -676,14 +677,31 @@ const ExperimentDetail = ({
     }
   };
 
+  const handleExport = async (format: 'csv' | 'json') => {
+    try {
+      const blob = await apiClient.exportExperiment(experimentId, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `experiment-${experimentId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (_e) {
+      adminLogger.error({ err: _e }, '导出实验数据失败');
+    }
+  };
+
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [experimentId]);
 
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
+        <ArrowsClockwise className="animate-spin text-blue-500" size={32} />
       </div>
     );
   }
@@ -692,7 +710,7 @@ const ExperimentDetail = ({
     return (
       <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
         <div className="max-w-md text-center" role="alert" aria-live="assertive">
-          <WarningCircle size={64} className="mx-auto mb-4 text-red-500" weight="duotone" />
+          <WarningCircle size={64} className="mx-auto mb-4 text-red-500" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
           <p className="mb-6 text-gray-600">{error || '无法加载实验数据'}</p>
           <div className="flex justify-center gap-3">
@@ -740,7 +758,7 @@ const ExperimentDetail = ({
             返回列表
           </button>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
-            <Flask className="text-indigo-600" weight="duotone" />
+            <Flask className="text-blue-600" />
             实验详情
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">ID: {experimentId}</p>
@@ -748,11 +766,27 @@ const ExperimentDetail = ({
         <div className="flex items-center gap-3">
           <StatusBadge status={data.status} />
           <button
+            onClick={() => handleExport('json')}
+            className="flex items-center gap-1.5 rounded-button border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
+            title="导出 JSON"
+          >
+            <DownloadSimple size={16} />
+            JSON
+          </button>
+          <button
+            onClick={() => handleExport('csv')}
+            className="flex items-center gap-1.5 rounded-button border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
+            title="导出 CSV"
+          >
+            <DownloadSimple size={16} />
+            CSV
+          </button>
+          <button
             onClick={loadData}
             className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
             title="刷新数据"
           >
-            <ArrowsClockwise size={18} weight="bold" />
+            <ArrowsClockwise size={18} />
           </button>
         </div>
       </div>
@@ -845,7 +879,7 @@ const ExperimentDetail = ({
                 </div>
                 {data.effectSize > 0 && (
                   <div className="mt-3 inline-flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
-                    <TrendUp size={12} weight="bold" />
+                    <TrendUp size={12} />
                     领先 {(data.effectSize * 100).toFixed(1)}%
                   </div>
                 )}
@@ -891,13 +925,13 @@ const ExperimentDetail = ({
           <section
             className={`relative animate-g3-fade-in overflow-hidden rounded-card border-2 p-6 shadow-soft ${
               data.status === 'completed'
-                ? 'border-indigo-100 bg-gradient-to-br from-indigo-50 to-white'
+                ? 'border-blue-100 bg-gradient-to-br from-blue-50 to-white'
                 : 'border-gray-200 bg-white'
             }`}
           >
             {data.status === 'completed' && (
               <div className="absolute right-0 top-0 p-4 opacity-10">
-                <Trophy size={120} className="text-indigo-600" />
+                <Trophy size={120} className="text-blue-600" />
               </div>
             )}
 
@@ -909,7 +943,7 @@ const ExperimentDetail = ({
               {data.winner && (
                 <div className="flex items-start gap-4 rounded-button border border-green-100 bg-green-50 p-4">
                   <div className="shrink-0 rounded-full bg-green-100 p-2 text-green-600">
-                    <Trophy size={24} weight="fill" />
+                    <Trophy size={24} />
                   </div>
                   <div>
                     <h4 className="font-bold text-green-900">Winner: {data.winner}</h4>
@@ -927,10 +961,10 @@ const ExperimentDetail = ({
 
               {/* Action Buttons (Only if completed) */}
               {data.status === 'completed' && (
-                <div className="mt-6 flex gap-3 border-t border-indigo-100/50 pt-4">
-                  <button className="flex items-center gap-2 rounded-button bg-indigo-600 px-4 py-2 font-medium text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow">
+                <div className="mt-6 flex gap-3 border-t border-blue-100/50 pt-4">
+                  <button className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 font-medium text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow">
                     采用获胜方案
-                    <ArrowRight size={16} weight="bold" />
+                    <ArrowRight size={16} />
                   </button>
                   <button className="rounded-button border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50">
                     归档报告

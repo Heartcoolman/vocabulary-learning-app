@@ -3,17 +3,16 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { ComponentProps } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TestOptions from '../TestOptions';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, onClick, disabled, ...props }: any) => (
-      <button onClick={onClick} disabled={disabled} {...props}>
-        {children}
-      </button>
+    div: ({ children, ...props }: ComponentProps<'div'>) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }: ComponentProps<'button'>) => (
+      <button {...props}>{children}</button>
     ),
   },
 }));

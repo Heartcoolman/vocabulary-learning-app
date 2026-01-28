@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import PlanPage from '../PlanPage';
 
 // Mock 导航
@@ -56,10 +56,10 @@ import ApiClient from '../../services/client';
 describe('PlanPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (ApiClient.getLearningPlan as any).mockResolvedValue(mockPlan);
-    (ApiClient.getPlanProgress as any).mockResolvedValue(mockProgress);
-    (ApiClient.generateLearningPlan as any).mockResolvedValue(mockPlan);
-    (ApiClient.adjustLearningPlan as any).mockResolvedValue(mockPlan);
+    (ApiClient.getLearningPlan as Mock).mockResolvedValue(mockPlan);
+    (ApiClient.getPlanProgress as Mock).mockResolvedValue(mockProgress);
+    (ApiClient.generateLearningPlan as Mock).mockResolvedValue(mockPlan);
+    (ApiClient.adjustLearningPlan as Mock).mockResolvedValue(mockPlan);
   });
 
   afterEach(() => {
@@ -197,7 +197,7 @@ describe('PlanPage', () => {
 
   describe('Plan Status - Behind Schedule', () => {
     it('should show needs improvement indicator when behind schedule', async () => {
-      (ApiClient.getPlanProgress as any).mockResolvedValue({
+      (ApiClient.getPlanProgress as Mock).mockResolvedValue({
         ...mockProgress,
         onTrack: false,
         deviation: -10,
@@ -213,7 +213,7 @@ describe('PlanPage', () => {
 
   describe('No Plan State', () => {
     it('should show create plan message when no plan exists', async () => {
-      (ApiClient.getLearningPlan as any).mockResolvedValue(null);
+      (ApiClient.getLearningPlan as Mock).mockResolvedValue(null);
 
       renderComponent();
 
@@ -223,7 +223,7 @@ describe('PlanPage', () => {
     });
 
     it('should show create plan button when no plan exists', async () => {
-      (ApiClient.getLearningPlan as any).mockResolvedValue(null);
+      (ApiClient.getLearningPlan as Mock).mockResolvedValue(null);
 
       renderComponent();
 
@@ -235,7 +235,7 @@ describe('PlanPage', () => {
 
   describe('Plan Generation', () => {
     it('should open create plan modal when clicking create button', async () => {
-      (ApiClient.getLearningPlan as any).mockResolvedValue(null);
+      (ApiClient.getLearningPlan as Mock).mockResolvedValue(null);
 
       renderComponent();
 
@@ -266,8 +266,8 @@ describe('PlanPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (ApiClient.getLearningPlan as any).mockRejectedValue(new Error('加载失败'));
-      (ApiClient.getPlanProgress as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getLearningPlan as Mock).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getPlanProgress as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -277,8 +277,8 @@ describe('PlanPage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (ApiClient.getLearningPlan as any).mockRejectedValue(new Error('加载失败'));
-      (ApiClient.getPlanProgress as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getLearningPlan as Mock).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getPlanProgress as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -288,10 +288,10 @@ describe('PlanPage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (ApiClient.getLearningPlan as any)
+      (ApiClient.getLearningPlan as Mock)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockPlan);
-      (ApiClient.getPlanProgress as any)
+      (ApiClient.getPlanProgress as Mock)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockProgress);
 

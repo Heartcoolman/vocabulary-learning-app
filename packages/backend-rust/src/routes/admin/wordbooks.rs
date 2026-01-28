@@ -149,7 +149,7 @@ async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQ
 
     match rows {
         Ok(rows) => {
-            let wordbooks: Vec<WordBook> = rows.iter().map(|r| parse_wordbook_pg(r)).collect();
+            let wordbooks: Vec<WordBook> = rows.iter().map(parse_wordbook_pg).collect();
             (
                 StatusCode::OK,
                 Json(SuccessResponse {
@@ -162,7 +162,7 @@ async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQ
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "QUERY_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -212,7 +212,7 @@ async fn create_wordbook(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -272,7 +272,7 @@ async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> 
             .await
             .unwrap_or_default();
 
-            let words: Vec<Word> = word_rows.iter().map(|r| parse_word_pg(r)).collect();
+            let words: Vec<Word> = word_rows.iter().map(parse_word_pg).collect();
 
             (
                 StatusCode::OK,
@@ -287,7 +287,7 @@ async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> 
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "QUERY_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -342,7 +342,7 @@ async fn update_wordbook(
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "QUERY_ERROR",
-                &e.to_string(),
+                e.to_string(),
             )
             .into_response()
         }
@@ -385,7 +385,7 @@ async fn update_wordbook(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -423,7 +423,7 @@ async fn delete_wordbook(State(state): State<AppState>, Path(id): Path<String>) 
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "QUERY_ERROR",
-                &e.to_string(),
+                e.to_string(),
             )
             .into_response()
         }
@@ -437,7 +437,7 @@ async fn delete_wordbook(State(state): State<AppState>, Path(id): Path<String>) 
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "DELETE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -511,7 +511,7 @@ async fn batch_add_words(
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "QUERY_ERROR",
-                &e.to_string(),
+                e.to_string(),
             )
             .into_response()
         }

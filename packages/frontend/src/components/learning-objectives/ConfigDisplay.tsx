@@ -1,5 +1,5 @@
 import React from 'react';
-import { LearningObjectives, LearningObjectiveMode } from '../../types/learning-objectives';
+import { LearningObjectives } from '../../types/learning-objectives';
 import { Gear } from '../Icon';
 
 interface ConfigDisplayProps {
@@ -43,7 +43,7 @@ export function ConfigDisplay({ objectives, modeLabel }: ConfigDisplayProps) {
   return (
     <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
       <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-gray-900 dark:text-white">
-        <Gear size={24} weight="duotone" className="text-blue-500" />
+        <Gear size={24} className="text-blue-500" />
         当前配置
       </h2>
 

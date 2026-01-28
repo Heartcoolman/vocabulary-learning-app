@@ -3,11 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  AdaptiveQueueManager,
-  UserStateSnapshot,
-  RecentPerformance,
-} from '../AdaptiveQueueManager';
+import { AdaptiveQueueManager, UserStateSnapshot } from '../AdaptiveQueueManager';
 
 describe('AdaptiveQueueManager', () => {
   let manager: AdaptiveQueueManager;
@@ -48,7 +44,7 @@ describe('AdaptiveQueueManager', () => {
       expect(perf.avgResponseTime).toBeLessThan(2000);
 
       // 在周期检查时应该返回 excelling 建议
-      const result = manager.onAnswerSubmitted(true, 1500);
+      manager.onAnswerSubmitted(true, 1500);
       // 由于表现优秀，间隔会变成5，所以第6个答案不会触发调整
       // 但我们可以验证性能数据
       expect(manager.getRecentPerformance().accuracy).toBe(1);
@@ -78,7 +74,7 @@ describe('AdaptiveQueueManager', () => {
       }
 
       // 使用低难度单词触发检查
-      const result = manager.onAnswerSubmitted(true, 1500, undefined, 0.2);
+      manager.onAnswerSubmitted(true, 1500, undefined, 0.2);
 
       // 验证性能数据显示需要增加难度
       const perf = manager.getRecentPerformance();
@@ -343,7 +339,7 @@ describe('AdaptiveQueueManager', () => {
       // 低注意力会导致更频繁的检查
       // 提交2个答案后应该检查
       manager.onAnswerSubmitted(true, 2000, lowAttentionState);
-      const result = manager.onAnswerSubmitted(true, 2000, lowAttentionState);
+      manager.onAnswerSubmitted(true, 2000, lowAttentionState);
 
       // 由于低注意力，间隔变为2，第2个答案可能触发检查
       expect(manager.getAnswerCount()).toBe(2);

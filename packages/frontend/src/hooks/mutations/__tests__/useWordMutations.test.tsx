@@ -5,7 +5,7 @@
 import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import {
   useCreateWord,
   useUpdateWord,
@@ -302,8 +302,8 @@ describe('useWordMutations', () => {
   });
 
   it('应该正确跟踪加载状态', async () => {
-    vi.mocked(wordService.createWord).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: {} as any }), 100)),
+    (wordService.createWord as Mock).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ data: {} }), 100)),
     );
 
     const { result } = renderHook(() => useWordMutations(), {

@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { CenterWordBook } from '../../services/client';
-import { Books, Download, Tag, User, CaretRight } from '../Icon';
+import { Books, Download, User, CaretRight } from '../Icon';
 
 interface CenterWordBookCardProps {
   wordbook: CenterWordBook;
@@ -22,9 +22,9 @@ export function CenterWordBookCard({ wordbook, onSelect }: CenterWordBookCardPro
       role="button"
       tabIndex={0}
       aria-label={`查看词书: ${wordbook.name}, ${wordbook.wordCount} 词`}
-      className="group flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200/60 bg-white/80 px-4 py-3 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-elevated focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-700/60 dark:bg-slate-800/80 dark:hover:border-blue-600 dark:hover:bg-slate-700/50"
+      className="group flex cursor-pointer items-center gap-3 rounded-button border border-gray-200/60 bg-white/80 px-4 py-3 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-elevated focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-700/60 dark:bg-slate-800/80 dark:hover:border-blue-600 dark:hover:bg-slate-700/50"
     >
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-button bg-blue-100 dark:bg-blue-900/30">
         <Books className="h-6 w-6 text-blue-500 dark:text-blue-400" />
       </div>
 

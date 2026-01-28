@@ -15,16 +15,24 @@ use crate::response::AppError;
 use crate::state::AppState;
 
 mod analytics;
+mod auth;
+mod broadcast;
 mod llm;
 mod logs;
 mod monitoring;
 mod ops;
 mod ota;
 mod quality;
+pub mod settings;
 mod statistics;
 mod users;
 mod version;
 mod wordbooks;
+
+pub use auth::{
+    protected_router as auth_protected_router, public_router as auth_public_router,
+    require_admin_auth,
+};
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -34,6 +42,7 @@ struct SuccessResponse<T> {
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .nest("/broadcasts", broadcast::router())
         .nest("/users", users::router())
         .nest("/wordbooks", wordbooks::router())
         .nest("/logs", logs::router())
@@ -42,6 +51,7 @@ pub fn router() -> Router<AppState> {
         .nest("/llm", llm::router())
         .nest("/analytics", analytics::router())
         .nest("/amas-monitoring", monitoring::router())
+        .nest("/settings", settings::router())
         .route(
             "/statistics",
             axum::routing::get(statistics::get_statistics),

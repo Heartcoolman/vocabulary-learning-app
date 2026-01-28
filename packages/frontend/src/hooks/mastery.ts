@@ -181,11 +181,6 @@ export function useRetryQueue() {
   const queueRef = useRef<RetryItem[]>([]);
   const isProcessingRef = useRef(false);
 
-  const addToQueue = useCallback((item: Omit<RetryItem, 'retryCount'>) => {
-    queueRef.current.push({ ...item, retryCount: 0 });
-    processQueue();
-  }, []);
-
   const processQueue = useCallback(async () => {
     if (isProcessingRef.current || queueRef.current.length === 0) return;
 
@@ -197,7 +192,7 @@ export function useRetryQueue() {
       try {
         await item.action();
         queueRef.current.shift();
-      } catch (e) {
+      } catch {
         item.retryCount++;
         if (item.retryCount >= item.maxRetries) {
           learningLogger.warn({ itemId: item.id }, '[RetryQueue] Max retries reached');
@@ -211,6 +206,14 @@ export function useRetryQueue() {
 
     isProcessingRef.current = false;
   }, []);
+
+  const addToQueue = useCallback(
+    (item: Omit<RetryItem, 'retryCount'>) => {
+      queueRef.current.push({ ...item, retryCount: 0 });
+      processQueue();
+    },
+    [processQueue],
+  );
 
   const clearQueue = useCallback(() => {
     queueRef.current = [];

@@ -17,6 +17,11 @@ interface MockListProps {
   rowHeight?: number;
 }
 
+type MockIconProps = {
+  weight?: string;
+  color?: string;
+};
+
 // Mock react-window
 vi.mock('react-window', () => ({
   List: ({ rowCount, rowComponent: Row, ...props }: MockListProps) => {
@@ -37,7 +42,7 @@ vi.mock('../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../Icon')>();
   return {
     ...actual,
-    Star: ({ weight, color }: any) => (
+    Star: ({ weight, color }: MockIconProps) => (
       <span data-testid="star" data-weight={weight} data-color={color}>
         ★
       </span>

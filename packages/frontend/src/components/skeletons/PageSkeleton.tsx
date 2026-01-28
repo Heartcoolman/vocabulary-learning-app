@@ -139,3 +139,93 @@ export const ListSkeleton = () => (
 );
 
 export default PageSkeleton;
+
+/**
+ * 单词卡片骨架屏 - 用于词书详情页的单词网格
+ */
+export const WordCardSkeleton = ({ count = 8 }: { count?: number }) => (
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className="animate-pulse rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800/80"
+      >
+        <div className="space-y-3">
+          <div className="mx-auto h-6 w-24 rounded bg-gray-200 dark:bg-slate-700"></div>
+          <div className="mx-auto h-5 w-16 rounded-full bg-gray-100 dark:bg-slate-600"></div>
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-start gap-2">
+              <div className="h-5 w-5 flex-shrink-0 rounded-full bg-gray-200 dark:bg-slate-700"></div>
+              <div className="h-4 flex-1 rounded bg-gray-200 dark:bg-slate-700"></div>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="h-5 w-5 flex-shrink-0 rounded-full bg-gray-200 dark:bg-slate-700"></div>
+              <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * 主题卡片骨架屏 - 用于易混淆词主题列表
+ */
+export const ThemeCardSkeleton = ({ count = 5 }: { count?: number }) => (
+  <div className="space-y-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className="animate-pulse rounded-card border border-gray-200/60 bg-white/80 p-5 shadow-soft dark:border-slate-700 dark:bg-slate-800/80"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-5 w-5 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="space-y-2">
+              <div className="h-5 w-40 rounded bg-gray-200 dark:bg-slate-700" />
+              <div className="h-3 w-24 rounded bg-gray-200 dark:bg-slate-700" />
+            </div>
+          </div>
+          <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-slate-700" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * 历史记录骨架屏 - 用于历史页面按日期分组的列表
+ */
+export const HistoryListSkeleton = ({
+  groups = 3,
+  itemsPerGroup = 4,
+}: {
+  groups?: number;
+  itemsPerGroup?: number;
+}) => (
+  <div className="space-y-6">
+    {Array.from({ length: groups }).map((_, groupIdx) => (
+      <div key={groupIdx} className="animate-pulse">
+        <div className="mb-3 h-5 w-24 rounded bg-gray-200 dark:bg-slate-700"></div>
+        <div className="space-y-2">
+          {Array.from({ length: itemsPerGroup }).map((_, itemIdx) => (
+            <div
+              key={itemIdx}
+              className="flex items-center justify-between rounded-button bg-white p-3 shadow-soft dark:bg-slate-800"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded bg-gray-200 dark:bg-slate-700"></div>
+                <div className="space-y-1">
+                  <div className="h-4 w-20 rounded bg-gray-200 dark:bg-slate-700"></div>
+                  <div className="h-3 w-32 rounded bg-gray-200 dark:bg-slate-700"></div>
+                </div>
+              </div>
+              <div className="h-5 w-12 rounded bg-gray-200 dark:bg-slate-700"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);

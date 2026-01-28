@@ -3,8 +3,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import WordListPage from '../WordListPage';
 
 const mockNavigate = vi.fn();
@@ -21,15 +22,19 @@ vi.mock('@/contexts/AuthContext', () => ({
 }));
 
 // Mock useToast hook
-vi.mock('@/components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    showToast: vi.fn(),
-  }),
-}));
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      showToast: vi.fn(),
+    }),
+  };
+});
 
 vi.mock('@/services/StorageService', () => ({
   default: {
@@ -116,6 +121,18 @@ vi.mock('react-window', () => ({
   useListRef: () => ({ current: { scrollToRow: vi.fn() } }),
   useListCallbackRef: () => [{ scrollToRow: vi.fn() }, vi.fn()],
 }));
+
+const render = (ui: JSX.Element) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return rtlRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
 
 describe('WordListPage', () => {
   beforeEach(() => {

@@ -1,7 +1,13 @@
 import { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SpeakerHigh } from './Icon';
-import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
+import {
+  slideUpVariants,
+  fadeInVariants,
+  g3SpringSnappy,
+  G3_DURATION,
+  G3_EASING,
+} from '../utils/animations';
 import { WordCardWord } from './WordCard';
 
 export interface ReverseWordCardProps {
@@ -69,7 +75,7 @@ function ReverseWordCard({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: G3_DURATION.slow / 1000, ease: G3_EASING.standard }}
           className="mt-6 flex flex-col items-center space-y-3"
         >
           {/* 单词拼写 */}

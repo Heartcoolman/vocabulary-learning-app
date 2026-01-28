@@ -3,10 +3,11 @@
  * 管理员查看用户 AMAS 决策记录的完整功能组件
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { CheckCircle, XCircle, Hourglass, Minus } from '../Icon';
 import ApiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
-import { LearningStrategy, DifficultyLevel } from '@danci/shared';
+import { DifficultyLevel } from '@danci/shared';
 import { PAGINATION_CONFIG } from '../../constants/pagination';
 
 // ============================================
@@ -161,26 +162,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     sortOrder: 'desc' as 'asc' | 'desc',
   });
 
-  // 修复：将 filters 对象的各个属性作为独立依赖项，避免对象引用变化导致的不必要重新渲染
-  useEffect(() => {
-    // 空值保护：如果 userId 为空，不发起请求
-    if (!userId) {
-      setLoading(false);
-      setError('用户ID为空');
-      return;
-    }
-    loadDecisions();
-  }, [
-    userId,
-    pagination.page,
-    filters.startDate,
-    filters.endDate,
-    filters.decisionSource,
-    filters.sortBy,
-    filters.sortOrder,
-  ]);
-
-  const loadDecisions = async () => {
+  const loadDecisions = useCallback(async () => {
     // 空值保护：确保 userId 有效
     if (!userId) {
       setError('用户ID为空');
@@ -203,18 +185,22 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
 
       // 只在分页数据有实际变化时才更新 pagination，避免无限循环
       const newPagination = response.data.pagination;
-      if (
-        newPagination &&
-        (newPagination.total !== pagination.total ||
-          newPagination.totalPages !== pagination.totalPages ||
-          newPagination.pageSize !== pagination.pageSize)
-      ) {
-        setPagination((prev) => ({
-          ...prev,
-          total: newPagination.total,
-          totalPages: newPagination.totalPages,
-          pageSize: newPagination.pageSize,
-        }));
+      if (newPagination) {
+        setPagination((prev) => {
+          if (
+            newPagination.total === prev.total &&
+            newPagination.totalPages === prev.totalPages &&
+            newPagination.pageSize === prev.pageSize
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            total: newPagination.total,
+            totalPages: newPagination.totalPages,
+            pageSize: newPagination.pageSize,
+          };
+        });
       }
 
       setStatistics(response.data.statistics || null);
@@ -225,7 +211,20 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    userId,
+    pagination.page,
+    pagination.pageSize,
+    filters.startDate,
+    filters.endDate,
+    filters.decisionSource,
+    filters.sortBy,
+    filters.sortOrder,
+  ]);
+
+  useEffect(() => {
+    loadDecisions();
+  }, [loadDecisions]);
 
   const loadDecisionDetail = async (decisionId: string) => {
     // 重置取消标志
@@ -553,13 +552,15 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                         >
                           <div className="mb-2 flex items-center gap-3">
                             <span className="text-lg font-bold dark:text-slate-200">
-                              {stage.status === 'SUCCESS'
-                                ? '✓'
-                                : stage.status === 'FAILED'
-                                  ? '✗'
-                                  : stage.status === 'STARTED'
-                                    ? '⏳'
-                                    : '─'}
+                              {stage.status === 'SUCCESS' ? (
+                                <CheckCircle size={20} weight="fill" className="text-green-500" />
+                              ) : stage.status === 'FAILED' ? (
+                                <XCircle size={20} weight="fill" className="text-red-500" />
+                              ) : stage.status === 'STARTED' ? (
+                                <Hourglass size={20} className="text-yellow-500" />
+                              ) : (
+                                <Minus size={20} className="text-gray-400" />
+                              )}
                             </span>
                             <span className="flex-1 text-sm font-bold dark:text-slate-200">
                               {stage.stageName || stage.stage}

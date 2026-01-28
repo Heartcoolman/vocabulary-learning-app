@@ -92,7 +92,7 @@ pub async fn low_list(State(state): State<AppState>, req: Request<Body>) -> Resp
     let threshold = get_query_param(query, "threshold")
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(40);
-    if threshold < 0 || threshold > 100 {
+    if !(0..=100).contains(&threshold) {
         return json_error(
             StatusCode::BAD_REQUEST,
             "BAD_REQUEST",
@@ -151,7 +151,7 @@ pub async fn high_list(State(state): State<AppState>, req: Request<Body>) -> Res
     let threshold = get_query_param(query, "threshold")
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(80);
-    if threshold < 0 || threshold > 100 {
+    if !(0..=100).contains(&threshold) {
         return json_error(
             StatusCode::BAD_REQUEST,
             "BAD_REQUEST",

@@ -125,7 +125,7 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
                   y={getPoint(i, 1.2).y + 14}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="fill-indigo-600 text-xs font-bold dark:fill-indigo-400"
+                  className="fill-blue-600 text-xs font-bold dark:fill-blue-400"
                 >
                   {d.value.toFixed(2)}
                 </text>
@@ -139,7 +139,7 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
         <h4 className="mb-2 font-medium text-gray-900 dark:text-white">算法混合策略</h4>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           当前决策主要由
-          <span className="mx-1 font-bold text-indigo-600 dark:text-indigo-400">
+          <span className="mx-1 font-bold text-blue-600 dark:text-blue-400">
             {data.reduce((prev, current) => (prev.value > current.value ? prev : current)).label}
           </span>
           主导，结合其他模型进行平衡。

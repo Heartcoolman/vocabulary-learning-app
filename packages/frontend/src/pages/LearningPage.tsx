@@ -5,22 +5,26 @@ import ReverseWordCard from '../components/ReverseWordCard';
 import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
 import { StatusModal, SuggestionModal } from '../components';
+import { Spinner } from '../components/ui';
 import { LearningModeSelector } from '../components/LearningModeSelector';
 import ExplainabilityModal from '../components/explainability/ExplainabilityModal';
 import LearningService from '../services/LearningService';
 import {
   Confetti,
   Books,
-  CircleNotch,
   Clock,
   WarningCircle,
   Brain,
   ChartPie,
   Lightbulb,
+  SkipForward,
+  Stop,
+  Trophy,
 } from '../components/Icon';
 import { FloatingEyeIndicator, FatigueAlertModal } from '../components/visual-fatigue';
 import { useVisualFatigueStore } from '../stores/visualFatigueStore';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
+import { useConfusionBatchLearning } from '../hooks/useConfusionBatchLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
 import { useTestOptionsGenerator } from '../hooks/useTestOptions';
@@ -28,10 +32,18 @@ import { useStudyConfig } from '../hooks/queries/useStudyConfig';
 import { trackingService } from '../services/TrackingService';
 import { apiLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import type { LearningSeedState } from '../utils/learningSeed';
 
 export default function LearningPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const seedState = location.state as LearningSeedState | null;
+  const seedWords = seedState?.seedWords?.length ? seedState.seedWords : undefined;
+  const seedSource = seedState?.seedSource;
+  const seedLabel = seedState?.seedLabel;
+  const confusionPairs = seedState?.confusionPairs ?? [];
+  const themeLabel = seedState?.themeLabel ?? '';
+  const isConfusionBatchMode = seedSource === 'confusion-batch' && confusionPairs.length > 0;
   const previousPathRef = useRef<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | undefined>(undefined);
   const [showResult, setShowResult] = useState(false);
@@ -59,7 +71,43 @@ export default function LearningPage() {
 
   // 获取用户学习配置
   const { data: studyConfig } = useStudyConfig();
-  const targetWordCount = studyConfig?.dailyWordCount ?? 20;
+  const targetWordCount = seedWords?.length ?? studyConfig?.dailyWordCount ?? 20;
+
+  const seedSessionInfo = useMemo(() => {
+    if (!seedSource) return null;
+    if (seedSource === 'cluster') {
+      return {
+        label: '学习该主题',
+        detail: seedLabel || '主题词汇',
+        badgeClass:
+          'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800/60 dark:bg-blue-900/30 dark:text-blue-300',
+      };
+    }
+    if (seedSource === 'confusion') {
+      return {
+        label: '一起练习',
+        detail: '易混淆词',
+        badgeClass:
+          'border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800/60 dark:bg-amber-900/30 dark:text-amber-300',
+      };
+    }
+    if (seedSource === 'confusion-batch') {
+      return {
+        label: '批量学习',
+        detail: themeLabel || '易混淆词主题',
+        badgeClass:
+          'border-purple-200 bg-purple-50 text-purple-600 dark:border-purple-800/60 dark:bg-purple-900/30 dark:text-purple-300',
+      };
+    }
+    return null;
+  }, [seedSource, seedLabel, themeLabel]);
+
+  // Confusion batch learning hook
+  const confusionBatch = useConfusionBatchLearning({
+    pairs: confusionPairs,
+    themeLabel,
+    initialPairIndex: seedState?.currentPairIndex ?? 0,
+  });
 
   // 视觉疲劳状态
   const { enabled: fatigueEnabled, metrics: fatigueMetrics } = useVisualFatigueStore();
@@ -79,11 +127,17 @@ export default function LearningPage() {
 
   // 会话开始埋点
   useEffect(() => {
-    trackingService.trackSessionStart({ page: 'learning' });
+    trackingService.trackSessionStart({
+      page: 'learning',
+      seedSource: seedSource ?? null,
+      seedLabel: seedLabel ?? null,
+      seedWordCount: seedWords?.length ?? null,
+    });
     return () => {
       // 组件卸载时记录会话结束（页面离开）
       trackingService.trackLearningPause('page_leave');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 疲劳提醒：当疲劳度超过阈值时弹出提醒
@@ -118,6 +172,7 @@ export default function LearningPage() {
     targetMasteryCount: targetWordCount,
     getDialogPausedTime,
     resetDialogPausedTime,
+    seedWords,
   });
 
   // 使用自动朗读 Hook
@@ -230,12 +285,16 @@ export default function LearningPage() {
 
   const handleNext = useCallback(() => {
     advanceToNext();
+    // In confusion batch mode, also advance the pair progress
+    if (isConfusionBatchMode) {
+      confusionBatch.advanceToNextPair();
+    }
     setSelectedAnswer(undefined);
     setShowResult(false);
     setResponseStartTime(Date.now());
     regenerateOptions(); // 强制触发选项重新生成
     isSubmittingRef.current = false; // 重置提交状态
-  }, [advanceToNext, regenerateOptions]);
+  }, [advanceToNext, regenerateOptions, isConfusionBatchMode, confusionBatch]);
 
   // 始终保持 ref 指向最新的 handleNext
   handleNextRef.current = handleNext;
@@ -260,12 +319,7 @@ export default function LearningPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400">
             {hasRestoredSession ? '恢复学习会话中...' : '加载单词中...'}
           </p>
@@ -278,7 +332,7 @@ export default function LearningPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="max-w-md px-4 text-center">
-          <WarningCircle size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <WarningCircle size={64} color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
             加载学习数据失败
           </h2>
@@ -300,7 +354,7 @@ export default function LearningPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="max-w-md px-4 text-center">
           <div className="mb-4 animate-bounce">
-            <Books size={96} weight="duotone" color="#3b82f6" className="mx-auto" />
+            <Books size={96} color="#3b82f6" className="mx-auto" />
           </div>
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">暂无单词</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">
@@ -325,6 +379,60 @@ export default function LearningPage() {
     );
   }
 
+  // Confusion batch completion screen
+  if (isConfusionBatchMode && confusionBatch.isEnded) {
+    const stats = confusionBatch.getSessionStats();
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
+        <div className="max-w-md px-4 text-center">
+          <div className="mb-4 animate-bounce">
+            <Trophy size={96} color="#a855f7" className="mx-auto" />
+          </div>
+          <h2 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">主题学习完成！</h2>
+          <p className="mb-1 text-lg font-medium text-purple-600 dark:text-purple-400">
+            {stats.themeLabel}
+          </p>
+          <div className="mb-6 mt-4 rounded-card border border-gray-200 bg-white p-4 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {stats.completedPairs}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">完成</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {stats.skippedPairs}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">跳过</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">
+                  {stats.elapsedTime}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">用时</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
+            <button
+              onClick={() => navigate('/confusion-words')}
+              className="rounded-button bg-purple-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-purple-600 active:scale-95"
+            >
+              选择其他主题
+            </button>
+            <button
+              onClick={() => navigate('/statistics')}
+              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
+            >
+              查看统计
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isCompleted) {
     const isMasteryAchieved = completionReason === 'mastery_achieved';
     const isQuestionLimit = completionReason === 'question_limit';
@@ -334,9 +442,9 @@ export default function LearningPage() {
         <div className="max-w-md px-4 text-center">
           <div className="mb-4 animate-bounce">
             {isMasteryAchieved ? (
-              <Confetti size={96} weight="duotone" color="#22c55e" className="mx-auto" />
+              <Confetti size={96} color="#22c55e" className="mx-auto" />
             ) : (
-              <Clock size={96} weight="duotone" color="#f59e0b" className="mx-auto" />
+              <Clock size={96} color="#f59e0b" className="mx-auto" />
             )}
           </div>
           <h2 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
@@ -394,8 +502,61 @@ export default function LearningPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900">
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center p-3">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center p-3 pb-24">
         <div className="w-full space-y-3">
+          {seedSessionInfo && (
+            <div className="rounded-card border border-dashed border-gray-200 bg-white/80 px-4 py-2 text-sm text-gray-700 shadow-soft dark:border-slate-700 dark:bg-slate-800/70 dark:text-gray-200">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${seedSessionInfo.badgeClass}`}
+                  >
+                    {seedSessionInfo.label}
+                  </span>
+                  <span className="font-medium">{seedSessionInfo.detail}</span>
+                  {isConfusionBatchMode ? (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      词对 {confusionBatch.progress.current}/{confusionBatch.progress.total}
+                    </span>
+                  ) : seedWords?.length ? (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      共 {seedWords.length} 词
+                    </span>
+                  ) : null}
+                </div>
+                {isConfusionBatchMode && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={confusionBatch.skipPair}
+                      className="flex items-center gap-1 rounded-button px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-slate-700 dark:hover:text-gray-200"
+                      title="跳过当前词对"
+                    >
+                      <SkipForward size={14} />
+                      跳过
+                    </button>
+                    <button
+                      onClick={confusionBatch.endSession}
+                      className="flex items-center gap-1 rounded-button px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                      title="结束本次学习"
+                    >
+                      <Stop size={14} />
+                      结束
+                    </button>
+                  </div>
+                )}
+              </div>
+              {isConfusionBatchMode && (
+                <div className="mt-2">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+                    <div
+                      className="h-full rounded-full bg-purple-500 transition-all duration-g3-normal"
+                      style={{ width: `${confusionBatch.progress.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {/* 学习进度面板 - 集成工具栏 */}
           <MasteryProgress
             progress={progress}
@@ -426,7 +587,7 @@ export default function LearningPage() {
                 <button
                   onClick={() => setIsExplainabilityOpen(true)}
                   disabled={!latestAmasResult}
-                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-indigo-900/30"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-blue-900/30"
                   title="决策透视"
                 >
                   <Brain size={20} />
@@ -472,7 +633,20 @@ export default function LearningPage() {
       >
         <div className="rounded-button border border-blue-200 bg-white/95 p-3 shadow-elevated backdrop-blur-sm dark:border-blue-800 dark:bg-slate-800/95">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700 dark:text-gray-300">当前学习策略</span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-gray-900 dark:text-white">
+                {currentWord?.spelling}
+              </span>
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs ${
+                  currentWord?.isNew
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                }`}
+              >
+                {currentWord?.isNew ? '新词' : '复习'}
+              </span>
+            </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {latestAmasResult?.explanation?.text || '分析中...'}
             </p>

@@ -1,21 +1,30 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import type { ReactNode } from 'react';
+
+interface MockMotionProps {
+  children?: ReactNode;
+  onClick?: () => void;
+  className?: string;
+}
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, onClick, className, ...props }: any) => (
+    div: ({ children, onClick, className }: MockMotionProps) => (
       <div onClick={onClick} className={className}>
         {children}
       </div>
     ),
-    p: ({ children, className, ...props }: any) => <p className={className}>{children}</p>,
-    li: ({ children, className, ...props }: any) => <li className={className}>{children}</li>,
-    span: ({ children, className, ...props }: any) => <span className={className}>{children}</span>,
-    ul: ({ children, className, ...props }: any) => <ul className={className}>{children}</ul>,
+    p: ({ children, className }: MockMotionProps) => <p className={className}>{children}</p>,
+    li: ({ children, className }: MockMotionProps) => <li className={className}>{children}</li>,
+    span: ({ children, className }: MockMotionProps) => (
+      <span className={className}>{children}</span>
+    ),
+    ul: ({ children, className }: MockMotionProps) => <ul className={className}>{children}</ul>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock animations utils

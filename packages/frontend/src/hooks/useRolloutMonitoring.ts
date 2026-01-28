@@ -10,7 +10,6 @@ import {
   HealthReport,
   AlertEvent,
   AlertRule,
-  RollbackCondition,
   MetricType,
 } from '../utils/rolloutMonitoring';
 

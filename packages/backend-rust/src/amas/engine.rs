@@ -1120,7 +1120,7 @@ impl AMASEngine {
                 name: "疲劳度".to_string(),
                 value: fatigue_value,
                 impact: "降低批量大小".to_string(),
-                percentage: ((fatigue_value - 0.5) * 100.0) as f64,
+                percentage: ((fatigue_value - 0.5) * 100.0),
             });
         }
 
@@ -1129,7 +1129,7 @@ impl AMASEngine {
                 name: "注意力".to_string(),
                 value: state.attention,
                 impact: "增加提示级别".to_string(),
-                percentage: ((0.5 - state.attention) * 100.0) as f64,
+                percentage: ((0.5 - state.attention) * 100.0),
             });
         }
 
@@ -1138,7 +1138,7 @@ impl AMASEngine {
                 name: "动机".to_string(),
                 value: state.motivation,
                 impact: "降低难度".to_string(),
-                percentage: (state.motivation.abs() * 100.0) as f64,
+                percentage: (state.motivation.abs() * 100.0),
             });
         }
 
@@ -1152,14 +1152,14 @@ impl AMASEngine {
                         name: "学习习惯".to_string(),
                         value: pref_score,
                         impact: "偏好时段提高挑战".to_string(),
-                        percentage: (pref_score * 100.0) as f64,
+                        percentage: (pref_score * 100.0),
                     });
                 } else if pref_score <= 0.2 {
                     factors.push(DecisionFactor {
                         name: "学习习惯".to_string(),
                         value: pref_score,
                         impact: "非偏好时段降低负担".to_string(),
-                        percentage: (pref_score * 100.0) as f64,
+                        percentage: (pref_score * 100.0),
                     });
                 }
             }

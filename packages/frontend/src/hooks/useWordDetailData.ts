@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { apiClient } from '../services/client';
 import { ApiError } from '../services/client';
 import { wordService } from '../services/word.service';
@@ -22,9 +22,12 @@ export const useWordDetailData = (wordId: string, isOpen: boolean) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<WordDetailData | null>(null);
+  const requestIdRef = useRef(0);
 
   const loadDetailData = useCallback(async () => {
     if (!wordId) return;
+
+    const requestId = ++requestIdRef.current;
 
     try {
       setLoading(true);
@@ -58,6 +61,8 @@ export const useWordDetailData = (wordId: string, isOpen: boolean) => {
         apiClient.getWordMasteryInterval(wordId).catch(() => null),
       ]);
 
+      if (requestId !== requestIdRef.current) return;
+
       if (!wordData) {
         setError('未找到该单词信息');
         return;
@@ -72,10 +77,13 @@ export const useWordDetailData = (wordId: string, isOpen: boolean) => {
         interval: intervalData,
       });
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError('加载数据失败，请稍后重试');
       learningLogger.error({ err, wordId }, '加载单词详情失败');
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [wordId]);
 

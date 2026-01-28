@@ -12,7 +12,7 @@ import {
 } from './word-quality/hooks';
 import { IssueStatus, CheckType, Task } from './word-quality/api';
 import { useToast } from '../../components/ui';
-import { Books } from '@phosphor-icons/react';
+import { Books } from '../../components/Icon';
 
 export default function WordQualityPage() {
   const { success, error, info } = useToast();
@@ -28,6 +28,7 @@ export default function WordQualityPage() {
     if (wordbooks && wordbooks.length > 0 && !selectedWordbook) {
       setSelectedWordbook(wordbooks[0].id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wordbooks]);
 
   // 2. Fetch Data
@@ -151,7 +152,7 @@ export default function WordQualityPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center gap-2 rounded-button border border-gray-200 bg-white p-1.5 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="px-2 text-gray-400 dark:text-gray-500">
             <Books className="h-5 w-5" />
           </div>

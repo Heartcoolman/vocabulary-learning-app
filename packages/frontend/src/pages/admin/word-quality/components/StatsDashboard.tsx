@@ -1,30 +1,34 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { QualityStats } from '../api';
-import { Books, WarningCircle, CheckCircle, Clock } from '@phosphor-icons/react';
-
-// Using Phosphor Icons as they seem to be used in the project (from package.json)
-// If not, I'll fallback to text or check Icon.tsx again.
-// package.json has "@phosphor-icons/react": "^2.1.10"
+import { Books, WarningCircle, CheckCircle, Clock } from '../../../../components/Icon';
 
 interface Props {
   stats?: QualityStats;
   loading: boolean;
 }
 
-const Card = ({ title, value, icon: Icon, color, delay }: any) => (
+interface CardProps {
+  title: string;
+  value: string | number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  delay: number;
+}
+
+const Card = ({ title, value, icon: Icon, color, delay }: CardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
-    className="flex items-start justify-between rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+    className="flex items-start justify-between rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800"
   >
     <div>
       <p className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
       <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
     </div>
-    <div className={`rounded-lg p-3 ${color}`}>
-      <Icon className="h-6 w-6 text-white" weight="fill" />
+    <div className={`rounded-button p-3 ${color}`}>
+      <Icon className="h-6 w-6 text-white" />
     </div>
   </motion.div>
 );
@@ -34,7 +38,7 @@ export const StatsDashboard: React.FC<Props> = ({ stats, loading }) => {
     return (
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-slate-700" />
+          <div key={i} className="h-24 animate-pulse rounded-card bg-gray-100 dark:bg-slate-700" />
         ))}
       </div>
     );
@@ -72,7 +76,7 @@ export const StatsDashboard: React.FC<Props> = ({ stats, loading }) => {
         title="上次检查"
         value={formatDate(stats?.lastCheck)}
         icon={Clock}
-        color="bg-indigo-500"
+        color="bg-blue-500"
         delay={0.3}
       />
     </div>

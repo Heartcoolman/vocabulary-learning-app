@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from '@phosphor-icons/react';
+import { X } from '@/components/Icon';
 import { g3SpringSnappy } from '@/utils/animations';
 import type { PipelineNode, NodeState, PacketTrace, StageTrace } from './types';
 import { STAGES, NODE_TYPE_COLORS } from './constants';

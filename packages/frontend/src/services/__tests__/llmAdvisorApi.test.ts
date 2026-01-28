@@ -325,7 +325,7 @@ describe('llmAdvisorApi', () => {
       };
       mockApiClient.approveLLMAdvisorSuggestion.mockResolvedValue(approvedSuggestion);
 
-      const result = await approveSuggestion('stored-1', ['suggestion-1'], 'Approved after review');
+      await approveSuggestion('stored-1', ['suggestion-1'], 'Approved after review');
 
       expect(mockApiClient.approveLLMAdvisorSuggestion).toHaveBeenCalledWith(
         'stored-1',
@@ -382,7 +382,7 @@ describe('llmAdvisorApi', () => {
       };
       mockApiClient.rejectLLMAdvisorSuggestion.mockResolvedValue(rejectedSuggestion);
 
-      const result = await rejectSuggestion('stored-1', 'Not applicable for current situation');
+      await rejectSuggestion('stored-1', 'Not applicable for current situation');
 
       expect(mockApiClient.rejectLLMAdvisorSuggestion).toHaveBeenCalledWith(
         'stored-1',

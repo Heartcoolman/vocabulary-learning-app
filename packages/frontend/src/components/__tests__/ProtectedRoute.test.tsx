@@ -57,7 +57,7 @@ describe('ProtectedRoute', () => {
 
       renderWithRouter();
 
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
       expect(screen.getByText('正在验证身份...')).toBeInTheDocument();
     });
 
@@ -226,8 +226,10 @@ describe('ProtectedRoute', () => {
 
       renderWithRouter();
 
-      const status = screen.getByRole('status');
-      expect(status).toHaveAttribute('aria-live', 'polite');
+      const status = screen
+        .getAllByRole('status')
+        .find((element) => element.getAttribute('aria-live') === 'polite');
+      expect(status).toBeDefined();
     });
   });
 });

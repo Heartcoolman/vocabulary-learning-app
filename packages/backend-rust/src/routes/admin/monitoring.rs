@@ -6,11 +6,11 @@ use axum::Json;
 use axum::Router;
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthUser;
 use crate::db::operations::monitoring::{
     get_aggregates_15m, get_aggregates_daily, get_health_reports, get_monitoring_overview,
 };
 use crate::response::{json_error, AppError};
+use crate::services::admin_auth::AdminAuthUser;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -28,7 +28,7 @@ pub fn router() -> Router<AppState> {
 
 async fn overview(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
         return Err(json_error(
@@ -70,7 +70,7 @@ struct AggregatesResponse {
 
 async fn aggregates(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
     Query(query): Query<AggregatesQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
@@ -132,7 +132,7 @@ struct HealthReportsQuery {
 
 async fn health_reports(
     State(state): State<AppState>,
-    Extension(_user): Extension<AuthUser>,
+    Extension(_user): Extension<AdminAuthUser>,
     Query(query): Query<HealthReportsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {

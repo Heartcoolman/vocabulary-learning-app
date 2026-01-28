@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import {
   useWordMasteryStats,
   useBatchWordMastery,
@@ -56,7 +56,7 @@ describe('useWordMasteryStats', () => {
         averageScore: 0.75,
       };
 
-      vi.mocked(apiClient.getWordMasteryStats).mockResolvedValue(mockStats as any);
+      (apiClient.getWordMasteryStats as Mock).mockResolvedValue(mockStats);
 
       const { result } = renderHook(() => useWordMasteryStats(), { wrapper });
 
@@ -68,7 +68,7 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should auto-refresh every minute', async () => {
-      vi.mocked(apiClient.getWordMasteryStats).mockResolvedValue({} as any);
+      (apiClient.getWordMasteryStats as Mock).mockResolvedValue({});
 
       const { result } = renderHook(() => useWordMasteryStats(), { wrapper });
 
@@ -85,7 +85,7 @@ describe('useWordMasteryStats', () => {
         { wordId: 'word2', score: 0.6, isLearned: false },
       ];
 
-      vi.mocked(apiClient.batchProcessWordMastery).mockResolvedValue(mockEvaluations as any);
+      (apiClient.batchProcessWordMastery as Mock).mockResolvedValue(mockEvaluations);
 
       const { result } = renderHook(() => useBatchWordMastery(['word1', 'word2']), { wrapper });
 
@@ -107,7 +107,7 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should support user fatigue parameter', async () => {
-      vi.mocked(apiClient.batchProcessWordMastery).mockResolvedValue([]);
+      (apiClient.batchProcessWordMastery as Mock).mockResolvedValue([]);
 
       renderHook(() => useBatchWordMastery(['word1'], 0.5), { wrapper });
 
@@ -126,7 +126,7 @@ describe('useWordMasteryStats', () => {
         memoryStrength: 0.9,
       };
 
-      vi.mocked(apiClient.getWordMasteryDetail).mockResolvedValue(mockDetail as any);
+      (apiClient.getWordMasteryDetail as Mock).mockResolvedValue(mockDetail);
 
       const { result } = renderHook(() => useWordMasteryDetail('word1'), { wrapper });
 
@@ -155,7 +155,7 @@ describe('useWordMasteryStats', () => {
         ],
       };
 
-      vi.mocked(apiClient.getWordMasteryTrace).mockResolvedValue(mockTrace as any);
+      (apiClient.getWordMasteryTrace as Mock).mockResolvedValue(mockTrace);
 
       const { result } = renderHook(() => useWordMasteryTrace('word1'), { wrapper });
 
@@ -167,7 +167,7 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should support limit parameter', async () => {
-      vi.mocked(apiClient.getWordMasteryTrace).mockResolvedValue({} as any);
+      (apiClient.getWordMasteryTrace as Mock).mockResolvedValue({});
 
       renderHook(() => useWordMasteryTrace('word1', 20), { wrapper });
 
@@ -185,7 +185,7 @@ describe('useWordMasteryStats', () => {
         targetRecall: 0.9,
       };
 
-      vi.mocked(apiClient.getWordMasteryInterval).mockResolvedValue(mockInterval as any);
+      (apiClient.getWordMasteryInterval as Mock).mockResolvedValue(mockInterval);
 
       const { result } = renderHook(() => useWordMasteryInterval('word1'), { wrapper });
 
@@ -197,7 +197,7 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should support targetRecall parameter', async () => {
-      vi.mocked(apiClient.getWordMasteryInterval).mockResolvedValue({} as any);
+      (apiClient.getWordMasteryInterval as Mock).mockResolvedValue({});
 
       renderHook(() => useWordMasteryInterval('word1', 0.85), { wrapper });
 
@@ -214,7 +214,7 @@ describe('useWordMasteryStats', () => {
         { id: 'word2', spelling: 'world', meanings: ['世界'] },
       ];
 
-      vi.mocked(apiClient.getLearnedWords).mockResolvedValue(mockWords as any);
+      (apiClient.getLearnedWords as Mock).mockResolvedValue(mockWords);
 
       const { result } = renderHook(() => useLearnedWords(), { wrapper });
 

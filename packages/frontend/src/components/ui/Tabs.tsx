@@ -104,7 +104,7 @@ Tabs.displayName = 'Tabs';
 /* ========================================
  * TabsList 组件
  * ======================================== */
-export interface TabsListProps extends HTMLAttributes<HTMLDivElement> {}
+export type TabsListProps = HTMLAttributes<HTMLDivElement>;
 
 export const TabsList = memo(
   forwardRef<HTMLDivElement, TabsListProps>(({ className, children, ...props }, ref) => {

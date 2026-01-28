@@ -2,16 +2,20 @@
  * Modal Component Unit Tests
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Modal, ConfirmModal, AlertModal } from '../Modal';
+
+import type { ReactNode } from 'react';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: { children?: ReactNode; [key: string]: unknown }) => (
+      <div {...props}>{children}</div>
+    ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 // Mock Icon component
@@ -335,7 +339,7 @@ describe('ConfirmModal', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /确定/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument();
     });
 
@@ -417,7 +421,7 @@ describe('ConfirmModal', () => {
       );
 
       // Button still shows text but with loading spinner icon
-      expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /确定/ })).toBeInTheDocument();
     });
 
     it('should disable buttons when isLoading is true', () => {
@@ -432,7 +436,7 @@ describe('ConfirmModal', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: '确定' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /确定/ })).toBeDisabled();
       expect(screen.getByRole('button', { name: '取消' })).toBeDisabled();
     });
   });

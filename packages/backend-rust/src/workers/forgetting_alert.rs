@@ -28,7 +28,7 @@ pub async fn scan_forgetting_risks(db: Arc<DatabaseProxy>) -> Result<(), super::
 
     let mut stats = AlertStats::default();
 
-    let users = get_active_users(&pool).await?;
+    let users = get_active_users(pool).await?;
     stats.users_scanned = users.len() as i64;
 
     info!(

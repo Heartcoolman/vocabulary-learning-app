@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import {
   useCurrentTrend,
   useTrendHistory,
@@ -61,7 +61,7 @@ describe('useTrendAnalysis', () => {
         stateDescription: '状态良好',
       };
 
-      vi.mocked(apiClient.getCurrentTrend).mockResolvedValue(mockTrend as any);
+      (apiClient.getCurrentTrend as Mock).mockResolvedValue(mockTrend);
 
       const { result } = renderHook(() => useCurrentTrend(), { wrapper });
 
@@ -73,7 +73,7 @@ describe('useTrendAnalysis', () => {
     });
 
     it('should auto-refresh every minute', async () => {
-      vi.mocked(apiClient.getCurrentTrend).mockResolvedValue({} as any);
+      (apiClient.getCurrentTrend as Mock).mockResolvedValue({});
 
       const { result } = renderHook(() => useCurrentTrend(), { wrapper });
 
@@ -94,7 +94,7 @@ describe('useTrendAnalysis', () => {
         totalDays: 28,
       };
 
-      vi.mocked(apiClient.getTrendHistory).mockResolvedValue(mockHistory as any);
+      (apiClient.getTrendHistory as Mock).mockResolvedValue(mockHistory);
 
       const { result } = renderHook(() => useTrendHistory(28), { wrapper });
 
@@ -106,7 +106,7 @@ describe('useTrendAnalysis', () => {
     });
 
     it('should support custom days parameter', async () => {
-      vi.mocked(apiClient.getTrendHistory).mockResolvedValue({} as any);
+      (apiClient.getTrendHistory as Mock).mockResolvedValue({});
 
       renderHook(() => useTrendHistory(14), { wrapper });
 
@@ -116,7 +116,7 @@ describe('useTrendAnalysis', () => {
     });
 
     it('should auto-refresh every 5 minutes', async () => {
-      vi.mocked(apiClient.getTrendHistory).mockResolvedValue({} as any);
+      (apiClient.getTrendHistory as Mock).mockResolvedValue({});
 
       const { result } = renderHook(() => useTrendHistory(), { wrapper });
 
@@ -134,7 +134,7 @@ describe('useTrendAnalysis', () => {
         recommendations: ['早晨学习效果更好'],
       };
 
-      vi.mocked(apiClient.getTrendReport).mockResolvedValue(mockReport as any);
+      (apiClient.getTrendReport as Mock).mockResolvedValue(mockReport);
 
       const { result } = renderHook(() => useTrendReport(), { wrapper });
 
@@ -154,7 +154,7 @@ describe('useTrendAnalysis', () => {
         suggestions: ['建议休息10分钟', '降低学习强度'],
       };
 
-      vi.mocked(apiClient.getIntervention).mockResolvedValue(mockIntervention as any);
+      (apiClient.getIntervention as Mock).mockResolvedValue(mockIntervention);
 
       const { result } = renderHook(() => useIntervention(), { wrapper });
 
@@ -166,7 +166,7 @@ describe('useTrendAnalysis', () => {
     });
 
     it('should auto-refresh every 5 minutes', async () => {
-      vi.mocked(apiClient.getIntervention).mockResolvedValue({} as any);
+      (apiClient.getIntervention as Mock).mockResolvedValue({});
 
       const { result } = renderHook(() => useIntervention(), { wrapper });
 
@@ -184,7 +184,7 @@ describe('useTrendAnalysis', () => {
         message: '现在是黄金学习时间',
       };
 
-      vi.mocked(apiClient.getGoldenTime).mockResolvedValue(mockGoldenTime as any);
+      (apiClient.getGoldenTime as Mock).mockResolvedValue(mockGoldenTime);
 
       const { result } = renderHook(() => useGoldenTime(), { wrapper });
 
@@ -203,7 +203,7 @@ describe('useTrendAnalysis', () => {
         averageAccuracyByHour: { 9: 0.85, 10: 0.9 },
       };
 
-      vi.mocked(apiClient.getTimePreferences).mockResolvedValue(mockPreferences as any);
+      (apiClient.getTimePreferences as Mock).mockResolvedValue(mockPreferences);
 
       const { result } = renderHook(() => useTimePreferences(), { wrapper });
 
@@ -230,7 +230,7 @@ describe('useTrendAnalysis', () => {
         totalRecords: 2,
       };
 
-      vi.mocked(apiClient.getStateHistory).mockResolvedValue(mockHistory as any);
+      (apiClient.getStateHistory as Mock).mockResolvedValue(mockHistory);
 
       const { result } = renderHook(() => useStateHistory(30), { wrapper });
 
@@ -256,7 +256,7 @@ describe('useTrendAnalysis', () => {
         periodLabel: '最近30天',
       };
 
-      vi.mocked(apiClient.getCognitiveGrowth).mockResolvedValue(mockGrowth as any);
+      (apiClient.getCognitiveGrowth as Mock).mockResolvedValue(mockGrowth);
 
       const { result } = renderHook(() => useCognitiveGrowth(30), { wrapper });
 
@@ -284,7 +284,7 @@ describe('useTrendAnalysis', () => {
         summary: '学习效果有明显改善',
       };
 
-      vi.mocked(apiClient.getSignificantChanges).mockResolvedValue(mockChanges as any);
+      (apiClient.getSignificantChanges as Mock).mockResolvedValue(mockChanges);
 
       const { result } = renderHook(() => useSignificantChanges(30), { wrapper });
 

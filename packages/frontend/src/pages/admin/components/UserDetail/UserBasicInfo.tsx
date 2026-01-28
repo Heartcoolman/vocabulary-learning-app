@@ -1,6 +1,5 @@
 import React, { memo } from 'react';
-import { User, ChartBar, Target, Clock, TrendUp, Books } from '../../../../components/Icon';
-import { Flame } from '@phosphor-icons/react';
+import { User, ChartBar, Target, Clock, TrendUp, Books, Flame } from '../../../../components/Icon';
 
 export interface UserStatisticsData {
   user: {
@@ -31,7 +30,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
       <div className="mb-8">
         <div className="mb-4 flex items-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-            <User size={32} weight="bold" className="text-blue-600" />
+            <User size={32} className="text-blue-600" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -47,7 +46,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
         {/* 总学习单词数 */}
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-center justify-between">
-            <Books size={32} weight="duotone" className="text-blue-500" />
+            <Books size={32} className="text-blue-500" />
           </div>
           <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {statistics.totalWordsLearned}
@@ -58,7 +57,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
         {/* 平均得分 */}
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-center justify-between">
-            <Target size={32} weight="duotone" className="text-purple-500" />
+            <Target size={32} className="text-purple-500" />
           </div>
           <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {statistics.averageScore.toFixed(1)}
@@ -69,7 +68,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
         {/* 整体正确率 */}
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-center justify-between">
-            <ChartBar size={32} weight="duotone" className="text-green-500" />
+            <ChartBar size={32} className="text-green-500" />
           </div>
           <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {statistics.accuracy.toFixed(1)}%
@@ -80,7 +79,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
         {/* 学习天数 */}
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-center justify-between">
-            <Clock size={32} weight="duotone" className="text-orange-500" />
+            <Clock size={32} className="text-orange-500" />
           </div>
           <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {statistics.studyDays}
@@ -91,7 +90,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
         {/* 连续学习天数 */}
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-center justify-between">
-            <Flame size={32} weight="duotone" className="text-red-500" />
+            <Flame size={32} className="text-red-500" />
           </div>
           <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {statistics.consecutiveDays}
@@ -102,7 +101,7 @@ const UserBasicInfoComponent: React.FC<UserBasicInfoProps> = ({ statistics }) =>
         {/* 总学习时长 */}
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-center justify-between">
-            <TrendUp size={32} weight="duotone" className="text-indigo-500" />
+            <TrendUp size={32} className="text-blue-500" />
           </div>
           <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {statistics.totalStudyTime}

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Sun, Moon } from './Icon';
 import { useTheme } from '../contexts/ThemeContext';
 import { cn } from './ui/utils';
+import { G3_DURATION, G3_EASING } from '../utils/animations';
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggleTheme } = useTheme();
@@ -28,7 +29,7 @@ export function ThemeToggle({ className }: { className?: string }) {
             opacity: isDark ? 0 : 1,
             rotate: isDark ? 90 : 0,
           }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: G3_DURATION.fast / 1000, ease: G3_EASING.standard }}
           className="absolute inset-0 flex items-center justify-center"
         >
           <Sun size={20} weight="fill" className="text-amber-500" />
@@ -41,7 +42,7 @@ export function ThemeToggle({ className }: { className?: string }) {
             opacity: isDark ? 1 : 0,
             rotate: isDark ? 0 : -90,
           }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: G3_DURATION.fast / 1000, ease: G3_EASING.standard }}
           className="absolute inset-0 flex items-center justify-center"
         >
           <Moon size={20} weight="fill" className="text-blue-400" />

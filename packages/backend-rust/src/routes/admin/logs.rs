@@ -178,6 +178,7 @@ struct UpdateAlertRuleInput {
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_logs))
+        .route("/export", get(export_logs))
         .route("/stats", get(logs_stats))
         .route("/modules", get(logs_modules))
         .route("/log-alerts", get(list_log_alerts).post(create_log_alert))
@@ -314,13 +315,13 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "QUERY_ERROR",
-                &e.to_string(),
+                e.to_string(),
             )
             .into_response()
         }
     };
 
-    let logs: Vec<LogEntry> = rows.iter().map(|r| parse_log_entry_pg(r)).collect();
+    let logs: Vec<LogEntry> = rows.iter().map(parse_log_entry_pg).collect();
     let total_pages = ((total as f64) / (page_size as f64)).ceil() as i64;
 
     (
@@ -339,6 +340,132 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
         }),
     )
         .into_response()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportQuery {
+    format: Option<String>,
+    level: Option<String>,
+    start_time: Option<String>,
+    end_time: Option<String>,
+    limit: Option<i64>,
+}
+
+async fn export_logs(State(state): State<AppState>, Query(query): Query<ExportQuery>) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
+    };
+    let pg = proxy.pool();
+
+    let limit = query.limit.unwrap_or(10000).clamp(1, 100000);
+    let format = query.format.as_deref().unwrap_or("json");
+
+    let mut conditions = vec!["1=1".to_string()];
+    let mut bind_idx = 1;
+
+    let levels: Vec<&str> = query
+        .level
+        .as_ref()
+        .map(|l| {
+            l.split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if !levels.is_empty() {
+        let placeholders: Vec<String> = levels
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("${}", bind_idx + i as i32))
+            .collect();
+        conditions.push(format!("\"level\"::text IN ({})", placeholders.join(",")));
+        bind_idx += levels.len() as i32;
+    }
+    if query.start_time.is_some() {
+        conditions.push(format!("\"timestamp\" >= ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if query.end_time.is_some() {
+        conditions.push(format!("\"timestamp\" <= ${bind_idx}"));
+        bind_idx += 1;
+    }
+
+    let where_clause = conditions.join(" AND ");
+    let data_query = format!(
+        r#"SELECT "id","level"::text,"message","module","source"::text,"context","error","requestId","userId","clientIp","userAgent","app","env","timestamp"
+           FROM "system_logs" WHERE {where_clause} ORDER BY "timestamp" DESC LIMIT ${bind_idx}"#
+    );
+
+    let mut q = sqlx::query(&data_query);
+    for level in &levels {
+        q = q.bind(*level);
+    }
+    if let Some(ref s) = query.start_time {
+        q = q.bind(s);
+    }
+    if let Some(ref e) = query.end_time {
+        q = q.bind(e);
+    }
+    q = q.bind(limit);
+
+    let rows = match q.fetch_all(pg).await {
+        Ok(r) => r,
+        Err(e) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                e.to_string(),
+            )
+            .into_response();
+        }
+    };
+
+    let logs: Vec<LogEntry> = rows.iter().map(parse_log_entry_pg).collect();
+
+    match format {
+        "csv" => {
+            let mut csv = String::new();
+            csv.push_str("id,timestamp,level,source,module,message,userId,requestId\n");
+            for log in &logs {
+                let msg = log.message.replace('"', "\"\"").replace('\n', " ");
+                csv.push_str(&format!(
+                    "{},\"{}\",{},{},{},\"{}\",{},{}\n",
+                    log.id,
+                    log.timestamp,
+                    log.level,
+                    log.source,
+                    log.module.as_deref().unwrap_or(""),
+                    msg,
+                    log.user_id.as_deref().unwrap_or(""),
+                    log.request_id.as_deref().unwrap_or(""),
+                ));
+            }
+            (
+                StatusCode::OK,
+                [
+                    (axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+                    (
+                        axum::http::header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"logs-export.csv\"",
+                    ),
+                ],
+                csv,
+            )
+                .into_response()
+        }
+        _ => (
+            StatusCode::OK,
+            Json(SuccessResponse {
+                success: true,
+                data: logs,
+            }),
+        )
+            .into_response(),
+    }
 }
 
 async fn logs_stats(State(state): State<AppState>, Query(query): Query<StatsQuery>) -> Response {
@@ -498,7 +625,7 @@ async fn list_log_alerts(State(state): State<AppState>) -> Response {
 
     match rows {
         Ok(rows) => {
-            let rules: Vec<LogAlertRule> = rows.iter().map(|r| parse_alert_rule_pg(r)).collect();
+            let rules: Vec<LogAlertRule> = rows.iter().map(parse_alert_rule_pg).collect();
             (
                 StatusCode::OK,
                 Json(SuccessResponse {
@@ -511,7 +638,7 @@ async fn list_log_alerts(State(state): State<AppState>) -> Response {
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "QUERY_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }
@@ -554,7 +681,7 @@ async fn create_log_alert(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -691,7 +818,7 @@ async fn update_log_alert(
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WRITE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -727,7 +854,7 @@ async fn delete_log_alert(State(state): State<AppState>, Path(id): Path<String>)
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "DELETE_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response();
     }
@@ -770,7 +897,7 @@ async fn get_log(State(state): State<AppState>, Path(id): Path<String>) -> Respo
         Err(e) => json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "QUERY_ERROR",
-            &e.to_string(),
+            e.to_string(),
         )
         .into_response(),
     }

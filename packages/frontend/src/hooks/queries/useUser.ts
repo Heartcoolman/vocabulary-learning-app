@@ -12,7 +12,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import { DATA_CACHE_CONFIG, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
+import { DATA_CACHE_CONFIG, CACHE_TIME } from '../../lib/cacheConfig';
 import { authClient, type User } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 

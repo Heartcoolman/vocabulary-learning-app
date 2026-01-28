@@ -26,14 +26,14 @@ impl LinUCBModel {
     pub fn new(context_dim: usize, action_dim: usize, alpha: f64) -> Self {
         let d = context_dim + action_dim;
         let mut a = vec![vec![0.0; d]; d];
-        for i in 0..d {
-            a[i][i] = 1.0;
+        for (i, row) in a.iter_mut().enumerate().take(d) {
+            row[i] = 1.0;
         }
         let b = vec![0.0; d];
         let interaction_dim = context_dim * action_dim;
         let mut interaction_a = vec![vec![0.0; interaction_dim]; interaction_dim];
-        for i in 0..interaction_dim {
-            interaction_a[i][i] = 1.0;
+        for (i, row) in interaction_a.iter_mut().enumerate().take(interaction_dim) {
+            row[i] = 1.0;
         }
         let interaction_b = vec![0.0; interaction_dim];
         Self {
@@ -123,8 +123,13 @@ impl LinUCBModel {
     fn init_interaction_model(&mut self, interaction_dim: usize) {
         self.interaction_dim = interaction_dim;
         self.interaction_a = vec![vec![0.0; interaction_dim]; interaction_dim];
-        for i in 0..interaction_dim {
-            self.interaction_a[i][i] = 1.0;
+        for (i, row) in self
+            .interaction_a
+            .iter_mut()
+            .enumerate()
+            .take(interaction_dim)
+        {
+            row[i] = 1.0;
         }
         self.interaction_b = vec![0.0; interaction_dim];
     }
@@ -135,15 +140,13 @@ impl LinUCBModel {
         }
         let mut x = vec![0.0; self.d];
         let context_len = self.context_dim.min(context.values.len());
-        for i in 0..context_len {
-            x[i] = context.values[i];
-        }
+        x[..context_len].copy_from_slice(&context.values[..context_len]);
         let action_features = self.strategy_to_action_features(strategy);
         let action_len = self.action_dim.min(action_features.len());
         let offset = self.context_dim.min(self.d);
-        for i in 0..action_len {
+        for (i, &val) in action_features.iter().enumerate().take(action_len) {
             if offset + i < x.len() {
-                x[offset + i] = action_features[i];
+                x[offset + i] = val;
             }
         }
         x
@@ -232,6 +235,7 @@ impl LinUCBModel {
         interaction
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn invert_matrix(&self, m: &[Vec<f64>]) -> Vec<Vec<f64>> {
         let n = m.len();
         let mut aug = vec![vec![0.0; 2 * n]; n];
@@ -260,8 +264,8 @@ impl LinUCBModel {
             }
 
             let pivot = aug[i][i];
-            for j in 0..(2 * n) {
-                aug[i][j] /= pivot;
+            for val in aug[i].iter_mut().take(2 * n) {
+                *val /= pivot;
             }
 
             for k in 0..n {
@@ -275,10 +279,10 @@ impl LinUCBModel {
         }
 
         let mut result = vec![vec![0.0; n]; n];
-        for i in 0..n {
-            for j in 0..n {
+        for (i, row) in result.iter_mut().enumerate().take(n) {
+            for (j, cell) in row.iter_mut().enumerate().take(n) {
                 let val = aug[i][n + j];
-                result[i][j] = if val.is_nan() || val.is_infinite() {
+                *cell = if val.is_nan() || val.is_infinite() {
                     if i == j {
                         1.0
                     } else {
@@ -291,8 +295,8 @@ impl LinUCBModel {
         }
 
         if is_singular {
-            for i in 0..n {
-                result[i][i] = result[i][i].max(1e-6);
+            for (i, row) in result.iter_mut().enumerate().take(n) {
+                row[i] = row[i].max(1e-6);
             }
         }
 
@@ -302,9 +306,9 @@ impl LinUCBModel {
     fn matrix_vector_mul(m: &[Vec<f64>], v: &[f64]) -> Vec<f64> {
         let n = m.len();
         let mut result = vec![0.0; n];
-        for i in 0..n {
-            for j in 0..n {
-                result[i] += m[i][j] * v[j];
+        for (i, row) in m.iter().enumerate().take(n) {
+            for (j, &val) in v.iter().enumerate().take(n) {
+                result[i] += row[j] * val;
             }
         }
         result

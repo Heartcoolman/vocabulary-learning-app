@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LearningClient } from '../learning/LearningClient';
 import TokenManager from '../base/TokenManager';
-import { ApiError } from '../base/BaseClient';
 import { WordState } from '../../../types/models';
 
 describe('LearningClient', () => {

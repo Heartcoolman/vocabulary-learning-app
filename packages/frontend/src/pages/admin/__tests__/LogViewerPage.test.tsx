@@ -256,7 +256,8 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/"stack": "Error stack trace"/)).toBeInTheDocument();
+        // JsonHighlight renders metadata with syntax highlighting
+        expect(screen.getByText(/Error stack trace/)).toBeInTheDocument();
       });
     });
 
@@ -272,7 +273,8 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/"stack": "Error stack trace"/)).toBeInTheDocument();
+        // JsonHighlight renders metadata with syntax highlighting
+        expect(screen.getByText(/Error stack trace/)).toBeInTheDocument();
       });
 
       // Collapse
@@ -281,7 +283,7 @@ describe('LogViewerPage', () => {
       fireEvent.click(logRow);
 
       await waitFor(() => {
-        expect(screen.queryByText(/"stack": "Error stack trace"/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Error stack trace/)).not.toBeInTheDocument();
       });
     });
   });

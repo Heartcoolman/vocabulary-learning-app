@@ -225,6 +225,12 @@ pub struct AlgorithmRegistry {
     enabled: RwLock<HashMap<AlgorithmId, bool>>,
 }
 
+impl Default for AlgorithmRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlgorithmRegistry {
     pub fn new() -> Self {
         let mut metrics = HashMap::new();

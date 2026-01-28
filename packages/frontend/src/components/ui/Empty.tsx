@@ -21,7 +21,17 @@ export interface EmptyProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'
   /** 操作按钮区域 */
   action?: ReactNode;
   /** 预设图标类型 */
-  type?: 'default' | 'search' | 'error' | 'network' | 'data' | 'inbox';
+  type?:
+    | 'default'
+    | 'search'
+    | 'error'
+    | 'network'
+    | 'data'
+    | 'inbox'
+    | 'learning'
+    | 'wordbook'
+    | 'history'
+    | 'notification';
 }
 
 const sizeStyles: Record<Size, { container: string; icon: string; title: string; desc: string }> = {
@@ -132,6 +142,55 @@ const presetIcons: Record<string, ReactNode> = {
       />
     </svg>
   ),
+  learning: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 20l24-12 24 12v4l-24 12-24-12v-4z" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 24v16l24 12 24-12V24" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <path d="M32 32v20" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" />
+      <circle cx="32" cy="56" r="4" fill="currentColor" opacity="0.5" />
+    </svg>
+  ),
+  wordbook: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="12" y="8" width="40" height="48" rx="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M20 8v48" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M28 20h16M28 28h12M28 36h14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.5"
+      />
+    </svg>
+  ),
+  history: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="24" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M32 16v18l10 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 32H4M60 32h-4M32 4v4M32 56v4"
+        stroke="currentColor"
+        strokeWidth="2"
+        opacity="0.3"
+      />
+    </svg>
+  ),
+  notification: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 48h16c0 4.418-3.582 8-8 8s-8-3.582-8-8z" fill="currentColor" opacity="0.3" />
+      <path
+        d="M12 44h40c-2-4-4-8-4-16 0-8.837-7.163-16-16-16s-16 7.163-16 16c0 8-2 12-4 16z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  ),
 };
 
 // 预设文案
@@ -159,6 +218,22 @@ const presetTexts: Record<string, { title: string; description: string }> = {
   inbox: {
     title: '收件箱为空',
     description: '暂时没有新消息',
+  },
+  learning: {
+    title: '还没有学习记录',
+    description: '开始学习单词后，这里会显示你的学习统计',
+  },
+  wordbook: {
+    title: '暂无词书',
+    description: '创建你的第一个词书，开始学习之旅',
+  },
+  history: {
+    title: '还没有学习记录',
+    description: '开始学习后，这里会记录你的学习历程',
+  },
+  notification: {
+    title: '暂无通知',
+    description: '新消息会显示在这里',
   },
 };
 

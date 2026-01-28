@@ -4,6 +4,7 @@ import { DailyMissionCard } from '../../components/dashboard/DailyMissionCard';
 import { ProgressOverviewCard } from '../../components/dashboard/ProgressOverviewCard';
 import { MasteryWordItem } from '../../components/word-mastery/MasteryWordItem';
 import { adminLogger } from '../../utils/logger';
+import { CheckCircle, Confetti } from '../../components/Icon';
 
 /**
  * PerformanceTestPage - 用于测试React.memo优化效果的页面
@@ -112,7 +113,8 @@ const PerformanceTestPage: React.FC = () => {
           {/* DailyMissionCard Test */}
           <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-              ✅ DailyMissionCard
+              <CheckCircle size={20} className="mr-2 inline text-green-500" />
+              DailyMissionCard
             </h2>
             <PerformanceProfiler id="DailyMissionCard">
               <DailyMissionCard
@@ -129,7 +131,8 @@ const PerformanceTestPage: React.FC = () => {
           {/* ProgressOverviewCard Test */}
           <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-              ✅ ProgressOverviewCard
+              <CheckCircle size={20} className="mr-2 inline text-green-500" />
+              ProgressOverviewCard
             </h2>
             <PerformanceProfiler id="ProgressOverviewCard">
               <ProgressOverviewCard data={progressData} />
@@ -139,7 +142,8 @@ const PerformanceTestPage: React.FC = () => {
           {/* MasteryWordItem Test */}
           <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
             <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-              ✅ MasteryWordItem
+              <CheckCircle size={20} className="mr-2 inline text-green-500" />
+              MasteryWordItem
             </h2>
             <PerformanceProfiler id="MasteryWordItem">
               <MasteryWordItem {...masteryData} />
@@ -149,19 +153,20 @@ const PerformanceTestPage: React.FC = () => {
           {/* Optimization Summary */}
           <div className="rounded-card border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/30">
             <h2 className="mb-4 text-xl font-bold text-green-900 dark:text-green-300">
-              🎉 优化完成总结
+              <Confetti size={20} className="mr-2 inline" />
+              优化完成总结
             </h2>
             <div className="space-y-2 text-green-800 dark:text-green-200">
               <p className="font-semibold">已优化组件 (15/15):</p>
               <ul className="ml-6 list-disc space-y-1">
-                <li>✅ DailyMissionCard - Dashboard每日任务卡片</li>
-                <li>✅ ProgressOverviewCard - Dashboard进度概览卡片</li>
-                <li>✅ MasteryWordItem - 单词掌握度列表项</li>
-                <li>✅ StatusModal - 学习状态监控弹窗</li>
-                <li>✅ SuggestionModal - AI学习建议弹窗</li>
-                <li>✅ BadgeDetailModal - 徽章详情弹窗</li>
-                <li>✅ BatchImportModal - 批量导入单词弹窗</li>
-                <li>✅ 其他8个之前已优化的组件</li>
+                <li>DailyMissionCard - Dashboard每日任务卡片</li>
+                <li>ProgressOverviewCard - Dashboard进度概览卡片</li>
+                <li>MasteryWordItem - 单词掌握度列表项</li>
+                <li>StatusModal - 学习状态监控弹窗</li>
+                <li>SuggestionModal - AI学习建议弹窗</li>
+                <li>BadgeDetailModal - 徽章详情弹窗</li>
+                <li>BatchImportModal - 批量导入单词弹窗</li>
+                <li>其他8个之前已优化的组件</li>
               </ul>
 
               <div className="mt-4 rounded-button border border-green-300 bg-white p-4 dark:border-green-700 dark:bg-slate-800">

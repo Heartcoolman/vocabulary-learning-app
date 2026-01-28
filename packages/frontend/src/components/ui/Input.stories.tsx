@@ -2,8 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { vi } from 'vitest';
 import React, { useState } from 'react';
 import { Input } from './Input';
-import { User, Lock, MagnifyingGlass, Eye, Check, X } from '../Icon';
-import { Envelope as Mail } from '@phosphor-icons/react';
+import { User, Lock, Check, X, Envelope } from '../Icon';
 
 /**
  * # Input 输入框组件
@@ -308,7 +307,7 @@ export const WithPrefixAndSuffix: Story = {
       <Input label="用户名" prefix={<User size={16} />} placeholder="请输入用户名" />
       <Input
         label="邮箱"
-        prefix={<Mail size={16} />}
+        prefix={<Envelope size={16} />}
         suffix={<Check size={16} className="text-green-500" />}
         placeholder="请输入邮箱"
       />
@@ -472,7 +471,7 @@ export const FormValidation: Story = {
           type="email"
           label="邮箱地址"
           placeholder="example@email.com"
-          prefix={<Mail size={16} />}
+          prefix={<Envelope size={16} />}
           suffix={
             showSuccess ? (
               <Check size={16} className="text-green-500" />

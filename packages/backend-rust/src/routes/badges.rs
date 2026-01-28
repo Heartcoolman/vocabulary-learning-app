@@ -158,8 +158,7 @@ async fn get_all_badges(
             let pct = if condition.value > 0.0 {
                 ((current / condition.value) * 100.0)
                     .round()
-                    .min(100.0)
-                    .max(0.0)
+                    .clamp(0.0, 100.0)
             } else {
                 0.0
             };
@@ -235,8 +234,7 @@ async fn get_badge_detail(
         let pct = if condition.value > 0.0 {
             ((current / condition.value) * 100.0)
                 .round()
-                .min(100.0)
-                .max(0.0)
+                .clamp(0.0, 100.0)
         } else {
             0.0
         };
@@ -288,9 +286,7 @@ async fn get_badge_progress(
     });
     let current_value = current_value_for_condition(&condition, &stats);
     let percentage = if condition.value > 0.0 {
-        (current_value / condition.value * 100.0)
-            .min(100.0)
-            .max(0.0)
+        (current_value / condition.value * 100.0).clamp(0.0, 100.0)
     } else {
         0.0
     };
@@ -427,7 +423,7 @@ async fn select_badge_definitions(
     proxy: &crate::db::DatabaseProxy,
 ) -> Result<Vec<BadgeDefinitionRow>, AppError> {
     let pool = proxy.pool();
-    select_badge_definitions_pg(&pool).await
+    select_badge_definitions_pg(pool).await
 }
 
 async fn select_badge_definition(
@@ -435,7 +431,7 @@ async fn select_badge_definition(
     id: &str,
 ) -> Result<Option<BadgeDefinitionRow>, AppError> {
     let pool = proxy.pool();
-    select_badge_definition_pg(&pool, id).await
+    select_badge_definition_pg(pool, id).await
 }
 
 async fn select_badge_definitions_pg(
@@ -522,7 +518,7 @@ async fn select_user_badges(
     user_id: &str,
 ) -> Result<Vec<UserBadgeDto>, AppError> {
     let pool = proxy.pool();
-    select_user_badges_pg(&pool, user_id).await
+    select_user_badges_pg(pool, user_id).await
 }
 
 async fn select_user_badges_pg(
@@ -755,9 +751,9 @@ async fn compute_consecutive_days(
     }
 
     let mut consecutive = 1i64;
-    for i in 1..sorted.len() {
+    for (i, &date) in sorted.iter().enumerate().skip(1) {
         let expected = today - Duration::days(i as i64);
-        if sorted[i] == expected {
+        if date == expected {
             consecutive += 1;
         } else {
             break;

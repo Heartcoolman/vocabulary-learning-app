@@ -22,7 +22,7 @@ pub async fn run_optimization_cycle(db: Arc<DatabaseProxy>) -> Result<(), super:
         return Ok(());
     }
 
-    let users = get_active_users(&pool).await?;
+    let users = get_active_users(pool).await?;
     if users.is_empty() {
         info!("No active users for optimization");
         return Ok(());
@@ -38,7 +38,7 @@ pub async fn run_optimization_cycle(db: Arc<DatabaseProxy>) -> Result<(), super:
     let mut error_count = 0;
 
     for user_id in users {
-        match optimize_user_params(&pool, &user_id).await {
+        match optimize_user_params(pool, &user_id).await {
             Ok(true) => optimized_count += 1,
             Ok(false) => skipped_count += 1,
             Err(e) => {
@@ -58,7 +58,7 @@ pub async fn run_optimization_cycle(db: Arc<DatabaseProxy>) -> Result<(), super:
     );
 
     record_optimization_event(
-        &pool,
+        pool,
         optimized_count,
         skipped_count,
         error_count,

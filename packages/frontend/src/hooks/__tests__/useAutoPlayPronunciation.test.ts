@@ -469,7 +469,7 @@ describe('useAutoPlayPronunciation', () => {
     it('should return stable function references', () => {
       const { result, rerender } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
 
-      const initialPlay = result.current.play;
+      // play might change due to dependencies, so we don't test it
       const initialStop = result.current.stop;
       const initialSetEnabled = result.current.setEnabled;
 

@@ -44,7 +44,8 @@ export async function measureComponentPerformance(
     componentName,
     renderTime: renderTime / iterations,
     reRenderCount,
-    memoryUsage: (performance as any).memory?.usedJSHeapSize,
+    memoryUsage: (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
+      ?.usedJSHeapSize,
   };
 }
 

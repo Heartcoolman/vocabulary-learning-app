@@ -8,7 +8,7 @@ export interface ProgressBarData {
 }
 
 export interface ProgressBarChartProps {
-  data: ProgressBarData[];
+  data?: ProgressBarData[] | null;
   height?: number;
 }
 

@@ -8,7 +8,7 @@ export default function ForbiddenPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-slate-900">
       <div className="max-w-md text-center">
         <div className="mb-6">
-          <WarningCircle size={96} weight="duotone" color="#dc2626" className="mx-auto" />
+          <WarningCircle size={96} color="#dc2626" className="mx-auto" />
         </div>
 
         <h1 className="mb-2 text-6xl font-bold text-gray-900 dark:text-white">403</h1>
@@ -22,9 +22,9 @@ export default function ForbiddenPage() {
 
         <button
           onClick={() => navigate('/')}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="inline-flex items-center gap-2 rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          <House size={20} weight="duotone" />
+          <House size={20} />
           返回首页
         </button>
       </div>

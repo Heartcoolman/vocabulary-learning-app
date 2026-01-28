@@ -19,7 +19,7 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
     return (
       <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <Target size={24} weight="duotone" color="#f59e0b" />
+          <Target size={24} color="#f59e0b" />
           显著变化
         </h2>
         <div className="space-y-3">
@@ -34,9 +34,9 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
                 className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${change.isPositive ? 'bg-green-500' : 'bg-red-500'} `}
               >
                 {change.direction === 'up' ? (
-                  <TrendUp size={20} weight="fill" color="#ffffff" />
+                  <TrendUp size={20} color="#ffffff" />
                 ) : (
-                  <TrendDown size={20} weight="fill" color="#ffffff" />
+                  <TrendDown size={20} color="#ffffff" />
                 )}
               </div>
               <div className="flex-1">

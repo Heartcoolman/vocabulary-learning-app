@@ -5,15 +5,16 @@ import {
   CaretDown,
   Clock,
   TrendUp,
-  Trophy,
   CalendarCheck,
   ChartBar,
   Target,
   UserCircle,
   List,
   X,
+  Shuffle,
 } from './Icon';
 import { ThemeToggle } from './ThemeToggle';
+import { NotificationDropdown } from './notification';
 import { prefetchAll } from '../routes/prefetch';
 
 /**
@@ -83,10 +84,10 @@ function NavigationComponent() {
       '/statistics',
       '/learning-time',
       '/trend-report',
-      '/achievements',
       '/plan',
       '/word-mastery',
       '/habit-profile',
+      '/confusion-words',
     ].includes(location.pathname);
   };
 
@@ -118,10 +119,10 @@ function NavigationComponent() {
     { path: '/statistics', icon: ChartBar, label: '学习统计' },
     { path: '/learning-time', icon: Clock, label: '学习时机' },
     { path: '/trend-report', icon: TrendUp, label: '趋势分析' },
-    { path: '/achievements', icon: Trophy, label: '成就徽章' },
     { path: '/plan', icon: CalendarCheck, label: '学习计划' },
     { path: '/word-mastery', icon: Target, label: '单词精通度' },
     { path: '/habit-profile', icon: UserCircle, label: '习惯画像' },
+    { path: '/confusion-words', icon: Shuffle, label: '易混淆词' },
   ];
 
   return (
@@ -202,7 +203,7 @@ function NavigationComponent() {
                   <span
                     className={`transition-rotate inline-block ${isInsightsOpen ? 'rotate-180' : ''}`}
                   >
-                    <CaretDown size={16} weight="bold" />
+                    <CaretDown size={16} />
                   </span>
                 </button>
 
@@ -216,7 +217,7 @@ function NavigationComponent() {
                         onClick={() => setIsInsightsOpen(false)}
                         onMouseEnter={() => handlePrefetch(path)}
                       >
-                        <Icon size={18} weight="bold" />
+                        <Icon size={18} />
                         {label}
                       </Link>
                     ))}
@@ -239,15 +240,18 @@ function NavigationComponent() {
 
             {/* 认证相关导航 */}
             {isAuthenticated ? (
-              <Link
-                to="/profile"
-                className={linkClass('/profile')}
-                aria-current={isActive('/profile') ? 'page' : undefined}
-                aria-label={`个人资料 - ${user?.username}`}
-                onMouseEnter={() => handlePrefetch('/profile')}
-              >
-                {user?.username || '个人资料'}
-              </Link>
+              <>
+                <NotificationDropdown />
+                <Link
+                  to="/profile"
+                  className={linkClass('/profile')}
+                  aria-current={isActive('/profile') ? 'page' : undefined}
+                  aria-label={`个人资料 - ${user?.username}`}
+                  onMouseEnter={() => handlePrefetch('/profile')}
+                >
+                  {user?.username || '个人资料'}
+                </Link>
+              </>
             ) : (
               <Link
                 to="/login"
@@ -270,7 +274,7 @@ function NavigationComponent() {
             aria-expanded={isMobileMenuOpen}
             aria-label={isMobileMenuOpen ? '关闭菜单' : '打开菜单'}
           >
-            {isMobileMenuOpen ? <X size={24} weight="bold" /> : <List size={24} weight="bold" />}
+            {isMobileMenuOpen ? <X size={24} /> : <List size={24} />}
           </button>
         </div>
 
@@ -326,7 +330,7 @@ function NavigationComponent() {
                       className={`${mobileLinkClass(path)} flex items-center gap-2 pl-8`}
                       onTouchStart={() => handlePrefetch(path)}
                     >
-                      <Icon size={18} weight="bold" />
+                      <Icon size={18} />
                       {label}
                     </Link>
                   ))}

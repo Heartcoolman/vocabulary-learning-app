@@ -129,8 +129,8 @@ async fn calculate_time_pref_from_records(
     user_id: &str,
 ) -> Result<Vec<f64>, String> {
     let pool = proxy.pool();
-    let mut hour_counts = vec![0i64; 24];
-    let mut hour_scores = vec![0.0f64; 24];
+    let mut hour_counts = [0i64; 24];
+    let mut hour_scores = [0.0f64; 24];
 
     let cutoff = Utc::now() - Duration::days(TIME_PREF_WINDOW_DAYS);
 

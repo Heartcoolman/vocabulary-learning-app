@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../services/client';
 import AudioService from '../services/AudioService';
-import { Word, WordBook } from '../types/models';
+import { Word, WordBook, WordLearningState } from '../types/models';
 import {
   Books,
   File,
@@ -14,10 +14,12 @@ import {
   Trash,
   ListNumbers,
   SpeakerHigh,
-  CircleNotch,
   Warning,
+  CheckCircle,
+  Target,
 } from '../components/Icon';
 import { useToast, ConfirmModal } from '../components/ui';
+import { WordCardSkeleton } from '../components/skeletons/PageSkeleton';
 import { uiLogger } from '../utils/logger';
 
 export default function WordBookDetailPage() {
@@ -26,6 +28,7 @@ export default function WordBookDetailPage() {
   const toast = useToast();
   const [wordBook, setWordBook] = useState<WordBook | null>(null);
   const [words, setWords] = useState<Word[]>([]);
+  const [learningStates, setLearningStates] = useState<Map<string, WordLearningState>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddWord, setShowAddWord] = useState(false);
@@ -58,6 +61,7 @@ export default function WordBookDetailPage() {
     if (id) {
       loadWordBookDetail();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadWordBookDetail = async () => {
@@ -72,7 +76,15 @@ export default function WordBookDetailPage() {
 
       setWordBook(bookData);
       setWords(wordsData);
-      setCurrentPage(1); // 重置到第一页
+      setCurrentPage(1);
+
+      // 批量获取单词学习状态
+      if (wordsData.length > 0) {
+        const wordIds = wordsData.map((w) => w.id);
+        const states = await apiClient.getWordLearningStates(wordIds);
+        const statesMap = new Map(states.map((s) => [s.wordId, s]));
+        setLearningStates(statesMap);
+      }
     } catch (err) {
       uiLogger.error({ err, wordBookId: id }, '加载词书详情失败');
       setError(err instanceof Error ? err.message : '加载失败');
@@ -135,6 +147,32 @@ export default function WordBookDetailPage() {
     return words.slice(startIndex, endIndex);
   }, [words, currentPage]);
 
+  // 计算词书学习统计
+  const wordStats = useMemo(() => {
+    const total = words.length;
+    let learned = 0;
+    let mastered = 0;
+
+    for (const word of words) {
+      const state = learningStates.get(word.id);
+      if (state) {
+        learned++;
+        // masteryLevel >= 80 视为已掌握
+        if (state.masteryLevel >= 80) {
+          mastered++;
+        }
+      }
+    }
+
+    return {
+      total,
+      learned,
+      mastered,
+      learnedPercent: total > 0 ? Math.round((learned / total) * 100) : 0,
+      masteredPercent: total > 0 ? Math.round((mastered / total) * 100) : 0,
+    };
+  }, [words, learningStates]);
+
   const totalPages = Math.ceil(words.length / wordsPerPage);
 
   const handlePageChange = (page: number) => {
@@ -182,17 +220,25 @@ export default function WordBookDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
-        <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
-          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
-            正在加载...
-          </p>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+        <div className="mx-auto max-w-7xl px-4 py-8">
+          {/* 头部骨架屏 */}
+          <header className="mb-8 animate-pulse">
+            <div className="mb-6 h-6 w-32 rounded bg-gray-200 dark:bg-slate-700"></div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-3">
+                <div className="h-9 w-48 rounded bg-gray-200 dark:bg-slate-700"></div>
+                <div className="h-5 w-64 rounded bg-gray-200 dark:bg-slate-700"></div>
+                <div className="flex gap-4">
+                  <div className="h-5 w-20 rounded bg-gray-200 dark:bg-slate-700"></div>
+                  <div className="h-5 w-24 rounded bg-gray-200 dark:bg-slate-700"></div>
+                  <div className="h-5 w-28 rounded bg-gray-200 dark:bg-slate-700"></div>
+                </div>
+              </div>
+            </div>
+          </header>
+          {/* 单词网格骨架屏 */}
+          <WordCardSkeleton count={8} />
         </div>
       </div>
     );
@@ -202,7 +248,7 @@ export default function WordBookDetailPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="max-w-md px-4 text-center" role="alert" aria-live="assertive">
-          <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={64} color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">出错了</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">{error || '词书不存在'}</p>
           <button
@@ -229,7 +275,7 @@ export default function WordBookDetailPage() {
               className="inline-flex items-center rounded-button px-3 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="返回词库列表"
             >
-              <ArrowLeft size={16} weight="bold" className="mr-2" />
+              <ArrowLeft size={16} className="mr-2" />
               返回词库列表
             </button>
           </nav>
@@ -251,14 +297,21 @@ export default function WordBookDetailPage() {
                   {wordBook.description}
                 </p>
               )}
-              <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                 <span className="flex items-center gap-1">
-                  <Books size={18} weight="duotone" color="#6b7280" />共 {wordBook.wordCount} 个单词
+                  <Books size={18} color="#6b7280" />共 {wordStats.total} 词
+                </span>
+                <span className="flex items-center gap-1">
+                  <Target size={18} color="#3b82f6" />
+                  已学 {wordStats.learned} ({wordStats.learnedPercent}%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle size={18} color="#22c55e" />
+                  已掌握 {wordStats.mastered} ({wordStats.masteredPercent}%)
                 </span>
                 {totalPages > 1 && (
                   <span className="flex items-center gap-1">
-                    <File size={18} weight="duotone" color="#6b7280" />第 {currentPage} /{' '}
-                    {totalPages} 页
+                    <File size={18} color="#6b7280" />第 {currentPage} / {totalPages} 页
                   </span>
                 )}
               </div>
@@ -270,7 +323,7 @@ export default function WordBookDetailPage() {
                 className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-5 py-2.5 font-medium text-white shadow-soft transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label="添加新单词"
               >
-                <Plus size={18} weight="bold" />
+                <Plus size={18} />
                 添加单词
               </button>
             )}
@@ -281,12 +334,7 @@ export default function WordBookDetailPage() {
         <main>
           {words.length === 0 ? (
             <div className="animate-g3-slide-up py-16 text-center">
-              <BookOpen
-                className="mx-auto mb-6 animate-pulse"
-                size={96}
-                weight="thin"
-                color="#9ca3af"
-              />
+              <BookOpen className="mx-auto mb-6 animate-pulse" size={96} color="#9ca3af" />
               <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
                 这个词书还没有单词
               </h2>
@@ -299,7 +347,7 @@ export default function WordBookDetailPage() {
                   className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   aria-label="添加第一个单词"
                 >
-                  <Plus size={20} weight="bold" />
+                  <Plus size={20} />
                   添加第一个单词
                 </button>
               )}
@@ -361,7 +409,7 @@ export default function WordBookDetailPage() {
                         className="mt-4 flex w-full items-center justify-center gap-1 rounded-button px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                         aria-label={`删除单词 ${word.spelling}`}
                       >
-                        <Trash size={14} weight="bold" />
+                        <Trash size={14} />
                         删除
                       </button>
                     )}
@@ -378,7 +426,7 @@ export default function WordBookDetailPage() {
                 >
                   <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     <span className="flex items-center gap-2">
-                      <ListNumbers size={18} weight="duotone" color="#6b7280" />
+                      <ListNumbers size={18} color="#6b7280" />
                       显示第 {(currentPage - 1) * wordsPerPage + 1} -{' '}
                       {Math.min(currentPage * wordsPerPage, words.length)} 个，共 {words.length}{' '}
                       个单词
@@ -391,7 +439,7 @@ export default function WordBookDetailPage() {
                       className="flex h-10 items-center rounded-button bg-gray-100 px-4 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
                       aria-label="上一页"
                     >
-                      <ArrowLeft size={16} weight="bold" className="mr-1" />
+                      <ArrowLeft size={16} className="mr-1" />
                       上一页
                     </button>
 
@@ -434,7 +482,7 @@ export default function WordBookDetailPage() {
                       aria-label="下一页"
                     >
                       下一页
-                      <ArrowRight size={16} weight="bold" className="ml-1" />
+                      <ArrowRight size={16} className="ml-1" />
                     </button>
                   </div>
                 </nav>
@@ -489,7 +537,7 @@ export default function WordBookDetailPage() {
                           }
                           aria-pressed={isPronouncing}
                         >
-                          <SpeakerHigh size={28} weight="fill" className="text-white" />
+                          <SpeakerHigh size={28} className="text-white" />
                         </button>
                       </div>
                       <span className="inline-block rounded-full bg-gray-100 px-5 py-2 text-xl text-gray-500 dark:bg-slate-700 dark:text-gray-400 md:text-2xl">
@@ -619,7 +667,7 @@ export default function WordBookDetailPage() {
                         onClick={addMeaning}
                         className="flex items-center rounded-button px-4 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
                       >
-                        <Plus size={16} weight="bold" className="mr-1" />
+                        <Plus size={16} className="mr-1" />
                         添加更多释义
                       </button>
                     </div>
@@ -642,7 +690,7 @@ export default function WordBookDetailPage() {
                         onClick={addExample}
                         className="flex items-center rounded-button px-4 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
                       >
-                        <Plus size={16} weight="bold" className="mr-1" />
+                        <Plus size={16} className="mr-1" />
                         添加更多例句
                       </button>
                     </div>

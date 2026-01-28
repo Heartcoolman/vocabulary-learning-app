@@ -176,20 +176,20 @@ export const WithDropdown: Story = {
 
                 <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-button border border-gray-200 bg-white py-1 shadow-elevated">
                   {[
-                    { icon: '📊', label: '学习统计' },
-                    { icon: '⏰', label: '学习时机' },
-                    { icon: '📈', label: '趋势分析' },
-                    { icon: '🏆', label: '成就徽章' },
-                    { icon: '📅', label: '学习计划' },
-                    { icon: '🎯', label: '单词精通度' },
-                    { icon: '👤', label: '习惯画像' },
+                    { icon: 'ChartBar', label: '学习统计' },
+                    { icon: 'Clock', label: '学习时机' },
+                    { icon: 'TrendUp', label: '趋势分析' },
+                    { icon: 'Trophy', label: '成就徽章' },
+                    { icon: 'Calendar', label: '学习计划' },
+                    { icon: 'Target', label: '单词精通度' },
+                    { icon: 'User', label: '习惯画像' },
                   ].map((item) => (
                     <a
                       key={item.label}
                       href="#"
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      <span>{item.icon}</span>
+                      <span className="text-gray-500">{item.icon}</span>
                       {item.label}
                     </a>
                   ))}

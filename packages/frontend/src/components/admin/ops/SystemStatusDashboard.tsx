@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle } from '../../../components/Icon';
 import { env } from '../../../config/env';
 
 // ============================================
@@ -456,7 +457,7 @@ const AlertsCard: React.FC<{ alerts: Alert[]; loading: boolean }> = ({ alerts, l
       </div>
       {alerts.length === 0 ? (
         <div className="p-5 text-center text-gray-400 dark:text-slate-500">
-          <span className="text-3xl">✓</span>
+          <CheckCircle size={32} className="mx-auto text-green-500" />
           <p>无活跃告警</p>
         </div>
       ) : (
@@ -545,7 +546,8 @@ export const SystemStatusDashboard: React.FC = () => {
     try {
       await Promise.all([fetchHealth(), fetchMetrics()]);
       setLastUpdate(new Date());
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to refresh status dashboard:', error);
       setError('获取数据失败');
     } finally {
       setLoading(false);

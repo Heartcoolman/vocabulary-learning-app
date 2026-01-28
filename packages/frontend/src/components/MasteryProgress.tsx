@@ -1,12 +1,7 @@
 import { ReactNode, memo } from 'react';
-import {
-  ChartBar,
-  CheckCircle,
-  Sparkle,
-  ArrowsClockwise,
-  Star,
-  Target,
-} from '@phosphor-icons/react';
+import { motion } from 'framer-motion';
+import { ChartBar, CheckCircle, Sparkle, ArrowsClockwise, Star, Target } from '@/components/Icon';
+import { g3SpringStandard } from '../utils/animations';
 
 export interface MasteryProgressProps {
   progress: {
@@ -38,8 +33,8 @@ const STATUS_CONFIG = {
   almost: {
     label: '即将掌握',
     Icon: Star,
-    color: 'text-indigo-500',
-    bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+    color: 'text-blue-500',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
   },
   mastered: {
     label: '已掌握',
@@ -105,13 +100,15 @@ function MasteryProgress({
 
       {/* Progress Bar */}
       <div className="relative mb-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
-        <div
-          className={`h-full rounded-full transition-all duration-g3-slower ease-g3 ${
+        <motion.div
+          className={`h-full rounded-full ${
             isCompleted
               ? 'bg-gradient-to-r from-green-400 to-green-500'
               : 'bg-gradient-to-r from-blue-400 to-blue-600'
           }`}
-          style={{ width: `${percentage}%` }}
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={g3SpringStandard}
           role="progressbar"
           aria-valuenow={progress.masteredCount}
           aria-valuemin={0}

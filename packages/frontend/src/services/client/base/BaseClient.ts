@@ -1,5 +1,6 @@
 import { env } from '../../../config/env';
 import TokenManager from './TokenManager';
+import type { ITokenManager } from './ITokenManager';
 
 /**
  * API响应格式
@@ -67,13 +68,13 @@ function getCsrfTokenFromCookie(): string | null {
  */
 export abstract class BaseClient {
   protected baseUrl: string;
-  protected tokenManager: TokenManager;
+  protected tokenManager: ITokenManager;
   protected onUnauthorizedCallback: (() => void) | null = null;
   protected defaultTimeout: number = DEFAULT_TIMEOUT;
 
-  constructor(baseUrl: string = env.apiUrl) {
+  constructor(baseUrl: string = env.apiUrl, tokenManager?: ITokenManager) {
     this.baseUrl = baseUrl;
-    this.tokenManager = TokenManager.getInstance();
+    this.tokenManager = tokenManager ?? TokenManager.getInstance();
   }
 
   /**

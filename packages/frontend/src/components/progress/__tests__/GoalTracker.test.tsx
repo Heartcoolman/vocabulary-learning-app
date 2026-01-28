@@ -11,17 +11,17 @@ vi.mock('../../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../Icon')>();
   return {
     ...actual,
-    Calendar: ({ className }: any) => (
+    Calendar: ({ className }: { className?: string }) => (
       <span data-testid="icon-calendar" className={className}>
         Calendar
       </span>
     ),
-    Target: ({ className }: any) => (
+    Target: ({ className }: { className?: string }) => (
       <span data-testid="icon-target" className={className}>
         Target
       </span>
     ),
-    TrendUp: ({ className }: any) => (
+    TrendUp: ({ className }: { className?: string }) => (
       <span data-testid="icon-trendup" className={className}>
         TrendUp
       </span>
@@ -112,7 +112,7 @@ describe('GoalTracker', () => {
 
     it('should handle zero weekly goal', () => {
       const props = { ...defaultProps, weeklyGoal: 0 };
-      const { container } = render(<GoalTracker {...props} />);
+      render(<GoalTracker {...props} />);
 
       // Should not crash
       expect(screen.getByText('本周目标')).toBeInTheDocument();
@@ -290,7 +290,7 @@ describe('GoalTracker', () => {
     it('should have gradient background for estimation section', () => {
       const { container } = render(<GoalTracker {...defaultProps} />);
 
-      const gradientSection = container.querySelector('.from-indigo-50');
+      const gradientSection = container.querySelector('.from-blue-50');
       expect(gradientSection).toBeInTheDocument();
     });
   });

@@ -1,12 +1,18 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { ReactNode } from 'react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'custom';
 
 export interface Toast {
   id: string;
   type: ToastType;
   message: string;
+  customContent?: ReactNode;
+  duration?: number;
+}
+
+interface CustomToastOptions {
   duration?: number;
 }
 
@@ -16,6 +22,7 @@ interface ToastState {
 
   // Actions
   showToast: (type: ToastType, message: string, duration?: number) => void;
+  showCustom: (content: ReactNode, options?: CustomToastOptions) => void;
   removeToast: (id: string) => void;
   clearAllToasts: () => void;
 
@@ -53,6 +60,43 @@ export const useToastStore = create<ToastState>()(
           }, duration);
 
           // 存储定时器
+          set(
+            (state) => {
+              const newTimers = new Map(state.timers);
+              newTimers.set(id, timerId);
+              return { timers: newTimers };
+            },
+            false,
+            'setTimer',
+          );
+        }
+      },
+
+      // 显示自定义Toast
+      showCustom: (content: ReactNode, options?: CustomToastOptions) => {
+        const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const duration = options?.duration ?? 5000;
+        const newToast: Toast = {
+          id,
+          type: 'custom',
+          message: '',
+          customContent: content,
+          duration,
+        };
+
+        set(
+          (state) => ({
+            toasts: [...state.toasts, newToast],
+          }),
+          false,
+          'showCustom',
+        );
+
+        if (duration > 0) {
+          const timerId = setTimeout(() => {
+            get().removeToast(id);
+          }, duration);
+
           set(
             (state) => {
               const newTimers = new Map(state.timers);

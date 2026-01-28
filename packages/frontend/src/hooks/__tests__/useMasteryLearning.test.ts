@@ -152,7 +152,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should fetch study words on mount', async () => {
-      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
+      renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(mockMasteryModule.getMasteryStudyWords).toHaveBeenCalled();

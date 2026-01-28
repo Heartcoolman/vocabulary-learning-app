@@ -9,12 +9,7 @@
  */
 
 import { BaseClient } from '../base/BaseClient';
-import type {
-  VisualFatigueInput,
-  VisualFatigueConfig,
-  PersonalBaseline,
-  FusedFatigueResult,
-} from '@danci/shared';
+import type { VisualFatigueInput, VisualFatigueConfig, PersonalBaseline } from '@danci/shared';
 
 /**
  * 上报指标响应
@@ -49,14 +44,6 @@ interface BaselineResponse {
     avgVisualFatigue?: number;
     recordCount?: number;
   };
-}
-
-/**
- * 配置响应
- */
-interface ConfigResponse {
-  success: boolean;
-  data: VisualFatigueConfig;
 }
 
 /**

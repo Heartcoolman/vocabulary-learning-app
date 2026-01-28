@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import LearningTimePage from '../LearningTimePage';
 
 // Mock 导航
@@ -56,8 +56,8 @@ import ApiClient from '../../services/client';
 describe('LearningTimePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (ApiClient.getTimePreferences as any).mockResolvedValue(mockTimePreference);
-    (ApiClient.getGoldenTime as any).mockResolvedValue(mockGoldenTime);
+    (ApiClient.getTimePreferences as Mock).mockResolvedValue(mockTimePreference);
+    (ApiClient.getGoldenTime as Mock).mockResolvedValue(mockGoldenTime);
   });
 
   afterEach(() => {
@@ -168,7 +168,7 @@ describe('LearningTimePage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (ApiClient.getTimePreferences as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getTimePreferences as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -178,7 +178,7 @@ describe('LearningTimePage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (ApiClient.getTimePreferences as any).mockRejectedValue(new Error('加载失败'));
+      (ApiClient.getTimePreferences as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -188,10 +188,10 @@ describe('LearningTimePage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (ApiClient.getTimePreferences as any)
+      (ApiClient.getTimePreferences as Mock)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockTimePreference);
-      (ApiClient.getGoldenTime as any).mockResolvedValue(mockGoldenTime);
+      (ApiClient.getGoldenTime as Mock).mockResolvedValue(mockGoldenTime);
 
       renderComponent();
 

@@ -27,9 +27,9 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
 
     let pool = db.pool();
 
-    recover_stuck_tasks(&pool).await?;
+    recover_stuck_tasks(pool).await?;
 
-    let tasks = claim_pending_tasks(&pool).await?;
+    let tasks = claim_pending_tasks(pool).await?;
     if tasks.is_empty() {
         debug!("No pending reward tasks");
         return Ok(());
@@ -41,7 +41,7 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
     let mut failure_count = 0;
 
     for task in tasks {
-        match process_single_task_atomic(&pool, &task).await {
+        match process_single_task_atomic(pool, &task).await {
             Ok(()) => {
                 success_count += 1;
             }
@@ -49,7 +49,7 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
                 let retry_count = parse_retry_count(&task.last_error);
                 let error_msg = e.to_string();
                 warn!(task_id = %task.id, error = %error_msg, "Delayed reward task processing failed");
-                handle_task_failure(&pool, &task, retry_count, &error_msg).await?;
+                handle_task_failure(pool, &task, retry_count, &error_msg).await?;
                 failure_count += 1;
             }
         }

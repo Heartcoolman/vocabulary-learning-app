@@ -3,12 +3,9 @@ import { publicRoutes } from './public.routes';
 import { userRoutes } from './user.routes';
 import { adminRoutes } from './admin.routes';
 import { aboutRoutes } from './about.routes';
-import { AppRoute } from './types';
+import type { AppRoute } from './types';
 
-/**
- * 所有路由配置汇总
- * 按模块组织，便于维护和扩展
- */
+// eslint-disable-next-line react-refresh/only-export-components
 export const routes: AppRoute[] = [
   // 公开路由（登录、注册等）
   ...publicRoutes,
@@ -31,13 +28,19 @@ export const routes: AppRoute[] = [
 ];
 
 // 导出类型
+// eslint-disable-next-line react-refresh/only-export-components
 export * from './types';
 
 // 导出各模块路由
+// eslint-disable-next-line react-refresh/only-export-components
 export { publicRoutes } from './public.routes';
+// eslint-disable-next-line react-refresh/only-export-components
 export { userRoutes } from './user.routes';
+// eslint-disable-next-line react-refresh/only-export-components
 export { adminRoutes } from './admin.routes';
+// eslint-disable-next-line react-refresh/only-export-components
 export { aboutRoutes } from './about.routes';
 
 // 导出组件
+// eslint-disable-next-line react-refresh/only-export-components
 export { PageLoader, lazyLoad, createLazyComponent } from './components';

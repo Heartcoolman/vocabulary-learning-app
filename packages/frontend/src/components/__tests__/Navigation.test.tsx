@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Navigation from '../Navigation';
 
 // Mock framer-motion
@@ -27,10 +28,14 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock animations
-vi.mock('../../utils/animations', () => ({
-  fadeInVariants: {},
-  g3SpringStandard: { type: 'spring', stiffness: 500, damping: 30 },
-}));
+vi.mock('../../utils/animations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/animations')>();
+  return {
+    ...actual,
+    fadeInVariants: {},
+    g3SpringStandard: { type: 'spring', stiffness: 500, damping: 30 },
+  };
+});
 
 // Mock Icon components
 vi.mock('../Icon', async (importOriginal) => {
@@ -56,11 +61,26 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+// Mock notification hooks
+vi.mock('../../hooks/queries', () => ({
+  useNotifications: vi.fn(() => ({ data: [], isLoading: false })),
+  useNotificationStats: vi.fn(() => ({ data: { unread: 0 } })),
+  useMarkAsRead: vi.fn(() => ({ mutate: vi.fn() })),
+}));
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
 const renderWithRouter = (initialPath = '/') => {
+  const queryClient = createQueryClient();
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <Navigation />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <Navigation />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 };
 

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import HabitProfilePage from '../HabitProfilePage';
 
 // Mock 导航
@@ -55,18 +55,43 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-// Mock useToast
-vi.mock('../../components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  }),
-}));
+// Mock useToast (keep other UI exports like Spinner)
+vi.mock('../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+    }),
+  };
+});
+
+interface ChronotypeCardProps {
+  type: string;
+  confidence: number;
+  peakHours?: number[];
+}
+
+interface RhythmCardProps {
+  type: string;
+  avgDuration: number;
+}
+
+interface MotivationCardProps {
+  streak: number;
+  level: string;
+  trend: string;
+}
+
+interface HabitHeatmapProps {
+  data?: unknown[];
+}
 
 // Mock ChronotypeCard
 vi.mock('../../components/ChronotypeCard', () => ({
-  default: ({ type, confidence, peakHours }: any) => (
+  default: ({ type, confidence, peakHours }: ChronotypeCardProps) => (
     <div data-testid="chronotype-card">
       <span>{type}</span>
       <span>confidence: {confidence}</span>
@@ -77,7 +102,7 @@ vi.mock('../../components/ChronotypeCard', () => ({
 
 // Mock RhythmCard
 vi.mock('../../components/profile/RhythmCard', () => ({
-  RhythmCard: ({ type, avgDuration }: any) => (
+  RhythmCard: ({ type, avgDuration }: RhythmCardProps) => (
     <div data-testid="rhythm-card">
       <span>{type}</span>
       <span>duration: {avgDuration}</span>
@@ -87,7 +112,7 @@ vi.mock('../../components/profile/RhythmCard', () => ({
 
 // Mock MotivationCard
 vi.mock('../../components/profile/MotivationCard', () => ({
-  MotivationCard: ({ streak, level, trend }: any) => (
+  MotivationCard: ({ streak, level, trend }: MotivationCardProps) => (
     <div data-testid="motivation-card">
       <span>streak: {streak}</span>
       <span>level: {level}</span>
@@ -98,9 +123,9 @@ vi.mock('../../components/profile/MotivationCard', () => ({
 
 // Mock HabitHeatmap
 vi.mock('../../components/profile/HabitHeatmap', () => ({
-  HabitHeatmap: ({ data }: any) => (
+  HabitHeatmap: ({ data }: HabitHeatmapProps) => (
     <div data-testid="habit-heatmap">
-      <span>heatmap data length: {data?.length}</span>
+      <span>heatmap data length: {(data as unknown[])?.length}</span>
     </div>
   ),
 }));
@@ -110,9 +135,9 @@ import apiClient from '../../services/client';
 describe('HabitProfilePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getHabitProfile as any).mockResolvedValue(mockHabitProfile);
-    (apiClient.initializeHabitProfile as any).mockResolvedValue({});
-    (apiClient.persistHabitProfile as any).mockResolvedValue({});
+    (apiClient.getHabitProfile as Mock).mockResolvedValue(mockHabitProfile);
+    (apiClient.initializeHabitProfile as Mock).mockResolvedValue({});
+    (apiClient.persistHabitProfile as Mock).mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -173,7 +198,7 @@ describe('HabitProfilePage', () => {
 
     it('should show loading state initially', () => {
       // Mock slow API response
-      (apiClient.getHabitProfile as any).mockImplementation(() => new Promise(() => {}));
+      (apiClient.getHabitProfile as Mock).mockImplementation(() => new Promise(() => {}));
 
       renderComponent();
 
@@ -185,7 +210,7 @@ describe('HabitProfilePage', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no sessions', async () => {
-      (apiClient.getHabitProfile as any).mockResolvedValue({
+      (apiClient.getHabitProfile as Mock).mockResolvedValue({
         realtime: {
           timePref: [],
           rhythmPref: {},
@@ -208,7 +233,7 @@ describe('HabitProfilePage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (apiClient.getHabitProfile as any).mockRejectedValue(new Error('加载失败'));
+      (apiClient.getHabitProfile as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -218,7 +243,7 @@ describe('HabitProfilePage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (apiClient.getHabitProfile as any).mockRejectedValue(new Error('加载失败'));
+      (apiClient.getHabitProfile as Mock).mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -228,7 +253,7 @@ describe('HabitProfilePage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (apiClient.getHabitProfile as any)
+      (apiClient.getHabitProfile as Mock)
         .mockRejectedValueOnce(new Error('加载失败'))
         .mockResolvedValueOnce(mockHabitProfile);
 

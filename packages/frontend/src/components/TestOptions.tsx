@@ -124,6 +124,15 @@ function TestOptions({
           {option}
         </button>
       ))}
+
+      {showResult && selectedAnswer && !correctAnswers.includes(selectedAnswer) && (
+        <div
+          className="mt-2 w-full text-center text-sm text-gray-600 dark:text-gray-400"
+          data-testid="wrong-answer-explanation"
+        >
+          正确答案：{correctAnswers.join('、')}
+        </div>
+      )}
     </div>
   );
 }

@@ -222,7 +222,7 @@ export default function AMASExplainabilityPage() {
       {/* 页面标题 */}
       <div className="mb-8">
         <h1 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900 dark:text-white">
-          <Brain size={36} weight="duotone" className="text-purple-500" />
+          <Brain size={36} className="text-purple-500" />
           AMAS 可解释性
         </h1>
         <p className="text-gray-600 dark:text-gray-400">

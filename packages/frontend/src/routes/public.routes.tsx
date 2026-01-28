@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { AppRoute } from './types';
+import type { AppRoute } from './types';
 import { PageLoader } from './components';
 
 // 核心页面 - 同步导入（首屏必需）
@@ -11,6 +11,7 @@ const ForbiddenPage = lazy(() => import('../pages/ForbiddenPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage'));
 
+// eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );

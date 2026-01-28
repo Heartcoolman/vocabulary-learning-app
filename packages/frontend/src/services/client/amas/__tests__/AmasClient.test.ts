@@ -863,7 +863,7 @@ describe('AmasClient', () => {
       };
       mockRequest.mockResolvedValue({ ...objectives, userId: 'user-1' });
 
-      const result = await client.updateLearningObjectives(objectives);
+      await client.updateLearningObjectives(objectives);
 
       expect(mockRequest).toHaveBeenCalledWith('/api/learning-objectives', {
         method: 'PUT',
@@ -876,7 +876,7 @@ describe('AmasClient', () => {
     it('should switch learning mode', async () => {
       mockRequest.mockResolvedValue({ mode: 'travel', success: true });
 
-      const result = await client.switchLearningMode('travel', 'Going on vacation');
+      await client.switchLearningMode('travel', 'Going on vacation');
 
       expect(mockRequest).toHaveBeenCalledWith('/api/learning-objectives/switch-mode', {
         method: 'POST',

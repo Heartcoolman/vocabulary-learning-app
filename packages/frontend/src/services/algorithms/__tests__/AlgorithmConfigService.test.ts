@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AlgorithmConfigService, ConfigValidationResult } from '../AlgorithmConfigService';
+import { AlgorithmConfigService } from '../AlgorithmConfigService';
 import { AlgorithmConfig, ConfigHistory } from '../../../types/models';
 
 // Mock StorageService

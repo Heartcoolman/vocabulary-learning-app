@@ -74,6 +74,7 @@ export default function LogAlertsPage() {
 
   useEffect(() => {
     loadRules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -322,7 +323,7 @@ export default function LogAlertsPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Bell size={32} weight="duotone" className="text-blue-500" />
+            <Bell size={32} className="text-blue-500" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">日志告警规则</h1>
               <p className="mt-1 text-gray-600 dark:text-gray-400">配置和管理日志监控告警规则</p>
@@ -332,7 +333,7 @@ export default function LogAlertsPage() {
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
-            <Plus size={20} weight="bold" />
+            <Plus size={20} />
             创建规则
           </button>
         </div>
@@ -341,11 +342,7 @@ export default function LogAlertsPage() {
       {/* 规则列表 */}
       {rules.length === 0 ? (
         <div className="rounded-card border border-gray-200/60 bg-white/80 py-16 text-center backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
-          <Bell
-            size={64}
-            weight="duotone"
-            className="mx-auto mb-4 text-gray-300 dark:text-gray-600"
-          />
+          <Bell size={64} className="mx-auto mb-4 text-gray-300 dark:text-gray-600" />
           <h3 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">暂无告警规则</h3>
           <p className="mb-6 text-gray-600 dark:text-gray-400">
             点击上方"创建规则"按钮添加第一个告警规则
@@ -468,14 +465,14 @@ export default function LogAlertsPage() {
                     className="rounded-button p-2 text-blue-600 transition-all hover:bg-blue-50"
                     title="编辑规则"
                   >
-                    <Pencil size={20} weight="bold" />
+                    <Pencil size={20} />
                   </button>
                   <button
                     onClick={() => openDeleteConfirm(rule.id)}
                     className="rounded-button p-2 text-red-600 transition-all hover:bg-red-50"
                     title="删除规则"
                   >
-                    <Trash size={20} weight="bold" />
+                    <Trash size={20} />
                   </button>
                 </div>
               </div>
@@ -523,7 +520,7 @@ export default function LogAlertsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
             <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800">
               <div className="mb-6 text-center">
-                <Warning size={64} weight="duotone" className="mx-auto mb-4 text-red-500" />
+                <Warning size={64} className="mx-auto mb-4 text-red-500" />
                 <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">确认删除</h3>
                 <p className="text-gray-600 dark:text-gray-400">
                   确定要删除这个告警规则吗？此操作不可撤销。
@@ -591,7 +588,7 @@ function RuleFormModal({
             onClick={onCancel}
             className="rounded-button p-2 transition-all hover:bg-gray-100 dark:hover:bg-slate-700"
           >
-            <X size={24} weight="bold" />
+            <X size={24} />
           </button>
         </div>
 

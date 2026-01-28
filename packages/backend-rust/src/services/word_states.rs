@@ -756,7 +756,7 @@ pub fn validate_word_state_update_payload(
             .as_f64()
             .or_else(|| value.as_i64().map(|v| v as f64))
             .ok_or_else(|| WordStateError::Validation("字段验证失败".to_string()))?;
-        if ef < 1.3 || ef > 2.5 {
+        if !(1.3..=2.5).contains(&ef) {
             return Err(WordStateError::Validation("字段验证失败".to_string()));
         }
         out.ease_factor = Some(ef);

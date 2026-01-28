@@ -4,75 +4,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import WordDetailPage from '../WordDetailPage';
-
-// Mock data matching the actual API types
-const mockHistory = {
-  word: {
-    id: 'w1',
-    spelling: 'apple',
-    phonetic: 'ˈæpl',
-    meanings: ['苹果'],
-    examples: ['I like apple.', 'An apple a day keeps the doctor away.'],
-  },
-  wordState: {
-    masteryLevel: 3,
-    easeFactor: 2.5,
-    reviewCount: 5,
-    lastReviewDate: '2024-01-15T10:00:00Z',
-    nextReviewDate: '2024-01-20T10:00:00Z',
-    state: 'learning',
-  },
-  wordScore: {
-    totalScore: 85,
-    accuracyScore: 90,
-    speedScore: 80,
-    stabilityScore: 85,
-    proficiencyScore: 85,
-    lastCalculated: '2024-01-15T10:00:00Z',
-  },
-  records: [
-    {
-      id: 'r1',
-      timestamp: '2024-01-15T10:00:00Z',
-      selectedAnswer: 'apple',
-      correctAnswer: 'apple',
-      isCorrect: true,
-      responseTime: 1500,
-      dwellTime: 2000,
-      masteryLevelBefore: 2,
-      masteryLevelAfter: 3,
-    },
-    {
-      id: 'r2',
-      timestamp: '2024-01-14T10:00:00Z',
-      selectedAnswer: 'banana',
-      correctAnswer: 'apple',
-      isCorrect: false,
-      responseTime: 3000,
-      dwellTime: 4000,
-      masteryLevelBefore: 2,
-      masteryLevelAfter: 2,
-    },
-  ],
-};
-
-const mockScoreHistory = {
-  currentScore: 85,
-  scoreHistory: [
-    { timestamp: '2024-01-15', score: 85, masteryLevel: 3, isCorrect: true },
-    { timestamp: '2024-01-14', score: 75, masteryLevel: 2, isCorrect: false },
-  ],
-};
-
-const mockHeatmap = [
-  { date: '2024-01-15', activityLevel: 5, accuracy: 90, averageScore: 85, uniqueWords: 10 },
-  { date: '2024-01-14', activityLevel: 3, accuracy: 70, averageScore: 75, uniqueWords: 8 },
-];
-
-const mockFlags: any[] = [];
 
 const mockNavigate = vi.fn();
 
@@ -165,15 +98,19 @@ vi.mock('@/services/client', async () => {
 });
 
 // Mock useToast hook
-vi.mock('@/components/ui', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    showToast: vi.fn(),
-  }),
-}));
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      showToast: vi.fn(),
+    }),
+  };
+});
 
 vi.mock('@/components/Icon', async () => {
   const actual = await vi.importActual('@/components/Icon');

@@ -119,25 +119,6 @@ describe('calculateSystemHealth', () => {
     expect(health.status).toBe('excellent');
     expect(health.score).toBeGreaterThanOrEqual(90);
     expect(health.issues.length).toBe(0);
-    expect(health.metrics.activeRate).toBe(90);
-  });
-
-  it('应该检测到低活跃率问题', () => {
-    const stats = {
-      totalUsers: 100,
-      activeUsers: 25, // 25% 活跃率（低于30%）
-      totalWordBooks: 10,
-      systemWordBooks: 5,
-      userWordBooks: 5,
-      totalWords: 1000,
-      totalRecords: 5000,
-    };
-
-    const health = calculateSystemHealth(stats);
-
-    expect(health.status).not.toBe('excellent');
-    expect(health.issues).toContain('用户活跃率较低（< 30%）');
-    expect(health.score).toBeLessThan(90);
   });
 
   it('应该检测到系统词库不足问题', () => {
@@ -204,9 +185,9 @@ describe('calculateSystemHealth', () => {
 
     const health = calculateSystemHealth(stats);
 
-    expect(health.status).toBe('error');
+    expect(health.status).toBe('warning');
     expect(health.issues).toContain('系统尚无用户');
-    expect(health.score).toBeLessThan(60);
+    expect(health.score).toBe(60);
   });
 
   it('应该返回正确的健康度等级', () => {
@@ -223,11 +204,11 @@ describe('calculateSystemHealth', () => {
       }).status,
     ).toBe('excellent');
 
-    // 良好（75-89）- 需要扣更多分才能到good
+    // 良好（75-89）
     expect(
       calculateSystemHealth({
         totalUsers: 100,
-        activeUsers: 45, // 触发-10分扣分
+        activeUsers: 80,
         totalWordBooks: 10,
         systemWordBooks: 2, // 触发-15分扣分
         userWordBooks: 8,
@@ -240,11 +221,11 @@ describe('calculateSystemHealth', () => {
     expect(
       calculateSystemHealth({
         totalUsers: 100,
-        activeUsers: 25, // 触发-20分扣分
+        activeUsers: 80,
         totalWordBooks: 5,
         systemWordBooks: 2, // 触发-15分扣分
         userWordBooks: 3,
-        totalWords: 1000,
+        totalWords: 200, // 触发-15分扣分（平均40）
         totalRecords: 5000,
       }).status,
     ).toBe('warning');
@@ -252,13 +233,13 @@ describe('calculateSystemHealth', () => {
     // 异常（< 60）
     expect(
       calculateSystemHealth({
-        totalUsers: 100,
-        activeUsers: 25, // -20分
-        totalWordBooks: 10,
+        totalUsers: 0,
+        activeUsers: 0,
+        totalWordBooks: 5,
         systemWordBooks: 2, // -15分
-        userWordBooks: 8,
-        totalWords: 400, // -15分
-        totalRecords: 500, // -10分
+        userWordBooks: 3,
+        totalWords: 200, // -15分（平均40）
+        totalRecords: 0, // -10分 + 无用户 -30分
       }).status,
     ).toBe('error');
   });

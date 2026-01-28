@@ -83,6 +83,7 @@ export const List = memo(
       return (
         <ListContext.Provider value={{ size, variant, interactive }}>
           <Component
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ref={ref as any}
             role="list"
             className={cn(
@@ -232,7 +233,7 @@ ListItem.displayName = 'ListItem';
 /* ========================================
  * ListItemButton 组件 - 可操作的列表项
  * ======================================== */
-export interface ListItemButtonProps extends Omit<ListItemProps, 'clickable'> {}
+export type ListItemButtonProps = Omit<ListItemProps, 'clickable'>;
 
 export const ListItemButton = memo(
   forwardRef<HTMLLIElement, ListItemButtonProps>((props, ref) => {

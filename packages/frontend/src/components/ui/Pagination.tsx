@@ -90,7 +90,7 @@ export const Pagination = memo(
         siblingCount = 1,
         size = 'md',
         disabled = false,
-        showEdges = true,
+        showEdges: _showEdges = true,
         className,
         ...props
       },
@@ -155,7 +155,7 @@ export const Pagination = memo(
             className={navButtonStyles(canGoPrev)}
             aria-label="上一页"
           >
-            <CaretLeft size={iconSize} weight="bold" />
+            <CaretLeft size={iconSize} />
           </button>
 
           {/* 页码 */}
@@ -200,7 +200,7 @@ export const Pagination = memo(
             className={navButtonStyles(canGoNext)}
             aria-label="下一页"
           >
-            <CaretRight size={iconSize} weight="bold" />
+            <CaretRight size={iconSize} />
           </button>
         </nav>
       );
@@ -263,7 +263,7 @@ export const SimplePagination = memo(
             disabled={!canGoPrev}
             className={buttonStyles(canGoPrev)}
           >
-            <CaretLeft size={iconSize} weight="bold" />
+            <CaretLeft size={iconSize} />
             <span>上一页</span>
           </button>
 
@@ -280,7 +280,7 @@ export const SimplePagination = memo(
             className={buttonStyles(canGoNext)}
           >
             <span>下一页</span>
-            <CaretRight size={iconSize} weight="bold" />
+            <CaretRight size={iconSize} />
           </button>
         </nav>
       );

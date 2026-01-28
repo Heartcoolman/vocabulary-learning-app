@@ -30,7 +30,7 @@ const DailyMissionCardComponent = ({
           <div className="mb-4 flex items-start justify-between">
             <div>
               <h3 className="flex items-center gap-2 text-2xl font-bold">
-                <Target className="h-6 w-6 text-blue-200" weight="duotone" />
+                <Target className="h-6 w-6 text-blue-200" />
                 今日学习任务
               </h3>
               <p className="mt-1 text-base font-medium text-blue-100">
@@ -39,7 +39,7 @@ const DailyMissionCardComponent = ({
             </div>
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/20 px-4 py-1.5 shadow-inner backdrop-blur-md">
-                <Lightning className="h-4 w-4 fill-yellow-300 text-yellow-300" weight="fill" />
+                <Lightning className="h-4 w-4 fill-yellow-300 text-yellow-300" />
                 <span className="text-lg font-bold">{correctRate}%</span>
                 <span className="text-sm font-medium uppercase tracking-wide text-blue-50">
                   正确率
@@ -91,7 +91,7 @@ const DailyMissionCardComponent = ({
 
         <div className="mb-4 flex items-center justify-between text-base font-medium text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-2 rounded-button bg-gray-50 px-3 py-1.5 dark:bg-slate-700">
-            <Clock className="h-4 w-4 text-gray-400" weight="bold" />
+            <Clock className="h-4 w-4 text-gray-400" />
             <span>预计 ~{estimatedTime} 分钟</span>
           </div>
           <div className="text-gray-600 dark:text-gray-400">共 {totalWords} 个单词待学习</div>
@@ -112,8 +112,7 @@ const DailyMissionCardComponent = ({
             </>
           ) : (
             <>
-              <Play className="h-5 w-5 fill-current" weight="fill" />{' '}
-              {todayStudied > 0 ? '继续学习' : '开始学习'}
+              <Play className="h-5 w-5 fill-current" /> {todayStudied > 0 ? '继续学习' : '开始学习'}
             </>
           )}
         </button>

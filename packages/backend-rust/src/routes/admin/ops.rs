@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
 use crate::response::json_error;
-use crate::services::{insight_generator, weekly_report};
+use crate::services::{insight_generator, segment_classifier, weekly_report};
 use crate::state::AppState;
+use crate::workers::clustering;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -87,51 +88,6 @@ struct AlertStats {
     by_severity: std::collections::BTreeMap<String, i64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-struct UserSegment {
-    id: &'static str,
-    name: &'static str,
-    description: &'static str,
-}
-
-const USER_SEGMENTS: &[UserSegment] = &[
-    UserSegment {
-        id: "new_users",
-        name: "新用户",
-        description: "注册7天内的用户",
-    },
-    UserSegment {
-        id: "active_learners",
-        name: "活跃学习者",
-        description: "每日都有学习记录的用户",
-    },
-    UserSegment {
-        id: "at_risk",
-        name: "流失风险用户",
-        description: "最近3天没有活动的用户",
-    },
-    UserSegment {
-        id: "high_performers",
-        name: "高绩效用户",
-        description: "正确率超过80%的用户",
-    },
-    UserSegment {
-        id: "struggling",
-        name: "困难用户",
-        description: "正确率低于50%的用户",
-    },
-    UserSegment {
-        id: "casual",
-        name: "休闲用户",
-        description: "每周只学习1-2天的用户",
-    },
-    UserSegment {
-        id: "all",
-        name: "全部用户",
-        description: "所有有学习记录的用户",
-    },
-];
-
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/alerts/analyze", post(analyze_alert))
@@ -148,8 +104,10 @@ pub fn router() -> Router<AppState> {
         .route("/insights", get(get_insights))
         .route("/insights/:id", get(get_insight))
         .route("/segments", get(get_segments))
+        .route("/retention", get(get_retention))
         .route("/amas/config/reload", post(reload_amas_config))
         .route("/amas/config", get(get_amas_config))
+        .route("/clustering/trigger", post(trigger_clustering))
 }
 
 async fn analyze_alert(
@@ -700,12 +658,77 @@ async fn get_insight(State(state): State<AppState>, Path(id): Path<String>) -> R
     }
 }
 
-async fn get_segments() -> Response {
-    Json(SuccessResponse {
-        success: true,
-        data: USER_SEGMENTS,
-    })
-    .into_response()
+async fn get_segments(State(state): State<AppState>) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match segment_classifier::get_multidimensional_segment_analysis(&proxy).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(e) => {
+            tracing::warn!(error = %e, "segment analysis query failed");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_FAILED",
+                "分群分析查询失败",
+            )
+            .into_response()
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RetentionQuery {
+    period_type: Option<String>,
+    cohort_days: Option<i32>,
+}
+
+async fn get_retention(
+    State(state): State<AppState>,
+    Query(query): Query<RetentionQuery>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    let period_type = match query.period_type.as_deref() {
+        Some("weekly") => segment_classifier::RetentionPeriodType::Weekly,
+        Some("monthly") => segment_classifier::RetentionPeriodType::Monthly,
+        _ => segment_classifier::RetentionPeriodType::Daily,
+    };
+    let cohort_days = query.cohort_days.unwrap_or(30).clamp(7, 90);
+
+    match segment_classifier::calculate_retention(&proxy, period_type, cohort_days).await {
+        Ok(data) => Json(SuccessResponse {
+            success: true,
+            data,
+        })
+        .into_response(),
+        Err(e) => {
+            tracing::warn!(error = %e, "retention calculation failed");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_FAILED",
+                "留存率计算失败",
+            )
+            .into_response()
+        }
+    }
 }
 
 async fn reload_amas_config(State(state): State<AppState>) -> Response {
@@ -738,11 +761,30 @@ async fn get_amas_config(State(state): State<AppState>) -> Response {
     .into_response()
 }
 
-fn not_implemented() -> Response {
-    json_error(
-        StatusCode::NOT_IMPLEMENTED,
-        "NOT_IMPLEMENTED",
-        "功能尚未实现",
-    )
-    .into_response()
+async fn trigger_clustering(State(state): State<AppState>) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
+    };
+
+    match clustering::run_clustering_cycle(proxy).await {
+        Ok(()) => Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "message": "聚类任务执行完成" }),
+        })
+        .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "Clustering trigger failed");
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "CLUSTERING_FAILED",
+                format!("聚类任务执行失败: {}", e),
+            )
+            .into_response()
+        }
+    }
 }

@@ -14,7 +14,7 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
     return (
       <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <Brain size={24} weight="duotone" color="#a855f7" />
+          <Brain size={24} color="#a855f7" />
           认知成长对比（{cognitiveGrowth.period} 天）
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -32,9 +32,9 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
                 }`}
               >
                 {cognitiveGrowth.changes.memory.direction === 'up' ? (
-                  <ArrowUp size={16} weight="bold" />
+                  <ArrowUp size={16} />
                 ) : (
-                  <ArrowDown size={16} weight="bold" />
+                  <ArrowDown size={16} />
                 )}
                 <span className="text-sm font-bold">
                   {cognitiveGrowth.changes.memory.percent.toFixed(1)}%
@@ -64,9 +64,9 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
                 }`}
               >
                 {cognitiveGrowth.changes.speed.direction === 'up' ? (
-                  <ArrowUp size={16} weight="bold" />
+                  <ArrowUp size={16} />
                 ) : (
-                  <ArrowDown size={16} weight="bold" />
+                  <ArrowDown size={16} />
                 )}
                 <span className="text-sm font-bold">
                   {cognitiveGrowth.changes.speed.percent.toFixed(1)}%
@@ -96,9 +96,9 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
                 }`}
               >
                 {cognitiveGrowth.changes.stability.direction === 'up' ? (
-                  <ArrowUp size={16} weight="bold" />
+                  <ArrowUp size={16} />
                 ) : (
-                  <ArrowDown size={16} weight="bold" />
+                  <ArrowDown size={16} />
                 )}
                 <span className="text-sm font-bold">
                   {cognitiveGrowth.changes.stability.percent.toFixed(1)}%

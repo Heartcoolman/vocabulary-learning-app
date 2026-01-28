@@ -58,7 +58,7 @@ type Story = StoryObj<typeof meta>;
  * 点击按钮打开模态框，展示基础用法。
  */
 export const Default: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [isOpen, setIsOpen] = useState(false);
     return (
       <>
@@ -93,7 +93,7 @@ export const Default: Story = {
  * 模态框支持多种尺寸：sm、md、lg、xl。
  */
 export const Sizes: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [size, setSize] = useState<'sm' | 'md' | 'lg' | 'xl' | null>(null);
     return (
       <>
@@ -138,7 +138,7 @@ export const Sizes: Story = {
  * 用于危险操作或需要用户确认的场景。
  */
 export const Confirm: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [isOpen, setIsOpen] = useState(false);
     return (
       <>
@@ -175,7 +175,7 @@ export const Confirm: Story = {
  * 警告级别的确认模态框。
  */
 export const Warning: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [isOpen, setIsOpen] = useState(false);
     return (
       <>
@@ -215,7 +215,7 @@ export const Warning: Story = {
  * 用于显示信息提示，只需一个按钮关闭。
  */
 export const Alert: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [alert, setAlert] = useState<{
       type: 'success' | 'error' | 'warning' | 'info';
       title: string;
@@ -300,7 +300,7 @@ export const Alert: Story = {
  * 模态框内包含表单的常见用法。
  */
 export const WithForm: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [isOpen, setIsOpen] = useState(false);
     return (
       <>
@@ -353,7 +353,7 @@ export const WithForm: Story = {
  * 确认操作时显示加载状态。
  */
 export const Loading: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -398,7 +398,7 @@ export const Loading: Story = {
  * 不显示标题栏的简洁模态框。
  */
 export const NoTitle: Story = {
-  render: function Render(args) {
+  render: function Render(_args) {
     const [isOpen, setIsOpen] = useState(false);
     return (
       <>

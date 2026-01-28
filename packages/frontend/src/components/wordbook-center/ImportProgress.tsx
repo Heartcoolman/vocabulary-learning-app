@@ -10,7 +10,7 @@ export function ImportProgress({ status, message }: ImportProgressProps) {
 
   return (
     <div
-      className={`fixed bottom-4 right-4 flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg ${
+      className={`fixed bottom-4 right-4 flex items-center gap-3 rounded-button px-4 py-3 shadow-elevated ${
         status === 'importing'
           ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
           : status === 'success'

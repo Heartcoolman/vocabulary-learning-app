@@ -87,7 +87,7 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                 }`}
               >
-                <Clock size={16} weight="bold" />
+                <Clock size={16} />
                 最近学习
               </button>
               <button
@@ -98,7 +98,7 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                 }`}
               >
-                <TrendUp size={16} weight="bold" />
+                <TrendUp size={16} />
                 正确率
               </button>
               <button
@@ -109,7 +109,7 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                 }`}
               >
-                <Hash size={16} weight="bold" />
+                <Hash size={16} />
                 学习次数
               </button>
             </div>

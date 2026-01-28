@@ -19,7 +19,7 @@ impl MorphemeType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "prefix" => Some(Self::Prefix),
             "root" => Some(Self::Root),
@@ -227,8 +227,7 @@ pub async fn get_word_etymology(
 
     for row in &rows {
         let morpheme_type_str: String = row.get("type");
-        let morpheme_type =
-            MorphemeType::from_str(&morpheme_type_str).unwrap_or(MorphemeType::Root);
+        let morpheme_type = MorphemeType::parse(&morpheme_type_str).unwrap_or(MorphemeType::Root);
         let surface: String = row.get("surface");
         let meaning: Option<String> = row.get("meaning");
         let meaning_zh: Option<String> = row.get("meaningZh");
@@ -292,7 +291,7 @@ pub async fn get_word_family(
     let root = Morpheme {
         id: morpheme_row.get("id"),
         surface: morpheme_row.get("surface"),
-        morpheme_type: MorphemeType::from_str(&morpheme_type_str).unwrap_or(MorphemeType::Root),
+        morpheme_type: MorphemeType::parse(&morpheme_type_str).unwrap_or(MorphemeType::Root),
         meaning: morpheme_row.get("meaning"),
         meaning_zh: morpheme_row.get("meaningZh"),
         language: morpheme_row.get("language"),

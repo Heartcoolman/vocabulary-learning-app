@@ -1,7 +1,7 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SpeakerHigh, Check, X } from './Icon';
-import { g3SpringSnappy } from '../utils/animations';
+import { g3SpringSnappy, G3_DURATION } from '../utils/animations';
 
 export interface FlashCardWord {
   id: string;
@@ -63,7 +63,7 @@ function FlashCard({
         className={`relative w-full ${!isFlipped ? 'cursor-pointer' : ''}`}
         style={{ transformStyle: 'preserve-3d' }}
         animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.6, ease: 'easeInOut' }}
+        transition={{ duration: G3_DURATION.slower / 1000, ease: 'easeInOut' }}
         onClick={!isFlipped ? handleFlip : undefined}
       >
         {/* 正面 - 单词 */}

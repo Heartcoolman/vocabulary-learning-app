@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
-import { AppRoute } from './types';
+import type { AppRoute } from './types';
 import { PageLoader } from './components';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -32,16 +32,19 @@ const PlanPage = lazy(() => import('../pages/PlanPage'));
 const LearningProfilePage = lazy(() => import('../pages/LearningProfilePage'));
 const PreferencesPage = lazy(() => import('../pages/PreferencesPage'));
 
-/**
- * 懒加载包装组件
- */
+// 语义搜索功能页面
+const ConfusionWordsPage = lazy(() => import('../pages/ConfusionWordsPage'));
+const SemanticSearchPage = lazy(() => import('../pages/SemanticSearchPage'));
+
+// 通知功能页面
+const NotificationCenterPage = lazy(() => import('../pages/NotificationCenterPage'));
+
+// eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );
 
-/**
- * 受保护的懒加载路由包装
- */
+// eslint-disable-next-line react-refresh/only-export-components
 const ProtectedLazy = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>
     <LazyWrapper>{children}</LazyWrapper>
@@ -145,6 +148,24 @@ export const userRoutes: AppRoute[] = [
       </ProtectedLazy>
     ),
     meta: { title: '单词列表', requireAuth: true },
+  },
+  {
+    path: '/confusion-words',
+    element: (
+      <ProtectedLazy>
+        <ConfusionWordsPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '易混淆词', requireAuth: true },
+  },
+  {
+    path: '/semantic-search',
+    element: (
+      <ProtectedLazy>
+        <SemanticSearchPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '语义搜索', requireAuth: true },
   },
   {
     path: '/profile',
@@ -255,6 +276,17 @@ export const userRoutes: AppRoute[] = [
       </ProtectedLazy>
     ),
     meta: { title: '偏好设置', requireAuth: true },
+  },
+
+  // 通知中心
+  {
+    path: '/notifications',
+    element: (
+      <ProtectedLazy>
+        <NotificationCenterPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '通知中心', requireAuth: true },
   },
 
   // 路径统一：重定向到主学习页面

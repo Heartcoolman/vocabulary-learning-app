@@ -20,6 +20,7 @@ import {
   CaretUp,
   Eye,
   Brain,
+  X,
 } from '../../components/Icon';
 import { useToast, Button, Skeleton } from '../../components/ui';
 import {
@@ -152,7 +153,7 @@ function ReportDetailModal({
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200"
               >
-                ✕
+                <X size={20} />
               </button>
             </div>
           </div>
@@ -320,13 +321,13 @@ function ReportDetailModal({
                 </div>
                 <div className="text-sm text-pink-600 dark:text-pink-400">学习单词数</div>
               </div>
-              <div className="rounded-button bg-indigo-50 p-4 dark:bg-indigo-900/20">
-                <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+              <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/20">
+                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                   {report.keyMetrics?.learning?.avgAccuracy
                     ? `${(report.keyMetrics.learning.avgAccuracy * 100).toFixed(1)}%`
                     : '-'}
                 </div>
-                <div className="text-sm text-indigo-600 dark:text-indigo-400">平均正确率</div>
+                <div className="text-sm text-blue-600 dark:text-blue-400">平均正确率</div>
               </div>
               <div className="rounded-button bg-teal-50 p-4 dark:bg-teal-900/20">
                 <div className="text-2xl font-bold text-teal-700 dark:text-teal-300">

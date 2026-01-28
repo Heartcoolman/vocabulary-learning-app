@@ -16,6 +16,9 @@ export const STORAGE_KEYS = {
   // 视觉疲劳
   VISUAL_FATIGUE_STORAGE: 'visual-fatigue-storage',
 
+  // AMAS 设置
+  AMAS_SETTINGS_STORAGE: 'amas-settings-storage',
+
   // A/B 测试
   AB_TESTING: 'ab_testing',
 

@@ -66,6 +66,10 @@ export type {
   OTAUpdateStatus,
 } from './admin/AdminClient';
 
+// ==================== Admin Settings 模块 ====================
+export { AdminSettingsClient, adminSettingsClient } from './admin/AdminSettingsClient';
+export type { SettingItem, UpdateSettingItem } from './admin/AdminSettingsClient';
+
 // ==================== LLM Advisor 模块 ====================
 export { LLMAdvisorClient } from './llm/LLMAdvisorClient';
 export type {
@@ -120,6 +124,21 @@ export type {
   UpdatePreferencesDto,
 } from './preferences/PreferencesClient';
 
+// ==================== Semantic 模块 ====================
+export { SemanticClient, semanticClient } from './semantic/SemanticClient';
+export type {
+  SemanticWord,
+  SemanticSearchResponse,
+  SemanticStatsResponse,
+  BatchEmbedResponse,
+  ConfusionPair,
+  WordCluster,
+  WordClusterDetail,
+  HealthCheckResponse,
+  ClusterConfusionCount,
+  ConfusionCacheStatus,
+} from './semantic/SemanticClient';
+
 // ==================== 单例实例 ====================
 // 创建全局共享的 Client 实例，便于直接使用
 
@@ -130,11 +149,13 @@ import { LearningClient } from './learning/LearningClient';
 import { AmasClient } from './amas/AmasClient';
 import { AdminClient } from './admin/AdminClient';
 import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
+// visualFatigueClient and opsEnhanceClient are imported from their re-exports above
 import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 import { NotificationClient } from './notification/NotificationClient';
 import { PreferencesClient } from './preferences/PreferencesClient';
 import { WordBookCenterClient } from './wordbook-center/WordBookCenterClient';
+import { semanticClient } from './semantic/SemanticClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -186,6 +207,7 @@ export const apiClient = {
   opsEnhance: opsEnhanceClient,
   notification: notificationClient,
   preferences: preferencesClient,
+  semantic: semanticClient,
 
   // ==================== 认证相关 ====================
   register: authClient.register.bind(authClient),
@@ -197,6 +219,7 @@ export const apiClient = {
   requestPasswordReset: authClient.requestPasswordReset.bind(authClient),
   resetPassword: authClient.resetPassword.bind(authClient),
   getUserStatistics: authClient.getUserStatistics.bind(authClient),
+  uploadAvatar: authClient.uploadAvatar.bind(authClient),
   setToken: authClient.setToken.bind(authClient),
   clearToken: authClient.clearToken.bind(authClient),
   getToken: authClient.getToken.bind(authClient),
@@ -352,6 +375,7 @@ export const apiClient = {
   startExperiment: adminClient.startExperiment.bind(adminClient),
   stopExperiment: adminClient.stopExperiment.bind(adminClient),
   deleteExperiment: adminClient.deleteExperiment.bind(adminClient),
+  exportExperiment: adminClient.exportExperiment.bind(adminClient),
   getVisualFatigueStats: adminClient.getVisualFatigueStats.bind(adminClient),
 
   // ==================== LLM 顾问相关 ====================
@@ -398,6 +422,12 @@ export const apiClient = {
   resetPreferences: preferencesClient.resetPreferences.bind(preferencesClient),
   checkQuietHours: preferencesClient.checkQuietHours.bind(preferencesClient),
 
+  // ==================== 语义搜索相关 ====================
+  semanticSearch: semanticClient.search.bind(semanticClient),
+  getSimilarWords: semanticClient.getSimilarWords.bind(semanticClient),
+  getSemanticStats: semanticClient.getStats.bind(semanticClient),
+  batchEmbed: semanticClient.batchEmbed.bind(semanticClient),
+
   // ==================== 设置 ====================
   setOnUnauthorized(callback: (() => void) | null): void {
     authClient.setOnUnauthorized(callback);
@@ -411,6 +441,7 @@ export const apiClient = {
     opsEnhanceClient.setOnUnauthorized(callback);
     notificationClient.setOnUnauthorized(callback);
     preferencesClient.setOnUnauthorized(callback);
+    semanticClient.setOnUnauthorized(callback);
   },
 };
 

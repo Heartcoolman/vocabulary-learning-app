@@ -18,8 +18,6 @@ export default function FlashcardPage() {
     submitAnswer,
     advanceToNext,
     resetSession,
-    allWords,
-    error,
   } = useMasteryLearning({ targetMasteryCount: 20 });
 
   const { isPlaying: isPronouncing, play: playPronunciation } = useAutoPlayPronunciation({
@@ -79,7 +77,7 @@ export default function FlashcardPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white dark:bg-slate-800">
         <div className="text-center">
-          <Confetti size={96} weight="duotone" color="#22c55e" className="mx-auto mb-4" />
+          <Confetti size={96} color="#22c55e" className="mx-auto mb-4" />
           <h2 className="mb-2 text-3xl font-bold dark:text-white">学习完成！</h2>
           <p className="mb-4 text-gray-600 dark:text-gray-400">
             已掌握 {progress.masteredCount}/{progress.targetCount} 个单词

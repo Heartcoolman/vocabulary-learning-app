@@ -55,6 +55,13 @@ export type {
   SkeletonCardProps,
 } from './Skeleton';
 
+// JsonHighlight JSON语法高亮
+export { JsonHighlight } from './JsonHighlight';
+
+// OfflineIndicator 离线提示
+export { OfflineIndicator } from './OfflineIndicator';
+export type { OfflineIndicatorProps } from './OfflineIndicator';
+
 /* ========================================
  * 布局组件 Layout Components
  * ======================================== */

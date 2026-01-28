@@ -9,7 +9,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { QUERY_PRESETS, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
+import { CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
 import { apiClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LearningPlan, PlanOptions, PlanProgress } from '../../types/amas-enhanced';

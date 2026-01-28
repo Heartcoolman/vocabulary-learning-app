@@ -150,6 +150,30 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "032_add_elo_ratings",
             include_str!("../../sql/032_add_elo_ratings.sql"),
         ),
+        (
+            "033_add_word_embeddings",
+            include_str!("../../sql/033_add_word_embeddings.sql"),
+        ),
+        (
+            "034_add_system_settings",
+            include_str!("../../sql/034_add_system_settings.sql"),
+        ),
+        (
+            "035_add_word_clusters",
+            include_str!("../../sql/035_add_word_clusters.sql"),
+        ),
+        (
+            "036_add_confusion_pairs_cache",
+            include_str!("../../sql/036_add_confusion_pairs_cache.sql"),
+        ),
+        (
+            "037_add_admin_users",
+            include_str!("../../sql/037_add_admin_users.sql"),
+        ),
+        (
+            "038_add_broadcasts",
+            include_str!("../../sql/038_add_broadcasts.sql"),
+        ),
     ];
 
     let mut applied_count = 0;

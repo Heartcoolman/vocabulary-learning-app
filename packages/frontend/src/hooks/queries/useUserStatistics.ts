@@ -1,11 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import {
-  apiClient,
-  type UserDetailedStatistics,
-  type UserLearningData,
-  type UserLearningHeatmap,
-} from '../../services/client';
+import { apiClient, type UserDetailedStatistics } from '../../services/client';
 
 /**
  * 获取用户详细统计数据的 Query Hook

@@ -25,6 +25,9 @@ export const opsEnhanceKeys = {
   insights: () => [...opsEnhanceKeys.all, 'insights'] as const,
   insight: (id: string) => [...opsEnhanceKeys.all, 'insight', id] as const,
   segments: () => [...opsEnhanceKeys.all, 'segments'] as const,
+  segmentAnalysis: () => [...opsEnhanceKeys.all, 'segmentAnalysis'] as const,
+  // 留存率
+  retention: () => [...opsEnhanceKeys.all, 'retention'] as const,
 };
 
 // ==================== 告警分析 Hooks ====================
@@ -229,6 +232,31 @@ export function useSegments() {
     queryKey: opsEnhanceKeys.segments(),
     queryFn: () => opsEnhanceClient.getSegments(),
     staleTime: 24 * 60 * 60 * 1000, // 24小时缓存，分群列表基本不变
+  });
+}
+
+/**
+ * 获取用户分群分析（多维度）
+ */
+export function useSegmentAnalysis() {
+  return useQuery({
+    queryKey: opsEnhanceKeys.segmentAnalysis(),
+    queryFn: () => opsEnhanceClient.getSegmentAnalysis(),
+    staleTime: 5 * 60 * 1000, // 5分钟缓存
+  });
+}
+
+/**
+ * 获取留存率分析
+ */
+export function useRetention(options?: {
+  periodType?: 'daily' | 'weekly' | 'monthly';
+  cohortDays?: number;
+}) {
+  return useQuery({
+    queryKey: [...opsEnhanceKeys.retention(), options],
+    queryFn: () => opsEnhanceClient.getRetention(options),
+    staleTime: 5 * 60 * 1000, // 5分钟缓存
   });
 }
 

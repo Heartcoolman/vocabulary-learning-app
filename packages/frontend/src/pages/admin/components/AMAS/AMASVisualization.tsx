@@ -137,7 +137,7 @@ function AMASVisualizationComponent({
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <Clock size={24} weight="duotone" className="text-orange-500" />
+          <Clock size={24} className="text-orange-500" />
           决策时间线
         </h2>
         <button
@@ -146,7 +146,7 @@ function AMASVisualizationComponent({
           className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
           title="刷新"
         >
-          <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
+          <ArrowClockwise size={20} className={isLoading ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -158,7 +158,7 @@ function AMASVisualizationComponent({
       ) : error ? (
         /* 错误状态 */
         <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-          <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+          <Warning size={48} color="#ef4444" className="mx-auto mb-4" />
           <p>{error}</p>
         </div>
       ) : data.length > 0 ? (

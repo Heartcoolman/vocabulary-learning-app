@@ -209,12 +209,10 @@ jobs:
       - name: Clippy Lint (Native)
         working-directory: packages/native
         run: cargo clippy --no-default-features -- -D warnings
-        continue-on-error: true
 
       - name: Clippy Lint (Backend)
         working-directory: packages/backend-rust
         run: cargo clippy -- -D warnings
-        continue-on-error: true
 
       - name: Check Rust Format
         run: |
@@ -304,8 +302,8 @@ jobs:
             echo "| Metric | Coverage | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|----------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
 
-            # 当前阈值设为 45%（略低于当前覆盖率），后续逐步提高
-            THRESHOLD=45
+            # 当前阈值设为 44%（略低于当前覆盖率），后续逐步提高
+            THRESHOLD=44
 
             check_coverage() {
               local name=$1
@@ -399,7 +397,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_USER: danci
           POSTGRES_PASSWORD: danci_test

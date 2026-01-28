@@ -352,12 +352,12 @@ pub async fn list_users(
 
     let pool = proxy.pool();
 
-    let total = count_users_pg(&pool, search.as_deref()).await?;
+    let total = count_users_pg(pool, search.as_deref()).await?;
 
     let users = if total == 0 {
         Vec::new()
     } else {
-        select_users_pg(&pool, search.as_deref(), page_size, offset).await?
+        select_users_pg(pool, search.as_deref(), page_size, offset).await?
     };
 
     Ok(UserListResult {
@@ -372,7 +372,7 @@ pub async fn get_user_by_id(
     user_id: &str,
 ) -> Result<UserDetail, AdminError> {
     let pool = proxy.pool();
-    select_user_detail_pg(&pool, user_id).await
+    select_user_detail_pg(pool, user_id).await
 }
 
 pub async fn update_user_role(
@@ -523,7 +523,7 @@ pub async fn get_user_words(
     let pool = proxy.pool();
 
     let total = count_user_words_pg(
-        &pool,
+        pool,
         user_id,
         normalized_state.as_deref(),
         search.as_deref(),
@@ -534,7 +534,7 @@ pub async fn get_user_words(
         Vec::new()
     } else {
         select_user_words_pg(
-            &pool,
+            pool,
             user_id,
             &params,
             normalized_state.as_deref(),
@@ -573,7 +573,7 @@ pub async fn get_user_decisions(
 
 pub async fn get_system_statistics(proxy: &DatabaseProxy) -> Result<SystemStatistics, AdminError> {
     let pool = proxy.pool();
-    select_system_statistics_pg(&pool).await
+    select_system_statistics_pg(pool).await
 }
 
 fn normalize_search(search: Option<&str>) -> Option<String> {

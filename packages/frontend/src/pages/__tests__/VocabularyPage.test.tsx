@@ -87,12 +87,30 @@ const mockToast = {
   info: vi.fn(),
 };
 
+interface ModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  title?: string;
+  children?: React.ReactNode;
+}
+
+interface ConfirmModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onConfirm?: () => void;
+  title?: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  isLoading?: boolean;
+}
+
 vi.mock('../../components/ui', async () => {
   const actual = await vi.importActual('../../components/ui');
   return {
     ...actual,
     useToast: () => mockToast,
-    Modal: ({ isOpen, onClose, title, children }: any) =>
+    Modal: ({ isOpen, onClose, title, children }: ModalProps) =>
       isOpen ? (
         <div data-testid="modal">
           <h2>{title}</h2>
@@ -111,7 +129,7 @@ vi.mock('../../components/ui', async () => {
       confirmText,
       cancelText,
       isLoading,
-    }: any) =>
+    }: ConfirmModalProps) =>
       isOpen ? (
         <div data-testid="confirm-modal">
           <h2>{title}</h2>

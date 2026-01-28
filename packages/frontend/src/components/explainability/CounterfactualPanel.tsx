@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Flask, ArrowRight, CheckCircle, WarningCircle, CircleNotch } from '@phosphor-icons/react';
+import { Flask, ArrowRight, CheckCircle, WarningCircle, CircleNotch } from '@/components/Icon';
 import { explainabilityApi } from '../../services/explainabilityApi';
 import type { CounterfactualResult } from '../../types/explainability';
 import { amasLogger } from '../../utils/logger';
@@ -80,7 +80,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-        <span className="font-mono text-sm text-indigo-600">{(value * 100).toFixed(0)}%</span>
+        <span className="font-mono text-sm text-blue-600">{(value * 100).toFixed(0)}%</span>
       </div>
       <input
         type="range"
@@ -88,7 +88,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
         max="100"
         value={value * 100}
         onChange={(e) => setOverrides((prev) => ({ ...prev, [key]: Number(e.target.value) / 100 }))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-indigo-500 dark:bg-slate-700"
+        className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500 dark:bg-slate-700"
       />
       <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
@@ -96,7 +96,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="rounded-card border border-indigo-100 bg-gradient-to-br from-purple-50 to-indigo-50 p-5 dark:border-indigo-800 dark:from-purple-900/20 dark:to-indigo-900/20">
+      <div className="rounded-card border border-blue-100 bg-gradient-to-br from-purple-50 to-blue-50 p-5 dark:border-blue-800 dark:from-purple-900/20 dark:to-blue-900/20">
         <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
           <Flask className="h-6 w-6 text-purple-500" />
           如果我的状态不同会怎样？
@@ -120,7 +120,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
         <button
           onClick={handleSimulate}
           disabled={isSimulating}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-button bg-indigo-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-indigo-700 disabled:bg-indigo-400"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-button bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-blue-400"
         >
           {isSimulating ? (
             <>

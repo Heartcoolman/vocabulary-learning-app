@@ -160,7 +160,7 @@ const StateHistoryChart: React.FC<StateHistoryChartProps> = React.memo(({ stateH
     <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-          <ChartLine size={24} weight="duotone" color="#3b82f6" />
+          <ChartLine size={24} color="#3b82f6" />
           状态历史趋势
         </h2>
         <span className="text-sm text-gray-400 dark:text-slate-500">

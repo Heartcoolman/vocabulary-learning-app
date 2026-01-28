@@ -16,6 +16,7 @@ const AboutRibbon = lazy(() => import('../pages/about/AboutRibbon'));
 // 实时数据流可视化
 const AboutDataFlow = lazy(() => import('../pages/about/AboutDataFlow'));
 
+// eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );

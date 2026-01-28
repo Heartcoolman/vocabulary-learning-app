@@ -1,4 +1,7 @@
 #![allow(dead_code)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::result_large_err)]
 
 pub mod amas;
 pub mod auth;
@@ -20,10 +23,7 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use crate::state::AppState;
 
 pub async fn create_app() -> axum::Router {
-    let db_proxy = match db::DatabaseProxy::from_env().await {
-        Ok(proxy) => Some(proxy),
-        Err(_) => None,
-    };
+    let db_proxy = (db::DatabaseProxy::from_env().await).ok();
 
     if let Some(ref proxy) = db_proxy {
         let _ = amas::metrics_persistence::restore_registry_from_db(proxy.as_ref()).await;

@@ -853,6 +853,123 @@ pub async fn update_password(State(state): State<AppState>, req: Request<Body>) 
     .into_response()
 }
 
+const MAX_AVATAR_SIZE: usize = 2 * 1024 * 1024; // 2MB
+
+pub async fn upload_avatar(State(state): State<AppState>, req: Request<Body>) -> Response {
+    let (parts, body_bytes) = match split_body(req).await {
+        Ok(value) => value,
+        Err(res) => return res,
+    };
+
+    let token = crate::auth::extract_token(&parts.headers);
+    let Some(token) = token else {
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
+    };
+
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
+    };
+
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
+
+    if body_bytes.len() > MAX_AVATAR_SIZE {
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "FILE_TOO_LARGE",
+            "文件大小不能超过2MB",
+        )
+        .into_response();
+    }
+
+    let content_type = parts
+        .headers
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    let ext = match content_type {
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+        _ => {
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "INVALID_FORMAT",
+                "仅支持 jpg/png/webp 格式",
+            )
+            .into_response();
+        }
+    };
+
+    let upload_dir =
+        std::env::var("AVATAR_UPLOAD_DIR").unwrap_or_else(|_| "./uploads/avatars".to_string());
+    if let Err(e) = std::fs::create_dir_all(&upload_dir) {
+        tracing::error!(error = %e, "Failed to create avatar upload directory");
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
+    }
+
+    let filename = format!("{}.{}", auth_user.id, ext);
+    let file_path = std::path::Path::new(&upload_dir).join(&filename);
+
+    if let Err(e) = std::fs::write(&file_path, &body_bytes) {
+        tracing::error!(error = %e, "Failed to write avatar file");
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
+    }
+
+    let avatar_url = format!("/uploads/avatars/{}", filename);
+
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    if let Err(e) =
+        sqlx::query(r#"UPDATE "users" SET "avatarUrl" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
+            .bind(&avatar_url)
+            .bind(now)
+            .bind(&auth_user.id)
+            .execute(pool)
+            .await
+    {
+        tracing::error!(error = %e, "Failed to update avatar url in database");
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
+    }
+
+    Json(serde_json::json!({
+        "success": true,
+        "data": { "avatarUrl": avatar_url }
+    }))
+    .into_response()
+}
+
 async fn select_user_me(
     proxy: &crate::db::DatabaseProxy,
     user_id: &str,

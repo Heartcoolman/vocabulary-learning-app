@@ -203,14 +203,14 @@ class LearningService {
    * 获取到期需要复习的单词（调用后端API）
    * 返回完整的WordLearningState对象以保留元数据
    */
-  async getDueWords(userId: string): Promise<WordLearningState[]> {
+  async getDueWords(_userId: string): Promise<WordLearningState[]> {
     return await ApiClient.getDueWords();
   }
 
   /**
    * 获取到期单词ID列表（简化版）
    */
-  async getDueWordIds(userId: string): Promise<string[]> {
+  async getDueWordIds(_userId: string): Promise<string[]> {
     const dueList = await ApiClient.getDueWords();
     return dueList.map((item) => item.wordId);
   }
@@ -363,21 +363,21 @@ class LearningService {
   /**
    * 标记单词为已掌握
    */
-  async markAsMastered(userId: string, wordId: string, _reason?: string): Promise<void> {
+  async markAsMastered(_userId: string, wordId: string, _reason?: string): Promise<void> {
     await ApiClient.markWordAsMastered(wordId);
   }
 
   /**
    * 标记单词为需要重点学习
    */
-  async markAsNeedsPractice(userId: string, wordId: string, _reason?: string): Promise<void> {
+  async markAsNeedsPractice(_userId: string, wordId: string, _reason?: string): Promise<void> {
     await ApiClient.markWordAsNeedsPractice(wordId);
   }
 
   /**
    * 重置单词学习进度
    */
-  async resetProgress(userId: string, wordId: string, _reason?: string): Promise<void> {
+  async resetProgress(_userId: string, wordId: string, _reason?: string): Promise<void> {
     await ApiClient.resetWordProgress(wordId);
   }
 
@@ -385,7 +385,7 @@ class LearningService {
    * 批量更新单词状态
    */
   async batchUpdateWords(
-    userId: string,
+    _userId: string,
     wordIds: string[],
     operation: 'mastered' | 'needsPractice' | 'reset',
     _reason?: string,
@@ -396,7 +396,7 @@ class LearningService {
   /**
    * 删除单词学习状态
    */
-  async deleteState(userId: string, wordId: string): Promise<void> {
+  async deleteState(_userId: string, wordId: string): Promise<void> {
     await ApiClient.deleteWordLearningState(wordId);
   }
 }

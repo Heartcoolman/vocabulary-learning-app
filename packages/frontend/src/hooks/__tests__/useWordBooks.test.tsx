@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import {
   useSystemWordBooks,
   useUserWordBooks,
@@ -95,7 +95,7 @@ describe('useWordBooks', () => {
 
   describe('useSystemWordBooks', () => {
     it('should fetch system word books successfully', async () => {
-      (apiClient.getSystemWordBooks as any).mockResolvedValue(mockSystemBooks);
+      (apiClient.getSystemWordBooks as Mock).mockResolvedValue(mockSystemBooks);
 
       const { result } = renderHook(() => useSystemWordBooks(), { wrapper });
 
@@ -111,7 +111,7 @@ describe('useWordBooks', () => {
 
     it('should handle errors', async () => {
       const error = new Error('Failed to fetch');
-      (apiClient.getSystemWordBooks as any).mockRejectedValue(error);
+      (apiClient.getSystemWordBooks as Mock).mockRejectedValue(error);
 
       const { result } = renderHook(() => useSystemWordBooks(), { wrapper });
 
@@ -125,7 +125,7 @@ describe('useWordBooks', () => {
 
   describe('useUserWordBooks', () => {
     it('should fetch user word books successfully', async () => {
-      (apiClient.getUserWordBooks as any).mockResolvedValue(mockUserBooks);
+      (apiClient.getUserWordBooks as Mock).mockResolvedValue(mockUserBooks);
 
       const { result } = renderHook(() => useUserWordBooks(), { wrapper });
 
@@ -141,7 +141,7 @@ describe('useWordBooks', () => {
   describe('useAllAvailableWordBooks', () => {
     it('should fetch all available word books', async () => {
       const allBooks = [...mockSystemBooks, ...mockUserBooks];
-      (apiClient.getAllAvailableWordBooks as any).mockResolvedValue(allBooks);
+      (apiClient.getAllAvailableWordBooks as Mock).mockResolvedValue(allBooks);
 
       const { result } = renderHook(() => useAllAvailableWordBooks(), { wrapper });
 
@@ -155,7 +155,7 @@ describe('useWordBooks', () => {
 
   describe('useWordBook', () => {
     it('should fetch single word book', async () => {
-      (apiClient.getWordBookById as any).mockResolvedValue(mockSystemBooks[0]);
+      (apiClient.getWordBookById as Mock).mockResolvedValue(mockSystemBooks[0]);
 
       const { result } = renderHook(() => useWordBook('system-book-1'), { wrapper });
 
@@ -177,7 +177,7 @@ describe('useWordBooks', () => {
 
   describe('useWordBookWords', () => {
     it('should fetch words from word book', async () => {
-      (apiClient.getWordBookWords as any).mockResolvedValue(mockWords);
+      (apiClient.getWordBookWords as Mock).mockResolvedValue(mockWords);
 
       const { result } = renderHook(() => useWordBookWords('system-book-1'), { wrapper });
 
@@ -193,7 +193,7 @@ describe('useWordBooks', () => {
   describe('useSearchWords', () => {
     it('should search words', async () => {
       const searchResults = mockWords;
-      (apiClient.searchWords as any).mockResolvedValue(searchResults);
+      (apiClient.searchWords as Mock).mockResolvedValue(searchResults);
 
       const { result } = renderHook(() => useSearchWords('apple', 20), { wrapper });
 

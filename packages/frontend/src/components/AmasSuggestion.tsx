@@ -1,25 +1,127 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { AmasProcessResult } from '../types/amas';
-import { Coffee, Lightbulb, PushPin } from './Icon';
+import { Coffee, Lightbulb, PushPin, Warning, TrendUp, TrendDown } from './Icon';
+import { StateChangeReason } from './amas-settings';
+import type { DecisionFactor } from '../types/explainability';
 
 interface AmasSuggestionProps {
   /** AMAS处理结果 */
   result: AmasProcessResult | null;
   /** 点击休息建议的回调 */
   onBreak?: () => void;
+  /** 是否显示详细因素分析 */
+  showFactors?: boolean;
+}
+
+/**
+ * 建议优先级类型
+ * Phase 4.2: 学习建议优先级排序
+ */
+type SuggestionPriority = 'high' | 'medium' | 'low';
+
+/**
+ * 根据 factors 和状态推断建议优先级
+ */
+function inferPriority(result: AmasProcessResult): SuggestionPriority {
+  // 休息建议始终是高优先级
+  if (result.shouldBreak) return 'high';
+
+  // 检查 factors 中的高影响因素
+  const factors = result.explanation?.factors;
+  if (factors && factors.length > 0) {
+    const hasHighImpact = factors.some((f) => f.impact === 'high' || f.percentage > 30);
+    if (hasHighImpact) return 'high';
+
+    const hasMediumImpact = factors.some((f) => f.impact === 'medium' || f.percentage > 15);
+    if (hasMediumImpact) return 'medium';
+  }
+
+  // 检查状态变化
+  const state = result.state;
+  if (state) {
+    // 高疲劳或低注意力
+    if (state.fatigue > 0.7 || state.attention < 0.4) return 'high';
+    if (state.fatigue > 0.5 || state.attention < 0.6) return 'medium';
+  }
+
+  return 'low';
+}
+
+/**
+ * 将 API factors 转换为 DecisionFactor 格式
+ * Phase 4.3: StateChangeReason 集成
+ */
+function convertToDecisionFactors(
+  factors: Array<{ name: string; value: number; impact: string; percentage: number }> | undefined,
+): DecisionFactor[] {
+  if (!factors || factors.length === 0) return [];
+
+  return factors.map((f) => ({
+    name: f.name,
+    score: f.value,
+    weight: f.percentage / 100, // percentage 转换为 0-1 权重
+    explanation: f.impact === 'high' ? '显著影响' : f.impact === 'medium' ? '中等影响' : '轻微影响',
+    icon: f.name.toLowerCase(),
+  }));
+}
+
+/**
+ * 获取优先级样式配置
+ */
+function getPriorityConfig(priority: SuggestionPriority) {
+  switch (priority) {
+    case 'high':
+      return {
+        badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+        label: '重要',
+        icon: Warning,
+      };
+    case 'medium':
+      return {
+        badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+        label: '建议',
+        icon: TrendUp,
+      };
+    case 'low':
+      return {
+        badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+        label: '提示',
+        icon: TrendDown,
+      };
+  }
 }
 
 /**
  * AMAS建议组件 - 显示AI学习建议和休息提示
  * 符合ui-design-system.md设计规范
  * 使用 React.memo 优化：仅当 result 或 onBreak 变化时重新渲染
+ *
+ * Phase 4.2: 学习建议优先级排序
+ * Phase 4.3: StateChangeReason 集成（显示 factors）
  */
-function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
+function AmasSuggestionComponent({ result, onBreak, showFactors = true }: AmasSuggestionProps) {
+  // Phase 4.2: 计算建议优先级
+  const priority = useMemo<SuggestionPriority>(
+    () => (result ? inferPriority(result) : 'low'),
+    [result],
+  );
+  const priorityConfig = getPriorityConfig(priority);
+  const PriorityIcon = priorityConfig.icon;
+
+  // Phase 4.3: 转换 factors 为 DecisionFactor 格式
+  const decisionFactors = useMemo(
+    () => convertToDecisionFactors(result?.explanation?.factors),
+    [result?.explanation?.factors],
+  );
+
   if (!result || (!result.explanation?.text && !result.suggestion && !result.shouldBreak)) {
     return null;
   }
 
   const isBreakSuggestion = result.shouldBreak;
+
+  // 判断是否显示 factors（仅在有显著因素且非休息建议时显示）
+  const shouldShowFactors = showFactors && decisionFactors.length > 0 && !isBreakSuggestion;
 
   const getDifficultyText = (difficulty: string): string => {
     switch (difficulty) {
@@ -57,18 +159,29 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
       role="alert"
       aria-live="polite"
     >
-      {/* 标题 */}
-      <div className="mb-3 flex items-center gap-2">
-        {isBreakSuggestion ? (
-          <Coffee size={18} weight="duotone" className="text-orange-600" />
-        ) : (
-          <Lightbulb size={18} weight="duotone" className="text-blue-600" />
+      {/* 标题 + 优先级徽章 (Phase 4.2) */}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isBreakSuggestion ? (
+            <Coffee size={18} className="text-orange-600" />
+          ) : (
+            <Lightbulb size={18} className="text-blue-600" />
+          )}
+          <h4
+            className={`text-sm font-semibold ${isBreakSuggestion ? 'text-orange-700 dark:text-orange-300' : 'text-blue-700 dark:text-blue-300'}`}
+          >
+            {isBreakSuggestion ? '休息建议' : 'AI建议'}
+          </h4>
+        </div>
+        {/* 优先级徽章 */}
+        {!isBreakSuggestion && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${priorityConfig.badge}`}
+          >
+            <PriorityIcon size={12} />
+            {priorityConfig.label}
+          </span>
         )}
-        <h4
-          className={`text-sm font-semibold ${isBreakSuggestion ? 'text-orange-700 dark:text-orange-300' : 'text-blue-700 dark:text-blue-300'}`}
-        >
-          {isBreakSuggestion ? '休息建议' : 'AI建议'}
-        </h4>
       </div>
 
       {/* 解释说明 */}
@@ -81,11 +194,7 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
       {/* 具体建议 */}
       {result.suggestion && (
         <div className="mb-3 flex items-start gap-2 rounded-button bg-white/50 p-2 text-xs text-gray-600 dark:bg-slate-800/50 dark:text-gray-300">
-          <PushPin
-            size={16}
-            weight="duotone"
-            className="mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400"
-          />
+          <PushPin size={16} className="mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
           <p className="flex-1">{result.suggestion}</p>
         </div>
       )}
@@ -120,6 +229,13 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
         </div>
       )}
 
+      {/* Phase 4.3: 影响因素分析 */}
+      {shouldShowFactors && (
+        <div className="mb-3 rounded bg-white/30 p-3 dark:bg-slate-800/30">
+          <StateChangeReason factors={decisionFactors} title="决策因素" showExplanation={false} />
+        </div>
+      )}
+
       {/* 休息按钮 */}
       {isBreakSuggestion && onBreak && (
         <button
@@ -136,6 +252,11 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
 
 // 自定义比较函数：深度比较 result 对象
 function arePropsEqual(prevProps: AmasSuggestionProps, nextProps: AmasSuggestionProps): boolean {
+  // 比较 showFactors
+  if (prevProps.showFactors !== nextProps.showFactors) {
+    return false;
+  }
+
   // 如果两者都为 null，则相等
   if (prevProps.result === null && nextProps.result === null) {
     return true;
@@ -154,6 +275,13 @@ function arePropsEqual(prevProps: AmasSuggestionProps, nextProps: AmasSuggestion
     prev.suggestion !== next.suggestion ||
     prev.shouldBreak !== next.shouldBreak
   ) {
+    return false;
+  }
+
+  // 比较 factors 长度（简单比较）
+  const prevFactors = prev.explanation?.factors;
+  const nextFactors = next.explanation?.factors;
+  if ((prevFactors?.length ?? 0) !== (nextFactors?.length ?? 0)) {
     return false;
   }
 

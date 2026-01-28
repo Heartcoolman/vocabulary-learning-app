@@ -14,8 +14,8 @@ import {
   XCircle,
   Warning,
   WarningCircle,
+  Flag,
 } from '../../components/Icon';
-import { Flag } from '@phosphor-icons/react';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 
@@ -44,6 +44,7 @@ export default function WordDetailPage() {
     if (userId && wordId) {
       loadData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, wordId]);
 
   const loadData = async () => {
@@ -152,7 +153,7 @@ export default function WordDetailPage() {
         onClick={() => navigate(`/admin/users/${userId}`)}
         className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
       >
-        <ArrowLeft size={20} weight="bold" />
+        <ArrowLeft size={20} />
         <span>返回用户详情</span>
       </button>
 
@@ -285,7 +286,7 @@ export default function WordDetailPage() {
         <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-              <ChartBar size={24} weight="duotone" className="text-blue-500" />
+              <ChartBar size={24} className="text-blue-500" />
               单词得分变化曲线
             </h2>
             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -369,7 +370,7 @@ export default function WordDetailPage() {
       {heatmap.length > 0 && (
         <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-            <Clock size={24} weight="duotone" className="text-orange-500" />
+            <Clock size={24} className="text-orange-500" />
             学习热力图（最近90天）
           </h2>
 
@@ -440,7 +441,7 @@ export default function WordDetailPage() {
               }}
               className="flex items-center gap-2 rounded-button bg-yellow-100 px-4 py-2 text-yellow-700 transition-colors hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
             >
-              <Flag size={16} weight="bold" />
+              <Flag size={16} />
               <span>标记异常</span>
             </button>
           </div>
@@ -529,7 +530,7 @@ export default function WordDetailPage() {
                         className="text-yellow-600 transition-colors hover:text-yellow-700"
                         title="标记此记录"
                       >
-                        <Flag size={18} weight="bold" />
+                        <Flag size={18} />
                       </button>
                     </td>
                   </tr>
@@ -545,7 +546,7 @@ export default function WordDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
           <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating dark:bg-slate-800">
             <div className="mb-6 flex items-center gap-3">
-              <Warning size={32} weight="duotone" className="text-yellow-500" />
+              <Warning size={32} className="text-yellow-500" />
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">标记异常</h3>
             </div>
 

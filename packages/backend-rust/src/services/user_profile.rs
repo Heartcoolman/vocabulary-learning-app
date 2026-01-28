@@ -709,7 +709,7 @@ fn compute_auditory_score_with_tracking(
     } else {
         0.1
     };
-    let dwell_score: f64 = if avg_dwell_time >= 3000.0 && avg_dwell_time <= 6000.0 {
+    let dwell_score: f64 = if (3000.0..=6000.0).contains(&avg_dwell_time) {
         0.25
     } else {
         0.1

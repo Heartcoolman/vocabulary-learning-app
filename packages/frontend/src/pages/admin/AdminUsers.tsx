@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleNotch } from '../../components/Icon';
-import { useToast, ConfirmModal } from '../../components/ui';
+import { Info, Shield, User as UserIcon } from '../../components/Icon';
+import { useToast, ConfirmModal, Spinner, Tooltip } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 import {
   useAdminUsers,
@@ -10,12 +10,29 @@ import {
   AdminUsersParams,
 } from '../../hooks/queries';
 
+// 角色权限说明
+const ROLE_DESCRIPTIONS = {
+  USER: {
+    name: '普通用户',
+    description: '可以使用学习功能、查看个人统计',
+    permissions: ['学习单词', '查看个人进度', '修改个人设置'],
+    color: 'gray',
+  },
+  ADMIN: {
+    name: '管理员',
+    description: '继承用户权限，并可管理系统',
+    permissions: ['所有用户权限', '用户管理', '内容管理', '系统配置', '数据分析'],
+    color: 'purple',
+  },
+};
+
 export default function AdminUsers() {
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<AdminUsersParams['sortBy']>('createdAt');
   const [sortOrder, setSortOrder] = useState<AdminUsersParams['sortOrder']>('desc');
+  const [showRoleHelp, setShowRoleHelp] = useState(false);
 
   // 使用新的 React Query hooks
   const {
@@ -117,7 +134,61 @@ export default function AdminUsers() {
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">用户管理</h1>
+        <Tooltip content="查看角色权限说明">
+          <button
+            onClick={() => setShowRoleHelp(!showRoleHelp)}
+            className="flex items-center gap-2 rounded-button border border-gray-300 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
+          >
+            <Info size={16} />
+            角色说明
+          </button>
+        </Tooltip>
       </div>
+
+      {/* 角色继承说明面板 */}
+      {showRoleHelp && (
+        <div className="mb-6 rounded-card border border-blue-200 bg-blue-50 p-6 dark:border-blue-800 dark:bg-blue-900/20">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+            <Shield size={20} className="text-blue-500" />
+            角色权限继承说明
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {Object.entries(ROLE_DESCRIPTIONS).map(([role, info]) => (
+              <div
+                key={role}
+                className="rounded-button border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  {role === 'ADMIN' ? (
+                    <Shield size={20} className="text-purple-500" />
+                  ) : (
+                    <UserIcon size={20} className="text-gray-500" />
+                  )}
+                  <span className="font-semibold text-gray-900 dark:text-white">{info.name}</span>
+                </div>
+                <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">{info.description}</p>
+                <div className="flex flex-wrap gap-1">
+                  {info.permissions.map((perm) => (
+                    <span
+                      key={perm}
+                      className={`rounded px-2 py-0.5 text-xs ${
+                        role === 'ADMIN'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                          : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-400'
+                      }`}
+                    >
+                      {perm}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+            <strong>继承关系：</strong>管理员角色包含普通用户的所有权限，并额外拥有系统管理权限。
+          </p>
+        </div>
+      )}
 
       {/* 搜索栏 */}
       <div className="mb-6">
@@ -138,12 +209,7 @@ export default function AdminUsers() {
 
       {isLoading ? (
         <div className="py-12 text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400">正在加载...</p>
         </div>
       ) : users.length === 0 ? (

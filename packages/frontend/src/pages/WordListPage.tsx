@@ -4,10 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, MagnifyingGlass, WarningCircle } from '../components/Icon';
 import LearningService from '../services/LearningService';
 import StorageService from '../services/StorageService';
-import { useToast } from '../components/ui';
+import { useToast, Spinner } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 import VirtualWordList from '../components/VirtualWordList';
 import { type WordWithState } from '../components/virtualWordList.types';
+import { useSemanticSearch } from '../hooks/queries';
 
 type SortField = 'score' | 'accuracy' | 'studyCount' | 'masteryLevel';
 type SortOrder = 'asc' | 'desc';
@@ -33,6 +34,14 @@ export default function WordListPage() {
   const [filterMasteryLevel, setFilterMasteryLevel] = useState<number | null>(null);
   const [filterScoreRange, setFilterScoreRange] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 语义搜索模式
+  const [isSemanticMode, setIsSemanticMode] = useState(false);
+  const { results: semanticResults, isLoading: semanticLoading } = useSemanticSearch({
+    query: searchQuery,
+    enabled: isSemanticMode && searchQuery.trim().length > 0,
+  });
+  const isSemanticLoading = isSemanticMode && semanticLoading;
 
   // 排序条件
   const [sortField, setSortField] = useState<SortField>('score');
@@ -106,6 +115,9 @@ export default function WordListPage() {
   }, [user]);
 
   const applyFiltersAndSort = useCallback(() => {
+    // 语义搜索模式下跳过本地过滤
+    if (isSemanticMode) return;
+
     let result = [...words];
 
     // 应用搜索过滤
@@ -161,7 +173,15 @@ export default function WordListPage() {
     });
 
     setFilteredWords(result);
-  }, [words, filterMasteryLevel, filterScoreRange, searchQuery, sortField, sortOrder]);
+  }, [
+    words,
+    filterMasteryLevel,
+    filterScoreRange,
+    searchQuery,
+    sortField,
+    sortOrder,
+    isSemanticMode,
+  ]);
 
   // 加载单词数据
   useEffect(() => {
@@ -172,6 +192,32 @@ export default function WordListPage() {
   useEffect(() => {
     applyFiltersAndSort();
   }, [applyFiltersAndSort]);
+
+  // 处理语义搜索结果
+  useEffect(() => {
+    if (isSemanticMode && semanticResults.length > 0) {
+      const wordMap = new Map(words.map((w) => [w.id, w]));
+      const mappedResults: WordWithState[] = semanticResults.map((sw) => {
+        const existing = wordMap.get(sw.id);
+        if (existing) return existing;
+        return {
+          id: sw.id,
+          spelling: sw.spelling,
+          phonetic: sw.phonetic || '',
+          meanings: sw.meanings,
+          examples: sw.examples,
+          masteryLevel: 0,
+          score: 0,
+          nextReviewDate: '未学习',
+          accuracy: 0,
+          studyCount: 0,
+        };
+      });
+      setFilteredWords(mappedResults);
+    } else if (isSemanticMode && searchQuery.trim().length === 0) {
+      setFilteredWords(words);
+    }
+  }, [isSemanticMode, semanticResults, words, searchQuery]);
 
   // 计算列表容器高度，用于虚拟滚动
   useEffect(() => {
@@ -266,7 +312,7 @@ export default function WordListPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400">正在加载单词列表...</p>
         </div>
       </div>
@@ -302,7 +348,7 @@ export default function WordListPage() {
               className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
               aria-label="返回"
             >
-              <ArrowLeft size={20} weight="bold" />
+              <ArrowLeft size={20} />
             </button>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">单词列表</h1>
           </div>
@@ -315,48 +361,62 @@ export default function WordListPage() {
         <div className="mb-6 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* 搜索框 */}
-            <div className="relative">
+            <div className="relative col-span-1 md:col-span-2">
               <MagnifyingGlass
                 size={20}
-                weight="bold"
                 className="absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400"
               />
               <input
                 type="text"
-                placeholder="搜索单词..."
+                placeholder={isSemanticMode ? '输入中文或英文进行语义搜索...' : '搜索单词...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-button border border-gray-300 py-2 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                className="w-full rounded-button border border-gray-300 py-2 pl-10 pr-16 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
+              <button
+                onClick={() => setIsSemanticMode(!isSemanticMode)}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-bold transition-colors ${
+                  isSemanticMode
+                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'
+                    : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                }`}
+                title={isSemanticMode ? '切换到普通搜索' : '切换到语义搜索'}
+              >
+                AI
+              </button>
             </div>
 
-            {/* 掌握程度筛选 */}
-            <select
-              value={filterMasteryLevel === null ? 'all' : filterMasteryLevel}
-              onChange={(e) =>
-                setFilterMasteryLevel(e.target.value === 'all' ? null : Number(e.target.value))
-              }
-              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="all">所有掌握程度</option>
-              {[0, 1, 2, 3, 4, 5].map((level) => (
-                <option key={level} value={level}>
-                  {level} 级
-                </option>
-              ))}
-            </select>
+            {/* 掌握程度筛选 - 仅在非语义模式下显示 */}
+            {!isSemanticMode && (
+              <>
+                <select
+                  value={filterMasteryLevel === null ? 'all' : filterMasteryLevel}
+                  onChange={(e) =>
+                    setFilterMasteryLevel(e.target.value === 'all' ? null : Number(e.target.value))
+                  }
+                  className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="all">所有掌握程度</option>
+                  {[0, 1, 2, 3, 4, 5].map((level) => (
+                    <option key={level} value={level}>
+                      {level} 级
+                    </option>
+                  ))}
+                </select>
 
-            {/* 得分范围筛选 */}
-            <select
-              value={filterScoreRange}
-              onChange={(e) => setFilterScoreRange(e.target.value)}
-              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="all">所有得分</option>
-              <option value="low">低分 (0-40)</option>
-              <option value="medium">中等 (40-80)</option>
-              <option value="high">高分 (80-100)</option>
-            </select>
+                {/* 得分范围筛选 */}
+                <select
+                  value={filterScoreRange}
+                  onChange={(e) => setFilterScoreRange(e.target.value)}
+                  className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="all">所有得分</option>
+                  <option value="low">低分 (0-40)</option>
+                  <option value="medium">中等 (40-80)</option>
+                  <option value="high">高分 (80-100)</option>
+                </select>
+              </>
+            )}
 
             {/* 排序选择 */}
             <select
@@ -382,9 +442,14 @@ export default function WordListPage() {
 
         {/* 单词列表 - 使用虚拟滚动优化大列表性能 */}
         <div ref={listContainerRef}>
-          {filteredWords.length === 0 ? (
+          {isSemanticLoading ? (
             <div className="py-12 text-center">
-              <MagnifyingGlass size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
+              <Spinner className="mx-auto mb-4" size="xl" color="primary" />
+              <p className="text-gray-600 dark:text-gray-400">语义搜索中...</p>
+            </div>
+          ) : filteredWords.length === 0 ? (
+            <div className="py-12 text-center">
+              <MagnifyingGlass size={80} color="#9ca3af" className="mx-auto mb-4" />
               <p className="text-lg text-gray-500 dark:text-gray-400">没有找到符合条件的单词</p>
             </div>
           ) : (
@@ -392,6 +457,7 @@ export default function WordListPage() {
               words={filteredWords}
               onAdjustWord={handleAdjustWord}
               containerHeight={listHeight}
+              searchQuery={isSemanticMode ? '' : searchQuery}
             />
           )}
         </div>

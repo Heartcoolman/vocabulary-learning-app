@@ -168,7 +168,7 @@ const TrendCard = memo(({ trendInfo }: TrendCardProps) => {
                   : 'bg-gray-400'
           } `}
         >
-          <TrendIcon size={32} weight="bold" color="#ffffff" />
+          <TrendIcon size={32} color="#ffffff" />
         </div>
         <div className="flex-1">
           <h2 className={`text-xl font-bold ${colors.text}`}>{getTrendName(trendInfo.state)}</h2>
@@ -194,7 +194,7 @@ const InterventionCard = memo(({ intervention }: InterventionCardProps) => {
     <div className={`mb-8 rounded-card border-2 p-6 ${colors.bg} ${colors.border} `}>
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white">
-          <Lightbulb size={24} weight="duotone" color={colors.icon} />
+          <Lightbulb size={24} color={colors.icon} />
         </div>
         <div className="flex-1">
           <h3 className={`mb-2 text-lg font-bold ${colors.text}`}>
@@ -257,7 +257,7 @@ const TrendChartCard = memo(
       <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
-            <Icon size={20} weight="duotone" color={iconColor} />
+            <Icon size={20} color={iconColor} />
             {title}
           </h3>
           <span
@@ -301,7 +301,7 @@ const HistoryTableRow = memo(({ item }: HistoryTableRowProps) => {
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${colors.bg} ${colors.text} `}
         >
-          <TrendIcon size={12} weight="bold" />
+          <TrendIcon size={12} />
           {getTrendName(item.state)}
         </span>
       </td>
@@ -368,6 +368,7 @@ export default function TrendReportPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDays]);
 
   const loadData = async () => {
@@ -435,7 +436,7 @@ export default function TrendReportPage() {
       <div className="mx-auto max-w-6xl animate-g3-fade-in px-4 py-8">
         <header className="mb-8">
           <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-            <ChartLine size={32} weight="duotone" color="#3b82f6" />
+            <ChartLine size={32} color="#3b82f6" />
             趋势分析
           </h1>
           <p className="text-gray-600 dark:text-gray-400">追踪你的学习进度，发现改进机会</p>
@@ -483,7 +484,7 @@ export default function TrendReportPage() {
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                <Info size={24} weight="duotone" color="#3b82f6" />
+                <Info size={24} color="#3b82f6" />
                 总结
               </h3>
               <p className="leading-relaxed text-gray-700 dark:text-gray-300">
@@ -493,7 +494,7 @@ export default function TrendReportPage() {
 
             <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                <Lightbulb size={24} weight="duotone" color="#f59e0b" />
+                <Lightbulb size={24} color="#f59e0b" />
                 建议
               </h3>
               {trendReport.recommendations && trendReport.recommendations.length > 0 ? (
@@ -512,7 +513,7 @@ export default function TrendReportPage() {
         {trendHistory.length > 0 && (
           <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
             <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-              <Calendar size={24} weight="duotone" color="#6b7280" />
+              <Calendar size={24} color="#6b7280" />
               历史记录
             </h3>
             <div className="overflow-x-auto">
@@ -553,7 +554,7 @@ export default function TrendReportPage() {
 
         {!trendReport && !trendInfo && trendHistory.length === 0 && (
           <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
-            <ChartLine size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
+            <ChartLine size={64} color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800">收集数据中</h2>
             <p className="mb-4 text-blue-600">需要更多学习数据才能生成趋势分析</p>
             <button

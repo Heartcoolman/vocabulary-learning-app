@@ -2,26 +2,26 @@
  * CounterfactualPanel Component Unit Tests
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import CounterfactualPanel from '../CounterfactualPanel';
 import { explainabilityApi } from '../../../services/explainabilityApi';
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
-  Flask: ({ className }: any) => (
+  Flask: ({ className }: { className?: string }) => (
     <span data-testid="icon-flask" className={className}>
       Flask
     </span>
   ),
-  ArrowRight: ({ className }: any) => (
+  ArrowRight: ({ className }: { className?: string }) => (
     <span data-testid="icon-arrow" className={className}>
       Arrow
     </span>
   ),
   CheckCircle: () => <span data-testid="icon-check">Check</span>,
   WarningCircle: () => <span data-testid="icon-warning">Warning</span>,
-  CircleNotch: ({ className }: any) => (
+  CircleNotch: ({ className }: { className?: string }) => (
     <span data-testid="icon-loading" className={className}>
       Loading
     </span>
@@ -116,7 +116,7 @@ describe('CounterfactualPanel', () => {
     });
 
     it('should call API when simulate button clicked', async () => {
-      (explainabilityApi.runCounterfactual as any).mockResolvedValue(mockSuccessResult);
+      (explainabilityApi.runCounterfactual as Mock).mockResolvedValue(mockSuccessResult);
 
       render(<CounterfactualPanel decisionId="test-decision-1" />);
 
@@ -139,7 +139,7 @@ describe('CounterfactualPanel', () => {
     });
 
     it('should show loading state when simulating', async () => {
-      (explainabilityApi.runCounterfactual as any).mockImplementation(
+      (explainabilityApi.runCounterfactual as Mock).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve(mockSuccessResult), 100)),
       );
 
@@ -155,7 +155,7 @@ describe('CounterfactualPanel', () => {
     });
 
     it('should disable button while simulating', async () => {
-      (explainabilityApi.runCounterfactual as any).mockImplementation(
+      (explainabilityApi.runCounterfactual as Mock).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve(mockSuccessResult), 100)),
       );
 
@@ -174,7 +174,7 @@ describe('CounterfactualPanel', () => {
 
   describe('result display', () => {
     it('should display result after successful simulation', async () => {
-      (explainabilityApi.runCounterfactual as any).mockResolvedValue(mockSuccessResult);
+      (explainabilityApi.runCounterfactual as Mock).mockResolvedValue(mockSuccessResult);
 
       render(<CounterfactualPanel />);
 
@@ -200,7 +200,7 @@ describe('CounterfactualPanel', () => {
           suggestedDifficulty: undefined,
         },
       };
-      (explainabilityApi.runCounterfactual as any).mockResolvedValue(resultNoAdjustment);
+      (explainabilityApi.runCounterfactual as Mock).mockResolvedValue(resultNoAdjustment);
 
       render(<CounterfactualPanel />);
 
@@ -222,7 +222,7 @@ describe('CounterfactualPanel', () => {
           estimatedAccuracyChange: -0.1,
         },
       };
-      (explainabilityApi.runCounterfactual as any).mockResolvedValue(resultNegative);
+      (explainabilityApi.runCounterfactual as Mock).mockResolvedValue(resultNegative);
 
       render(<CounterfactualPanel />);
 
@@ -244,7 +244,7 @@ describe('CounterfactualPanel', () => {
           suggestedDifficulty: 'harder' as const,
         },
       };
-      (explainabilityApi.runCounterfactual as any).mockResolvedValue(resultHarder);
+      (explainabilityApi.runCounterfactual as Mock).mockResolvedValue(resultHarder);
 
       render(<CounterfactualPanel />);
 
@@ -263,7 +263,7 @@ describe('CounterfactualPanel', () => {
 
   describe('error handling', () => {
     it('should display error message on API failure', async () => {
-      (explainabilityApi.runCounterfactual as any).mockRejectedValue(new Error('API Error'));
+      (explainabilityApi.runCounterfactual as Mock).mockRejectedValue(new Error('API Error'));
 
       render(<CounterfactualPanel />);
 
@@ -278,7 +278,7 @@ describe('CounterfactualPanel', () => {
     });
 
     it('should clear error when simulation succeeds', async () => {
-      (explainabilityApi.runCounterfactual as any)
+      (explainabilityApi.runCounterfactual as Mock)
         .mockRejectedValueOnce(new Error('API Error'))
         .mockResolvedValueOnce(mockSuccessResult);
 

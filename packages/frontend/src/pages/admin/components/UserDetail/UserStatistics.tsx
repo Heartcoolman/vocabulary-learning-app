@@ -60,4 +60,5 @@ const UserStatisticsComponent: React.FC<UserStatisticsProps> = ({ masteryDistrib
 export const UserStatistics = memo(UserStatisticsComponent);
 
 // 导出辅助函数供其他组件使用
+// eslint-disable-next-line react-refresh/only-export-components
 export { getMasteryLevelLabel, getMasteryLevelColor };

@@ -42,7 +42,7 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
           <div className="mb-4 flex items-start justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-white">
-                <GitBranch size={20} weight="bold" className="text-indigo-500" />
+                <GitBranch size={20} className="text-blue-500" />
                 决策轨迹
               </h2>
               <div className="mt-1.5 font-mono text-xs text-slate-500 dark:text-gray-400">
@@ -59,8 +59,8 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
 
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-slate-700">
             <div className="flex items-center gap-3">
-              <div className="rounded-button bg-indigo-50 p-2 text-indigo-600">
-                <IdentificationBadge size={18} weight="fill" />
+              <div className="rounded-button bg-blue-50 p-2 text-blue-600">
+                <IdentificationBadge size={18} />
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400">
@@ -73,7 +73,7 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
             </div>
             <div className="flex items-center gap-3">
               <div className="rounded-button bg-emerald-50 p-2 text-emerald-600">
-                <Hash size={18} weight="fill" />
+                <Hash size={18} />
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400">

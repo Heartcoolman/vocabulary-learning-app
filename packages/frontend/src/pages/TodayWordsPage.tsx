@@ -17,12 +17,7 @@ export default function TodayWordsPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <CircleNotch className="mx-auto mb-4 animate-spin" size={48} color="#3b82f6" />
           <p className="text-gray-600 dark:text-gray-400">正在加载今日学习计划...</p>
         </div>
       </div>
@@ -33,7 +28,7 @@ export default function TodayWordsPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-slate-900">
         <div className="max-w-md rounded-card border border-gray-100 bg-white p-8 text-center shadow-soft dark:border-slate-700 dark:bg-slate-800">
-          <Books size={64} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
+          <Books size={64} color="#9ca3af" className="mx-auto mb-4" />
           <h2 className="mb-2 text-xl font-bold text-gray-800 dark:text-gray-200">
             无法加载学习计划
           </h2>
@@ -128,7 +123,7 @@ export default function TodayWordsPage() {
                 <h3 className="mb-1 text-xl font-bold">继续加油！</h3>
                 <p className="mb-3 text-base text-blue-100">每天坚持学习，词汇量持续提升</p>
                 <div className="inline-block flex items-center gap-2 rounded-button bg-white/20 px-3 py-2 backdrop-blur-md">
-                  <Books size={20} weight="fill" />
+                  <Books size={20} />
                   <span className="text-base font-medium">词汇大师之路</span>
                 </div>
               </div>

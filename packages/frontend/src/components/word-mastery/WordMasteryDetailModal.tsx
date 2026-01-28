@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -14,6 +15,7 @@ import {
   Target,
 } from '../Icon';
 import { MemoryTraceChart } from './MemoryTraceChart';
+import { RelatedWords } from '../semantic';
 import { useWordDetailData } from '../../hooks/useWordDetailData';
 import type { MasteryEvaluation } from '../../types/word-mastery';
 import {
@@ -38,7 +40,15 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { loading, error, data, reload } = useWordDetailData(wordId, isOpen);
+  const [currentWordId, setCurrentWordId] = useState(wordId);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentWordId(wordId);
+    }
+  }, [wordId, isOpen]);
+
+  const { loading, error, data, reload } = useWordDetailData(currentWordId, isOpen);
 
   const normalizePhonetic = (phonetic: string) => phonetic.replace(/^\/+|\/+$/g, '').trim();
 
@@ -67,7 +77,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
         color: 'text-blue-600',
         borderColor: 'border-blue-200',
         bgGradient: 'from-blue-50 to-blue-100',
-        icon: <Fire size={20} weight="fill" />,
+        icon: <Fire size={20} />,
       };
     }
     if (mastery.score >= 0.4) {
@@ -76,7 +86,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
         color: 'text-amber-600',
         borderColor: 'border-amber-200',
         bgGradient: 'from-amber-50 to-amber-100',
-        icon: <ChartLine size={20} weight="bold" />,
+        icon: <ChartLine size={20} />,
       };
     }
     return {
@@ -84,7 +94,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
       color: 'text-orange-600',
       borderColor: 'border-orange-200',
       bgGradient: 'from-orange-50 to-orange-100',
-      icon: <Clock size={20} weight="bold" />,
+      icon: <Clock size={20} />,
     };
   };
 
@@ -101,7 +111,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
     if (error || !data) {
       return (
         <div className="flex flex-col items-center justify-center py-24">
-          <Warning size={64} className="mb-6 text-red-400" weight="thin" />
+          <Warning size={64} className="mb-6 text-red-400" />
           <p className="mb-2 text-xl font-medium text-gray-800 dark:text-slate-100">
             无法加载单词信息
           </p>
@@ -139,7 +149,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               aria-label="播放发音"
               className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-floating transition-all hover:scale-110 hover:bg-blue-600 hover:shadow-2xl active:scale-95"
             >
-              <SpeakerHigh size={32} weight="fill" />
+              <SpeakerHigh size={32} />
             </button>
           </div>
 
@@ -175,11 +185,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
             >
               <div className="mb-8 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <ChartLine
-                    size={28}
-                    className="text-slate-700 dark:text-slate-300"
-                    weight="duotone"
-                  />
+                  <ChartLine size={28} className="text-slate-700 dark:text-slate-300" />
                   <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                     掌握度评估
                   </h3>
@@ -220,7 +226,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                     记忆强度 (Recall)
                   </p>
                   <div className="flex items-center gap-2">
-                    <Target size={20} className="text-emerald-500" weight="fill" />
+                    <Target size={20} className="text-emerald-500" />
                     <p className="text-2xl font-bold text-emerald-600">
                       {Math.round(data.mastery.factors.actrRecall * 100)}%
                     </p>
@@ -230,7 +236,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                 <div>
                   <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">近期准确率</p>
                   <div className="flex items-center gap-2">
-                    <TrendUp size={20} className="text-blue-500" weight="fill" />
+                    <TrendUp size={20} className="text-blue-500" />
                     <p className="text-2xl font-bold text-blue-600">
                       {Math.round(data.mastery.factors.recentAccuracy * 100)}%
                     </p>
@@ -239,7 +245,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               </div>
 
               {data.mastery.suggestion && (
-                <div className="mt-6 rounded-xl bg-blue-50 p-4 dark:bg-blue-900/30">
+                <div className="mt-6 rounded-card bg-blue-50 p-4 dark:bg-blue-900/30">
                   <p className="text-sm text-blue-700 dark:text-blue-300">
                     {data.mastery.suggestion}
                   </p>
@@ -247,7 +253,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               )}
 
               {data.mastery.fatigueWarning && (
-                <div className="mt-4 rounded-xl bg-amber-50 p-4 dark:bg-amber-900/30">
+                <div className="mt-4 rounded-card bg-amber-50 p-4 dark:bg-amber-900/30">
                   <p className="text-sm text-amber-700 dark:text-amber-300">
                     {data.mastery.fatigueWarning}
                   </p>
@@ -260,11 +266,11 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
           {data.trace.length > 0 && (
             <motion.div
               variants={staggerItemVariants}
-              className="rounded-3xl border border-gray-100 bg-white p-8 shadow-soft dark:border-slate-700 dark:bg-slate-800"
+              className="rounded-3xl border border-slate-100 bg-slate-50 p-8 dark:border-slate-700 dark:bg-slate-800"
             >
               <div className="mb-6 flex items-center gap-3">
-                <Fire size={28} className="text-orange-500" weight="duotone" />
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">学习轨迹</h3>
+                <Fire size={28} className="text-orange-500" />
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">学习轨迹</h3>
               </div>
               <div className="h-64 w-full">
                 <MemoryTraceChart trace={data.trace} />
@@ -276,12 +282,12 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
           {data.interval && (
             <motion.div
               variants={staggerItemVariants}
-              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white shadow-elevated"
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-white shadow-elevated"
             >
               <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
                 <div>
                   <div className="mb-2 flex items-center gap-3">
-                    <Lightbulb size={28} weight="fill" className="text-yellow-300" />
+                    <Lightbulb size={28} className="text-yellow-300" />
                     <h3 className="text-2xl font-bold">下次复习建议</h3>
                   </div>
                   <p className="max-w-md text-blue-100 opacity-90">
@@ -307,16 +313,26 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
 
               {/* Decorative Background */}
               <div className="pointer-events-none absolute right-0 top-0 p-8 opacity-10">
-                <Clock size={200} weight="fill" />
+                <Clock size={200} />
               </div>
             </motion.div>
           )}
+
+          {/* 4. Related Words */}
+          <motion.div variants={staggerItemVariants}>
+            <RelatedWords
+              wordId={currentWordId}
+              onSelectWord={setCurrentWordId}
+              limit={8}
+              variant="card"
+            />
+          </motion.div>
         </div>
       </motion.div>
     );
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
@@ -348,7 +364,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               aria-label="关闭"
               className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
             >
-              <X size={24} weight="bold" />
+              <X size={24} />
             </button>
 
             {/* Scrollable Content */}
@@ -356,6 +372,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };

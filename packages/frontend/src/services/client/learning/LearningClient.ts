@@ -326,7 +326,9 @@ export class LearningClient extends BaseClient {
    */
   async saveWordScore(score: WordScore): Promise<void> {
     try {
-      const { id, userId, wordId, createdAt, updatedAt, ...allowedFields } = score;
+      const { createdAt: _createdAt, updatedAt: _updatedAt, ...allowedFields } = score;
+      void _createdAt;
+      void _updatedAt;
       await this.request<void>(`/api/word-scores/${score.wordId}`, {
         method: 'PUT',
         body: JSON.stringify(allowedFields),

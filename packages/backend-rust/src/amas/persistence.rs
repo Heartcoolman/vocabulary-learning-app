@@ -217,7 +217,7 @@ impl AMASPersistence {
         let trend = row
             .trend_state
             .as_ref()
-            .map(|s| crate::amas::types::TrendState::from_str(s));
+            .map(|s| crate::amas::types::TrendState::parse(s));
 
         UserState {
             attention: row.attention,

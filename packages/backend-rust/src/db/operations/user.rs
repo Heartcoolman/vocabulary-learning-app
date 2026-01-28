@@ -245,34 +245,39 @@ pub async fn create_password_reset_token(
 
 pub async fn get_valid_password_reset_token(
     proxy: &DatabaseProxy,
-    token: &str,
+    raw_token: &str,
 ) -> Result<Option<PasswordResetToken>, sqlx::Error> {
-    let row = sqlx::query(
+    let rows = sqlx::query(
         r#"
         SELECT * FROM "password_reset_tokens"
-        WHERE "token" = $1 AND "used" = FALSE AND "expiresAt" > NOW()
-        LIMIT 1
+        WHERE "used" = FALSE AND "expiresAt" > NOW()
+        ORDER BY "createdAt" DESC
+        LIMIT 100
         "#,
     )
-    .bind(token)
-    .fetch_optional(proxy.pool())
+    .fetch_all(proxy.pool())
     .await?;
-    Ok(row.map(|r| {
-        let expires_at: NaiveDateTime = r
-            .try_get("expiresAt")
-            .unwrap_or_else(|_| Utc::now().naive_utc());
-        let created_at: NaiveDateTime = r
-            .try_get("createdAt")
-            .unwrap_or_else(|_| Utc::now().naive_utc());
-        PasswordResetToken {
-            id: r.try_get("id").unwrap_or_default(),
-            user_id: r.try_get("userId").unwrap_or_default(),
-            token: r.try_get("token").unwrap_or_default(),
-            expires_at: format_naive_iso(expires_at),
-            used: r.try_get("used").unwrap_or(false),
-            created_at: format_naive_iso(created_at),
+
+    for r in rows {
+        let token_hash: String = r.try_get("token").unwrap_or_default();
+        if bcrypt::verify(raw_token, &token_hash).unwrap_or(false) {
+            let expires_at: NaiveDateTime = r
+                .try_get("expiresAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            let created_at: NaiveDateTime = r
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            return Ok(Some(PasswordResetToken {
+                id: r.try_get("id").unwrap_or_default(),
+                user_id: r.try_get("userId").unwrap_or_default(),
+                token: token_hash,
+                expires_at: format_naive_iso(expires_at),
+                used: r.try_get("used").unwrap_or(false),
+                created_at: format_naive_iso(created_at),
+            }));
         }
-    }))
+    }
+    Ok(None)
 }
 
 pub async fn mark_password_reset_token_used(
@@ -284,6 +289,43 @@ pub async fn mark_password_reset_token_used(
         .execute(proxy.pool())
         .await?;
     Ok(())
+}
+
+pub async fn invalidate_user_reset_tokens(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        r#"UPDATE "password_reset_tokens" SET "used" = TRUE WHERE "userId" = $1 AND "used" = FALSE"#,
+    )
+    .bind(user_id)
+    .execute(proxy.pool())
+    .await?;
+    Ok(result.rows_affected())
+}
+
+pub async fn get_last_reset_request_time(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<Option<NaiveDateTime>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"SELECT "createdAt" FROM "password_reset_tokens" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT 1"#,
+    )
+    .bind(user_id)
+    .fetch_optional(proxy.pool())
+    .await?;
+    Ok(row.and_then(|r| r.try_get("createdAt").ok()))
+}
+
+pub async fn get_user_id_by_email(
+    proxy: &DatabaseProxy,
+    email: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row = sqlx::query(r#"SELECT "id" FROM "users" WHERE "email" = $1 LIMIT 1"#)
+        .bind(email)
+        .fetch_optional(proxy.pool())
+        .await?;
+    Ok(row.and_then(|r| r.try_get("id").ok()))
 }
 
 pub async fn get_user_interaction_stats(

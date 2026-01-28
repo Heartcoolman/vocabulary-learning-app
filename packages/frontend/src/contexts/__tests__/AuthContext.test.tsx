@@ -126,7 +126,7 @@ describe('AuthContext', () => {
     // Default: no token
     mockGetToken.mockReturnValue(null);
     mockGetWords.mockResolvedValue([]);
-    mockGetRecords.mockResolvedValue({ records: [], total: 0 } as any);
+    mockGetRecords.mockResolvedValue({ records: [], total: 0 });
     mockSetCurrentUser.mockResolvedValue(undefined);
     mockClearLocalData.mockResolvedValue(undefined);
   });

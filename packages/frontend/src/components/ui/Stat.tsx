@@ -4,7 +4,7 @@
  * 数据统计展示组件
  */
 import React, { forwardRef, memo, HTMLAttributes, ReactNode } from 'react';
-import { cn, Size } from './utils';
+import { cn } from './utils';
 
 /* ========================================
  * Stat 组件

@@ -1,8 +1,14 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exportUserWords } from '../../hooks/queries/useUserDetail';
-import { ChartBar, ArrowLeft, WarningCircle } from '../../components/Icon';
-import { ListDashes, Brain, ChartLine } from '@phosphor-icons/react';
+import {
+  ChartBar,
+  ArrowLeft,
+  WarningCircle,
+  ListDashes,
+  Brain,
+  ChartLine,
+} from '../../components/Icon';
 import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
 import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
 import { useToast } from '../../components/ui';
@@ -289,7 +295,7 @@ export default function UserDetailPage() {
         onClick={() => navigate('/admin/users')}
         className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
       >
-        <ArrowLeft size={20} weight="bold" />
+        <ArrowLeft size={20} />
         <span>返回用户列表</span>
       </button>
 

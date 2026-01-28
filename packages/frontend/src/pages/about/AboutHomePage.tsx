@@ -25,7 +25,7 @@ const STAGES: StageConfig[] = [
   {
     title: '感知层',
     subtitle: 'Perception',
-    icon: <Eye size={32} weight="duotone" />,
+    icon: <Eye size={32} />,
     description: '多维度捕捉学习者的实时状态与环境信息，构建全面的用户画像。',
     details: ['注意力追踪与响应分析', '实时疲劳度监测', '学习动机与情绪评估', '环境场景自适应'],
     accentColor: 'bg-blue-500',
@@ -34,7 +34,7 @@ const STAGES: StageConfig[] = [
   {
     title: '建模层',
     subtitle: 'Modeling',
-    icon: <Brain size={32} weight="duotone" />,
+    icon: <Brain size={32} />,
     description: '构建动态的学习者认知模型，量化核心认知能力维度。',
     details: [
       '个性化遗忘曲线拟合',
@@ -48,7 +48,7 @@ const STAGES: StageConfig[] = [
   {
     title: '学习层',
     subtitle: 'Learning',
-    icon: <Lightning size={32} weight="duotone" />,
+    icon: <Lightning size={32} />,
     description: '持续进化的算法集成引擎，从交互数据中提取最优策略。',
     details: [
       'Thompson Sampling 采样',
@@ -62,7 +62,7 @@ const STAGES: StageConfig[] = [
   {
     title: '决策层',
     subtitle: 'Decision',
-    icon: <Target size={32} weight="duotone" />,
+    icon: <Target size={32} />,
     description: '生成个性化的学习策略与即时反馈，实现精准教学。',
     details: ['多目标路径优化', '动态复习间隔调度', '自适应难度匹配', '心流体验维持'],
     accentColor: 'bg-emerald-500',
@@ -82,21 +82,21 @@ function StageCard({
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/40 bg-white/60 p-8 shadow-xl shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
+      className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/40 bg-white/60 p-8 shadow-floating shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
     >
       <div
         aria-hidden="true"
-        className={`absolute -right-12 -top-12 h-40 w-40 rounded-full ${bgColor} blur-3xl transition-transform duration-500 group-hover:scale-125 motion-reduce:transition-none`}
+        className={`absolute -right-12 -top-12 h-40 w-40 rounded-full ${bgColor} blur-3xl transition-transform duration-g3-slow group-hover:scale-125 motion-reduce:transition-none`}
       />
       <div
         aria-hidden="true"
-        className={`absolute -bottom-8 -left-8 h-32 w-32 rounded-full ${bgColor} opacity-50 blur-2xl transition-transform duration-500 group-hover:scale-125 motion-reduce:transition-none`}
+        className={`absolute -bottom-8 -left-8 h-32 w-32 rounded-full ${bgColor} opacity-50 blur-2xl transition-transform duration-g3-slow group-hover:scale-125 motion-reduce:transition-none`}
       />
 
       <div className="relative z-10 mb-6 flex items-start justify-between">
         <div
           aria-hidden="true"
-          className={`flex h-16 w-16 items-center justify-center rounded-2xl ${bgColor} text-slate-700 shadow-sm ring-1 ring-white/50 transition-colors group-hover:bg-white group-hover:text-blue-600 dark:text-slate-300 dark:ring-slate-600/50 dark:group-hover:bg-slate-700 dark:group-hover:text-blue-400`}
+          className={`flex h-16 w-16 items-center justify-center rounded-card ${bgColor} text-slate-700 shadow-soft ring-1 ring-white/50 transition-colors group-hover:bg-white group-hover:text-blue-600 dark:text-slate-300 dark:ring-slate-600/50 dark:group-hover:bg-slate-700 dark:group-hover:text-blue-400`}
         >
           {icon}
         </div>
@@ -153,7 +153,7 @@ export default function AboutHomePage() {
 
           <h1 className="mb-6 max-w-3xl text-5xl font-bold tracking-tight text-slate-900 dark:text-white md:text-7xl">
             <span className="block text-slate-300 dark:text-slate-600">AMAS</span>
-            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
               Adaptive Intelligence
             </span>
           </h1>

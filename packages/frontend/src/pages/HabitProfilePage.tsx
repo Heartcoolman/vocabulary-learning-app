@@ -5,8 +5,8 @@ import ChronotypeCard from '../components/ChronotypeCard';
 import { RhythmCard } from '../components/profile/RhythmCard';
 import { MotivationCard } from '../components/profile/MotivationCard';
 import { HabitHeatmap } from '../components/profile/HabitHeatmap';
-import { ChartBar, ArrowsClockwise, FloppyDisk, Warning } from '@phosphor-icons/react';
-import { useToast } from '../components/ui';
+import { ChartBar, ArrowsClockwise, FloppyDisk, Warning } from '../components/Icon';
+import { useToast, Spinner } from '../components/ui';
 import { learningLogger } from '../utils/logger';
 
 const HabitProfilePage: React.FC = () => {
@@ -39,7 +39,7 @@ const HabitProfilePage: React.FC = () => {
       setIsRefetching(true);
       await apiClient.initializeHabitProfile();
       await fetchData();
-    } catch (err) {
+    } catch {
       toast.error('初始化失败');
     } finally {
       setIsRefetching(false);
@@ -52,7 +52,7 @@ const HabitProfilePage: React.FC = () => {
       await apiClient.persistHabitProfile();
       toast.success('保存成功');
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('保存失败');
     } finally {
       setIsSaving(false);
@@ -107,7 +107,7 @@ const HabitProfilePage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-indigo-500"></div>
+        <Spinner size="xl" color="primary" />
       </div>
     );
   }
@@ -120,7 +120,7 @@ const HabitProfilePage: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={fetchData}
-            className="mt-4 rounded-button bg-indigo-500 px-4 py-2 text-white"
+            className="mt-4 rounded-button bg-blue-500 px-4 py-2 text-white"
           >
             重试
           </button>
@@ -140,7 +140,7 @@ const HabitProfilePage: React.FC = () => {
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-800 dark:text-white">
-              <ChartBar className="text-indigo-500" weight="duotone" />
+              <ChartBar size={28} className="text-blue-500" />
               我的学习习惯画像
             </h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -154,15 +154,15 @@ const HabitProfilePage: React.FC = () => {
               disabled={isRefetching}
               className="flex items-center gap-2 rounded-button border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700"
             >
-              <ArrowsClockwise className={isRefetching ? 'animate-spin' : ''} />
+              <ArrowsClockwise size={18} className={isRefetching ? 'animate-spin' : ''} />
               重新计算
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || !hasData}
-              className="flex items-center gap-2 rounded-button bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-soft transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-soft transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <FloppyDisk />
+              <FloppyDisk size={18} />
               保存画像
             </button>
           </div>
@@ -170,8 +170,8 @@ const HabitProfilePage: React.FC = () => {
 
         {!hasData ? (
           <div className="rounded-card bg-white p-12 text-center shadow-soft dark:bg-slate-800">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-900/30">
-              <ChartBar size={32} className="text-indigo-400" />
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/30">
+              <ChartBar size={32} className="text-blue-400" />
             </div>
             <h3 className="mb-2 text-lg font-medium text-gray-800 dark:text-white">暂无画像数据</h3>
             <p className="mb-6 text-gray-500 dark:text-gray-400">
@@ -179,7 +179,7 @@ const HabitProfilePage: React.FC = () => {
             </p>
             <button
               onClick={handleInitialize}
-              className="rounded-button bg-indigo-500 px-6 py-2 text-white hover:bg-indigo-600"
+              className="rounded-button bg-blue-500 px-6 py-2 text-white hover:bg-blue-600"
             >
               开始分析
             </button>

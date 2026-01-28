@@ -1,5 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   GraduationCap,
   Lightning,
@@ -7,10 +8,11 @@ import {
   Cards,
   Translate,
   ArrowsLeftRight,
-} from '@phosphor-icons/react';
+} from '@/components/Icon';
 import ApiClient from '../services/client';
 import { useToast } from './ui';
 import { uiLogger } from '../utils/logger';
+import { backdropVariants, scaleInVariants } from '../utils/animations';
 
 interface ModeOption {
   id: string;
@@ -19,9 +21,9 @@ interface ModeOption {
 }
 
 const MODE_ICONS: Record<string, React.ReactNode> = {
-  standard: <GraduationCap size={20} weight="fill" />,
-  cram: <Lightning size={20} weight="fill" />,
-  relaxed: <Coffee size={20} weight="fill" />,
+  standard: <GraduationCap size={20} />,
+  cram: <Lightning size={20} />,
+  relaxed: <Coffee size={20} />,
 };
 
 interface LearningModeSelectorProps {
@@ -108,108 +110,122 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
         )}
       </button>
 
-      {isOpen && (
-        <>
-          {/* 背景遮罩 */}
-          <div
-            onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-40 animate-g3-fade-in"
-            aria-hidden="true"
-          />
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* 背景遮罩 */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={backdropVariants}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 z-40"
+              aria-hidden="true"
+            />
 
-          {/* 选择器面板 */}
-          <div className="absolute left-0 top-full z-50 mt-2 w-80 animate-g3-scale-in rounded-button border border-gray-200 bg-white p-4 shadow-elevated dark:border-slate-700 dark:bg-slate-800">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-              选择学习模式
-            </h3>
+            {/* 选择器面板 */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={scaleInVariants}
+              className="absolute left-0 top-full z-50 mt-2 w-80 rounded-button border border-gray-200 bg-white p-4 shadow-elevated dark:border-slate-700 dark:bg-slate-800"
+            >
+              <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+                选择学习模式
+              </h3>
 
-            <div className="space-y-2">
-              {modes.map((mode) => (
+              <div className="space-y-2">
+                {modes.map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => handleModeChange(mode.id)}
+                    disabled={isLoading}
+                    className={`w-full rounded-button p-3 text-left transition-all duration-g3-fast focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      currentMode === mode.id
+                        ? 'border-2 border-blue-500 bg-blue-50 shadow-soft dark:bg-blue-900/30'
+                        : 'border-2 border-transparent bg-gray-50 hover:scale-[1.01] hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
+                    } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-[0.99]'}`}
+                  >
+                    <div className="mb-1 flex items-center gap-2">
+                      {MODE_ICONS[mode.id]}
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {mode.name}
+                      </span>
+                      {currentMode === mode.id && (
+                        <span className="ml-auto text-xs font-medium text-blue-600 dark:text-blue-400">
+                          当前
+                        </span>
+                      )}
+                    </div>
+                    <div className="pl-7 text-sm text-gray-600 dark:text-gray-300">
+                      {mode.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {isLoading && (
+                <div className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                  正在切换模式...
+                </div>
+              )}
+
+              {/* 学习方式选择 */}
+              {onLearningTypeChange && (
+                <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-600">
+                  <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+                    学习方式
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onLearningTypeChange('word-to-meaning')}
+                      className={`flex-1 rounded-button p-2 text-center transition-all duration-g3-fast focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] ${
+                        learningType === 'word-to-meaning'
+                          ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-2 border-transparent bg-gray-50 hover:scale-[1.02] hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      <Translate size={20} className="mx-auto mb-1" />
+                      <div className="text-xs font-medium">英译中</div>
+                    </button>
+                    <button
+                      onClick={() => onLearningTypeChange('meaning-to-word')}
+                      className={`flex-1 rounded-button p-2 text-center transition-all duration-g3-fast focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] ${
+                        learningType === 'meaning-to-word'
+                          ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-2 border-transparent bg-gray-50 hover:scale-[1.02] hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      <ArrowsLeftRight size={20} className="mx-auto mb-1" />
+                      <div className="text-xs font-medium">中译英</div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-600">
                 <button
-                  key={mode.id}
-                  onClick={() => handleModeChange(mode.id)}
-                  disabled={isLoading}
-                  className={`w-full rounded-button p-3 text-left transition-all duration-g3-fast focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    currentMode === mode.id
-                      ? 'border-2 border-blue-500 bg-blue-50 shadow-soft dark:bg-blue-900/30'
-                      : 'border-2 border-transparent bg-gray-50 hover:scale-[1.01] hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
-                  } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-[0.99]'}`}
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/flashcard');
+                  }}
+                  className="w-full cursor-pointer rounded-button border-2 border-transparent bg-purple-50 p-3 text-left transition-all duration-g3-fast hover:scale-[1.01] hover:border-purple-300 hover:bg-purple-100 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 active:scale-[0.99] dark:bg-purple-900/30 dark:hover:border-purple-700 dark:hover:bg-purple-900/50"
                 >
                   <div className="mb-1 flex items-center gap-2">
-                    {MODE_ICONS[mode.id]}
-                    <span className="font-semibold text-gray-900 dark:text-white">{mode.name}</span>
-                    {currentMode === mode.id && (
-                      <span className="ml-auto text-xs font-medium text-blue-600 dark:text-blue-400">
-                        当前
-                      </span>
-                    )}
+                    <Cards size={20} className="text-purple-600 dark:text-purple-400" />
+                    <span className="font-semibold text-gray-900 dark:text-white">闪记模式</span>
                   </div>
                   <div className="pl-7 text-sm text-gray-600 dark:text-gray-300">
-                    {mode.description}
+                    快速翻卡复习，自评掌握程度
                   </div>
                 </button>
-              ))}
-            </div>
-
-            {isLoading && (
-              <div className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
-                正在切换模式...
               </div>
-            )}
-
-            {/* 学习方式选择 */}
-            {onLearningTypeChange && (
-              <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-600">
-                <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-                  学习方式
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onLearningTypeChange('word-to-meaning')}
-                    className={`flex-1 rounded-button p-2 text-center transition-all duration-g3-fast focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] ${
-                      learningType === 'word-to-meaning'
-                        ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                        : 'border-2 border-transparent bg-gray-50 hover:scale-[1.02] hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    <Translate size={20} className="mx-auto mb-1" />
-                    <div className="text-xs font-medium">英译中</div>
-                  </button>
-                  <button
-                    onClick={() => onLearningTypeChange('meaning-to-word')}
-                    className={`flex-1 rounded-button p-2 text-center transition-all duration-g3-fast focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] ${
-                      learningType === 'meaning-to-word'
-                        ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                        : 'border-2 border-transparent bg-gray-50 hover:scale-[1.02] hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    <ArrowsLeftRight size={20} className="mx-auto mb-1" />
-                    <div className="text-xs font-medium">中译英</div>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-600">
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate('/flashcard');
-                }}
-                className="w-full cursor-pointer rounded-button border-2 border-transparent bg-purple-50 p-3 text-left transition-all duration-g3-fast hover:scale-[1.01] hover:border-purple-300 hover:bg-purple-100 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 active:scale-[0.99] dark:bg-purple-900/30 dark:hover:border-purple-700 dark:hover:bg-purple-900/50"
-              >
-                <div className="mb-1 flex items-center gap-2">
-                  <Cards size={20} weight="fill" className="text-purple-600 dark:text-purple-400" />
-                  <span className="font-semibold text-gray-900 dark:text-white">闪记模式</span>
-                </div>
-                <div className="pl-7 text-sm text-gray-600 dark:text-gray-300">
-                  快速翻卡复习，自评掌握程度
-                </div>
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

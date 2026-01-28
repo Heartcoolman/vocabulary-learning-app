@@ -1,5 +1,6 @@
 import { useWords, useCreateWord, useDeleteWord } from '../../hooks/queries/useWords';
 import { uiLogger } from '../../utils/logger';
+import { CheckCircle } from '../Icon';
 
 /**
  * React Query 使用示例组件
@@ -117,11 +118,26 @@ export function WordListExample() {
       <div className="mt-8 rounded-button bg-blue-50 p-4">
         <h3 className="mb-2 font-semibold text-blue-900">React Query 特性演示：</h3>
         <ul className="space-y-1 text-sm text-blue-800">
-          <li>✅ 自动缓存：数据会被缓存，避免重复请求</li>
-          <li>✅ 加载状态：自动管理 loading、error、success 状态</li>
-          <li>✅ 乐观更新：mutation 成功后自动刷新相关查询</li>
-          <li>✅ 窗口聚焦重新请求：可配置（当前已禁用）</li>
-          <li>✅ 失败重试：自动重试失败的请求（当前配置为 1 次）</li>
+          <li>
+            <CheckCircle size={14} weight="fill" className="mr-1 inline text-green-500" />
+            自动缓存：数据会被缓存，避免重复请求
+          </li>
+          <li>
+            <CheckCircle size={14} weight="fill" className="mr-1 inline text-green-500" />
+            加载状态：自动管理 loading、error、success 状态
+          </li>
+          <li>
+            <CheckCircle size={14} weight="fill" className="mr-1 inline text-green-500" />
+            乐观更新：mutation 成功后自动刷新相关查询
+          </li>
+          <li>
+            <CheckCircle size={14} weight="fill" className="mr-1 inline text-green-500" />
+            窗口聚焦重新请求：可配置（当前已禁用）
+          </li>
+          <li>
+            <CheckCircle size={14} weight="fill" className="mr-1 inline text-green-500" />
+            失败重试：自动重试失败的请求（当前配置为 1 次）
+          </li>
         </ul>
       </div>
     </div>

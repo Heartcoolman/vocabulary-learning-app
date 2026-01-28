@@ -77,7 +77,9 @@ if [ "$ACTION" = "update" ]; then
   echo ""
   docker compose ps
   echo ""
-  echo "📍 访问地址: http://${SERVER_IP}:5173"
+  echo "📍 访问地址："
+  echo "   前端界面: http://${SERVER_IP}:5173"
+  echo "   管理后台: http://${SERVER_IP}:5173/admin"
   exit 0
 fi
 
@@ -387,7 +389,7 @@ SERVER_IP=$(curl -s -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'
 # 创建默认管理员账户
 echo ""
 echo "👤 检查管理员账户..."
-ADMIN_EXISTS=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM users WHERE role = 'ADMIN'" 2>/dev/null | tr -d ' ' || echo "0")
+ADMIN_EXISTS=$(docker compose exec -T postgres psql -U danci -d vocabulary_db -t -c "SELECT COUNT(*) FROM admin_users" 2>/dev/null | tr -d ' ' || echo "0")
 
 if [ "$ADMIN_EXISTS" -eq "0" ]; then
   ADMIN_SUFFIX=$(openssl rand -hex 3)
@@ -409,6 +411,8 @@ if [ "$ADMIN_EXISTS" -eq "0" ]; then
     echo "║  邮箱:     $ADMIN_EMAIL"
     echo "║  用户名:   $ADMIN_USERNAME"
     echo "║  密码:     $ADMIN_PASSWORD"
+    echo "║                                               ║"
+    echo "║  管理后台: http://${SERVER_IP}:5173/admin     ║"
     echo "║                                               ║"
     echo "║  ⚠️  请立即保存此信息！密码仅显示一次！       ║"
     echo "╚═══════════════════════════════════════════════╝"
@@ -436,6 +440,7 @@ echo ""
 
 echo "📍 访问地址："
 echo "   前端界面: http://${SERVER_IP}:5173"
+echo "   管理后台: http://${SERVER_IP}:5173/admin"
 echo ""
 echo "📋 常用命令："
 echo "   查看日志:  cd $DEPLOY_DIR && docker compose logs -f"

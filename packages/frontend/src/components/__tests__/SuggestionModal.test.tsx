@@ -7,6 +7,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import SuggestionModal from '../SuggestionModal';
 import { AmasProcessResult } from '../../types/amas';
 
+type MockAmasSuggestionProps = {
+  result: AmasProcessResult | null;
+  onBreak?: () => void;
+  showFactors?: boolean;
+};
+
 // Mock Icon components
 vi.mock('../Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../Icon')>();
@@ -19,7 +25,7 @@ vi.mock('../Icon', async (importOriginal) => {
 
 // Mock AmasSuggestion component
 vi.mock('../AmasSuggestion', () => ({
-  default: ({ result, onBreak }: any) => (
+  default: ({ result, onBreak }: MockAmasSuggestionProps) => (
     <div data-testid="amas-suggestion">
       <span>Explanation: {result?.explanation?.text}</span>
       {onBreak && <button onClick={onBreak}>Take Break</button>}

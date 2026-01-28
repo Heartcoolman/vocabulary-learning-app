@@ -128,8 +128,8 @@ impl Default for UserFSRSParams {
 impl UserFSRSParams {
     pub fn effective_params(&self) -> FSRSParams {
         let mut w = self.base.w;
-        for i in 0..17 {
-            w[i] *= self.adjustments[i];
+        for (i, w_val) in w.iter_mut().enumerate().take(17) {
+            *w_val *= self.adjustments[i];
         }
         FSRSParams { w }
     }

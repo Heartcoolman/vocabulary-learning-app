@@ -57,7 +57,11 @@ vi.mock('@/hooks/useExtendedProgress', () => ({
 }));
 
 vi.mock('@/components/dashboard/ProgressOverviewCard', () => ({
-  ProgressOverviewCard: ({ data }: { data: any }) => (
+  ProgressOverviewCard: ({
+    data,
+  }: {
+    data: { todayStudied: number; todayTarget: number; correctRate: number };
+  }) => (
     <div data-testid="progress-overview-card">
       <span>
         Today: {data.todayStudied}/{data.todayTarget}

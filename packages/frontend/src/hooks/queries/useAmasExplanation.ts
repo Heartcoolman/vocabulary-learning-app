@@ -2,13 +2,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { QUERY_PRESETS } from '../../lib/cacheConfig';
 import { apiClient } from '../../services/client';
-import type {
-  DecisionExplanation,
-  CounterfactualInput,
-  CounterfactualResult,
-  LearningCurveData,
-  DecisionTimelineResponse,
-} from '../../types/explainability';
+import type { CounterfactualInput } from '../../types/explainability';
 
 /**
  * 获取AMAS决策解释的Query Hook

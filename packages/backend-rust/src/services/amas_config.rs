@@ -489,7 +489,7 @@ impl AMASConfigService {
         change_reason: &str,
         suggestion_id: Option<&str>,
     ) -> Result<(), AMASConfigError> {
-        if new_value < 0.0 || new_value > 2.0 {
+        if !(0.0..=2.0).contains(&new_value) {
             return Err(AMASConfigError::Validation(format!(
                 "reward weight {} is out of valid range [0, 2]",
                 new_value

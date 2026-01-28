@@ -782,7 +782,7 @@ async fn select_notification(
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|row| map_pg_notification_row(&row)).transpose()?)
+    row.map(|row| map_pg_notification_row(&row)).transpose()
 }
 
 async fn build_stats(
@@ -1045,7 +1045,7 @@ fn map_pg_notification_row(row: &sqlx::postgres::PgRow) -> Result<NotificationIt
     let status: String = row.try_get("status")?;
     let priority: String = row.try_get("priority")?;
     let metadata: Option<serde_json::Value> = row.try_get("metadata")?;
-    let read_at: Option<NaiveDateTime> = row.try_get("readAt")?;
+    let read_at: Option<chrono::DateTime<Utc>> = row.try_get("readAt")?;
     let created_at: NaiveDateTime = row.try_get("createdAt")?;
     let updated_at: NaiveDateTime = row.try_get("updatedAt")?;
 
@@ -1058,7 +1058,7 @@ fn map_pg_notification_row(row: &sqlx::postgres::PgRow) -> Result<NotificationIt
         status,
         priority,
         metadata,
-        read_at: read_at.map(crate::auth::format_naive_datetime_iso_millis),
+        read_at: read_at.map(|dt| crate::auth::format_naive_datetime_iso_millis(dt.naive_utc())),
         created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
         updated_at: crate::auth::format_naive_datetime_iso_millis(updated_at),
     })

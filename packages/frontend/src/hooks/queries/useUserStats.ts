@@ -5,8 +5,8 @@
  * 包含用户基础统计、每日统计、趋势数据等
  */
 
-import { useQuery, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
-import { apiClient, authClient, learningClient } from '../../services/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient, authClient } from '../../services/client';
 import StorageService from '../../services/StorageService';
 import { queryKeys } from '../../lib/queryKeys';
 import { useAuth } from '../../contexts/AuthContext';

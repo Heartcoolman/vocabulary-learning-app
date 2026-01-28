@@ -1,5 +1,6 @@
 import { BaseClient } from '../base/BaseClient';
 import { WordBook, Word, AnswerRecord } from '../../../types/models';
+import AdminTokenManager from './AdminTokenManager';
 
 /**
  * 用户信息
@@ -446,6 +447,10 @@ function convertApiWord(apiWord: ApiWord): Word {
  * - AMAS决策查询
  */
 export class AdminClient extends BaseClient {
+  constructor() {
+    super(undefined, AdminTokenManager.getInstance());
+  }
+
   /**
    * 管理端通用请求入口（用于 AdminClient 尚未封装的后台能力）
    *
@@ -459,6 +464,14 @@ export class AdminClient extends BaseClient {
    */
   async requestAdmin<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, options);
+  }
+
+  /**
+   * 管理端通用请求入口 - 返回完整响应体
+   * 用于需要访问 success, data, total, page 等完整字段的场景
+   */
+  async requestAdminFull<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return this.requestFull<T>(endpoint, options);
   }
 
   /**
@@ -1119,6 +1132,24 @@ export class AdminClient extends BaseClient {
     });
   }
 
+  /**
+   * 导出实验数据
+   */
+  async exportExperiment(experimentId: string, format: 'csv' | 'json' = 'json'): Promise<Blob> {
+    const response = await fetch(
+      `${this.baseUrl}/api/experiments/${experimentId}/export?format=${format}`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.tokenManager.getToken()}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`);
+    }
+    return response.blob();
+  }
+
   // ==================== 视觉疲劳统计 API ====================
 
   /**
@@ -1189,6 +1220,13 @@ export class AdminClient extends BaseClient {
       method: 'PUT',
       body: JSON.stringify({ error }),
     });
+  }
+
+  /**
+   * 重试 LLM 任务
+   */
+  async retryLLMTask(taskId: string): Promise<void> {
+    await this.request(`/api/admin/llm/tasks/${taskId}/retry`, { method: 'PUT' });
   }
 
   // ==================== 单词内容变体 API ====================

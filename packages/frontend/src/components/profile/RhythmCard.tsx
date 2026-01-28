@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lightning, Timer, Hourglass } from '@phosphor-icons/react';
+import { Lightning, Timer, Hourglass } from '@/components/Icon';
 
 interface RhythmCardProps {
   type: 'fast' | 'slow' | 'mixed';
@@ -12,7 +12,7 @@ export const RhythmCard: React.FC<RhythmCardProps> = ({ type, avgDuration, prefe
     switch (type) {
       case 'fast':
         return {
-          icon: <Lightning size={32} weight="duotone" className="text-blue-500" />,
+          icon: <Lightning size={32} className="text-blue-500" />,
           title: '闪电战型',
           desc: '偏好短时间、高强度的爆发式学习。',
           color: 'text-blue-500',
@@ -20,7 +20,7 @@ export const RhythmCard: React.FC<RhythmCardProps> = ({ type, avgDuration, prefe
         };
       case 'slow':
         return {
-          icon: <Hourglass size={32} weight="duotone" className="text-emerald-500" />,
+          icon: <Hourglass size={32} className="text-emerald-500" />,
           title: '沉浸型',
           desc: '喜欢长时间、深入的专注学习时段。',
           color: 'text-emerald-500',
@@ -28,7 +28,7 @@ export const RhythmCard: React.FC<RhythmCardProps> = ({ type, avgDuration, prefe
         };
       default:
         return {
-          icon: <Timer size={32} weight="duotone" className="text-purple-500" />,
+          icon: <Timer size={32} className="text-purple-500" />,
           title: '混合节奏',
           desc: '根据内容难度灵活调整学习步调。',
           color: 'text-purple-500',

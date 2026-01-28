@@ -61,7 +61,7 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
           </div>
           <div className="mt-3 text-center">
             <h3 className="flex items-center justify-center gap-2 text-base font-bold text-gray-900 dark:text-white">
-              <Target className="h-4 w-4 text-blue-500" weight="bold" />
+              <Target className="h-4 w-4 text-blue-500" />
               今日目标
             </h3>
             <p className="text-base text-gray-500 dark:text-gray-400">
@@ -74,7 +74,7 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
           <div className="group flex h-28 flex-col justify-between rounded-card border border-blue-100 bg-blue-50 p-4 transition-shadow hover:shadow-elevated dark:border-blue-800 dark:bg-blue-900/20">
             <div className="flex items-start justify-between">
               <div className="rounded-button bg-white p-2 shadow-soft dark:bg-slate-700">
-                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" weight="bold" />
+                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <span className="text-sm font-bold uppercase tracking-wider text-blue-400">累计</span>
             </div>
@@ -91,7 +91,7 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
           <div className="group flex h-28 flex-col justify-between rounded-card border border-amber-100 bg-amber-50 p-4 transition-shadow hover:shadow-elevated dark:border-amber-800 dark:bg-amber-900/20">
             <div className="flex items-start justify-between">
               <div className="rounded-button bg-white p-2 shadow-soft dark:bg-slate-700">
-                <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" weight="bold" />
+                <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <span className="text-sm font-bold uppercase tracking-wider text-amber-400">
                 准确率

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Cube, GraduationCap, Scales, Check, CaretRight } from '@phosphor-icons/react';
+import { Eye, Cube, GraduationCap, Scales, Check, CaretRight } from '@/components/Icon';
 
 interface Layer {
   id: string;
@@ -37,7 +37,7 @@ const LAYERS: Layer[] = [
     subtitle: '自适应优化',
     description: '基于成功指标更新长期知识，优化记忆保持策略。',
     icon: GraduationCap,
-    color: 'text-indigo-600',
+    color: 'text-blue-600',
     station: { x: 620, y: 330 },
   },
   {
@@ -72,7 +72,7 @@ export default function AboutRibbon() {
               className={`group relative flex items-start py-4 pl-12 text-left transition-all hover:bg-white/50 hover:pl-14 ${activeStep === index ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}
             >
               <div
-                className={`absolute left-[0.85rem] top-5 z-10 box-content h-2.5 w-2.5 rounded-full border-2 bg-white transition-colors duration-300 ${activeStep >= index ? 'border-gray-900 bg-gray-900' : 'border-gray-300'}`}
+                className={`absolute left-[0.85rem] top-5 z-10 box-content h-2.5 w-2.5 rounded-full border-2 bg-white transition-colors duration-g3-normal ${activeStep >= index ? 'border-gray-900 bg-gray-900' : 'border-gray-300'}`}
               />
               <div>
                 <span
@@ -162,7 +162,7 @@ export default function AboutRibbon() {
                   backgroundColor: isActive || isPast ? '#ffffff' : '#f8fafc',
                   borderColor: isActive ? '#3b82f6' : isPast ? '#94a3b8' : '#e2e8f0',
                 }}
-                className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full border-4 shadow-sm transition-shadow ${isActive ? 'shadow-lg ring-4 ring-blue-50' : ''}`}
+                className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full border-4 shadow-soft transition-shadow ${isActive ? 'shadow-elevated ring-4 ring-blue-50' : ''}`}
               >
                 {isPast && !isActive ? (
                   <Check weight="bold" className="h-6 w-6 text-slate-400" />
@@ -180,7 +180,7 @@ export default function AboutRibbon() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                    className="absolute top-24 z-20 w-64 rounded-2xl border border-gray-100 bg-white p-5 shadow-xl"
+                    className="absolute top-24 z-20 w-64 rounded-card border border-gray-100 bg-white p-5 shadow-floating"
                   >
                     <div
                       className={`mb-2 font-mono text-[10px] font-bold uppercase tracking-widest ${layer.color}`}

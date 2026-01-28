@@ -44,7 +44,7 @@ export function FatigueAlertModal({
         </div>
 
         {recommendations.length > 0 && (
-          <div className="w-full rounded-lg bg-gray-50 p-4 text-left dark:bg-slate-700">
+          <div className="w-full rounded-button bg-gray-50 p-4 text-left dark:bg-slate-700">
             <p className="mb-2 font-medium text-gray-700 dark:text-gray-300">建议：</p>
             <ul className="list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
               {recommendations.map((rec, index) => (
@@ -56,11 +56,11 @@ export function FatigueAlertModal({
 
         <div className="flex w-full gap-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>
-            <Coffee size={20} weight="duotone" className="mr-2" />
+            <Coffee size={20} className="mr-2" />
             小憩5分钟
           </Button>
           <Button variant="primary" className="flex-1" onClick={onClose}>
-            <Bed size={20} weight="duotone" className="mr-2" />
+            <Bed size={20} className="mr-2" />
             立即休息
           </Button>
         </div>

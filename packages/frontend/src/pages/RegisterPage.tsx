@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft } from '../components/Icon';
+import { Spinner } from '../components/ui/Spinner';
 
 /**
  * 注册页面组件
@@ -81,7 +82,7 @@ export default function RegisterPage() {
    */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
-      handleSubmit(e as any);
+      handleSubmit(e as React.FormEvent);
     }
   };
 
@@ -209,7 +210,7 @@ export default function RegisterPage() {
             >
               {loading ? (
                 <span className="flex items-center justify-center">
-                  <span className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white"></span>
+                  <Spinner size="sm" color="white" className="mr-2" />
                   注册中...
                 </span>
               ) : (
@@ -238,7 +239,7 @@ export default function RegisterPage() {
             to="/about"
             className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-white"
           >
-            <ArrowLeft size={14} weight="bold" />
+            <ArrowLeft size={14} />
             了解更多
           </Link>
         </div>

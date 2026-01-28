@@ -18,6 +18,53 @@ export type UserSegment =
   | 'casual'
   | 'all';
 
+export type ProficiencyLevel = 'high' | 'medium' | 'low';
+export type LearningPaceLevel = 'high' | 'medium' | 'low';
+export type ActivityLevel = 'high' | 'medium' | 'low';
+
+export interface SegmentCombinationCount {
+  proficiency: ProficiencyLevel;
+  learningPace: LearningPaceLevel;
+  activity: ActivityLevel;
+  count: number;
+}
+
+export interface DimensionSummary {
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export interface SegmentSummary {
+  proficiency: DimensionSummary;
+  learningPace: DimensionSummary;
+  activity: DimensionSummary;
+}
+
+export interface SegmentAnalysis {
+  segments: SegmentCombinationCount[];
+  summary: SegmentSummary;
+  totalUsers: number;
+  qualifiedUsers: number;
+}
+
+export type RetentionPeriodType = 'daily' | 'weekly' | 'monthly';
+
+export interface RetentionDataPoint {
+  period: string;
+  cohortSize: number;
+  retainedCount: number;
+  rate: number;
+}
+
+export interface RetentionAnalysis {
+  periodType: RetentionPeriodType;
+  dataPoints: RetentionDataPoint[];
+  cohortStartDate: string;
+  cohortEndDate: string;
+  totalCohortSize: number;
+}
+
 export interface AlertInput {
   alertRuleId: string;
   alertName: string;
@@ -145,6 +192,8 @@ export interface UserSegmentInfo {
 
 // ==================== 响应类型 ====================
 
+// ListResponse is kept for potential future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ListResponse<T> {
   data: T[];
   total: number;
@@ -325,10 +374,43 @@ export class OpsEnhanceClient extends BaseClient {
   }
 
   /**
-   * 获取可用的用户分群列表
+   * 获取用户分群分析
+   */
+  async getSegmentAnalysis(): Promise<SegmentAnalysis> {
+    return this.request<SegmentAnalysis>('/api/admin/ops/segments');
+  }
+
+  /**
+   * 获取可用的用户分群列表（兼容旧接口）
+   * @deprecated 使用 getSegmentAnalysis 获取完整分群分析
    */
   async getSegments(): Promise<UserSegmentInfo[]> {
-    return this.request<UserSegmentInfo[]>('/api/admin/ops/segments');
+    // 返回静态分群列表用于洞察生成的下拉选择
+    return [
+      { id: 'new_users', name: '新用户', description: '注册7天内的用户' },
+      { id: 'active_learners', name: '活跃学习者', description: '每日都有学习记录的用户' },
+      { id: 'at_risk', name: '流失风险用户', description: '最近3天没有活动的用户' },
+      { id: 'high_performers', name: '高绩效用户', description: '正确率超过80%的用户' },
+      { id: 'struggling', name: '困难用户', description: '正确率低于50%的用户' },
+      { id: 'casual', name: '休闲用户', description: '每周只学习1-2天的用户' },
+      { id: 'all', name: '全部用户', description: '所有有学习记录的用户' },
+    ];
+  }
+
+  /**
+   * 获取留存率分析
+   */
+  async getRetention(options?: {
+    periodType?: RetentionPeriodType;
+    cohortDays?: number;
+  }): Promise<RetentionAnalysis> {
+    const params = new URLSearchParams();
+    if (options?.periodType) params.append('periodType', options.periodType);
+    if (options?.cohortDays) params.append('cohortDays', String(options.cohortDays));
+    const queryStr = params.toString();
+    return this.request<RetentionAnalysis>(
+      `/api/admin/ops/retention${queryStr ? `?${queryStr}` : ''}`,
+    );
   }
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Fire, TrendUp, TrendDown, Minus, Lightning, Coffee } from '@phosphor-icons/react';
+import { Fire, TrendUp, TrendDown, Minus, Lightning, Coffee } from '@/components/Icon';
 
 interface MotivationCardProps {
   streak: number;
@@ -18,24 +18,24 @@ export const MotivationCard: React.FC<MotivationCardProps> = ({ streak, level, t
     if (l >= 80)
       return (
         <span className="flex items-center gap-1">
-          <Fire size={20} weight="fill" className="text-orange-500" /> 极高
+          <Fire size={20} className="text-orange-500" /> 极高
         </span>
       );
     if (l >= 60)
       return (
         <span className="flex items-center gap-1">
-          <Lightning size={20} weight="fill" className="text-yellow-500" /> 旺盛
+          <Lightning size={20} className="text-yellow-500" /> 旺盛
         </span>
       );
     if (l >= 40)
       return (
         <span className="flex items-center gap-1">
-          <Minus size={20} weight="bold" className="text-gray-400 dark:text-gray-500" /> 平稳
+          <Minus size={20} className="text-gray-400 dark:text-gray-500" /> 平稳
         </span>
       );
     return (
       <span className="flex items-center gap-1">
-        <Coffee size={20} weight="duotone" className="text-gray-400 dark:text-gray-500" /> 低迷
+        <Coffee size={20} className="text-gray-400 dark:text-gray-500" /> 低迷
       </span>
     );
   };
@@ -47,7 +47,7 @@ export const MotivationCard: React.FC<MotivationCardProps> = ({ streak, level, t
       <div className="relative z-10">
         <div className="mb-4 flex items-start justify-between">
           <div className="rounded-card bg-gray-50 p-3 transition-transform duration-g3-normal group-hover:scale-110 dark:bg-slate-700">
-            <Fire size={32} weight="duotone" className="text-orange-500" />
+            <Fire size={32} className="text-orange-500" />
           </div>
           <div className="flex flex-col items-end">
             <span className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">

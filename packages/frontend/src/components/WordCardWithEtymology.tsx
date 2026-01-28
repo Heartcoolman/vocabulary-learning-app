@@ -1,9 +1,11 @@
 import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TreeStructure, CaretDown } from '@phosphor-icons/react';
+import { TreeStructure, CaretDown } from '@/components/Icon';
 import WordCard, { WordCardProps } from './WordCard';
 import { MorphologyBreakdown } from './etymology';
 import { useWordEtymology } from '../hooks/queries/useEtymology';
+import { G3_DURATION, G3_EASING } from '../utils/animations';
+import { Spinner } from './ui/Spinner';
 
 export interface WordCardWithEtymologyProps extends WordCardProps {
   showEtymology?: boolean;
@@ -38,7 +40,10 @@ function WordCardWithEtymology({
           >
             <TreeStructure size={18} />
             <span>{isExpanded ? '收起词源' : '查看词源拆解'}</span>
-            <motion.div animate={{ rotate: isExpanded ? 180 : 0 }}>
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ duration: G3_DURATION.fast / 1000, ease: G3_EASING.standard }}
+            >
               <CaretDown size={14} />
             </motion.div>
           </button>
@@ -50,14 +55,14 @@ function WordCardWithEtymology({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: G3_DURATION.normal / 1000, ease: G3_EASING.standard }}
                 className="overflow-hidden"
               >
                 <div className="mt-4 rounded-card border border-gray-100 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-700/50">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-4">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
-                      <span className="ml-2 text-sm text-gray-500">加载词源...</span>
+                      <Spinner size="sm" color="secondary" className="mr-2" />
+                      <span className="text-sm text-gray-500">加载词源...</span>
                     </div>
                   ) : etymology ? (
                     <>

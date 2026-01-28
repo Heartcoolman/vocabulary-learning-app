@@ -4,16 +4,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum DifficultyLevel {
     Easy,
+    #[default]
     Mid,
     Hard,
-}
-
-impl Default for DifficultyLevel {
-    fn default() -> Self {
-        Self::Mid
-    }
 }
 
 impl DifficultyLevel {
@@ -25,7 +21,7 @@ impl DifficultyLevel {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "easy" => Self::Easy,
             "hard" => Self::Hard,
@@ -44,17 +40,13 @@ impl DifficultyLevel {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum TrendState {
     Up,
+    #[default]
     Flat,
     Stuck,
     Down,
-}
-
-impl Default for TrendState {
-    fn default() -> Self {
-        Self::Flat
-    }
 }
 
 impl TrendState {
@@ -67,7 +59,7 @@ impl TrendState {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "up" => Self::Up,
             "stuck" => Self::Stuck,
@@ -79,30 +71,22 @@ impl TrendState {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum UserType {
     Fast,
+    #[default]
     Stable,
     Cautious,
 }
 
-impl Default for UserType {
-    fn default() -> Self {
-        Self::Stable
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum ColdStartPhase {
+    #[default]
     Classify,
     Explore,
     Normal,
-}
-
-impl Default for ColdStartPhase {
-    fn default() -> Self {
-        Self::Classify
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -501,20 +485,11 @@ pub struct DecisionFactor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct DecisionExplanation {
     pub factors: Vec<DecisionFactor>,
     pub changes: Vec<String>,
     pub text: String,
-}
-
-impl Default for DecisionExplanation {
-    fn default() -> Self {
-        Self {
-            factors: vec![],
-            changes: vec![],
-            text: String::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

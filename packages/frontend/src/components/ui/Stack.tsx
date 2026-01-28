@@ -128,7 +128,7 @@ Stack.displayName = 'Stack';
 /* ========================================
  * HStack - 水平堆叠组件
  * ======================================== */
-export interface HStackProps extends Omit<StackProps, 'direction'> {}
+export type HStackProps = Omit<StackProps, 'direction'>;
 
 export const HStack = memo(
   forwardRef<HTMLDivElement, HStackProps>((props, ref) => {
@@ -141,7 +141,7 @@ HStack.displayName = 'HStack';
 /* ========================================
  * VStack - 垂直堆叠组件
  * ======================================== */
-export interface VStackProps extends Omit<StackProps, 'direction'> {}
+export type VStackProps = Omit<StackProps, 'direction'>;
 
 export const VStack = memo(
   forwardRef<HTMLDivElement, VStackProps>((props, ref) => {

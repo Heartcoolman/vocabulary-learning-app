@@ -120,7 +120,7 @@ export function useLogin() {
       // 使相关查询失效，确保获取最新数据
       await queryClient.invalidateQueries({ queryKey: queryKeys.user.all });
     },
-    onError: (error) => {
+    onError: (_error) => {
       // 登录失败时确保清除任何残留状态
       authClient.clearToken();
       queryClient.setQueryData(queryKeys.auth.currentUser(), null);

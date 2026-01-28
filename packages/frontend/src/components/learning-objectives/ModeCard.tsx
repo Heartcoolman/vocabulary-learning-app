@@ -1,6 +1,6 @@
 import React from 'react';
 import { LearningObjectiveMode } from '../../types/learning-objectives';
-import { IconProps } from '@phosphor-icons/react';
+import type { IconProps } from '../Icon';
 
 interface ModeCardProps {
   mode: LearningObjectiveMode;
@@ -29,7 +29,7 @@ export function ModeCard({ label, description, Icon, isActive, disabled, onClick
       <div
         className={`mb-3 transition-colors ${isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'}`}
       >
-        <Icon size={48} weight="duotone" />
+        <Icon size={48} />
       </div>
       <h3 className={`mb-1 text-base font-bold ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
         {label}

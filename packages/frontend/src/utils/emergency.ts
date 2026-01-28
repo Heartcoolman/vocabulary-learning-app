@@ -80,6 +80,7 @@ const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
 };
 
 const STORAGE_KEY = 'danci_emergency_state';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NOTIFICATION_STORAGE_KEY = 'danci_notifications';
 
 // ============================================

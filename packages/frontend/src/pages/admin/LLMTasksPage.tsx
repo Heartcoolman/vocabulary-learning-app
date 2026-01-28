@@ -5,7 +5,6 @@ import {
   Play,
   CheckCircle,
   XCircle,
-  Warning,
   ArrowsClockwise,
   Clock,
   Eye,
@@ -98,6 +97,16 @@ export default function LLMTasksPage() {
     }
   };
 
+  const handleRetryTask = async (taskId: string) => {
+    try {
+      await adminClient.retryLLMTask(taskId);
+      toast.success('任务已重新排队');
+      loadTasks();
+    } catch {
+      toast.error('重试失败');
+    }
+  };
+
   const handleApproveVariant = async (variantId: string) => {
     try {
       await adminClient.updateWordVariantStatus(variantId, 'approved');
@@ -141,7 +150,7 @@ export default function LLMTasksPage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Queue size={32} weight="duotone" className="text-indigo-500" />
+          <Queue size={32} className="text-blue-500" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">LLM 任务管理</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">管理 AI 任务队列和内容变体</p>
@@ -150,15 +159,15 @@ export default function LLMTasksPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="flex gap-2 rounded-lg border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex gap-2 rounded-button border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
           <button
             onClick={() => {
               setActiveTab('tasks');
               setStatusFilter('all');
             }}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-all ${
+            className={`rounded-button px-4 py-2 text-sm font-medium transition-all ${
               activeTab === 'tasks'
-                ? 'bg-indigo-500 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
@@ -169,9 +178,9 @@ export default function LLMTasksPage() {
               setActiveTab('variants');
               setStatusFilter('all');
             }}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-all ${
+            className={`rounded-button px-4 py-2 text-sm font-medium transition-all ${
               activeTab === 'variants'
-                ? 'bg-indigo-500 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
@@ -184,7 +193,7 @@ export default function LLMTasksPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300"
+            className="rounded-button border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300"
           >
             {statusOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -194,17 +203,17 @@ export default function LLMTasksPage() {
           </select>
           <button
             onClick={activeTab === 'tasks' ? loadTasks : loadVariants}
-            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-700"
+            className="rounded-button p-2 hover:bg-gray-100 dark:hover:bg-slate-700"
           >
             <ArrowsClockwise size={18} className="text-gray-500" />
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <div className="rounded-card border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <CircleNotch className="animate-spin text-indigo-500" size={32} />
+            <CircleNotch className="animate-spin text-blue-500" size={32} />
           </div>
         ) : activeTab === 'tasks' ? (
           <TaskList
@@ -213,6 +222,7 @@ export default function LLMTasksPage() {
             onStart={handleStartTask}
             onComplete={handleCompleteTask}
             onFail={handleFailTask}
+            onRetry={handleRetryTask}
           />
         ) : (
           <VariantList
@@ -246,12 +256,14 @@ function TaskList({
   onStart,
   onComplete,
   onFail,
+  onRetry,
 }: {
   tasks: LLMTask[];
   onView: (task: LLMTask) => void;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
   onFail: (id: string, error: string) => void;
+  onRetry: (id: string) => void;
 }) {
   if (!tasks || tasks.length === 0) {
     return (
@@ -311,6 +323,11 @@ function TaskList({
                 <span>ID: {task.id.slice(0, 8)}...</span>
                 <span>创建: {new Date(task.createdAt).toLocaleString()}</span>
                 {task.tokensUsed && <span>Token: {task.tokensUsed}</span>}
+                {task.retryCount > 0 && (
+                  <span className="rounded bg-orange-100 px-1.5 py-0.5 font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                    重试 {task.retryCount} 次
+                  </span>
+                )}
                 {task.error && (
                   <span className="text-red-500">错误: {task.error.slice(0, 30)}...</span>
                 )}
@@ -320,7 +337,7 @@ function TaskList({
               {task.status === 'pending' && (
                 <button
                   onClick={() => onStart(task.id)}
-                  className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
+                  className="rounded-button bg-blue-500 p-2 text-white hover:bg-blue-600"
                   title="启动任务"
                 >
                   <Play size={16} />
@@ -330,23 +347,33 @@ function TaskList({
                 <>
                   <button
                     onClick={() => onComplete(task.id)}
-                    className="rounded-lg bg-green-500 p-2 text-white hover:bg-green-600"
+                    className="rounded-button bg-green-500 p-2 text-white hover:bg-green-600"
                     title="完成任务"
                   >
                     <CheckCircle size={16} />
                   </button>
                   <button
                     onClick={() => onFail(task.id, '手动标记失败')}
-                    className="rounded-lg bg-red-500 p-2 text-white hover:bg-red-600"
+                    className="rounded-button bg-red-500 p-2 text-white hover:bg-red-600"
                     title="标记失败"
                   >
                     <XCircle size={16} />
                   </button>
                 </>
               )}
+              {task.status === 'failed' && (
+                <button
+                  onClick={() => onRetry(task.id)}
+                  className="flex items-center gap-1 rounded-button bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600"
+                  title="重试任务"
+                >
+                  <ArrowsClockwise size={16} />
+                  重试
+                </button>
+              )}
               <button
                 onClick={() => onView(task)}
-                className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-600"
+                className="rounded-button p-2 hover:bg-gray-100 dark:hover:bg-slate-600"
                 title="查看详情"
               >
                 <Eye size={16} className="text-gray-500" />
@@ -426,14 +453,14 @@ function VariantList({
                 <>
                   <button
                     onClick={() => onApprove(variant.id)}
-                    className="rounded-lg bg-green-500 p-2 text-white hover:bg-green-600"
+                    className="rounded-button bg-green-500 p-2 text-white hover:bg-green-600"
                     title="批准"
                   >
                     <CheckCircle size={16} />
                   </button>
                   <button
                     onClick={() => onReject(variant.id)}
-                    className="rounded-lg bg-red-500 p-2 text-white hover:bg-red-600"
+                    className="rounded-button bg-red-500 p-2 text-white hover:bg-red-600"
                     title="拒绝"
                   >
                     <XCircle size={16} />
@@ -442,7 +469,7 @@ function VariantList({
               )}
               <button
                 onClick={() => onView(variant)}
-                className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-600"
+                className="rounded-button p-2 hover:bg-gray-100 dark:hover:bg-slate-600"
                 title="查看详情"
               >
                 <Eye size={16} className="text-gray-500" />
@@ -458,7 +485,7 @@ function VariantList({
 function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">任务详情</h2>
           <button
@@ -486,6 +513,14 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">优先级</label>
                 <p className="text-gray-900 dark:text-white">{task.priority}</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">重试次数</label>
+                <p
+                  className={`font-medium ${task.retryCount > 0 ? 'text-orange-600' : 'text-gray-900 dark:text-white'}`}
+                >
+                  {task.retryCount}
+                </p>
               </div>
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">创建时间</label>
@@ -519,7 +554,7 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
 
             <div>
               <label className="text-sm text-gray-500 dark:text-gray-400">输入参数</label>
-              <pre className="mt-1 overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-slate-900">
+              <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
                 {JSON.stringify(task.input, null, 2)}
               </pre>
             </div>
@@ -527,7 +562,7 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
             {task.output && (
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">输出结果</label>
-                <pre className="mt-1 overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-slate-900">
+                <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
                   {JSON.stringify(task.output, null, 2)}
                 </pre>
               </div>
@@ -536,7 +571,7 @@ function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void
             {task.error && (
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">错误信息</label>
-                <p className="mt-1 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                <p className="mt-1 rounded-button bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
                   {task.error}
                 </p>
               </div>
@@ -563,7 +598,7 @@ function VariantDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">内容变体详情</h2>
           <button
@@ -601,7 +636,7 @@ function VariantDetailModal({
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   原始值
                 </label>
-                <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-slate-900">
+                <pre className="overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
                   {variant.originalValue ? JSON.stringify(variant.originalValue, null, 2) : '(空)'}
                 </pre>
               </div>
@@ -609,7 +644,7 @@ function VariantDetailModal({
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   AI 生成值
                 </label>
-                <pre className="overflow-x-auto rounded-lg bg-indigo-50 p-3 text-xs dark:bg-indigo-900/20">
+                <pre className="overflow-x-auto rounded-button bg-blue-50 p-3 text-xs dark:bg-blue-900/20">
                   {JSON.stringify(variant.generatedValue, null, 2)}
                 </pre>
               </div>
@@ -621,13 +656,13 @@ function VariantDetailModal({
           <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
             <button
               onClick={onReject}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
+              className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
             >
               拒绝
             </button>
             <button
               onClick={onApprove}
-              className="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+              className="rounded-button bg-green-500 px-4 py-2 text-white hover:bg-green-600"
             >
               批准应用
             </button>

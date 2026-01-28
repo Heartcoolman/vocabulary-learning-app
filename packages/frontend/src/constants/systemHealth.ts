@@ -7,14 +7,6 @@
  * 健康度阈值配置
  */
 export const HEALTH_THRESHOLDS = {
-  /** 用户活跃率阈值 */
-  ACTIVE_RATE: {
-    /** 低活跃率阈值（低于此值扣分较多） */
-    LOW: 30,
-    /** 中等活跃率阈值（低于此值扣分较少） */
-    MEDIUM: 50,
-  },
-
   /** 系统词库数量最低要求 */
   MIN_SYSTEM_WORDBOOKS: 3,
 
@@ -32,12 +24,6 @@ export const HEALTH_THRESHOLDS = {
  * 健康度扣分规则
  */
 export const HEALTH_PENALTIES = {
-  /** 低活跃率扣分 */
-  LOW_ACTIVE_RATE: 20,
-
-  /** 中等活跃率扣分 */
-  MEDIUM_ACTIVE_RATE: 10,
-
   /** 词库数量不足扣分 */
   LOW_WORDBOOKS: 15,
 
@@ -71,4 +57,60 @@ export const HEALTH_STATUS_THRESHOLDS = {
 export const DISPLAY_CONFIG = {
   /** 学习记录列表默认显示数量 */
   LEARNING_RECORDS_LIMIT: 50,
+} as const;
+
+/**
+ * 系统运行健康度阈值配置
+ */
+export const RUNTIME_HEALTH_THRESHOLDS = {
+  /** 数据库延迟阈值 (ms) */
+  DB_LATENCY_WARNING: 200,
+  DB_LATENCY_ERROR: 500,
+
+  /** 内存使用阈值 (MB) */
+  MEMORY_WARNING: 512,
+  MEMORY_ERROR: 1024,
+
+  /** API 响应延迟阈值 (ms) */
+  API_LATENCY_WARNING: 200,
+  API_LATENCY_ERROR: 500,
+
+  /** 5xx 错误率阈值 (%) */
+  ERROR_RATE_WARNING: 1,
+  ERROR_RATE_ERROR: 5,
+} as const;
+
+/**
+ * 系统运行健康度扣分规则
+ */
+export const RUNTIME_HEALTH_PENALTIES = {
+  /** 数据库断开 */
+  DB_DISCONNECTED: 40,
+  /** 数据库超时 */
+  DB_TIMEOUT: 20,
+  /** 数据库延迟高 */
+  DB_LATENCY_HIGH: 15,
+  DB_LATENCY_MEDIUM: 10,
+
+  /** 内存使用率高 */
+  MEMORY_HIGH: 20,
+  MEMORY_MEDIUM: 10,
+
+  /** API 延迟高 */
+  API_LATENCY_HIGH: 15,
+  API_LATENCY_MEDIUM: 10,
+
+  /** 错误率高 */
+  ERROR_RATE_HIGH: 20,
+  ERROR_RATE_MEDIUM: 10,
+} as const;
+
+/**
+ * 合并健康度权重配置
+ */
+export const COMBINED_HEALTH_WEIGHTS = {
+  /** 业务数据健康度权重 */
+  BUSINESS: 0.5,
+  /** 系统运行健康度权重 */
+  RUNTIME: 0.5,
 } as const;

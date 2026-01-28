@@ -1,14 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/client';
 import { WordBook } from '../types/models';
-import { CircleNotch, Eye, EyeSlash, Camera, Warning } from '../components/Icon';
-import { useToast } from '../components/ui';
+import { Eye, EyeSlash, Camera, Warning, ArrowCounterClockwise, Brain } from '../components/Icon';
+import { useToast, Spinner, ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 import { useStudyConfig } from '../hooks/queries';
 import { useUpdateStudyConfig } from '../hooks/mutations';
 import { useVisualFatigueStore } from '../stores/visualFatigueStore';
+import {
+  useAmasSettingsStore,
+  FATIGUE_SENSITIVITY_THRESHOLDS,
+  type FatigueSensitivity,
+  type FatigueAlertMode,
+  type DifficultyAdjustSpeed,
+} from '../stores/amasSettingsStore';
 import { CameraPermissionRequest } from '../components/visual-fatigue';
+import {
+  DifficultyRangeSlider,
+  ConfigPreview,
+  type ConfigPreviewItem,
+} from '../components/amas-settings';
+
+// 默认设置值
+const DEFAULT_SETTINGS = {
+  dailyWordCount: 20,
+  visualFatigueEnabled: false,
+};
 
 export default function StudySettingsPage() {
   const navigate = useNavigate();
@@ -18,6 +36,7 @@ export default function StudySettingsPage() {
   const [dailyCount, setDailyCount] = useState(20);
   const [error, setError] = useState<string | null>(null);
   const [showCameraPermission, setShowCameraPermission] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // 使用 React Query hooks
   const { data: studyConfig, isLoading: configLoading } = useStudyConfig();
@@ -30,6 +49,103 @@ export default function StudySettingsPage() {
     cameraPermission,
     setCameraPermission,
   } = useVisualFatigueStore();
+
+  // AMAS 设置状态
+  const {
+    difficultyRange,
+    adjustSpeed,
+    fatigueSensitivity,
+    fatigueAlertMode,
+    setDifficultyRange,
+    setAdjustSpeed,
+    setFatigueSensitivity,
+    setFatigueAlertMode,
+    reset: resetAmasSettings,
+  } = useAmasSettingsStore();
+
+  // 本地编辑状态（用于预览）
+  const [localDifficultyRange, setLocalDifficultyRange] = useState(difficultyRange);
+  const [localAdjustSpeed, setLocalAdjustSpeed] = useState(adjustSpeed);
+  const [localFatigueSensitivity, setLocalFatigueSensitivity] = useState(fatigueSensitivity);
+  const [localFatigueAlertMode, setLocalFatigueAlertMode] = useState(fatigueAlertMode);
+
+  // 同步本地状态
+  useEffect(() => {
+    setLocalDifficultyRange(difficultyRange);
+    setLocalAdjustSpeed(adjustSpeed);
+    setLocalFatigueSensitivity(fatigueSensitivity);
+    setLocalFatigueAlertMode(fatigueAlertMode);
+  }, [difficultyRange, adjustSpeed, fatigueSensitivity, fatigueAlertMode]);
+
+  // 配置变更预览
+  const configPreviewItems = useMemo<ConfigPreviewItem[]>(() => {
+    const items: ConfigPreviewItem[] = [];
+    if (
+      localDifficultyRange.min !== difficultyRange.min ||
+      localDifficultyRange.max !== difficultyRange.max
+    ) {
+      items.push({
+        label: '难度范围',
+        before: `${difficultyRange.min.toFixed(1)}-${difficultyRange.max.toFixed(1)}`,
+        after: `${localDifficultyRange.min.toFixed(1)}-${localDifficultyRange.max.toFixed(1)}`,
+        changed: true,
+      });
+    }
+    if (localAdjustSpeed !== adjustSpeed) {
+      const speedLabels: Record<DifficultyAdjustSpeed, string> = {
+        conservative: '保守',
+        normal: '正常',
+        aggressive: '激进',
+      };
+      items.push({
+        label: '调整速度',
+        before: speedLabels[adjustSpeed],
+        after: speedLabels[localAdjustSpeed],
+        changed: true,
+      });
+    }
+    if (localFatigueSensitivity !== fatigueSensitivity) {
+      const sensitivityLabels: Record<FatigueSensitivity, string> = {
+        low: '低',
+        medium: '中',
+        high: '高',
+      };
+      items.push({
+        label: '疲劳灵敏度',
+        before: sensitivityLabels[fatigueSensitivity],
+        after: sensitivityLabels[localFatigueSensitivity],
+        changed: true,
+      });
+    }
+    if (localFatigueAlertMode !== fatigueAlertMode) {
+      const modeLabels: Record<FatigueAlertMode, string> = { modal: '弹窗', statusbar: '状态栏' };
+      items.push({
+        label: '提醒方式',
+        before: modeLabels[fatigueAlertMode],
+        after: modeLabels[localFatigueAlertMode],
+        changed: true,
+      });
+    }
+    return items;
+  }, [
+    localDifficultyRange,
+    localAdjustSpeed,
+    localFatigueSensitivity,
+    localFatigueAlertMode,
+    difficultyRange,
+    adjustSpeed,
+    fatigueSensitivity,
+    fatigueAlertMode,
+  ]);
+
+  // 保存 AMAS 设置
+  const saveAmasSettings = () => {
+    setDifficultyRange(localDifficultyRange);
+    setAdjustSpeed(localAdjustSpeed);
+    setFatigueSensitivity(localFatigueSensitivity);
+    setFatigueAlertMode(localFatigueAlertMode);
+    toast.success('AMAS 设置已保存');
+  };
 
   // 加载词书列表
   useEffect(() => {
@@ -89,6 +205,15 @@ export default function StudySettingsPage() {
     }
   };
 
+  // 恢复默认设置
+  const handleResetToDefault = () => {
+    setDailyCount(DEFAULT_SETTINGS.dailyWordCount);
+    setVisualFatigueEnabled(DEFAULT_SETTINGS.visualFatigueEnabled);
+    resetAmasSettings();
+    setShowResetConfirm(false);
+    toast.success('已恢复默认设置');
+  };
+
   // 合并 loading 状态
   const isLoading = configLoading;
   const isSaving = updateConfigMutation.isPending;
@@ -97,12 +222,7 @@ export default function StudySettingsPage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             正在加载...
           </p>
@@ -258,6 +378,129 @@ export default function StudySettingsPage() {
               <div className="mt-3 rounded-button bg-gray-50 p-3 text-xs text-gray-500 dark:bg-slate-700 dark:text-gray-400">
                 <p>所有检测在本地完成，视频数据不会上传到服务器。</p>
               </div>
+
+              {/* 疲劳检测高级配置 (C9, C11) */}
+              {visualFatigueEnabled && (
+                <div className="mt-4 space-y-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">高级配置</h3>
+
+                  {/* 疲劳灵敏度 */}
+                  <div>
+                    <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">
+                      疲劳灵敏度 (EAR阈值: {FATIGUE_SENSITIVITY_THRESHOLDS[localFatigueSensitivity]}
+                      )
+                    </label>
+                    <div className="flex gap-2">
+                      {(['low', 'medium', 'high'] as const).map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setLocalFatigueSensitivity(level)}
+                          className={`flex-1 rounded-button px-3 py-2 text-sm transition-colors ${
+                            localFatigueSensitivity === level
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          {level === 'low' ? '低' : level === 'medium' ? '中' : '高'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 提醒方式 */}
+                  <div>
+                    <label className="mb-2 block text-sm text-gray-600 dark:text-gray-400">
+                      提醒方式
+                    </label>
+                    <div className="flex gap-2">
+                      {(['modal', 'statusbar'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setLocalFatigueAlertMode(mode)}
+                          className={`flex-1 rounded-button px-3 py-2 text-sm transition-colors ${
+                            localFatigueAlertMode === mode
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          {mode === 'modal' ? '弹窗提醒' : '状态栏提示'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 自适应难度配置 (C10, C11) */}
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <div className="mb-4 flex items-center gap-3">
+                <Brain size={24} className="text-gray-600 dark:text-gray-400" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">自适应难度</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    配置 AMAS 系统的难度调整范围和速度
+                  </p>
+                </div>
+              </div>
+
+              {/* 难度范围滑块 */}
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  难度范围
+                </label>
+                <DifficultyRangeSlider
+                  min={localDifficultyRange.min}
+                  max={localDifficultyRange.max}
+                  onChange={(range) => setLocalDifficultyRange((prev) => ({ ...prev, ...range }))}
+                />
+              </div>
+
+              {/* 调整速度 */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  调整速度
+                </label>
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { value: 'conservative', label: '保守', desc: '变化缓慢，稳定优先' },
+                      { value: 'normal', label: '正常', desc: '平衡调整' },
+                      { value: 'aggressive', label: '激进', desc: '快速响应表现' },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setLocalAdjustSpeed(option.value)}
+                      className={`flex-1 rounded-button px-3 py-3 transition-colors ${
+                        localAdjustSpeed === option.value
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{option.label}</div>
+                      <div
+                        className={`mt-0.5 text-xs ${localAdjustSpeed === option.value ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}
+                      >
+                        {option.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 配置变更预览 */}
+              {configPreviewItems.length > 0 && (
+                <div className="mt-4">
+                  <ConfigPreview items={configPreviewItems} title="待保存的变更" />
+                  <button
+                    onClick={saveAmasSettings}
+                    className="mt-3 w-full rounded-button bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+                  >
+                    保存 AMAS 设置
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 学习统计 */}
@@ -304,12 +547,22 @@ export default function StudySettingsPage() {
                 {isSaving ? '保存中...' : '保存设置'}
               </button>
 
-              <button
-                onClick={() => navigate(-1)}
-                className="w-full rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
-              >
-                取消
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-button border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
+                >
+                  <ArrowCounterClockwise size={18} />
+                  恢复默认
+                </button>
+
+                <button
+                  onClick={() => navigate(-1)}
+                  className="flex-1 rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+                >
+                  取消
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -339,6 +592,18 @@ export default function StudySettingsPage() {
           </div>
         </div>
       )}
+
+      {/* 恢复默认确认弹窗 */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleResetToDefault}
+        title="恢复默认设置"
+        message="确定要将所有设置恢复为默认值吗？已选择的词书不会改变。"
+        confirmText="确认恢复"
+        cancelText="取消"
+        variant="warning"
+      />
     </div>
   );
 }

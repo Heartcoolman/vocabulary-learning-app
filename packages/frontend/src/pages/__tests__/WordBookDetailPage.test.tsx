@@ -12,6 +12,7 @@ const { mockNavigate, mockApiClient } = vi.hoisted(() => ({
     getWordBookWords: vi.fn(),
     addWordToWordBook: vi.fn(),
     removeWordFromWordBook: vi.fn(),
+    getWordLearningStates: vi.fn(),
   },
 }));
 
@@ -90,15 +91,16 @@ describe('WordBookDetailPage', () => {
     vi.clearAllMocks();
     mockApiClient.getWordBookById.mockResolvedValue(mockWordBook);
     mockApiClient.getWordBookWords.mockResolvedValue(mockWords);
+    mockApiClient.getWordLearningStates.mockResolvedValue([]);
   });
 
   describe('rendering', () => {
-    it('should show loading state initially', () => {
+    it('should show loading skeleton initially', () => {
       mockApiClient.getWordBookById.mockImplementation(() => new Promise(() => {}));
       render(<WordBookDetailPage />);
 
-      expect(screen.getByRole('status')).toBeInTheDocument();
-      expect(screen.getByText('正在加载...')).toBeInTheDocument();
+      // Loading state shows skeleton, not the wordbook title
+      expect(screen.queryByText('Test WordBook')).not.toBeInTheDocument();
     });
 
     it('should render wordbook details after loading', async () => {
@@ -115,7 +117,7 @@ describe('WordBookDetailPage', () => {
       render(<WordBookDetailPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/共 3 个单词/)).toBeInTheDocument();
+        expect(screen.getByText(/共 3 词/)).toBeInTheDocument();
       });
     });
 

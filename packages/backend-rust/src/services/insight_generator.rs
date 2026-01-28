@@ -277,24 +277,31 @@ async fn store_insight(pool: &PgPool, insight: &Insight) -> Result<(), String> {
 
 async fn collect_segment_stats(
     pool: &PgPool,
-    _segment: Option<&str>,
+    segment: Option<&str>,
 ) -> Result<SegmentStats, String> {
     let seven_days_ago = Utc::now() - chrono::Duration::days(7);
 
-    let stats_row = sqlx::query(
+    let segment_filter = build_segment_filter(segment);
+
+    let stats_query = format!(
         r#"
         SELECT
             COUNT(DISTINCT ar."userId") as user_count,
             COALESCE(AVG(CASE WHEN ar."isCorrect" THEN 1.0 ELSE 0.0 END), 0) as avg_accuracy,
             COALESCE(AVG(ar."responseTime"), 0) as avg_response_time
         FROM "answer_records" ar
+        INNER JOIN "users" u ON ar."userId" = u."id"
+        {}
         "#,
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(|e| format!("查询统计失败: {e}"))?;
+        segment_filter
+    );
 
-    let inactive_row = sqlx::query(
+    let stats_row = sqlx::query(&stats_query)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| format!("查询统计失败: {e}"))?;
+
+    let inactive_query = format!(
         r#"
         SELECT COUNT(*) as inactive_count
         FROM "users" u
@@ -302,28 +309,41 @@ async fn collect_segment_stats(
             SELECT 1 FROM "answer_records" ar
             WHERE ar."userId" = u."id" AND ar."timestamp" >= $1
         )
+        {}
         "#,
-    )
-    .bind(seven_days_ago.naive_utc())
-    .fetch_one(pool)
-    .await
-    .map_err(|e| format!("查询不活跃用户失败: {e}"))?;
+        if segment.is_some() {
+            format!("AND {}", build_segment_filter_for_user(segment))
+        } else {
+            String::new()
+        }
+    );
 
-    let performance_row = sqlx::query(
+    let inactive_row = sqlx::query(&inactive_query)
+        .bind(seven_days_ago.naive_utc())
+        .fetch_one(pool)
+        .await
+        .map_err(|e| format!("查询不活跃用户失败: {e}"))?;
+
+    let performance_query = format!(
         r#"
         SELECT
             COUNT(*) FILTER (WHERE avg_acc < 0.5) as struggling,
             COUNT(*) FILTER (WHERE avg_acc >= 0.8) as high_performers
         FROM (
-            SELECT "userId", AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) as avg_acc
-            FROM "answer_records"
-            GROUP BY "userId"
+            SELECT ar."userId", AVG(CASE WHEN ar."isCorrect" THEN 1.0 ELSE 0.0 END) as avg_acc
+            FROM "answer_records" ar
+            INNER JOIN "users" u ON ar."userId" = u."id"
+            {}
+            GROUP BY ar."userId"
         ) sub
         "#,
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(|e| format!("查询绩效分布失败: {e}"))?;
+        segment_filter
+    );
+
+    let performance_row = sqlx::query(&performance_query)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| format!("查询绩效分布失败: {e}"))?;
 
     let user_count = stats_row.try_get::<i64, _>("user_count").unwrap_or(0);
 
@@ -474,4 +494,64 @@ pub async fn get_insight_by_id(proxy: &DatabaseProxy, id: &str) -> Result<Option
             acknowledged_at: acknowledged_at.map(crate::auth::format_naive_datetime_iso_millis),
         }
     }))
+}
+
+fn build_segment_filter(segment: Option<&str>) -> String {
+    match segment {
+        Some("new") => r#"WHERE u."createdAt" >= NOW() - INTERVAL '7 days'"#.to_string(),
+        Some("active") => r#"WHERE EXISTS (
+                SELECT 1 FROM "answer_records" ar2
+                WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
+            )"#
+        .to_string(),
+        Some("at_risk") => r#"WHERE NOT EXISTS (
+                SELECT 1 FROM "answer_records" ar2
+                WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '14 days'
+            ) AND EXISTS (
+                SELECT 1 FROM "answer_records" ar3
+                WHERE ar3."userId" = u."id" AND ar3."timestamp" >= NOW() - INTERVAL '30 days'
+            )"#
+        .to_string(),
+        Some("returning") => r#"WHERE EXISTS (
+                SELECT 1 FROM "answer_records" ar2
+                WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM "answer_records" ar3
+                WHERE ar3."userId" = u."id"
+                AND ar3."timestamp" >= NOW() - INTERVAL '21 days'
+                AND ar3."timestamp" < NOW() - INTERVAL '7 days'
+            )"#
+        .to_string(),
+        _ => String::new(),
+    }
+}
+
+fn build_segment_filter_for_user(segment: Option<&str>) -> String {
+    match segment {
+        Some("new") => r#"u."createdAt" >= NOW() - INTERVAL '7 days'"#.to_string(),
+        Some("active") => r#"EXISTS (
+                SELECT 1 FROM "answer_records" ar2
+                WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
+            )"#
+        .to_string(),
+        Some("at_risk") => r#"NOT EXISTS (
+                SELECT 1 FROM "answer_records" ar2
+                WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '14 days'
+            ) AND EXISTS (
+                SELECT 1 FROM "answer_records" ar3
+                WHERE ar3."userId" = u."id" AND ar3."timestamp" >= NOW() - INTERVAL '30 days'
+            )"#
+        .to_string(),
+        Some("returning") => r#"EXISTS (
+                SELECT 1 FROM "answer_records" ar2
+                WHERE ar2."userId" = u."id" AND ar2."timestamp" >= NOW() - INTERVAL '7 days'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM "answer_records" ar3
+                WHERE ar3."userId" = u."id"
+                AND ar3."timestamp" >= NOW() - INTERVAL '21 days'
+                AND ar3."timestamp" < NOW() - INTERVAL '7 days'
+            )"#
+        .to_string(),
+        _ => "TRUE".to_string(),
+    }
 }

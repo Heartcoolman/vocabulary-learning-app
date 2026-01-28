@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient, { UserOverview } from '../../services/client';
 import type { User as UserDetail } from '../../services/client/admin/AdminClient';
@@ -12,9 +12,11 @@ import {
   Target,
   Clock,
   CircleNotch,
+  Prohibit,
+  CheckCircle,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
-import { Modal } from '../../components/ui';
+import { Modal, useToast, Checkbox } from '../../components/ui';
 
 interface PaginationInfo {
   page: number;
@@ -39,6 +41,7 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
     if (userId && isOpen) {
       loadUserDetail();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, isOpen]);
 
   const loadUserDetail = async () => {
@@ -88,7 +91,7 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
             {/* 用户基本信息 */}
             <div className="flex items-center gap-4 border-b border-gray-200 pb-6 dark:border-slate-700">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <User size={32} weight="bold" className="text-blue-600 dark:text-blue-400" />
+                <User size={32} className="text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -148,6 +151,7 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
 
 export default function UserManagementPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [users, setUsers] = useState<UserOverview[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
@@ -160,14 +164,25 @@ export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
 
+  // 批量选择状态
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
   // 快速查看弹窗状态
   const [quickViewModal, setQuickViewModal] = useState<{ isOpen: boolean; userId: string | null }>({
     isOpen: false,
     userId: null,
   });
 
+  // 批量操作确认弹窗
+  const [batchConfirmModal, setBatchConfirmModal] = useState<{
+    isOpen: boolean;
+    action: 'ban' | 'unban' | null;
+  }>({ isOpen: false, action: null });
+
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, searchQuery]);
 
   const loadUsers = async () => {
@@ -219,6 +234,72 @@ export default function UserManagementPage() {
   const handleCloseQuickView = () => {
     setQuickViewModal({ isOpen: false, userId: null });
   };
+
+  // 批量选择处理
+  const handleSelectUser = useCallback((userId: string, checked: boolean) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(userId);
+      } else {
+        next.delete(userId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setSelectedUserIds(new Set(users.map((u) => u.id)));
+      } else {
+        setSelectedUserIds(new Set());
+      }
+    },
+    [users],
+  );
+
+  // 批量操作
+  const handleBatchAction = useCallback((action: 'ban' | 'unban') => {
+    setBatchConfirmModal({ isOpen: true, action });
+  }, []);
+
+  const confirmBatchAction = useCallback(async () => {
+    if (!batchConfirmModal.action || selectedUserIds.size === 0) return;
+
+    try {
+      setIsBatchProcessing(true);
+      const userIds = Array.from(selectedUserIds);
+      const newRole = batchConfirmModal.action === 'ban' ? 'BANNED' : 'USER';
+
+      // 批量更新用户角色
+      await Promise.all(
+        userIds.map((userId) =>
+          apiClient.admin.requestAdmin(`/api/admin/users/${userId}/role`, {
+            method: 'PATCH',
+            body: JSON.stringify({ role: newRole }),
+          }),
+        ),
+      );
+
+      toast.success(
+        `已${batchConfirmModal.action === 'ban' ? '禁用' : '启用'} ${userIds.length} 个用户`,
+      );
+      setSelectedUserIds(new Set());
+      setBatchConfirmModal({ isOpen: false, action: null });
+      loadUsers();
+    } catch (err) {
+      adminLogger.error({ err, action: batchConfirmModal.action }, '批量操作失败');
+      toast.error('批量操作失败，请重试');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchConfirmModal.action, selectedUserIds, toast]);
+
+  const closeBatchConfirmModal = useCallback(() => {
+    setBatchConfirmModal({ isOpen: false, action: null });
+  }, []);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '从未学习';
@@ -282,7 +363,7 @@ export default function UserManagementPage() {
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="mb-2 flex items-center gap-3">
-          <UsersThree size={32} weight="duotone" className="text-blue-500" />
+          <UsersThree size={32} className="text-blue-500" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">用户管理</h1>
         </div>
         <p className="text-gray-600 dark:text-gray-400">查看和管理所有用户的学习数据</p>
@@ -314,6 +395,42 @@ export default function UserManagementPage() {
         </div>
       </div>
 
+      {/* 批量操作栏 */}
+      {selectedUserIds.size > 0 && (
+        <div className="mb-6 flex items-center justify-between rounded-card border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+            <CheckCircle size={20} weight="fill" />
+            <span>
+              已选择 <strong>{selectedUserIds.size}</strong> 个用户
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleBatchAction('ban')}
+              disabled={isBatchProcessing}
+              className="flex items-center gap-2 rounded-button bg-red-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
+            >
+              <Prohibit size={18} />
+              批量禁用
+            </button>
+            <button
+              onClick={() => handleBatchAction('unban')}
+              disabled={isBatchProcessing}
+              className="flex items-center gap-2 rounded-button bg-green-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-green-600 disabled:opacity-50"
+            >
+              <CheckCircle size={18} />
+              批量启用
+            </button>
+            <button
+              onClick={() => setSelectedUserIds(new Set())}
+              className="rounded-button px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            >
+              取消选择
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 错误提示 */}
       {error && (
         <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
@@ -344,6 +461,16 @@ export default function UserManagementPage() {
               <table className="w-full">
                 <thead className="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-900">
                   <tr>
+                    <th className="w-12 px-4 py-4">
+                      <Checkbox
+                        checked={users.length > 0 && selectedUserIds.size === users.length}
+                        indeterminate={
+                          selectedUserIds.size > 0 && selectedUserIds.size < users.length
+                        }
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        aria-label="全选"
+                      />
+                    </th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                       用户信息
                     </th>
@@ -371,14 +498,17 @@ export default function UserManagementPage() {
                       onClick={() => handleUserClick(user.id)}
                       className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-700/50"
                     >
+                      <td className="w-12 px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedUserIds.has(user.id)}
+                          onChange={(e) => handleSelectUser(user.id, e.target.checked)}
+                          aria-label={`选择 ${user.username}`}
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                            <User
-                              size={20}
-                              weight="bold"
-                              className="text-blue-600 dark:text-blue-400"
-                            />
+                            <User size={20} className="text-blue-600 dark:text-blue-400" />
                           </div>
                           <div>
                             <div className="font-medium text-gray-900 dark:text-white">
@@ -401,11 +531,7 @@ export default function UserManagementPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <ChartBar
-                            size={16}
-                            weight="bold"
-                            className="text-gray-400 dark:text-gray-500"
-                          />
+                          <ChartBar size={16} className="text-gray-400 dark:text-gray-500" />
                           <span className="font-medium text-gray-900 dark:text-white">
                             {user.totalWordsLearned}
                           </span>
@@ -413,11 +539,7 @@ export default function UserManagementPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <Target
-                            size={16}
-                            weight="bold"
-                            className="text-gray-400 dark:text-gray-500"
-                          />
+                          <Target size={16} className="text-gray-400 dark:text-gray-500" />
                           <span className="font-medium text-gray-900 dark:text-white">
                             {(user.averageScore ?? 0).toFixed(1)}
                           </span>
@@ -440,11 +562,7 @@ export default function UserManagementPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <Clock
-                            size={16}
-                            weight="bold"
-                            className="text-gray-400 dark:text-gray-500"
-                          />
+                          <Clock size={16} className="text-gray-400 dark:text-gray-500" />
                           <span className="text-sm text-gray-600 dark:text-gray-400">
                             {formatDate(user.lastLearningTime)}
                           </span>
@@ -471,7 +589,7 @@ export default function UserManagementPage() {
                   disabled={pagination.page === 1}
                   className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
-                  <CaretLeft size={16} weight="bold" />
+                  <CaretLeft size={16} />
                 </button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
@@ -515,7 +633,7 @@ export default function UserManagementPage() {
                   disabled={pagination.page === pagination.totalPages}
                   className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
-                  <CaretRight size={16} weight="bold" />
+                  <CaretRight size={16} />
                 </button>
               </div>
             </div>
@@ -530,6 +648,46 @@ export default function UserManagementPage() {
         onClose={handleCloseQuickView}
         onViewDetails={handleViewFullDetails}
       />
+
+      {/* 批量操作确认弹窗 */}
+      <Modal
+        isOpen={batchConfirmModal.isOpen}
+        onClose={closeBatchConfirmModal}
+        title={batchConfirmModal.action === 'ban' ? '确认批量禁用' : '确认批量启用'}
+      >
+        <div className="p-6">
+          <p className="mb-6 text-gray-600 dark:text-gray-400">
+            确定要{batchConfirmModal.action === 'ban' ? '禁用' : '启用'}已选择的{' '}
+            <strong className="text-gray-900 dark:text-white">{selectedUserIds.size}</strong>{' '}
+            个用户吗？
+            {batchConfirmModal.action === 'ban' && (
+              <span className="mt-2 block text-sm text-red-500">
+                禁用后，这些用户将无法登录系统。
+              </span>
+            )}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={closeBatchConfirmModal}
+              disabled={isBatchProcessing}
+              className="flex-1 rounded-button bg-gray-100 px-4 py-2 font-medium text-gray-900 transition-all hover:bg-gray-200 disabled:opacity-50 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
+            >
+              取消
+            </button>
+            <button
+              onClick={confirmBatchAction}
+              disabled={isBatchProcessing}
+              className={`flex-1 rounded-button px-4 py-2 font-medium text-white transition-all disabled:opacity-50 ${
+                batchConfirmModal.action === 'ban'
+                  ? 'bg-red-500 hover:bg-red-600'
+                  : 'bg-green-500 hover:bg-green-600'
+              }`}
+            >
+              {isBatchProcessing ? '处理中...' : '确认'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

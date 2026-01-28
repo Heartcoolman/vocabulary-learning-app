@@ -375,7 +375,7 @@ impl From<MorphemeRow> for Morpheme {
         Self {
             id: row.id,
             surface: row.surface,
-            morpheme_type: MorphemeType::from_str(&row.morpheme_type).unwrap_or(MorphemeType::Root),
+            morpheme_type: MorphemeType::parse(&row.morpheme_type).unwrap_or(MorphemeType::Root),
             meaning: row.meaning,
             meaning_zh: row.meaning_zh,
             language: row.language,

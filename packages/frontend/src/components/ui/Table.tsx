@@ -9,6 +9,7 @@ import React, {
   createContext,
   useContext,
   useCallback,
+  useMemo,
   HTMLAttributes,
   TdHTMLAttributes,
   ThHTMLAttributes,
@@ -35,6 +36,7 @@ interface TableSelectionContextValue {
 
 const TableSelectionContext = createContext<TableSelectionContextValue | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTableSelection() {
   return useContext(TableSelectionContext);
 }
@@ -86,8 +88,11 @@ export const Table = memo(
       ref,
     ) => {
       // 处理 selectedKeys，支持 Set 或数组
-      const selectedKeys =
-        selectedKeysProp instanceof Set ? selectedKeysProp : new Set(selectedKeysProp || []);
+      const selectedKeys = useMemo(
+        () =>
+          selectedKeysProp instanceof Set ? selectedKeysProp : new Set(selectedKeysProp || []),
+        [selectedKeysProp],
+      );
 
       const toggleSelection = useCallback(
         (key: string) => {
@@ -194,7 +199,7 @@ Table.displayName = 'Table';
 /* ========================================
  * TableHeader 组件
  * ======================================== */
-export interface TableHeaderProps extends HTMLAttributes<HTMLTableSectionElement> {}
+export type TableHeaderProps = HTMLAttributes<HTMLTableSectionElement>;
 
 export const TableHeader = memo(
   forwardRef<HTMLTableSectionElement, TableHeaderProps>(
@@ -213,7 +218,7 @@ TableHeader.displayName = 'TableHeader';
 /* ========================================
  * TableBody 组件
  * ======================================== */
-export interface TableBodyProps extends HTMLAttributes<HTMLTableSectionElement> {}
+export type TableBodyProps = HTMLAttributes<HTMLTableSectionElement>;
 
 export const TableBody = memo(
   forwardRef<HTMLTableSectionElement, TableBodyProps>(({ className, children, ...props }, ref) => {
@@ -377,7 +382,7 @@ TableHead.displayName = 'TableHead';
 /* ========================================
  * TableCell 组件 (td)
  * ======================================== */
-export interface TableCellProps extends TdHTMLAttributes<HTMLTableCellElement> {}
+export type TableCellProps = TdHTMLAttributes<HTMLTableCellElement>;
 
 export const TableCell = memo(
   forwardRef<HTMLTableCellElement, TableCellProps>(({ className, children, ...props }, ref) => {
@@ -394,7 +399,7 @@ TableCell.displayName = 'TableCell';
 /* ========================================
  * TableCaption 组件
  * ======================================== */
-export interface TableCaptionProps extends HTMLAttributes<HTMLTableCaptionElement> {}
+export type TableCaptionProps = HTMLAttributes<HTMLTableCaptionElement>;
 
 export const TableCaption = memo(
   forwardRef<HTMLTableCaptionElement, TableCaptionProps>(

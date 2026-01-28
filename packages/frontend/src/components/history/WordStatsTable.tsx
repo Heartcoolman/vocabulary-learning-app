@@ -26,7 +26,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
     if (stats.length === 0) {
       return (
         <div className="animate-g3-fade-in py-12 text-center">
-          <MagnifyingGlass className="mx-auto mb-4" size={80} weight="thin" color="#9ca3af" />
+          <MagnifyingGlass className="mx-auto mb-4" size={80} color="#9ca3af" />
           <p className="text-lg text-gray-600">没有找到符合条件的单词</p>
         </div>
       );

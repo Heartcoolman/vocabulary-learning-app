@@ -92,16 +92,28 @@ vi.mock('@/services/client', () => ({
   },
 }));
 
+import type { ReactNode } from 'react';
+
+interface ModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  children?: ReactNode;
+}
+
 // Mock Modal component
-vi.mock('@/components/ui', () => ({
-  Modal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? (
-      <div data-testid="modal">
-        {children}
-        <button onClick={onClose}>关闭</button>
-      </div>
-    ) : null,
-}));
+vi.mock('@/components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui')>();
+  return {
+    ...actual,
+    Modal: ({ isOpen, onClose, children }: ModalProps) =>
+      isOpen ? (
+        <div data-testid="modal">
+          {children}
+          <button onClick={onClose}>关闭</button>
+        </div>
+      ) : null,
+  };
+});
 
 vi.mock('@/components/Icon', async () => {
   const actual = await vi.importActual('@/components/Icon');

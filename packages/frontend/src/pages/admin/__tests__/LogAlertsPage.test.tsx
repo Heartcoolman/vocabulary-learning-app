@@ -16,11 +16,13 @@ vi.mock('../../../services/client', () => ({
   },
 }));
 
+import type { ReactNode } from 'react';
+
 vi.mock('react-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-dom')>();
   return {
     ...actual,
-    createPortal: (node: any) => node,
+    createPortal: (node: ReactNode) => node,
   };
 });
 
@@ -46,22 +48,44 @@ vi.mock('../../../components/ui/Toast', () => ({
   ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+interface ModalProps {
+  isOpen?: boolean;
+  children?: ReactNode;
+}
+
+interface ConfirmModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onConfirm?: () => void;
+  title?: string;
+  message?: string;
+}
+
+interface AlertModalProps {
+  isOpen?: boolean;
+  children?: ReactNode;
+}
+
 // Mock ui components (re-exports from Toast)
-vi.mock('../../../components/ui', () => ({
-  useToast: () => mockToast,
-  ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Modal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
-  ConfirmModal: ({ isOpen, onClose, onConfirm, title, message }: any) =>
-    isOpen ? (
-      <div data-testid="confirm-modal">
-        <h2>{title}</h2>
-        <p>{message}</p>
-        <button onClick={onConfirm}>Confirm</button>
-        <button onClick={onClose}>Cancel</button>
-      </div>
-    ) : null,
-  AlertModal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
-}));
+vi.mock('../../../components/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/ui')>();
+  return {
+    ...actual,
+    useToast: () => mockToast,
+    ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    Modal: ({ isOpen, children }: ModalProps) => (isOpen ? <div>{children}</div> : null),
+    ConfirmModal: ({ isOpen, onClose, onConfirm, title, message }: ConfirmModalProps) =>
+      isOpen ? (
+        <div data-testid="confirm-modal">
+          <h2>{title}</h2>
+          <p>{message}</p>
+          <button onClick={onConfirm}>Confirm</button>
+          <button onClick={onClose}>Cancel</button>
+        </div>
+      ) : null,
+    AlertModal: ({ isOpen, children }: AlertModalProps) => (isOpen ? <div>{children}</div> : null),
+  };
+});
 
 import LogAlertsPage from '../LogAlertsPage';
 

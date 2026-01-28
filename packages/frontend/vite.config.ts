@@ -176,14 +176,18 @@ export default defineConfig(({ mode }) => {
           manualChunks: (id) => {
             // 将 node_modules 中的包分离到 vendor chunk
             if (id.includes('node_modules')) {
-              // React 核心库单独打包
-              if (id.includes('react') || id.includes('react-dom')) {
-                return 'react-vendor';
+              // React Router 单独打包（必须在 react 检查之前）
+              if (id.includes('react-router-dom') || id.includes('react-router')) {
+                return 'router-vendor';
               }
 
-              // React Router 单独打包
-              if (id.includes('react-router-dom')) {
-                return 'router-vendor';
+              // React 核心库单独打包（精确匹配避免误包含其他 react-* 包）
+              if (
+                id.includes('node_modules/react/') ||
+                id.includes('node_modules/react-dom/') ||
+                id.includes('node_modules/scheduler/')
+              ) {
+                return 'react-vendor';
               }
 
               // Framer Motion 动画库单独打包
@@ -199,6 +203,16 @@ export default defineConfig(({ mode }) => {
               // Phosphor Icons 图标库单独打包
               if (id.includes('@phosphor-icons')) {
                 return 'icons-vendor';
+              }
+
+              // TanStack 库单独打包（react-query, react-table 等）
+              if (id.includes('@tanstack')) {
+                return 'tanstack-vendor';
+              }
+
+              // 图表库单独打包
+              if (id.includes('recharts') || id.includes('d3-')) {
+                return 'charts-vendor';
               }
 
               // 其他第三方库统一打包

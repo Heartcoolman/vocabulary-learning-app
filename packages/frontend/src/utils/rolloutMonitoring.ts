@@ -4,8 +4,7 @@
  * 提供错误率监控、性能指标对比和回滚触发条件
  */
 
-import { getRolloutManager, RolloutStage } from '../config/rollout';
-import { getFeatureFlagManager } from './featureFlags';
+import { getRolloutManager } from '../config/rollout';
 
 // ===================== 类型定义 =====================
 

@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, memo } from 'react';
 import { UserState, ColdStartPhaseInfo } from '../types/amas';
 import ApiClient from '../services/client';
-import { MagnifyingGlass, Compass, CheckCircle, Question } from './Icon';
+import { MagnifyingGlass, Compass, CheckCircle, Question, Warning } from './Icon';
+import { ConfidenceBadge } from './amas-settings';
 import { amasLogger } from '../utils/logger';
 
 interface AmasStatusProps {
@@ -134,44 +135,28 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
         return {
           color: 'text-blue-600 dark:text-blue-400',
           bg: 'bg-blue-50 dark:bg-blue-900/30',
-          icon: (
-            <MagnifyingGlass
-              size={16}
-              weight="duotone"
-              className="text-blue-600 dark:text-blue-400"
-            />
-          ),
+          icon: <MagnifyingGlass size={16} className="text-blue-600 dark:text-blue-400" />,
           label: '分类中',
         };
       case 'explore':
         return {
           color: 'text-purple-600 dark:text-purple-400',
           bg: 'bg-purple-50 dark:bg-purple-900/30',
-          icon: (
-            <Compass size={16} weight="duotone" className="text-purple-600 dark:text-purple-400" />
-          ),
+          icon: <Compass size={16} className="text-purple-600 dark:text-purple-400" />,
           label: '探索中',
         };
       case 'normal':
         return {
           color: 'text-green-600 dark:text-green-400',
           bg: 'bg-green-50 dark:bg-green-900/30',
-          icon: (
-            <CheckCircle
-              size={16}
-              weight="duotone"
-              className="text-green-600 dark:text-green-400"
-            />
-          ),
+          icon: <CheckCircle size={16} className="text-green-600 dark:text-green-400" />,
           label: '正常',
         };
       default:
         return {
           color: 'text-gray-600 dark:text-gray-400',
           bg: 'bg-gray-50 dark:bg-slate-700',
-          icon: (
-            <Question size={16} weight="duotone" className="text-gray-600 dark:text-gray-400" />
-          ),
+          icon: <Question size={16} className="text-gray-600 dark:text-gray-400" />,
           label: '未知',
         };
     }
@@ -188,11 +173,22 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
       {/* 标题和阶段 */}
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">学习状态</h3>
-        <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${phaseStyle.bg}`}>
-          {phaseStyle.icon}
-          <span className={`text-xs font-medium ${phaseStyle.color}`}>{phaseStyle.label}</span>
+        <div className="flex items-center gap-2">
+          <ConfidenceBadge confidence={state.confidence} size="sm" />
+          <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${phaseStyle.bg}`}>
+            {phaseStyle.icon}
+            <span className={`text-xs font-medium ${phaseStyle.color}`}>{phaseStyle.label}</span>
+          </div>
         </div>
       </div>
+
+      {/* 低置信度提示 C8 */}
+      {state.confidence !== undefined && state.confidence < 0.5 && (
+        <div className="mb-3 flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+          <Warning size={14} weight="fill" />
+          <span>置信度较低，建议继续学习以获取更准确的状态估计</span>
+        </div>
+      )}
 
       {/* 核心状态指标 - 紧凑布局 */}
       <div className="space-y-3">

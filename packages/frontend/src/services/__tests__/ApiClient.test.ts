@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { AuthClient as AuthClientType } from '../client/auth/AuthClient';
 
 // Mock localStorage
 const localStorageMock = {
@@ -133,8 +134,8 @@ describe('新的模块化 Client 架构', () => {
   });
 
   describe('AuthClient', () => {
-    let AuthClient: any;
-    let authClient: any;
+    let AuthClient: typeof AuthClientType;
+    let authClient: AuthClientType;
 
     beforeEach(async () => {
       vi.resetModules();

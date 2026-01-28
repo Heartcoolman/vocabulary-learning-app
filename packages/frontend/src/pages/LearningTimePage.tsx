@@ -7,14 +7,15 @@ import {
   Clock,
   Star,
   Warning,
-  CircleNotch,
   ChartBar,
   Sparkle,
   Coffee,
   Lightbulb,
   Sun,
   Moon,
+  Calendar,
 } from '../components/Icon';
+import { Spinner } from '../components/ui/Spinner';
 
 /**
  * LearningTimePage - 智能学习时机推荐页面
@@ -33,6 +34,7 @@ export default function LearningTimePage() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
 
   useEffect(() => {
     loadData();
@@ -103,12 +105,7 @@ export default function LearningTimePage() {
     return (
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
-          <CircleNotch
-            className="mx-auto mb-4 animate-spin"
-            size={48}
-            weight="bold"
-            color="#3b82f6"
-          />
+          <Spinner className="mx-auto mb-4" size="xl" color="primary" />
           <p className="text-gray-600 dark:text-gray-400">正在分析学习时间偏好...</p>
         </div>
       </div>
@@ -139,7 +136,7 @@ export default function LearningTimePage() {
         {/* 页面标题 */}
         <header className="mb-8">
           <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-            <Clock size={32} weight="duotone" color="#3b82f6" />
+            <Clock size={32} color="#3b82f6" />
             学习时间分析
           </h1>
           <p className="text-gray-600 dark:text-gray-400">了解你的最佳学习时段，提高学习效率</p>
@@ -163,9 +160,9 @@ export default function LearningTimePage() {
                 } `}
               >
                 {goldenTime.isGolden ? (
-                  <Star size={32} weight="fill" color="#ffffff" />
+                  <Star size={32} color="#ffffff" />
                 ) : (
-                  <Clock size={32} weight="duotone" color="#6b7280" />
+                  <Clock size={32} color="#6b7280" />
                 )}
               </div>
               <div className="flex-1">
@@ -174,7 +171,7 @@ export default function LearningTimePage() {
                 >
                   {goldenTime.isGolden ? (
                     <>
-                      <Sparkle size={20} weight="fill" className="text-yellow-500" /> 黄金学习时间！
+                      <Sparkle size={20} className="text-yellow-500" /> 黄金学习时间！
                     </>
                   ) : (
                     '当前时间'
@@ -208,7 +205,7 @@ export default function LearningTimePage() {
         {/* 数据不足提示 */}
         {insufficientData && (
           <div className="mb-8 rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/20">
-            <ChartBar size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
+            <ChartBar size={64} color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-300">数据收集中</h2>
             <p className="mb-4 text-blue-600 dark:text-blue-300">
               需要至少 <span className="font-bold">{insufficientData.minRequired}</span>{' '}
@@ -240,7 +237,7 @@ export default function LearningTimePage() {
             {/* 推荐时间段 */}
             <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                <Sparkle size={24} weight="duotone" color="#a855f7" />
+                <Sparkle size={24} color="#a855f7" />
                 推荐学习时段
               </h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -259,11 +256,7 @@ export default function LearningTimePage() {
                         <div
                           className={`flex h-10 w-10 items-center justify-center rounded-full ${index === 0 ? 'bg-yellow-400' : 'bg-gray-200 dark:bg-slate-700'} `}
                         >
-                          <TimeIcon
-                            size={20}
-                            weight="fill"
-                            color={index === 0 ? '#ffffff' : '#6b7280'}
-                          />
+                          <TimeIcon size={20} color={index === 0 ? '#ffffff' : '#6b7280'} />
                         </div>
                         <div>
                           <p className="font-bold text-gray-900 dark:text-white">
@@ -306,45 +299,85 @@ export default function LearningTimePage() {
             <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-                  <ChartBar size={24} weight="duotone" color="#3b82f6" />
-                  24小时学习效率分布
+                  <ChartBar size={24} color="#3b82f6" />
+                  {viewMode === 'day' ? '24小时学习效率分布' : '每周学习效率分布'}
                 </h2>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  基于 {timePreference.sampleCount} 次学习记录
+                <div className="flex items-center gap-3">
+                  <div className="flex rounded-button border border-gray-200 bg-gray-50 p-0.5 dark:border-slate-600 dark:bg-slate-700">
+                    <button
+                      onClick={() => setViewMode('day')}
+                      className={`flex items-center gap-1 rounded-button px-3 py-1 text-sm transition-all duration-g3-fast ${
+                        viewMode === 'day'
+                          ? 'bg-white text-blue-600 shadow-soft dark:bg-slate-600 dark:text-blue-400'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <Clock size={14} />日
+                    </button>
+                    <button
+                      onClick={() => setViewMode('week')}
+                      className={`flex items-center gap-1 rounded-button px-3 py-1 text-sm transition-all duration-g3-fast ${
+                        viewMode === 'week'
+                          ? 'bg-white text-blue-600 shadow-soft dark:bg-slate-600 dark:text-blue-400'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <Calendar size={14} />周
+                    </button>
+                  </div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    基于 {timePreference.sampleCount} 次学习记录
+                  </span>
                 </div>
               </div>
 
-              {/* 柱状图 */}
-              <div className="relative">
-                <div className="mb-2 flex h-48 items-end justify-between gap-1">
-                  {timePreference.timePref.map((score, hour) => {
-                    const isGoldenHour = timePreference.preferredSlots.some((s) => s.hour === hour);
-                    const isCurrentHour = goldenTime?.currentHour === hour;
-                    return (
-                      <div key={hour} className="group relative flex flex-1 flex-col items-center">
-                        {/* 悬停提示 */}
-                        <div className="absolute bottom-full z-10 mb-2 opacity-0 transition-opacity duration-g3-fast group-hover:opacity-100">
-                          <div className="whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white dark:bg-slate-700">
-                            {formatHour(hour)}: {Math.round(score * 100)}%
+              {viewMode === 'day' ? (
+                <>
+                  {/* 柱状图 */}
+                  <div className="relative">
+                    <div className="mb-2 flex h-48 items-end justify-between gap-1">
+                      {timePreference.timePref.map((score, hour) => {
+                        const isGoldenHour = timePreference.preferredSlots.some(
+                          (s) => s.hour === hour,
+                        );
+                        const isCurrentHour = goldenTime?.currentHour === hour;
+                        return (
+                          <div
+                            key={hour}
+                            className="group relative flex flex-1 flex-col items-center"
+                          >
+                            {/* 悬停提示 */}
+                            <div className="absolute bottom-full z-10 mb-2 opacity-0 transition-opacity duration-g3-fast group-hover:opacity-100">
+                              <div className="whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white dark:bg-slate-700">
+                                {formatHour(hour)}: {Math.round(score * 100)}%
+                              </div>
+                            </div>
+                            {/* 柱子 */}
+                            <div
+                              className={`w-full cursor-pointer rounded-t transition-all duration-g3-normal hover:opacity-80 ${getBarColor(score, isGoldenHour)} ${isCurrentHour ? 'ring-2 ring-blue-500 ring-offset-2' : ''} `}
+                              style={{ height: `${Math.max(score * 100, 4)}%` }}
+                            />
                           </div>
-                        </div>
-                        {/* 柱子 */}
-                        <div
-                          className={`w-full cursor-pointer rounded-t transition-all duration-g3-normal hover:opacity-80 ${getBarColor(score, isGoldenHour)} ${isCurrentHour ? 'ring-2 ring-blue-500 ring-offset-2' : ''} `}
-                          style={{ height: `${Math.max(score * 100, 4)}%` }}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
 
-                {/* X轴标签 */}
-                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                  {[0, 6, 12, 18, 23].map((hour) => (
-                    <span key={hour}>{formatHour(hour)}</span>
-                  ))}
+                    {/* X轴标签 */}
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                      {[0, 6, 12, 18, 23].map((hour) => (
+                        <span key={hour}>{formatHour(hour)}</span>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-48 items-center justify-center text-gray-500 dark:text-gray-400">
+                  <div className="text-center">
+                    <Calendar size={48} className="mx-auto mb-2 opacity-50" />
+                    <p>周视图开发中...</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 图例 */}
               <div className="mt-6 flex items-center justify-center gap-6 border-t border-gray-200 pt-4 dark:border-slate-700">

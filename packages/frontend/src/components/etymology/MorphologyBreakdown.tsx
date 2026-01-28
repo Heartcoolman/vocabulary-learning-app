@@ -63,7 +63,7 @@ function MorphologyBreakdown({
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={!onPartClick}
-                className={`flex flex-col items-center rounded-lg border px-3 py-2 transition-all ${style.bg} ${style.border} ${style.text} ${onPartClick ? 'cursor-pointer hover:shadow-md' : 'cursor-default'} ${compact ? 'px-2 py-1' : 'px-3 py-2'} `}
+                className={`flex flex-col items-center rounded-button border px-3 py-2 transition-all ${style.bg} ${style.border} ${style.text} ${onPartClick ? 'cursor-pointer hover:shadow-elevated' : 'cursor-default'} ${compact ? 'px-2 py-1' : 'px-3 py-2'} `}
               >
                 <span className={`font-mono font-bold ${compact ? 'text-base' : 'text-lg'}`}>
                   {part.part}
