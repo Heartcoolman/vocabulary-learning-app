@@ -6,32 +6,36 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DailyMissionCard } from '../DailyMissionCard';
 
+type MockIconProps = {
+  className?: string;
+};
+
 // Mock Icon components
 vi.mock('../../../components/Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../components/Icon')>();
   return {
     ...actual,
-    Target: ({ className }: any) => (
+    Target: ({ className }: MockIconProps) => (
       <span data-testid="icon-target" className={className}>
         Target
       </span>
     ),
-    Clock: ({ className }: any) => (
+    Clock: ({ className }: MockIconProps) => (
       <span data-testid="icon-clock" className={className}>
         Clock
       </span>
     ),
-    Lightning: ({ className }: any) => (
+    Lightning: ({ className }: MockIconProps) => (
       <span data-testid="icon-lightning" className={className}>
         Lightning
       </span>
     ),
-    Play: ({ className }: any) => (
+    Play: ({ className }: MockIconProps) => (
       <span data-testid="icon-play" className={className}>
         Play
       </span>
     ),
-    CheckCircle: ({ className }: any) => (
+    CheckCircle: ({ className }: MockIconProps) => (
       <span data-testid="icon-check" className={className}>
         Check
       </span>

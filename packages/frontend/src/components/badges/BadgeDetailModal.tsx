@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import { amasClient } from '../../services/client';
@@ -19,14 +19,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
   const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // 如果徽章未解锁，加载进度
-    if (!badge.unlockedAt) {
-      loadBadgeProgress();
-    }
-  }, [badge.id, badge.unlockedAt]);
-
-  const loadBadgeProgress = async () => {
+  const loadBadgeProgress = useCallback(async () => {
     try {
       setIsLoading(true);
       const progress = await amasClient.getBadgeProgress(badge.id);
@@ -37,7 +30,14 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [badge.id]);
+
+  useEffect(() => {
+    // 如果徽章未解锁，加载进度
+    if (!badge.unlockedAt) {
+      loadBadgeProgress();
+    }
+  }, [badge.unlockedAt, loadBadgeProgress]);
 
   // 根据类别获取图标
   const getCategoryIcon = (category: BadgeCategory) => {

@@ -10,7 +10,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ConfidenceBadge, getConfidenceCategory } from '../ConfidenceBadge';
+import { ConfidenceBadge } from '../ConfidenceBadge';
+import { getConfidenceCategory } from '../confidenceBadgeUtils';
 
 describe('ConfidenceBadge', () => {
   describe('C8: confidence thresholds', () => {

@@ -29,7 +29,7 @@ export const ConfigPreview = memo(function ConfigPreview({
   }
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-900/20">
+    <div className="rounded-button border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-900/20">
       <h4 className="mb-3 text-sm font-medium text-amber-800 dark:text-amber-200">{title}</h4>
       <div className="space-y-2">
         {changedItems.map((item, index) => (

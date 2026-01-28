@@ -69,7 +69,7 @@ export const StateChangeReason = memo(function StateChangeReason({
               </div>
               <div className="relative h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                 <div
-                  className={`absolute inset-y-0 left-0 rounded-full transition-all duration-300 ${color}`}
+                  className={`absolute inset-y-0 left-0 rounded-full transition-all duration-g3-normal ${color}`}
                   style={{ width: `${widthPercent}%` }}
                 />
               </div>
