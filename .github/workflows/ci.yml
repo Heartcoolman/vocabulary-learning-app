@@ -399,7 +399,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_USER: danci
           POSTGRES_PASSWORD: danci_test
