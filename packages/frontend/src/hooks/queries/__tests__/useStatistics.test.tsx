@@ -48,12 +48,24 @@ describe('useStatistics', () => {
       const mockUser = { id: 'user1', email: 'test@example.com', username: 'test' };
       const mockStats = {
         totalWords: 100,
-        masteryDistribution: { 0: 10, 1: 20, 2: 30, 3: 25, 4: 10, 5: 5 },
+        totalRecords: 500,
+        masteryDistribution: [
+          { level: 0, count: 10 },
+          { level: 1, count: 20 },
+          { level: 2, count: 30 },
+          { level: 3, count: 25 },
+          { level: 4, count: 10 },
+          { level: 5, count: 5 },
+        ],
         correctRate: 0.85,
         studyDays: 30,
         consecutiveDays: 7,
-        dailyAccuracy: [0.8, 0.85, 0.9],
-        weekdayHeat: { 0: 10, 1: 15, 2: 20, 3: 18, 4: 22, 5: 12, 6: 8 },
+        dailyAccuracy: [
+          { date: '2024-01-01', accuracy: 0.8 },
+          { date: '2024-01-02', accuracy: 0.85 },
+          { date: '2024-01-03', accuracy: 0.9 },
+        ],
+        weekdayHeat: [10, 15, 20, 18, 22, 12, 8],
       };
 
       vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as AuthContextType);
@@ -85,12 +97,13 @@ describe('useStatistics', () => {
       const mockUser = { id: 'user1', email: 'test@example.com', username: 'test' };
       const mockStats = {
         totalWords: 0,
-        masteryDistribution: {},
+        totalRecords: 0,
+        masteryDistribution: [],
         correctRate: 0,
         studyDays: 0,
         consecutiveDays: 0,
         dailyAccuracy: [],
-        weekdayHeat: {},
+        weekdayHeat: [],
       };
       vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as AuthContextType);
       vi.mocked(apiClient.getEnhancedStatistics).mockResolvedValue(mockStats);

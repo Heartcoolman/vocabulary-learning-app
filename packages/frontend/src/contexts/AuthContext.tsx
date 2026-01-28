@@ -17,7 +17,7 @@ import { DATA_CACHE_CONFIG } from '../lib/cacheConfig';
 /**
  * 认证上下文类型
  */
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;

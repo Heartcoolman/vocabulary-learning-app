@@ -112,7 +112,7 @@ export class WordQualityApi extends BaseClient {
   ): Promise<{ items: Issue[]; total: number }> {
     const res = await this.getFull<{ success: boolean; data: Issue[]; total: number }>(
       `/api/admin/quality/wordbooks/${wordbookId}/issues`,
-      filters,
+      filters as Record<string, unknown> | undefined,
     );
     return { items: res.data, total: res.total };
   }
