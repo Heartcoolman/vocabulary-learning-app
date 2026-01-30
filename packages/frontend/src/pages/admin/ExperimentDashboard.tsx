@@ -499,7 +499,7 @@ const CreateExperimentModal = ({
                   <div className="font-medium text-gray-900">{v.name}</div>
                   {v.parameters.description && (
                     <div className="mt-1 text-xs text-gray-500">
-                      {v.parameters.description as string}
+                      {String(v.parameters.description)}
                     </div>
                   )}
                 </div>

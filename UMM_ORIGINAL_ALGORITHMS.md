@@ -202,6 +202,7 @@ pub struct MemoryDynamics {
    - `μ`: 错误惩罚系数（建议 0.1~0.4）
 
 7. **最优复习间隔（与统一公式对齐）**：
+
    ```
    interval_days = -ln(R_base_target) / λ(M, C)
    ```
@@ -467,6 +468,7 @@ pub struct MSMTModel {
    加权组合：`w = [0.5, 0.3, 0.2]`
 
 3. **可提取性（回忆概率）**：
+
    ```
    retrievability = sigmoid(activation - threshold)
    ```
@@ -585,6 +587,7 @@ pub struct LearningWindow {
    - `confusable_weight(w, w_i)`: 干扰权重（最小实现可取 0/1；进阶可用 embedding distance 映射到 0..1）
 
 2. **惩罚上限（与统一公式对齐）**：
+
    ```
    penalty_iad = min(penalty_iad, 0.5)
    ```
@@ -646,6 +649,7 @@ pub struct ContextHistory {
    ```
 
 3. **编码加成**：
+
    ```
    bonus_evm(w) = min(β × diversity(contexts(w)), 0.15)
    ```
