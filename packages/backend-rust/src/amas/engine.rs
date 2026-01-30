@@ -735,14 +735,14 @@ impl AMASEngine {
         }
 
         // Restore IGE/SWD models from persisted state
-        let ige = state
+        let ige: IgeModel = state
             .bandit_model
             .as_ref()
             .and_then(|b| b.thompson_params.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default();
 
-        let swd = state
+        let swd: SwdModel = state
             .bandit_model
             .as_ref()
             .and_then(|b| b.linucb_state.as_ref())
