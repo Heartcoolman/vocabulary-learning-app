@@ -10,19 +10,19 @@
 //! - EVM (Encoding Variability Metric) - vocabulary specialization
 //! - Adaptive Mastery - personalized mastery decision based on user profile
 
-pub mod mdm;
+pub mod adaptive_mastery;
+pub mod engine;
+pub mod evm;
+pub mod iad;
 pub mod ige;
-pub mod swd;
+pub mod mdm;
 pub mod msmt;
 pub mod mtp;
-pub mod iad;
-pub mod evm;
-pub mod engine;
 pub mod r_target;
-pub mod adaptive_mastery;
+pub mod swd;
 
-pub use engine::{ShadowResult, UmmEngine};
 pub use adaptive_mastery::{
-    compute_adaptive_mastery, compute_adaptive_mastery_with_history,
-    MasteryContext, MasteryHistory, AdaptiveMasteryResult,
+    compute_adaptive_mastery, compute_adaptive_mastery_with_history, AdaptiveMasteryResult,
+    MasteryContext, MasteryHistory,
 };
+pub use engine::{ShadowResult, UmmEngine};

@@ -394,10 +394,26 @@ async fn process_event(
         study_duration_minutes: Some(study_duration_minutes),
         session_id: Some(session_id.clone()),
         // UMM vocabulary specialization inputs
-        morpheme_states: if morpheme_states.is_empty() { None } else { Some(morpheme_states.clone()) },
-        confusion_pairs: if confusion_pairs.is_empty() { None } else { Some(confusion_pairs.clone()) },
-        recent_word_ids: if recent_word_ids.is_empty() { None } else { Some(recent_word_ids.clone()) },
-        context_history: if context_history.is_empty() { None } else { Some(context_history.clone()) },
+        morpheme_states: if morpheme_states.is_empty() {
+            None
+        } else {
+            Some(morpheme_states.clone())
+        },
+        confusion_pairs: if confusion_pairs.is_empty() {
+            None
+        } else {
+            Some(confusion_pairs.clone())
+        },
+        recent_word_ids: if recent_word_ids.is_empty() {
+            None
+        } else {
+            Some(recent_word_ids.clone())
+        },
+        context_history: if context_history.is_empty() {
+            None
+        } else {
+            Some(context_history.clone())
+        },
         ..Default::default()
     };
 
@@ -2236,7 +2252,7 @@ async fn get_algorithm_metrics_history(
 
 // ==================== UMM Vocabulary Specialization Data Loading ====================
 
-use crate::amas::types::{MorphemeStateInput, ConfusionPairInput, ContextEntryInput};
+use crate::amas::types::{ConfusionPairInput, ContextEntryInput, MorphemeStateInput};
 
 /// Load morpheme mastery states for a word's morphemes
 async fn load_morpheme_states_for_word(
@@ -2273,10 +2289,7 @@ async fn load_morpheme_states_for_word(
 }
 
 /// Load confusion pairs for a word
-async fn load_confusion_pairs_for_word(
-    pool: &PgPool,
-    word_id: &str,
-) -> Vec<ConfusionPairInput> {
+async fn load_confusion_pairs_for_word(pool: &PgPool, word_id: &str) -> Vec<ConfusionPairInput> {
     let result = sqlx::query(
         r#"
         SELECT "word2Id" as confusing_word_id, "distance"

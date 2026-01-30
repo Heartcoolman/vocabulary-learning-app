@@ -5,8 +5,8 @@ use crate::amas::types::{
     HabitProfile, HabitSamples, PersistedAMASState, RhythmPreference, UserState,
 };
 use crate::db::operations::{
-    get_amas_user_model, get_amas_user_model_tx, get_amas_user_state,
-    insert_amas_user_model_tx, upsert_amas_user_state_tx, AmasUserModel, AmasUserState,
+    get_amas_user_model, get_amas_user_model_tx, get_amas_user_state, insert_amas_user_model_tx,
+    upsert_amas_user_state_tx, AmasUserModel, AmasUserState,
 };
 use crate::db::DatabaseProxy;
 use crate::umm::MasteryHistory;
@@ -265,15 +265,15 @@ impl AMASPersistence {
             .map(|s| crate::amas::types::TrendState::parse(s));
 
         // Parse visual fatigue from row
-        let visual_fatigue = row.visual_fatigue.map(|score| {
-            crate::amas::types::VisualFatigueState {
-                score,
-                confidence: 0.5,
-                freshness: 1.0,
-                trend: 0.0,
-                last_updated: chrono::Utc::now().timestamp_millis(),
-            }
-        });
+        let visual_fatigue =
+            row.visual_fatigue
+                .map(|score| crate::amas::types::VisualFatigueState {
+                    score,
+                    confidence: 0.5,
+                    freshness: 1.0,
+                    trend: 0.0,
+                    last_updated: chrono::Utc::now().timestamp_millis(),
+                });
 
         UserState {
             attention: row.attention,
@@ -310,7 +310,10 @@ impl AMASPersistence {
             visual_fatigue: state.visual_fatigue.as_ref().map(|v| v.score),
             fused_fatigue: state.fused_fatigue,
             mastery_history: None, // Set by save_state after this call
-            habit_samples: state.habit.as_ref().map(|h| serde_json::to_value(&h.samples).unwrap_or_default()),
+            habit_samples: state
+                .habit
+                .as_ref()
+                .map(|h| serde_json::to_value(&h.samples).unwrap_or_default()),
             ensemble_performance: None, // Set by save_state after this call
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: chrono::Utc::now().to_rfc3339(),

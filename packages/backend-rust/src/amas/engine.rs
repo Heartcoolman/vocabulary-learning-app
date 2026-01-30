@@ -15,6 +15,9 @@ use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
 use crate::db::DatabaseProxy;
 use crate::track_algorithm;
+use crate::umm::adaptive_mastery::{
+    compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory,
+};
 use crate::umm::evm::ContextEntry;
 use crate::umm::iad::ConfusionPair;
 use crate::umm::ige::IgeModel;
@@ -23,7 +26,6 @@ use crate::umm::msmt::{MsmtModel, ReviewEvent as MsmtReviewEvent};
 use crate::umm::mtp::MorphemeState;
 use crate::umm::swd::SwdModel;
 use crate::umm::UmmEngine;
-use crate::umm::adaptive_mastery::{compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory};
 
 struct UserModels {
     attention: AttentionMonitor,
@@ -195,11 +197,14 @@ impl AMASEngine {
                 ));
                 track_algorithm!(
                     AlgorithmId::Ige,
-                    models.ige.select_action(&strategy_keys, context_key.as_deref())
+                    models
+                        .ige
+                        .select_action(&strategy_keys, context_key.as_deref())
                         .and_then(|key| {
-                            strategy_candidates.iter().find(|s| {
-                                format!("{:?}:{}", s.difficulty, s.batch_size) == key
-                            }).cloned()
+                            strategy_candidates
+                                .iter()
+                                .find(|s| format!("{:?}:{}", s.difficulty, s.batch_size) == key)
+                                .cloned()
                         })
                 )
             };
@@ -222,11 +227,14 @@ impl AMASEngine {
                     .collect();
                 track_algorithm!(
                     AlgorithmId::Swd,
-                    models.swd.select_action(&context_vec, &strategy_keys)
+                    models
+                        .swd
+                        .select_action(&context_vec, &strategy_keys)
                         .and_then(|key| {
-                            strategy_candidates.iter().find(|s| {
-                                format!("{:?}:{}", s.difficulty, s.batch_size) == key
-                            }).cloned()
+                            strategy_candidates
+                                .iter()
+                                .find(|s| format!("{:?}:{}", s.difficulty, s.batch_size) == key)
+                                .cloned()
                         })
                 )
             };
@@ -336,12 +344,8 @@ impl AMASEngine {
 
             if let Some(ref ws) = options.word_state {
                 let now_ts = chrono::Utc::now().timestamp_millis();
-                let desired_retention = self.adjust_retention(
-                    ws.desired_retention,
-                    &new_user_state,
-                    &options,
-                    &config,
-                );
+                let desired_retention =
+                    self.adjust_retention(ws.desired_retention, &new_user_state, &options, &config);
 
                 // Load or create MDM state
                 let mut mdm = if let (Some(s), Some(c)) = (ws.umm_strength, ws.umm_consolidation) {
@@ -390,7 +394,11 @@ impl AMASEngine {
                 // Adaptive mastery decision based on user's personal cognitive profile
                 let mastery_context = MasteryContext {
                     is_first_attempt: ws.reps == 0,
-                    correct_count: if event.is_correct { ws.reps + 1 } else { ws.reps - ws.lapses },
+                    correct_count: if event.is_correct {
+                        ws.reps + 1
+                    } else {
+                        ws.reps - ws.lapses
+                    },
                     total_attempts: ws.reps + 1,
                     response_time_ms: event.response_time,
                     hint_used: event.hint_used,
@@ -422,7 +430,11 @@ impl AMASEngine {
                     difficulty: 1.0 - mdm.consolidation,
                     retrievability: new_retrievability,
                     is_mastered: mastery_result.is_mastered,
-                    lapses: if event.is_correct { ws.lapses } else { ws.lapses + 1 },
+                    lapses: if event.is_correct {
+                        ws.lapses
+                    } else {
+                        ws.lapses + 1
+                    },
                     reps: ws.reps + 1,
                     confidence: mastery_result.confidence,
                     umm_strength: Some(mdm.strength),
@@ -434,7 +446,8 @@ impl AMASEngine {
             } else {
                 // New word
                 let now_ts = chrono::Utc::now().timestamp_millis();
-                let desired_retention = self.adjust_retention(0.9, &new_user_state, &options, &config);
+                let desired_retention =
+                    self.adjust_retention(0.9, &new_user_state, &options, &config);
 
                 let mut mdm = MdmState::new();
                 mdm.update(quality, now_ts);
@@ -515,8 +528,13 @@ impl AMASEngine {
 
         // Update mastery history for adaptive threshold
         if let Some(ref mastery) = word_mastery_decision {
-            if let (Some(score), Some(threshold)) = (mastery.mastery_score, mastery.mastery_threshold) {
-                let mut history = state.mastery_history.take().unwrap_or_else(MasteryHistory::new);
+            if let (Some(score), Some(threshold)) =
+                (mastery.mastery_score, mastery.mastery_threshold)
+            {
+                let mut history = state
+                    .mastery_history
+                    .take()
+                    .unwrap_or_else(MasteryHistory::new);
                 history.record(
                     score,
                     threshold,
@@ -730,7 +748,13 @@ impl AMASEngine {
         {
             let models = self.user_models.read().await;
             if let Some(m) = models.get(user_id) {
-                return self.create_models_from_state(state, config, m.ige.clone(), m.swd.clone(), m.cold_start.as_ref().map(|cs| cs.state().clone()));
+                return self.create_models_from_state(
+                    state,
+                    config,
+                    m.ige.clone(),
+                    m.swd.clone(),
+                    m.cold_start.as_ref().map(|cs| cs.state().clone()),
+                );
             }
         }
 
@@ -749,7 +773,13 @@ impl AMASEngine {
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default();
 
-        let models = self.create_models_from_state(state, config, ige.clone(), swd.clone(), state.cold_start_state.clone());
+        let models = self.create_models_from_state(
+            state,
+            config,
+            ige.clone(),
+            swd.clone(),
+            state.cold_start_state.clone(),
+        );
 
         let mut model_map = self.user_models.write().await;
         model_map.insert(

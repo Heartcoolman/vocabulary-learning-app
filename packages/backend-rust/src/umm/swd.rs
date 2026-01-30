@@ -48,11 +48,7 @@ impl SwdModel {
         (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
     }
 
-    pub fn select_action(
-        &self,
-        context: &[f64],
-        candidates: &[String],
-    ) -> Option<String> {
+    pub fn select_action(&self, context: &[f64], candidates: &[String]) -> Option<String> {
         if candidates.is_empty() {
             return None;
         }
@@ -108,7 +104,11 @@ impl SwdModel {
     }
 
     pub fn get_confidence(&self, strategy: &str) -> f64 {
-        let count = self.history.iter().filter(|e| e.strategy == strategy).count();
+        let count = self
+            .history
+            .iter()
+            .filter(|e| e.strategy == strategy)
+            .count();
         let conf = 1.0 - (1.0 / (1.0 + count as f64 / K));
         conf.clamp(MIN_CONFIDENCE, MAX_CONFIDENCE)
     }

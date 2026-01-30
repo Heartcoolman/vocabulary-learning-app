@@ -11,8 +11,7 @@ use std::collections::VecDeque;
 
 use danci_backend_rust::amas::decision::ensemble::PerformanceTracker;
 use danci_backend_rust::amas::types::{
-    CognitiveProfile, DifficultyLevel,
-    PersistedAMASState, StrategyParams, UserState,
+    CognitiveProfile, DifficultyLevel, PersistedAMASState, StrategyParams, UserState,
 };
 use danci_backend_rust::umm::adaptive_mastery::{MasteryAttempt, MasteryHistory};
 
@@ -36,12 +35,12 @@ fn arb_cognitive_profile() -> impl Strategy<Value = CognitiveProfile> {
 
 fn arb_user_state() -> impl Strategy<Value = UserState> {
     (
-        arb_f64_0_1(),                    // attention
-        arb_f64_0_1(),                    // fatigue
-        arb_cognitive_profile(),          // cognitive
-        (-1.0f64..=1.0f64),               // motivation
-        arb_f64_0_1(),                    // conf
-        (0i64..=i64::MAX / 2),            // ts
+        arb_f64_0_1(),                       // attention
+        arb_f64_0_1(),                       // fatigue
+        arb_cognitive_profile(),             // cognitive
+        (-1.0f64..=1.0f64),                  // motivation
+        arb_f64_0_1(),                       // conf
+        (0i64..=i64::MAX / 2),               // ts
         proptest::option::of(arb_f64_0_1()), // fused_fatigue
     )
         .prop_map(
@@ -70,11 +69,11 @@ fn arb_difficulty_level() -> impl Strategy<Value = DifficultyLevel> {
 
 fn arb_strategy_params() -> impl Strategy<Value = StrategyParams> {
     (
-        (0.5f64..=1.5f64),    // interval_scale
-        (0.05f64..=0.5f64),   // new_ratio
+        (0.5f64..=1.5f64),  // interval_scale
+        (0.05f64..=0.5f64), // new_ratio
         arb_difficulty_level(),
-        (5i32..=16i32),       // batch_size
-        (0i32..=2i32),        // hint_level
+        (5i32..=16i32), // batch_size
+        (0i32..=2i32),  // hint_level
     )
         .prop_map(
             |(interval_scale, new_ratio, difficulty, batch_size, hint_level)| StrategyParams {
@@ -89,9 +88,9 @@ fn arb_strategy_params() -> impl Strategy<Value = StrategyParams> {
 
 fn arb_mastery_attempt() -> impl Strategy<Value = MasteryAttempt> {
     (
-        arb_f64_0_1(),        // score
-        arb_f64_0_1(),        // threshold
-        any::<bool>(),        // mastered
+        arb_f64_0_1(),         // score
+        arb_f64_0_1(),         // threshold
+        any::<bool>(),         // mastered
         (0i64..=i64::MAX / 2), // timestamp
     )
         .prop_map(|(score, threshold, mastered, timestamp)| MasteryAttempt {
@@ -105,9 +104,9 @@ fn arb_mastery_attempt() -> impl Strategy<Value = MasteryAttempt> {
 fn arb_mastery_history() -> impl Strategy<Value = MasteryHistory> {
     (
         prop::collection::vec(arb_mastery_attempt(), 0..10),
-        arb_f64_0_1(),          // avg_margin (adjusted to -0.5..0.5)
-        (0i32..=100i32),        // near_miss_count
-        (0i32..=100i32),        // easy_pass_count
+        arb_f64_0_1(),   // avg_margin (adjusted to -0.5..0.5)
+        (0i32..=100i32), // near_miss_count
+        (0i32..=100i32), // easy_pass_count
     )
         .prop_map(|(attempts, avg_margin, near_miss_count, easy_pass_count)| {
             let mut history = MasteryHistory::default();
@@ -125,11 +124,11 @@ fn arb_performance_tracker() -> impl Strategy<Value = PerformanceTracker> {
 
 fn arb_persisted_amas_state() -> impl Strategy<Value = PersistedAMASState> {
     (
-        "[a-z0-9]{8,16}",                          // user_id
+        "[a-z0-9]{8,16}", // user_id
         arb_user_state(),
         arb_strategy_params(),
-        (0i32..=10000i32),                         // interaction_count
-        (0i64..=i64::MAX / 2),                     // last_updated
+        (0i32..=10000i32),     // interaction_count
+        (0i64..=i64::MAX / 2), // last_updated
         proptest::option::of(arb_mastery_history()),
         proptest::option::of(arb_performance_tracker()),
     )

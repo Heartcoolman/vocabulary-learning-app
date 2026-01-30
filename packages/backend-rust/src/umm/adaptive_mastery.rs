@@ -406,8 +406,7 @@ mod tests {
         assert!(
             result.is_mastered,
             "Fast learner should master on first quick correct (easy). Score: {}, Threshold: {}",
-            result.score,
-            result.threshold
+            result.score, result.threshold
         );
     }
 

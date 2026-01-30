@@ -216,7 +216,12 @@ async fn get_online_users(
         return Json(OnlineUsersResponse {
             success: true,
             data: Vec::new(),
-            pagination: OnlineUsersPagination { total, page, limit, total_pages },
+            pagination: OnlineUsersPagination {
+                total,
+                page,
+                limit,
+                total_pages,
+            },
         })
         .into_response();
     }
@@ -248,7 +253,12 @@ async fn get_online_users(
     Json(OnlineUsersResponse {
         success: true,
         data: users,
-        pagination: OnlineUsersPagination { total, page, limit, total_pages },
+        pagination: OnlineUsersPagination {
+            total,
+            page,
+            limit,
+            total_pages,
+        },
     })
     .into_response()
 }

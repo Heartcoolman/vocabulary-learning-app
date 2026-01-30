@@ -119,40 +119,46 @@ impl UmmEngine {
             Some(EvmModel::compute_bonus(context_history))
         };
 
-        let (mdm_interval, mdm_retrievability, mdm_strength, mdm_consolidation, umm_retrievability, umm_interval) =
-            if let Some(mdm) = mdm_state {
-                let r_base = mdm.retrievability(elapsed_days);
+        let (
+            mdm_interval,
+            mdm_retrievability,
+            mdm_strength,
+            mdm_consolidation,
+            umm_retrievability,
+            umm_interval,
+        ) = if let Some(mdm) = mdm_state {
+            let r_base = mdm.retrievability(elapsed_days);
 
-                // Compute combined UMM retrievability
-                let bonus_mtp = mtp_bonus.unwrap_or(0.0);
-                let penalty_iad = iad_penalty.unwrap_or(0.0);
-                let bonus_evm = evm_bonus.unwrap_or(0.0);
+            // Compute combined UMM retrievability
+            let bonus_mtp = mtp_bonus.unwrap_or(0.0);
+            let penalty_iad = iad_penalty.unwrap_or(0.0);
+            let bonus_evm = evm_bonus.unwrap_or(0.0);
 
-                let mult = (1.0 + bonus_mtp) * (1.0 + bonus_evm) * (1.0 - penalty_iad);
-                let mult = mult.clamp(MULT_MIN, MULT_MAX);
+            let mult = (1.0 + bonus_mtp) * (1.0 + bonus_evm) * (1.0 - penalty_iad);
+            let mult = mult.clamp(MULT_MIN, MULT_MAX);
 
-                let umm_r = (r_base * mult).clamp(0.0, 1.0);
+            let umm_r = (r_base * mult).clamp(0.0, 1.0);
 
-                // Compute interval
-                let r_base_target = if mult.abs() < EPSILON {
-                    r_target
-                } else {
-                    r_target / mult
-                };
-                let r_base_target = r_base_target.clamp(R_BASE_TARGET_MIN, R_BASE_TARGET_MAX);
-                let interval = mdm.interval_for_target(r_base_target);
-
-                (
-                    Some(interval),
-                    Some(r_base),
-                    Some(mdm.strength),
-                    Some(mdm.consolidation),
-                    Some(umm_r),
-                    Some(interval),
-                )
+            // Compute interval
+            let r_base_target = if mult.abs() < EPSILON {
+                r_target
             } else {
-                (None, None, None, None, None, None)
+                r_target / mult
             };
+            let r_base_target = r_base_target.clamp(R_BASE_TARGET_MIN, R_BASE_TARGET_MAX);
+            let interval = mdm.interval_for_target(r_base_target);
+
+            (
+                Some(interval),
+                Some(r_base),
+                Some(mdm.strength),
+                Some(mdm.consolidation),
+                Some(umm_r),
+                Some(interval),
+            )
+        } else {
+            (None, None, None, None, None, None)
+        };
 
         ShadowResult {
             fsrs_interval,
@@ -219,9 +225,17 @@ mod tests {
     fn test_shadow_computation() {
         let mdm = MdmState::default();
         let result = UmmEngine::compute_shadow(
-            1.0, 0.9, 5.0, 0.3, // FSRS values
-            Some(&mdm), 1.0, 0.9,  // MDM state, elapsed, r_target
-            &[], &[], &[], &[],    // vocabulary data
+            1.0,
+            0.9,
+            5.0,
+            0.3, // FSRS values
+            Some(&mdm),
+            1.0,
+            0.9, // MDM state, elapsed, r_target
+            &[],
+            &[],
+            &[],
+            &[], // vocabulary data
         );
         assert!(result.mdm_interval.is_some());
         assert!(result.umm_retrievability.is_some());
@@ -233,25 +247,55 @@ mod tests {
 
         let mdm = MdmState::default();
         let morphemes = vec![
-            MorphemeState { morpheme_id: "pre".into(), mastery_level: 3.0 },
-            MorphemeState { morpheme_id: "root".into(), mastery_level: 4.0 },
+            MorphemeState {
+                morpheme_id: "pre".into(),
+                mastery_level: 3.0,
+            },
+            MorphemeState {
+                morpheme_id: "root".into(),
+                mastery_level: 4.0,
+            },
         ];
         let pairs = vec![
-            ConfusionPair { confusing_word_id: "w1".into(), distance: 0.5 },
-            ConfusionPair { confusing_word_id: "w2".into(), distance: 0.3 },
+            ConfusionPair {
+                confusing_word_id: "w1".into(),
+                distance: 0.5,
+            },
+            ConfusionPair {
+                confusing_word_id: "w2".into(),
+                distance: 0.3,
+            },
         ];
         let recent = vec!["w1".into(), "w3".into()];
         let context = vec![
-            ContextEntry { hour_of_day: 10, day_of_week: 1, question_type: "mc".into(), device_type: "desktop".into() },
-            ContextEntry { hour_of_day: 14, day_of_week: 2, question_type: "typing".into(), device_type: "mobile".into() },
+            ContextEntry {
+                hour_of_day: 10,
+                day_of_week: 1,
+                question_type: "mc".into(),
+                device_type: "desktop".into(),
+            },
+            ContextEntry {
+                hour_of_day: 14,
+                day_of_week: 2,
+                question_type: "typing".into(),
+                device_type: "mobile".into(),
+            },
         ];
 
         // Warm up
         for _ in 0..100 {
             let _ = UmmEngine::compute_shadow(
-                1.0, 0.9, 5.0, 0.3,
-                Some(&mdm), 1.0, 0.9,
-                &morphemes, &pairs, &recent, &context,
+                1.0,
+                0.9,
+                5.0,
+                0.3,
+                Some(&mdm),
+                1.0,
+                0.9,
+                &morphemes,
+                &pairs,
+                &recent,
+                &context,
             );
         }
 
@@ -260,18 +304,34 @@ mod tests {
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = UmmEngine::compute_shadow(
-                1.0, 0.9, 5.0, 0.3,
-                Some(&mdm), 1.0, 0.9,
-                &morphemes, &pairs, &recent, &context,
+                1.0,
+                0.9,
+                5.0,
+                0.3,
+                Some(&mdm),
+                1.0,
+                0.9,
+                &morphemes,
+                &pairs,
+                &recent,
+                &context,
             );
         }
         let elapsed = start.elapsed();
         let avg_micros = elapsed.as_micros() as f64 / iterations as f64;
 
         // Assert < 10ms (10000 microseconds)
-        assert!(avg_micros < 10000.0, "UMM computation too slow: {:.2}μs", avg_micros);
+        assert!(
+            avg_micros < 10000.0,
+            "UMM computation too slow: {:.2}μs",
+            avg_micros
+        );
 
         // Actually should be < 100μs for pure computation
-        assert!(avg_micros < 100.0, "UMM computation should be < 100μs, got {:.2}μs", avg_micros);
+        assert!(
+            avg_micros < 100.0,
+            "UMM computation should be < 100μs, got {:.2}μs",
+            avg_micros
+        );
     }
 }

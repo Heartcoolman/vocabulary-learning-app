@@ -97,8 +97,7 @@ impl VarkLabels {
         note_write_count: i32,
         response_time: Option<i64>,
     ) -> Self {
-        let has_visual =
-            image_view_count > 0 || image_zoom_count > 0 || image_long_press_ms > 500;
+        let has_visual = image_view_count > 0 || image_zoom_count > 0 || image_long_press_ms > 500;
 
         let has_auditory = audio_play_count > 0 || audio_replay_count > 0;
 

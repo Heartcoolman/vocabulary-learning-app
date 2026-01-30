@@ -117,8 +117,13 @@ impl VarkClassifier {
             .update(features, labels.auditory, weight, LEARNING_RATE, L2_LAMBDA);
         self.reading
             .update(features, labels.reading, weight, LEARNING_RATE, L2_LAMBDA);
-        self.kinesthetic
-            .update(features, labels.kinesthetic, weight, LEARNING_RATE, L2_LAMBDA);
+        self.kinesthetic.update(
+            features,
+            labels.kinesthetic,
+            weight,
+            LEARNING_RATE,
+            L2_LAMBDA,
+        );
 
         self.sample_count += 1;
     }
@@ -212,7 +217,11 @@ mod tests {
             assert!(
                 (total - 1.0).abs() < 1e-9,
                 "Normalization failed for ({}, {}, {}, {}): sum = {}",
-                v, a, r, k, total
+                v,
+                a,
+                r,
+                k,
+                total
             );
             assert!(scores.visual >= 0.0 && scores.visual <= 1.0);
             assert!(scores.auditory >= 0.0 && scores.auditory <= 1.0);
@@ -307,7 +316,10 @@ mod tests {
             assert!(
                 w1 > w2,
                 "Time decay not monotonic: age {} -> weight {}, age {} -> weight {}",
-                ages_ms[i], w1, ages_ms[i + 1], w2
+                ages_ms[i],
+                w1,
+                ages_ms[i + 1],
+                w2
             );
         }
 
@@ -317,7 +329,12 @@ mod tests {
         // Edge case: weight is always in (0, 1]
         for age in &ages_ms {
             let w = compute_weight(*age);
-            assert!(w > 0.0 && w <= 1.0, "Weight {} out of bounds for age {}", w, age);
+            assert!(
+                w > 0.0 && w <= 1.0,
+                "Weight {} out of bounds for age {}",
+                w,
+                age
+            );
         }
     }
 
@@ -361,7 +378,11 @@ mod tests {
         // Verify prediction still produces valid probability
         let features = vec![0.5; VarkFeatures::DIM];
         let prob = classifier.predict_proba(&features);
-        assert!(prob >= 0.0 && prob <= 1.0, "Probability {} out of [0,1]", prob);
+        assert!(
+            prob >= 0.0 && prob <= 1.0,
+            "Probability {} out of [0,1]",
+            prob
+        );
     }
 
     /// PBT-5 edge case: extreme features don't cause overflow
@@ -391,15 +412,15 @@ mod tests {
         let valid_legacy_styles = ["visual", "auditory", "kinesthetic", "mixed"];
 
         let test_cases: Vec<(f64, f64, f64, f64)> = vec![
-            (0.7, 0.1, 0.1, 0.1),   // visual dominant
-            (0.1, 0.7, 0.1, 0.1),   // auditory dominant
-            (0.1, 0.1, 0.7, 0.1),   // reading dominant -> mixed
-            (0.1, 0.1, 0.1, 0.7),   // kinesthetic dominant
+            (0.7, 0.1, 0.1, 0.1),     // visual dominant
+            (0.1, 0.7, 0.1, 0.1),     // auditory dominant
+            (0.1, 0.1, 0.7, 0.1),     // reading dominant -> mixed
+            (0.1, 0.1, 0.1, 0.7),     // kinesthetic dominant
             (0.25, 0.25, 0.25, 0.25), // multimodal -> mixed
-            (0.4, 0.3, 0.2, 0.1),  // visual
-            (0.1, 0.4, 0.3, 0.2),  // auditory
-            (0.2, 0.1, 0.4, 0.3),  // reading -> mixed
-            (0.3, 0.2, 0.1, 0.4),  // kinesthetic
+            (0.4, 0.3, 0.2, 0.1),     // visual
+            (0.1, 0.4, 0.3, 0.2),     // auditory
+            (0.2, 0.1, 0.4, 0.3),     // reading -> mixed
+            (0.3, 0.2, 0.1, 0.4),     // kinesthetic
         ];
 
         for (v, a, r, k) in test_cases {
@@ -414,7 +435,11 @@ mod tests {
             assert!(
                 valid_legacy_styles.contains(&legacy),
                 "legacy_style '{}' is not a valid VAK mapping for ({}, {}, {}, {})",
-                legacy, v, a, r, k
+                legacy,
+                v,
+                a,
+                r,
+                k
             );
 
             // reading or multimodal -> "mixed"
@@ -444,23 +469,53 @@ mod tests {
         for (style, expected) in styles.iter().zip(expected_legacy.iter()) {
             // Create scores that would produce each dominant style
             let scores = match *style {
-                "visual" => LearningStyleScores { visual: 0.7, auditory: 0.1, reading: 0.1, kinesthetic: 0.1 },
-                "auditory" => LearningStyleScores { visual: 0.1, auditory: 0.7, reading: 0.1, kinesthetic: 0.1 },
-                "reading" => LearningStyleScores { visual: 0.1, auditory: 0.1, reading: 0.7, kinesthetic: 0.1 },
-                "kinesthetic" => LearningStyleScores { visual: 0.1, auditory: 0.1, reading: 0.1, kinesthetic: 0.7 },
-                "multimodal" => LearningStyleScores { visual: 0.25, auditory: 0.25, reading: 0.25, kinesthetic: 0.25 },
+                "visual" => LearningStyleScores {
+                    visual: 0.7,
+                    auditory: 0.1,
+                    reading: 0.1,
+                    kinesthetic: 0.1,
+                },
+                "auditory" => LearningStyleScores {
+                    visual: 0.1,
+                    auditory: 0.7,
+                    reading: 0.1,
+                    kinesthetic: 0.1,
+                },
+                "reading" => LearningStyleScores {
+                    visual: 0.1,
+                    auditory: 0.1,
+                    reading: 0.7,
+                    kinesthetic: 0.1,
+                },
+                "kinesthetic" => LearningStyleScores {
+                    visual: 0.1,
+                    auditory: 0.1,
+                    reading: 0.1,
+                    kinesthetic: 0.7,
+                },
+                "multimodal" => LearningStyleScores {
+                    visual: 0.25,
+                    auditory: 0.25,
+                    reading: 0.25,
+                    kinesthetic: 0.25,
+                },
                 _ => unreachable!(),
             };
 
             assert_eq!(
-                scores.dominant_style(), *style,
+                scores.dominant_style(),
+                *style,
                 "Test setup error: expected dominant_style '{}' but got '{}'",
-                style, scores.dominant_style()
+                style,
+                scores.dominant_style()
             );
             assert_eq!(
-                scores.legacy_style(), *expected,
+                scores.legacy_style(),
+                *expected,
                 "legacy_style for '{}' should be '{}', got '{}'",
-                style, expected, scores.legacy_style()
+                style,
+                expected,
+                scores.legacy_style()
             );
         }
     }

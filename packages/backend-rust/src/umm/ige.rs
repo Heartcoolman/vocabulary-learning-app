@@ -63,9 +63,8 @@ impl IgeModel {
 
     fn information_gain(&self, strategy: &str, context_key: Option<&str>) -> f64 {
         let global_stats = self.global.get(strategy);
-        let context_stats = context_key.and_then(|ck| {
-            self.context.get(ck).and_then(|m| m.get(strategy))
-        });
+        let context_stats =
+            context_key.and_then(|ck| self.context.get(ck).and_then(|m| m.get(strategy)));
 
         let (g_mean, g_var) = global_stats
             .map(|s| (s.mean(), s.variance()))
@@ -81,7 +80,11 @@ impl IgeModel {
         mean + BETA * var.sqrt()
     }
 
-    pub fn select_action(&self, candidates: &[String], context_key: Option<&str>) -> Option<String> {
+    pub fn select_action(
+        &self,
+        candidates: &[String],
+        context_key: Option<&str>,
+    ) -> Option<String> {
         if candidates.is_empty() {
             return None;
         }

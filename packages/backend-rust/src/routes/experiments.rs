@@ -425,7 +425,10 @@ async fn start_experiment(
         let mut config = state.amas_engine().get_config().await;
         config.feature_flags.umm_ab_test_enabled = true;
         config.feature_flags.umm_ab_test_percentage = percentage;
-        state.amas_engine().set_feature_flags(config.feature_flags.clone()).await;
+        state
+            .amas_engine()
+            .set_feature_flags(config.feature_flags.clone())
+            .await;
         state.runtime().set_amas_flags(config.feature_flags).await;
         tracing::info!(
             "UMM A/B test enabled: experiment={}, treatment_percentage={}%",
@@ -474,9 +477,15 @@ async fn stop_experiment(
     if exp_name == "umm-vs-fsrs" {
         let mut config = state.amas_engine().get_config().await;
         config.feature_flags.umm_ab_test_enabled = false;
-        state.amas_engine().set_feature_flags(config.feature_flags.clone()).await;
+        state
+            .amas_engine()
+            .set_feature_flags(config.feature_flags.clone())
+            .await;
         state.runtime().set_amas_flags(config.feature_flags).await;
-        tracing::info!("UMM A/B test disabled automatically for experiment: {}", exp_name);
+        tracing::info!(
+            "UMM A/B test disabled automatically for experiment: {}",
+            exp_name
+        );
     }
 
     Ok(Json(SuccessResponse {
@@ -948,7 +957,11 @@ async fn create_experiment_pg(
         .await
         .map_err(|e| {
             tracing::error!("Failed to create variant: {:?}", e);
-            json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("创建变体失败: {}", e))
+            json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                format!("创建变体失败: {}", e),
+            )
         })?;
     }
 

@@ -27,9 +27,9 @@ const mockOverviewStats = {
 };
 
 const mockAlgorithmDistribution = {
-  thompson: 0.35,
-  linucb: 0.25,
-  actr: 0.2,
+  ige: 0.35,
+  swd: 0.25,
+  msmt: 0.2,
   heuristic: 0.15,
   coldstart: 0.05,
 };

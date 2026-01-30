@@ -385,7 +385,13 @@ fn extract_admin_token(headers: &HeaderMap) -> Option<String> {
 async fn require_admin_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::services::admin_auth::AdminAuthUser), AppError> {
+) -> Result<
+    (
+        Arc<crate::db::DatabaseProxy>,
+        crate::services::admin_auth::AdminAuthUser,
+    ),
+    AppError,
+> {
     let token = extract_admin_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 

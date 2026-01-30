@@ -22,10 +22,7 @@ pub struct ConfusionPair {
 pub struct IadModel;
 
 impl IadModel {
-    pub fn compute_penalty(
-        confusion_pairs: &[ConfusionPair],
-        recent_word_ids: &[String],
-    ) -> f64 {
+    pub fn compute_penalty(confusion_pairs: &[ConfusionPair], recent_word_ids: &[String]) -> f64 {
         if confusion_pairs.is_empty() || recent_word_ids.is_empty() {
             return 0.0;
         }

@@ -54,12 +54,16 @@ pub fn normalize_device_type(user_agent: Option<&str>) -> &'static str {
     }
 
     // Mobile detection
-    if ua_lower.contains("mobile") || (ua_lower.contains("android") && !ua_lower.contains("tablet")) {
+    if ua_lower.contains("mobile") || (ua_lower.contains("android") && !ua_lower.contains("tablet"))
+    {
         return "mobile";
     }
 
     // Desktop detection
-    if ua_lower.contains("windows") || ua_lower.contains("macintosh") || (ua_lower.contains("linux") && !ua_lower.contains("android")) {
+    if ua_lower.contains("windows")
+        || ua_lower.contains("macintosh")
+        || (ua_lower.contains("linux") && !ua_lower.contains("android"))
+    {
         return "desktop";
     }
 
@@ -290,11 +294,15 @@ pub async fn create_record(
     }
 
     // Aggregate VARK interaction stats
-    let total_image_interactions = input.image_view_count.unwrap_or(0)
-        + input.image_zoom_count.unwrap_or(0);
+    let total_image_interactions =
+        input.image_view_count.unwrap_or(0) + input.image_zoom_count.unwrap_or(0);
     let total_audio_interactions = input.audio_play_count.unwrap_or(0)
         + input.audio_replay_count.unwrap_or(0)
-        + if input.audio_speed_adjust.unwrap_or(false) { 1 } else { 0 };
+        + if input.audio_speed_adjust.unwrap_or(false) {
+            1
+        } else {
+            0
+        };
     let total_reading_ms = input.definition_read_ms.unwrap_or(0)
         + input.example_read_ms.unwrap_or(0)
         + input.image_long_press_ms.unwrap_or(0);
@@ -476,7 +484,11 @@ pub async fn batch_create_records(
                 + record.input.image_zoom_count.unwrap_or(0);
             total_audio_interactions += record.input.audio_play_count.unwrap_or(0)
                 + record.input.audio_replay_count.unwrap_or(0)
-                + if record.input.audio_speed_adjust.unwrap_or(false) { 1 } else { 0 };
+                + if record.input.audio_speed_adjust.unwrap_or(false) {
+                    1
+                } else {
+                    0
+                };
             total_reading_ms += record.input.definition_read_ms.unwrap_or(0)
                 + record.input.example_read_ms.unwrap_or(0)
                 + record.input.image_long_press_ms.unwrap_or(0);

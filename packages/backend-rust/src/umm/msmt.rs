@@ -12,9 +12,9 @@
 
 use serde::{Deserialize, Serialize};
 
-const TAU_SHORT: f64 = 1.0;    // 1 hour
-const TAU_MEDIUM: f64 = 24.0;  // 24 hours
-const TAU_LONG: f64 = 168.0;   // 168 hours (7 days)
+const TAU_SHORT: f64 = 1.0; // 1 hour
+const TAU_MEDIUM: f64 = 24.0; // 24 hours
+const TAU_LONG: f64 = 168.0; // 168 hours (7 days)
 const THRESHOLD: f64 = 0.3;
 const SLOPE: f64 = 1.5;
 const MAX_HISTORY: usize = 100;
@@ -33,7 +33,11 @@ impl MsmtModel {
     fn compute_trace(events: &[ReviewEvent], now_hours: f64, tau: f64) -> f64 {
         events.iter().fold(0.0, |acc, e| {
             let delta = (now_hours - e.timestamp_hours).max(0.0);
-            let weight = if e.is_correct { CORRECT_WEIGHT } else { INCORRECT_WEIGHT };
+            let weight = if e.is_correct {
+                CORRECT_WEIGHT
+            } else {
+                INCORRECT_WEIGHT
+            };
             acc + weight * (-delta / tau).exp()
         })
     }
@@ -74,14 +78,20 @@ mod tests {
 
     #[test]
     fn test_single_correct_review() {
-        let events = vec![ReviewEvent { timestamp_hours: 0.0, is_correct: true }];
+        let events = vec![ReviewEvent {
+            timestamp_hours: 0.0,
+            is_correct: true,
+        }];
         let p = MsmtModel::predict_recall(&events, 0.0);
         assert!(p > 0.5);
     }
 
     #[test]
     fn test_recall_decays() {
-        let events = vec![ReviewEvent { timestamp_hours: 0.0, is_correct: true }];
+        let events = vec![ReviewEvent {
+            timestamp_hours: 0.0,
+            is_correct: true,
+        }];
         let p0 = MsmtModel::predict_recall(&events, 0.0);
         let p24 = MsmtModel::predict_recall(&events, 24.0);
         let p168 = MsmtModel::predict_recall(&events, 168.0);
@@ -91,8 +101,14 @@ mod tests {
 
     #[test]
     fn test_incorrect_has_lower_weight() {
-        let correct = vec![ReviewEvent { timestamp_hours: 0.0, is_correct: true }];
-        let incorrect = vec![ReviewEvent { timestamp_hours: 0.0, is_correct: false }];
+        let correct = vec![ReviewEvent {
+            timestamp_hours: 0.0,
+            is_correct: true,
+        }];
+        let incorrect = vec![ReviewEvent {
+            timestamp_hours: 0.0,
+            is_correct: false,
+        }];
         let pc = MsmtModel::predict_recall(&correct, 0.0);
         let pi = MsmtModel::predict_recall(&incorrect, 0.0);
         assert!(pc > pi);

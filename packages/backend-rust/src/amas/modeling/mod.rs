@@ -13,4 +13,6 @@ pub use cognitive::CognitiveProfiler;
 pub use fatigue::FatigueEstimator;
 pub use motivation::MotivationTracker;
 pub use trend::TrendAnalyzer;
-pub use vark::{update_learning_style_model, VarkClassifier, VarkFeatures, VarkInteractionData, VarkLabels};
+pub use vark::{
+    update_learning_style_model, VarkClassifier, VarkFeatures, VarkInteractionData, VarkLabels,
+};
