@@ -24,6 +24,46 @@ pub struct CreateRecordInput {
     pub session_id: Option<String>,
     pub mastery_level_before: Option<i64>,
     pub mastery_level_after: Option<i64>,
+    // VARK interaction tracking fields
+    pub image_view_count: Option<i32>,
+    pub image_zoom_count: Option<i32>,
+    pub image_long_press_ms: Option<i64>,
+    pub audio_play_count: Option<i32>,
+    pub audio_replay_count: Option<i32>,
+    pub audio_speed_adjust: Option<bool>,
+    pub definition_read_ms: Option<i64>,
+    pub example_read_ms: Option<i64>,
+    pub note_write_count: Option<i32>,
+    // Device type for EVM
+    pub device_type: Option<String>,
+}
+
+/// Normalize User-Agent to device type for EVM calculations
+/// Precedence: tablet > mobile > desktop > unknown
+pub fn normalize_device_type(user_agent: Option<&str>) -> &'static str {
+    let ua = match user_agent {
+        Some(s) if !s.is_empty() => s,
+        _ => return "unknown",
+    };
+
+    let ua_lower = ua.to_lowercase();
+
+    // Tablet detection (highest priority)
+    if ua_lower.contains("ipad") || ua_lower.contains("tablet") {
+        return "tablet";
+    }
+
+    // Mobile detection
+    if ua_lower.contains("mobile") || (ua_lower.contains("android") && !ua_lower.contains("tablet")) {
+        return "mobile";
+    }
+
+    // Desktop detection
+    if ua_lower.contains("windows") || ua_lower.contains("macintosh") || (ua_lower.contains("linux") && !ua_lower.contains("android")) {
+        return "desktop";
+    }
+
+    "unknown"
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -205,8 +245,9 @@ pub async fn create_record(
     sqlx::query(
         r#"
         INSERT INTO "answer_records"
-          ("id","userId","wordId","selectedAnswer","correctAnswer","isCorrect","timestamp","dwellTime","masteryLevelAfter","masteryLevelBefore","responseTime","sessionId")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+          ("id","userId","wordId","selectedAnswer","correctAnswer","isCorrect","timestamp","dwellTime","masteryLevelAfter","masteryLevelBefore","responseTime","sessionId",
+           "imageViewCount","imageZoomCount","imageLongPressMs","audioPlayCount","audioReplayCount","audioSpeedAdjust","definitionReadMs","exampleReadMs","noteWriteCount","deviceType")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
         "#,
     )
     .bind(&record_id)
@@ -221,6 +262,16 @@ pub async fn create_record(
     .bind(input.mastery_level_before.map(|v| v as i32))
     .bind(input.response_time.map(|v| v as i32))
     .bind(input.session_id.as_deref())
+    .bind(input.image_view_count.unwrap_or(0))
+    .bind(input.image_zoom_count.unwrap_or(0))
+    .bind(input.image_long_press_ms.unwrap_or(0))
+    .bind(input.audio_play_count.unwrap_or(0))
+    .bind(input.audio_replay_count.unwrap_or(0))
+    .bind(input.audio_speed_adjust.unwrap_or(false))
+    .bind(input.definition_read_ms.unwrap_or(0))
+    .bind(input.example_read_ms.unwrap_or(0))
+    .bind(input.note_write_count.unwrap_or(0))
+    .bind(input.device_type.as_deref().unwrap_or("unknown"))
     .execute(pool)
     .await?;
 
@@ -236,6 +287,38 @@ pub async fn create_record(
     .await
     {
         tracing::warn!(error = %err, "word review trace insert failed");
+    }
+
+    // Aggregate VARK interaction stats
+    let total_image_interactions = input.image_view_count.unwrap_or(0)
+        + input.image_zoom_count.unwrap_or(0);
+    let total_audio_interactions = input.audio_play_count.unwrap_or(0)
+        + input.audio_replay_count.unwrap_or(0)
+        + if input.audio_speed_adjust.unwrap_or(false) { 1 } else { 0 };
+    let total_reading_ms = input.definition_read_ms.unwrap_or(0)
+        + input.example_read_ms.unwrap_or(0)
+        + input.image_long_press_ms.unwrap_or(0);
+    let total_writing_actions = input.note_write_count.unwrap_or(0);
+
+    let vark = crate::db::operations::VarkInteractionStats {
+        total_image_interactions,
+        total_audio_interactions,
+        total_reading_ms,
+        total_writing_actions,
+    };
+
+    if let Err(err) = crate::db::operations::upsert_user_interaction_stats_with_vark(
+        proxy,
+        user_id,
+        0, // pronunciation_clicks - not tracked in answer record
+        0, // pause_count - not tracked in answer record
+        0, // page_switch_count - not tracked in answer record
+        1, // total_interactions - one answer submission
+        Some(vark),
+    )
+    .await
+    {
+        tracing::warn!(error = %err, "user interaction stats update with VARK failed");
     }
 
     Ok(AnswerRecord {
@@ -329,7 +412,8 @@ pub async fn batch_create_records(
     let mut qb = QueryBuilder::<sqlx::Postgres>::new(
         r#"
         INSERT INTO "answer_records"
-          ("id","userId","wordId","selectedAnswer","correctAnswer","isCorrect","timestamp","responseTime","dwellTime","sessionId","masteryLevelBefore","masteryLevelAfter")
+          ("id","userId","wordId","selectedAnswer","correctAnswer","isCorrect","timestamp","responseTime","dwellTime","sessionId","masteryLevelBefore","masteryLevelAfter",
+           "imageViewCount","imageZoomCount","imageLongPressMs","audioPlayCount","audioReplayCount","audioSpeedAdjust","definitionReadMs","exampleReadMs","noteWriteCount","deviceType")
         "#,
     );
     qb.push_values(valid.iter(), |mut b, record| {
@@ -349,6 +433,16 @@ pub async fn batch_create_records(
         b.push_bind(record.input.session_id.as_deref());
         b.push_bind(record.input.mastery_level_before.map(|v| v as i32));
         b.push_bind(record.input.mastery_level_after.map(|v| v as i32));
+        b.push_bind(record.input.image_view_count.unwrap_or(0));
+        b.push_bind(record.input.image_zoom_count.unwrap_or(0));
+        b.push_bind(record.input.image_long_press_ms.unwrap_or(0));
+        b.push_bind(record.input.audio_play_count.unwrap_or(0));
+        b.push_bind(record.input.audio_replay_count.unwrap_or(0));
+        b.push_bind(record.input.audio_speed_adjust.unwrap_or(false));
+        b.push_bind(record.input.definition_read_ms.unwrap_or(0));
+        b.push_bind(record.input.example_read_ms.unwrap_or(0));
+        b.push_bind(record.input.note_write_count.unwrap_or(0));
+        b.push_bind(record.input.device_type.as_deref().unwrap_or("unknown"));
     });
     qb.push(" ON CONFLICT (\"userId\",\"wordId\",\"timestamp\") DO NOTHING");
     qb.build().execute(pool).await?;
@@ -369,6 +463,45 @@ pub async fn batch_create_records(
                 tracing::warn!(error = %err, "word review trace insert failed");
                 break;
             }
+        }
+
+        // Aggregate VARK interaction stats for all new records
+        let mut total_image_interactions: i32 = 0;
+        let mut total_audio_interactions: i32 = 0;
+        let mut total_reading_ms: i64 = 0;
+        let mut total_writing_actions: i32 = 0;
+
+        for record in &new_records {
+            total_image_interactions += record.input.image_view_count.unwrap_or(0)
+                + record.input.image_zoom_count.unwrap_or(0);
+            total_audio_interactions += record.input.audio_play_count.unwrap_or(0)
+                + record.input.audio_replay_count.unwrap_or(0)
+                + if record.input.audio_speed_adjust.unwrap_or(false) { 1 } else { 0 };
+            total_reading_ms += record.input.definition_read_ms.unwrap_or(0)
+                + record.input.example_read_ms.unwrap_or(0)
+                + record.input.image_long_press_ms.unwrap_or(0);
+            total_writing_actions += record.input.note_write_count.unwrap_or(0);
+        }
+
+        let vark = crate::db::operations::VarkInteractionStats {
+            total_image_interactions,
+            total_audio_interactions,
+            total_reading_ms,
+            total_writing_actions,
+        };
+
+        if let Err(err) = crate::db::operations::upsert_user_interaction_stats_with_vark(
+            proxy,
+            user_id,
+            0,
+            0,
+            0,
+            new_records.len() as i32,
+            Some(vark),
+        )
+        .await
+        {
+            tracing::warn!(error = %err, "batch user interaction stats update with VARK failed");
         }
     }
 

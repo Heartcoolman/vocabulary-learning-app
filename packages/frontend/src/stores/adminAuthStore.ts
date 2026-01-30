@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import AdminTokenManager from '../services/client/admin/AdminTokenManager';
 
 const ADMIN_TOKEN_KEY = 'admin_token';
 
@@ -32,11 +33,15 @@ export const useAdminAuthStore = create<AdminAuthState>()(
 
       setAuth: (user, token) => {
         localStorage.setItem(ADMIN_TOKEN_KEY, token);
+        // 同步更新 AdminTokenManager 的内存缓存
+        AdminTokenManager.getInstance().setToken(token);
         set({ user, token, isAuthenticated: true, loading: false }, false, 'setAuth');
       },
 
       clearAuth: () => {
         localStorage.removeItem(ADMIN_TOKEN_KEY);
+        // 同步清除 AdminTokenManager 的内存缓存
+        AdminTokenManager.getInstance().clearToken();
         set(
           { user: null, token: null, isAuthenticated: false, loading: false },
           false,

@@ -46,6 +46,25 @@ struct CreateRecordRequest {
     mastery_level_before: Option<i64>,
     #[serde(default)]
     mastery_level_after: Option<i64>,
+    // VARK interaction tracking fields
+    #[serde(default)]
+    image_view_count: Option<i32>,
+    #[serde(default)]
+    image_zoom_count: Option<i32>,
+    #[serde(default)]
+    image_long_press_ms: Option<i64>,
+    #[serde(default)]
+    audio_play_count: Option<i32>,
+    #[serde(default)]
+    audio_replay_count: Option<i32>,
+    #[serde(default)]
+    audio_speed_adjust: Option<bool>,
+    #[serde(default)]
+    definition_read_ms: Option<i64>,
+    #[serde(default)]
+    example_read_ms: Option<i64>,
+    #[serde(default)]
+    note_write_count: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -185,6 +204,11 @@ async fn create_record_inner(state: AppState, req: Request<Body>) -> Response {
         }
     };
 
+    let user_agent = parts
+        .headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok());
+    let device_type = record::normalize_device_type(user_agent);
     let input = CreateRecordInput {
         word_id: payload.word_id,
         selected_option: payload.selected_option,
@@ -197,6 +221,16 @@ async fn create_record_inner(state: AppState, req: Request<Body>) -> Response {
         session_id: payload.session_id,
         mastery_level_before: payload.mastery_level_before,
         mastery_level_after: payload.mastery_level_after,
+        image_view_count: payload.image_view_count,
+        image_zoom_count: payload.image_zoom_count,
+        image_long_press_ms: payload.image_long_press_ms,
+        audio_play_count: payload.audio_play_count,
+        audio_replay_count: payload.audio_replay_count,
+        audio_speed_adjust: payload.audio_speed_adjust,
+        definition_read_ms: payload.definition_read_ms,
+        example_read_ms: payload.example_read_ms,
+        note_write_count: payload.note_write_count,
+        device_type: Some(device_type.to_string()),
     };
 
     match record::create_record(proxy.as_ref(), &auth_user.id, input).await {
@@ -311,6 +345,11 @@ async fn batch_create_records_inner(state: AppState, req: Request<Body>) -> Resp
         }
     };
 
+    let user_agent = parts
+        .headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok());
+    let device_type = record::normalize_device_type(user_agent);
     let records: Vec<CreateRecordInput> = payload
         .records
         .into_iter()
@@ -326,6 +365,16 @@ async fn batch_create_records_inner(state: AppState, req: Request<Body>) -> Resp
             session_id: record.session_id,
             mastery_level_before: record.mastery_level_before,
             mastery_level_after: record.mastery_level_after,
+            image_view_count: record.image_view_count,
+            image_zoom_count: record.image_zoom_count,
+            image_long_press_ms: record.image_long_press_ms,
+            audio_play_count: record.audio_play_count,
+            audio_replay_count: record.audio_replay_count,
+            audio_speed_adjust: record.audio_speed_adjust,
+            definition_read_ms: record.definition_read_ms,
+            example_read_ms: record.example_read_ms,
+            note_write_count: record.note_write_count,
+            device_type: Some(device_type.to_string()),
         })
         .collect();
 

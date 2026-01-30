@@ -32,6 +32,7 @@ const LLMTasksPage = lazy(() => import('./pages/admin/LLMTasksPage'));
 const AMASMonitoringPage = lazy(() => import('./pages/admin/AMASMonitoringPage'));
 const SystemSettingsPage = lazy(() => import('./pages/admin/SystemSettingsPage'));
 const BroadcastPage = lazy(() => import('./pages/admin/BroadcastPage'));
+const WorkflowMonitorPage = lazy(() => import('./pages/admin/WorkflowMonitorPage'));
 
 function PageLoader() {
   return (
@@ -268,6 +269,14 @@ function AdminRoutes() {
           element: (
             <Suspense fallback={<PageLoader />}>
               <BroadcastPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: 'workflow-monitor',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <WorkflowMonitorPage />
             </Suspense>
           ),
         },

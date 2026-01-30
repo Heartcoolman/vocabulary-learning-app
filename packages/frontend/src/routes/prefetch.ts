@@ -68,6 +68,11 @@ export const routePrefetchers: Record<string, () => Promise<unknown>> = {
   '/admin/system-debug': () => import('../pages/admin/SystemDebugPage'),
   '/admin/experiments': () => import('../pages/admin/ExperimentDashboard'),
   '/admin/batch-import': () => import('../pages/BatchImportPage'),
+  '/admin/llm-tasks': () => import('../pages/admin/LLMTasksPage'),
+  '/admin/amas-monitoring': () => import('../pages/admin/AMASMonitoringPage'),
+  '/admin/settings': () => import('../pages/admin/SystemSettingsPage'),
+  '/admin/broadcasts': () => import('../pages/admin/BroadcastPage'),
+  '/admin/workflow-monitor': () => import('../pages/admin/WorkflowMonitorPage'),
 };
 
 /**

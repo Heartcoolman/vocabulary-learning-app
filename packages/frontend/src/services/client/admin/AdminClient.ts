@@ -1265,6 +1265,13 @@ export class AdminClient extends BaseClient {
     await this.request(`/api/admin/llm/tasks/${taskId}/retry`, { method: 'PUT' });
   }
 
+  /**
+   * 获取 LLM Advisor 待审核建议数量
+   */
+  async getLLMAdvisorPendingCount(): Promise<{ count: number }> {
+    return this.request<{ count: number }>('/api/llm-advisor/pending-count');
+  }
+
   // ==================== 单词内容变体 API ====================
 
   /**

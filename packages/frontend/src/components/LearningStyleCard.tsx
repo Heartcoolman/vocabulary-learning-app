@@ -1,16 +1,21 @@
 import React from 'react';
-import { Eye, Headphones, Hand, Brain, Sparkle } from './Icon';
+import { Eye, Headphones, Hand, Brain, Sparkle, BookOpen } from './Icon';
 
-export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
+export type LearningStyle = 'visual' | 'auditory' | 'reading' | 'kinesthetic' | 'multimodal';
+
+export type LearningStyleLegacy = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
 
 export interface LearningStyleProfile {
-  style: LearningStyle;
+  style: LearningStyle | LearningStyleLegacy;
+  styleLegacy?: LearningStyleLegacy;
   confidence: number;
   scores: {
     visual: number;
     auditory: number;
+    reading?: number;
     kinesthetic: number;
   };
+  modelType?: 'rule_engine' | 'ml_sgd';
 }
 
 interface LearningStyleCardProps {
@@ -18,14 +23,24 @@ interface LearningStyleCardProps {
 }
 
 const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
-  // Fallback data
-  const profile: LearningStyleProfile = data || {
-    style: 'visual',
+  // Fallback data with VARK four dimensions
+  const rawProfile = data || {
+    style: 'visual' as const,
     confidence: 0.78,
-    scores: { visual: 0.65, auditory: 0.25, kinesthetic: 0.1 },
+    scores: { visual: 0.5, auditory: 0.2, reading: 0.2, kinesthetic: 0.1 },
   };
 
-  const getStyleConfig = (style: LearningStyle) => {
+  // Normalize scores to ensure reading exists and handle mixed -> multimodal
+  const profile: LearningStyleProfile = {
+    ...rawProfile,
+    style: rawProfile.style === 'mixed' ? 'multimodal' : rawProfile.style,
+    scores: {
+      ...rawProfile.scores,
+      reading: rawProfile.scores.reading ?? 0,
+    },
+  };
+
+  const getStyleConfig = (style: LearningStyle | LearningStyleLegacy) => {
     switch (style) {
       case 'visual':
         return {
@@ -43,6 +58,14 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
           color: 'text-emerald-600',
           bg: 'bg-emerald-50',
         };
+      case 'reading':
+        return {
+          label: '读写型 (Reading)',
+          icon: BookOpen,
+          desc: '你对文字阅读和书写有较强偏好。建议多查看例句和释义，尝试做笔记。',
+          color: 'text-amber-600',
+          bg: 'bg-amber-50',
+        };
       case 'kinesthetic':
         return {
           label: '动觉型 (Kinesthetic)',
@@ -51,11 +74,13 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
           color: 'text-rose-600',
           bg: 'bg-rose-50',
         };
+      case 'multimodal':
+      case 'mixed':
       default:
         return {
-          label: '混合型 (Mixed)',
+          label: '多模态型 (Multimodal)',
           icon: Brain,
-          desc: '你能灵活运用多种感官进行学习。结合视听动多种方式可达到最佳效果。',
+          desc: '你能灵活运用多种感官进行学习。结合视听读写多种方式可达到最佳效果。',
           color: 'text-violet-600',
           bg: 'bg-violet-50',
         };
@@ -65,7 +90,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   const config = getStyleConfig(profile.style);
   const MainIcon = config.icon;
 
-  // Prepare data for visualization
+  // VARK four-dimensional metrics
   const metrics = [
     { label: '视觉', key: 'visual', score: profile.scores.visual, icon: Eye, color: 'bg-sky-500' },
     {
@@ -74,6 +99,13 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
       score: profile.scores.auditory,
       icon: Headphones,
       color: 'bg-emerald-500',
+    },
+    {
+      label: '读写',
+      key: 'reading',
+      score: profile.scores.reading ?? 0,
+      icon: BookOpen,
+      color: 'bg-amber-500',
     },
     {
       label: '动觉',
@@ -85,7 +117,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   ];
 
   // Calculate max for scaling (relative width)
-  const maxScore = Math.max(...Object.values(profile.scores));
+  const maxScore = Math.max(...metrics.map((m) => m.score));
 
   return (
     <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
@@ -97,7 +129,12 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h3>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">AMAS 学习风格模型</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                AMAS VARK 学习风格模型
+                {profile.modelType === 'ml_sgd' && (
+                  <span className="ml-1 text-violet-500">(ML)</span>
+                )}
+              </p>
             </div>
           </div>
           <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-slate-700 dark:text-gray-300">

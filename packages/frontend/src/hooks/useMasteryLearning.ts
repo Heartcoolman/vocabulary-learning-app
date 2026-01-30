@@ -23,6 +23,8 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const END_SESSION_ENDPOINT = '/api/habit-profile/end-session';
 
+import type { VarkInteractionData } from './mutations/useSubmitAnswer';
+
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
   sessionId?: string;
@@ -37,7 +39,11 @@ export interface UseMasteryLearningReturn {
   isCompleted: boolean;
   completionReason?: CompletionReason;
   progress: QueueProgress;
-  submitAnswer: (isCorrect: boolean, responseTime: number) => Promise<void>;
+  submitAnswer: (
+    isCorrect: boolean,
+    responseTime: number,
+    varkInteraction?: VarkInteractionData,
+  ) => Promise<void>;
   advanceToNext: () => void;
   skipWord: () => void;
   resetSession: () => Promise<void>;
@@ -75,6 +81,7 @@ export function useMasteryLearning(
   const isMountedRef = useRef(true);
   const prevUserIdRef = useRef(user?.id);
   const endSessionRef = useRef<(mode: 'async' | 'beacon') => void>(() => {});
+  const initCheckCounterRef = useRef(0); // 用于强制触发初始化后的单词补充检查
 
   // 子 hooks
   const wordQueue = useWordQueue({ targetMasteryCount: initialTargetCount });
@@ -277,6 +284,17 @@ export function useMasteryLearning(
           filteredWords = words.words.filter((w) => !masteredSet.has(w.id));
         }
 
+        // 如果过滤后单词太少（少于 3 个），清除缓存重新开始
+        const minWordsRequired = 3;
+        if (cachedProgress && filteredWords.length < minWordsRequired) {
+          learningLogger.warn(
+            `[useMasteryLearning] Filtered words too few (${filteredWords.length}), clearing cache and restarting`,
+          );
+          syncRef.current?.sessionCache.clearSessionCache();
+          await initSession(true);
+          return;
+        }
+
         // 创建或恢复会话
         if (cachedProgress) {
           currentSessionIdRef.current = cachedProgress.sessionId;
@@ -418,7 +436,7 @@ export function useMasteryLearning(
 
   // Actions
   const submitAnswer = useCallback(
-    async (isCorrect: boolean, responseTime: number) => {
+    async (isCorrect: boolean, responseTime: number, varkInteraction?: VarkInteractionData) => {
       const word = wordQueue.currentWord;
       if (!wordQueue.queueManagerRef.current || !word) return;
 
@@ -463,6 +481,7 @@ export function useMasteryLearning(
         sessionId: currentSessionIdRef.current,
         pausedTimeMs,
         latestAmasState: amasState,
+        varkInteraction,
       });
     },
     [

@@ -269,6 +269,79 @@ const ConfidenceIntervalChart = ({
   );
 };
 
+// --- 实验预设模板 ---
+const EXPERIMENT_PRESETS = {
+  'umm-vs-fsrs': {
+    name: 'umm-vs-fsrs',
+    description:
+      'UMM 完整算法栈 (MDM+IGE+SWD+MTP/IAD/EVM) vs 当前生产算法栈 (FSRS+Thompson+LinUCB)',
+    variants: [
+      {
+        id: 'control',
+        name: 'Control (当前生产)',
+        weight: 0.5,
+        isControl: true,
+        parameters: {
+          algorithm: 'production',
+          description: 'FSRS间隔调度 + Thompson/LinUCB决策 + Ensemble融合',
+        },
+      },
+      {
+        id: 'treatment',
+        name: 'Treatment (UMM)',
+        weight: 0.5,
+        isControl: false,
+        parameters: {
+          algorithm: 'umm',
+          description: 'MDM间隔调度 + IGE/SWD决策 + MTP/IAD/EVM词汇特化',
+        },
+      },
+    ],
+  },
+  'decision-algorithms': {
+    name: '',
+    description: 'AMAS 决策算法对比：Thompson Sampling vs LinUCB',
+    variants: [
+      {
+        id: 'control',
+        name: 'Control (LinUCB)',
+        weight: 0.5,
+        isControl: true,
+        parameters: { algorithm: 'linucb', description: '上下文相关的 UCB 算法' },
+      },
+      {
+        id: 'treatment',
+        name: 'Treatment (Thompson)',
+        weight: 0.5,
+        isControl: false,
+        parameters: { algorithm: 'thompson', description: '贝叶斯多臂老虎机' },
+      },
+    ],
+  },
+  custom: {
+    name: '',
+    description: '',
+    variants: [
+      {
+        id: 'control',
+        name: 'Control',
+        weight: 0.5,
+        isControl: true,
+        parameters: {},
+      },
+      {
+        id: 'treatment',
+        name: 'Treatment',
+        weight: 0.5,
+        isControl: false,
+        parameters: {},
+      },
+    ],
+  },
+};
+
+type PresetKey = keyof typeof EXPERIMENT_PRESETS;
+
 // --- 实验创建表单组件 ---
 const CreateExperimentModal = ({
   onClose,
@@ -277,31 +350,28 @@ const CreateExperimentModal = ({
   onClose: () => void;
   onSuccess: () => void;
 }) => {
+  const [selectedPreset, setSelectedPreset] = useState<PresetKey>('umm-vs-fsrs');
   const [form, setForm] = useState<CreateExperimentForm>({
-    name: '',
-    description: '',
+    name: EXPERIMENT_PRESETS['umm-vs-fsrs'].name,
+    description: EXPERIMENT_PRESETS['umm-vs-fsrs'].description,
     trafficAllocation: 'EVEN',
     minSampleSize: 100,
     significanceLevel: 0.05,
     minimumDetectableEffect: 0.05,
     autoDecision: false,
-    variants: [
-      {
-        id: 'control',
-        name: 'Control (LinUCB)',
-        weight: 0.5,
-        isControl: true,
-        parameters: { algorithm: 'linucb' },
-      },
-      {
-        id: 'treatment',
-        name: 'Treatment (Thompson)',
-        weight: 0.5,
-        isControl: false,
-        parameters: { algorithm: 'thompson' },
-      },
-    ],
+    variants: EXPERIMENT_PRESETS['umm-vs-fsrs'].variants,
   });
+
+  const handlePresetChange = (preset: PresetKey) => {
+    setSelectedPreset(preset);
+    const presetData = EXPERIMENT_PRESETS[preset];
+    setForm((prev) => ({
+      ...prev,
+      name: presetData.name,
+      description: presetData.description,
+      variants: presetData.variants,
+    }));
+  };
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -363,12 +433,80 @@ const CreateExperimentModal = ({
       <div className="max-h-[90vh] w-full max-w-2xl animate-g3-scale-in overflow-y-auto rounded-card bg-white shadow-2xl">
         <div className="border-b border-gray-200 p-6">
           <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-            <Plus className="text-blue-600" />
+            <Plus size={28} className="text-blue-600" />
             创建新实验
           </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          {/* 实验类型选择 */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">实验类型</label>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => handlePresetChange('umm-vs-fsrs')}
+                className={`rounded-button border-2 p-3 text-left transition-all ${
+                  selectedPreset === 'umm-vs-fsrs'
+                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium text-gray-900">UMM vs FSRS</div>
+                <div className="mt-1 text-xs text-gray-500">原创算法 vs 基线</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePresetChange('decision-algorithms')}
+                className={`rounded-button border-2 p-3 text-left transition-all ${
+                  selectedPreset === 'decision-algorithms'
+                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium text-gray-900">决策算法</div>
+                <div className="mt-1 text-xs text-gray-500">LinUCB vs Thompson</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePresetChange('custom')}
+                className={`rounded-button border-2 p-3 text-left transition-all ${
+                  selectedPreset === 'custom'
+                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium text-gray-900">自定义</div>
+                <div className="mt-1 text-xs text-gray-500">手动配置变体</div>
+              </button>
+            </div>
+          </div>
+
+          {/* 变体预览 */}
+          <div className="rounded-button border border-gray-200 bg-gray-50 p-4">
+            <div className="mb-2 text-sm font-medium text-gray-700">实验变体</div>
+            <div className="grid grid-cols-2 gap-3">
+              {form.variants.map((v, i) => (
+                <div
+                  key={i}
+                  className={`rounded border p-3 ${v.isControl ? 'border-blue-200 bg-blue-50' : 'border-green-200 bg-green-50'}`}
+                >
+                  <div
+                    className={`text-xs font-bold ${v.isControl ? 'text-blue-600' : 'text-green-600'}`}
+                  >
+                    {v.isControl ? 'CONTROL' : 'TREATMENT'}
+                  </div>
+                  <div className="font-medium text-gray-900">{v.name}</div>
+                  {v.parameters.description && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      {v.parameters.description as string}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* 基本信息 */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">实验名称</label>
@@ -377,9 +515,14 @@ const CreateExperimentModal = ({
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="例如: Thompson vs LinUCB 优化测试"
+              placeholder="例如: umm-vs-fsrs"
               required
             />
+            {selectedPreset === 'umm-vs-fsrs' && (
+              <p className="mt-1 text-xs text-amber-600">
+                注意：名称必须为 "umm-vs-fsrs" 才能自动收集 UMM 实验指标
+              </p>
+            )}
           </div>
 
           <div>
@@ -529,7 +672,7 @@ const ExperimentList = ({
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
-            <Flask className="text-blue-600" />
+            <Flask size={28} className="text-blue-600" />
             A/B 测试实验管理
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">创建和管理算法对比实验</p>
@@ -758,7 +901,7 @@ const ExperimentDetail = ({
             返回列表
           </button>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
-            <Flask className="text-blue-600" />
+            <Flask size={28} className="text-blue-600" />
             实验详情
           </h1>
           <p className="mt-1 text-gray-500 dark:text-gray-400">ID: {experimentId}</p>

@@ -538,7 +538,12 @@ pub async fn assign_user_to_variant(
         return Err("实验没有配置变体".to_string());
     }
 
-    let selected_variant = select_variant_by_weight(&experiment.variants);
+    // Use deterministic hash-based selection for UMM experiment to match feature flag logic
+    let selected_variant = if experiment.name == "umm-vs-fsrs" {
+        select_variant_by_user_hash(&experiment.variants, user_id)
+    } else {
+        select_variant_by_weight(&experiment.variants)
+    };
     let pool = proxy.pool();
 
     sqlx::query(
@@ -601,6 +606,29 @@ fn select_variant_by_weight(variants: &[ExperimentVariant]) -> &ExperimentVarian
     for variant in variants {
         cumulative_weight += variant.weight;
         if random_value <= cumulative_weight {
+            return variant;
+        }
+    }
+
+    variants.last().unwrap_or(&variants[0])
+}
+
+/// Deterministic variant selection based on user_id hash
+/// This ensures the same user always gets the same variant
+fn select_variant_by_user_hash<'a>(
+    variants: &'a [ExperimentVariant],
+    user_id: &str,
+) -> &'a ExperimentVariant {
+    // Use the same hash algorithm as FeatureFlags::should_enable_umm_for_user
+    let hash = user_id
+        .bytes()
+        .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
+    let hash_value = (hash % 100) as f64 / 100.0;
+
+    let mut cumulative_weight = 0.0;
+    for variant in variants {
+        cumulative_weight += variant.weight;
+        if hash_value < cumulative_weight {
             return variant;
         }
     }

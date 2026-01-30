@@ -228,7 +228,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Target size={20} className="text-emerald-500" />
                     <p className="text-2xl font-bold text-emerald-600">
-                      {Math.round(data.mastery.factors.actrRecall * 100)}%
+                      {Math.round(data.mastery.factors.msmtRecall * 100)}%
                     </p>
                   </div>
                 </div>

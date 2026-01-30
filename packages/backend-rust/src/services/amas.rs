@@ -720,6 +720,11 @@ pub async fn reset_user(proxy: &DatabaseProxy, user_id: &str) -> Result<(), Stri
         cognitive_profile: serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 }),
         trend_state: None,
         confidence: 0.5,
+        visual_fatigue: None,
+        fused_fatigue: None,
+        mastery_history: None,
+        habit_samples: None,
+        ensemble_performance: None,
         created_at: now.to_rfc3339(),
         updated_at: now.to_rfc3339(),
     };

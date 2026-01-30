@@ -146,12 +146,12 @@ export default function WorkflowMonitorPage() {
                           </button>
                         </div>
                       </div>
-                      <div className="p-3">
+                      <div className="p-4">
                         <AMASFlowVisualization
                           mode="live"
                           userId={user.userId}
                           showControls={false}
-                          compact
+                          adminMode
                           onConnectionChange={(connected) =>
                             handleConnectionChange(user.userId, connected)
                           }

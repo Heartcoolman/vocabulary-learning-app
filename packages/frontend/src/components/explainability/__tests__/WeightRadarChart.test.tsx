@@ -8,9 +8,9 @@ import WeightRadarChart from '../WeightRadarChart';
 import type { AlgorithmWeights } from '../../../types/explainability';
 
 const mockWeights: AlgorithmWeights = {
-  thompson: 0.4,
-  linucb: 0.3,
-  actr: 0.2,
+  ige: 0.4,
+  swd: 0.3,
+  msmt: 0.2,
   heuristic: 0.1,
 };
 
@@ -35,9 +35,9 @@ describe('WeightRadarChart', () => {
       render(<WeightRadarChart weights={mockWeights} />);
 
       // Labels may appear multiple times (in SVG and description)
-      expect(screen.getAllByText('Thompson').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('LinUCB').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('ACT-R').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('IGE').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('SWD').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('MSMT').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Heuristic').length).toBeGreaterThan(0);
     });
 
@@ -53,8 +53,8 @@ describe('WeightRadarChart', () => {
     it('should render the dominant algorithm in description', () => {
       render(<WeightRadarChart weights={mockWeights} />);
 
-      // Thompson has highest weight (0.4) - appears multiple times
-      expect(screen.getAllByText(/Thompson/).length).toBeGreaterThan(0);
+      // IGE has highest weight (0.4) - appears multiple times
+      expect(screen.getAllByText(/IGE/).length).toBeGreaterThan(0);
       expect(screen.getByText(/主导/)).toBeInTheDocument();
     });
 
@@ -87,36 +87,36 @@ describe('WeightRadarChart', () => {
 
   describe('props handling', () => {
     it('should handle different dominant algorithms', () => {
-      const weightsLinUCBDominant: AlgorithmWeights = {
-        thompson: 0.1,
-        linucb: 0.5,
-        actr: 0.2,
+      const weightsSWDDominant: AlgorithmWeights = {
+        ige: 0.1,
+        swd: 0.5,
+        msmt: 0.2,
         heuristic: 0.2,
       };
-      render(<WeightRadarChart weights={weightsLinUCBDominant} />);
+      render(<WeightRadarChart weights={weightsSWDDominant} />);
 
-      // LinUCB appears multiple times (label and dominant description)
-      const elements = screen.getAllByText(/LinUCB/);
+      // SWD appears multiple times (label and dominant description)
+      const elements = screen.getAllByText(/SWD/);
       expect(elements.length).toBeGreaterThan(0);
     });
 
-    it('should handle ACT-R as dominant', () => {
-      const weightsActrDominant: AlgorithmWeights = {
-        thompson: 0.1,
-        linucb: 0.2,
-        actr: 0.5,
+    it('should handle MSMT as dominant', () => {
+      const weightsMsmtDominant: AlgorithmWeights = {
+        ige: 0.1,
+        swd: 0.2,
+        msmt: 0.5,
         heuristic: 0.2,
       };
-      render(<WeightRadarChart weights={weightsActrDominant} />);
+      render(<WeightRadarChart weights={weightsMsmtDominant} />);
 
       expect(screen.getByText('0.50')).toBeInTheDocument();
     });
 
     it('should handle zero weights', () => {
       const weightsWithZero: AlgorithmWeights = {
-        thompson: 0,
-        linucb: 0.5,
-        actr: 0.3,
+        ige: 0,
+        swd: 0.5,
+        msmt: 0.3,
         heuristic: 0.2,
       };
       render(<WeightRadarChart weights={weightsWithZero} />);
@@ -126,9 +126,9 @@ describe('WeightRadarChart', () => {
 
     it('should handle equal weights', () => {
       const equalWeights: AlgorithmWeights = {
-        thompson: 0.25,
-        linucb: 0.25,
-        actr: 0.25,
+        ige: 0.25,
+        swd: 0.25,
+        msmt: 0.25,
         heuristic: 0.25,
       };
       render(<WeightRadarChart weights={equalWeights} />);
@@ -140,9 +140,9 @@ describe('WeightRadarChart', () => {
 
     it('should handle maximum weights', () => {
       const maxWeights: AlgorithmWeights = {
-        thompson: 1.0,
-        linucb: 1.0,
-        actr: 1.0,
+        ige: 1.0,
+        swd: 1.0,
+        msmt: 1.0,
         heuristic: 1.0,
       };
       render(<WeightRadarChart weights={maxWeights} />);

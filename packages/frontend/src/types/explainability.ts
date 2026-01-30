@@ -15,9 +15,9 @@ export interface DecisionFactor {
 }
 
 export interface AlgorithmWeights {
-  thompson: number;
-  linucb: number;
-  actr: number;
+  ige: number;
+  swd: number;
+  msmt: number;
   heuristic: number;
 }
 

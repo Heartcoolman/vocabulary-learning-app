@@ -415,6 +415,19 @@ fn debug_flags_to_feature_flags(flags: &Map<String, Value>) -> FeatureFlags {
         causal_inference_enabled: debug_flag_bool(flags, "enableCausalInference", false),
         bayesian_optimizer_enabled: debug_flag_bool(flags, "enableBayesianOptimizer", false),
         actr_memory_enabled: debug_flag_bool(flags, "enableACTRMemory", true),
+        umm_mdm_enabled: debug_flag_bool(flags, "enableUmmMdm", false),
+        umm_ige_enabled: debug_flag_bool(flags, "enableUmmIge", false),
+        umm_swd_enabled: debug_flag_bool(flags, "enableUmmSwd", false),
+        umm_msmt_enabled: debug_flag_bool(flags, "enableUmmMsmt", false),
+        umm_mtp_enabled: debug_flag_bool(flags, "enableUmmMtp", false),
+        umm_iad_enabled: debug_flag_bool(flags, "enableUmmIad", false),
+        umm_evm_enabled: debug_flag_bool(flags, "enableUmmEvm", false),
+        umm_ab_test_enabled: debug_flag_bool(flags, "enableUmmAbTest", false),
+        umm_ab_test_percentage: flags
+            .get("ummAbTestPercentage")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as u8)
+            .unwrap_or(10),
     }
 }
 

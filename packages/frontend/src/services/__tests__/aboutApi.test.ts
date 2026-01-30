@@ -121,9 +121,9 @@ describe('aboutApi', () => {
       decisionProcess: {
         phase: 'normal',
         votes: {
-          thompson: { action: 'continue', contribution: 0.3, confidence: 0.85 },
+          ige: { action: 'continue', contribution: 0.3, confidence: 0.85 },
         },
-        weights: { thompson: 0.3, linucb: 0.25, actr: 0.25, heuristic: 0.2 },
+        weights: { ige: 0.3, swd: 0.25, msmt: 0.25, heuristic: 0.2 },
         decisionSource: 'ensemble',
       },
       outputStrategy: {
@@ -206,9 +206,9 @@ describe('aboutApi', () => {
 
   describe('getAlgorithmDistribution', () => {
     const mockDistribution: AlgorithmDistribution = {
-      thompson: 0.3,
-      linucb: 0.25,
-      actr: 0.25,
+      ige: 0.3,
+      swd: 0.25,
+      msmt: 0.25,
       heuristic: 0.15,
       coldstart: 0.05,
     };

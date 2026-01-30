@@ -121,28 +121,28 @@ export const PIPELINE_NODES: PipelineNode[] = [
     meta: { algorithm: '5探测策略' },
   },
   {
-    id: 'linucb',
+    id: 'ige',
     stage: 3,
-    label: 'LinUCB',
+    label: 'IGE',
     type: 'learner',
-    description: '上下文Bandit算法',
-    meta: { inputDim: '22维', algorithm: 'UCB' },
+    description: '信息增益探索',
+    meta: { inputDim: '主动学习', algorithm: '信息增益' },
   },
   {
-    id: 'thompson',
+    id: 'swd',
     stage: 3,
-    label: 'Thompson',
+    label: 'SWD',
     type: 'learner',
-    description: '贝叶斯采样',
-    meta: { algorithm: 'Beta分布' },
+    description: '相似度加权决策',
+    meta: { algorithm: '词汇相似度' },
   },
   {
-    id: 'actr',
+    id: 'msmt',
     stage: 3,
-    label: 'ACT-R',
+    label: 'MSMT',
     type: 'learner',
-    description: '认知架构模型',
-    meta: { algorithm: '激活度' },
+    description: '多尺度记忆痕迹',
+    meta: { algorithm: '多尺度追踪' },
   },
   {
     id: 'heuristic',
@@ -232,16 +232,16 @@ export const CONNECTIONS: Connection[] = [
   { from: 'coldstart', to: 'ensemble', type: 'normal' },
 
   // 建模层 → 4个学习器
-  { from: 'attention', to: 'linucb', type: 'branch' },
-  { from: 'fatigue', to: 'linucb', type: 'branch' },
-  { from: 'cognitive', to: 'thompson', type: 'branch' },
-  { from: 'motivation', to: 'actr', type: 'branch' },
+  { from: 'attention', to: 'ige', type: 'branch' },
+  { from: 'fatigue', to: 'ige', type: 'branch' },
+  { from: 'cognitive', to: 'swd', type: 'branch' },
+  { from: 'motivation', to: 'msmt', type: 'branch' },
   { from: 'trend', to: 'heuristic', type: 'branch' },
 
   // 4个学习器 → 集成投票
-  { from: 'linucb', to: 'ensemble', type: 'merge' },
-  { from: 'thompson', to: 'ensemble', type: 'merge' },
-  { from: 'actr', to: 'ensemble', type: 'merge' },
+  { from: 'ige', to: 'ensemble', type: 'merge' },
+  { from: 'swd', to: 'ensemble', type: 'merge' },
+  { from: 'msmt', to: 'ensemble', type: 'merge' },
   { from: 'heuristic', to: 'ensemble', type: 'merge' },
 
   // 学习层 → 决策层
@@ -257,7 +257,7 @@ export const CONNECTIONS: Connection[] = [
   { from: 'causal', to: 'bayesian', type: 'normal' },
 
   // 反馈回路 (优化层 → 学习层)
-  { from: 'bayesian', to: 'linucb', type: 'feedback' },
+  { from: 'bayesian', to: 'ige', type: 'feedback' },
   { from: 'delayed_reward', to: 'ensemble', type: 'feedback' },
 ];
 

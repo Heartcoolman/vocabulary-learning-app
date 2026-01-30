@@ -184,12 +184,43 @@ impl EnsembleDecision {
         linucb_action: Option<&StrategyParams>,
         linucb_confidence: Option<f64>,
     ) -> (StrategyParams, Vec<DecisionCandidate>) {
+        self.decide_extended(
+            state,
+            _feature_vector,
+            current,
+            thompson_action,
+            thompson_confidence,
+            linucb_action,
+            linucb_confidence,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn decide_extended(
+        &self,
+        state: &UserState,
+        _feature_vector: &FeatureVector,
+        current: &StrategyParams,
+        thompson_action: Option<&StrategyParams>,
+        thompson_confidence: Option<f64>,
+        linucb_action: Option<&StrategyParams>,
+        linucb_confidence: Option<f64>,
+        ige_action: Option<&StrategyParams>,
+        ige_confidence: Option<f64>,
+        swd_action: Option<&StrategyParams>,
+        swd_confidence: Option<f64>,
+    ) -> (StrategyParams, Vec<DecisionCandidate>) {
         let mut candidates: Vec<DecisionCandidate> = Vec::new();
 
         let dynamic_weights = self.performance.get_weights(&[
             ("thompson", self.config.thompson_base_weight),
             ("linucb", self.config.linucb_base_weight),
             ("heuristic", self.config.heuristic_base_weight),
+            ("ige", self.config.thompson_base_weight),
+            ("swd", self.config.linucb_base_weight),
         ]);
 
         if self.feature_flags.heuristic_enabled {
@@ -226,6 +257,34 @@ impl EnsembleDecision {
                     confidence: linucb_confidence.unwrap_or(state.conf),
                     weight: *dynamic_weights
                         .get("linucb")
+                        .unwrap_or(&self.config.linucb_base_weight),
+                });
+            }
+        }
+
+        // UMM IGE (replaces Thompson Sampling)
+        if self.feature_flags.umm_ige_enabled {
+            if let Some(action) = ige_action {
+                candidates.push(DecisionCandidate {
+                    source: "ige".to_string(),
+                    strategy: action.clone(),
+                    confidence: ige_confidence.unwrap_or(0.7),
+                    weight: *dynamic_weights
+                        .get("ige")
+                        .unwrap_or(&self.config.thompson_base_weight),
+                });
+            }
+        }
+
+        // UMM SWD (replaces LinUCB)
+        if self.feature_flags.umm_swd_enabled {
+            if let Some(action) = swd_action {
+                candidates.push(DecisionCandidate {
+                    source: "swd".to_string(),
+                    strategy: action.clone(),
+                    confidence: swd_confidence.unwrap_or(state.conf),
+                    weight: *dynamic_weights
+                        .get("swd")
                         .unwrap_or(&self.config.linucb_base_weight),
                 });
             }

@@ -258,6 +258,43 @@ export interface LearningEventInput {
   pausedTimeMs?: number;
   /** 是否使用了提示 */
   hintUsed?: boolean;
+  /** 设备类型（用于 EVM 情境编码） */
+  deviceType?: 'mobile' | 'tablet' | 'desktop';
+  /** 题目类型 */
+  questionType?: string;
+  // UMM 词汇特化层输入
+  /** 词素掌握度状态（用于 MTP 形态迁移） */
+  morphemeStates?: Array<{ morphemeId: string; masteryLevel: number }>;
+  /** 易混淆词对（用于 IAD 干扰惩罚） */
+  confusionPairs?: Array<{ confusingWordId: string; distance: number }>;
+  /** 最近学习的单词ID列表（用于 IAD） */
+  recentWordIds?: string[];
+  /** 学习情境历史（用于 EVM 编码变异） */
+  contextHistory?: Array<{
+    hourOfDay: number;
+    dayOfWeek: number;
+    questionType: string;
+    deviceType: string;
+  }>;
+  // VARK 学习风格交互数据
+  /** 图片查看次数 */
+  imageViewCount?: number;
+  /** 图片缩放次数 */
+  imageZoomCount?: number;
+  /** 图片长按时长（毫秒） */
+  imageLongPressMs?: number;
+  /** 音频播放次数 */
+  audioPlayCount?: number;
+  /** 音频重播次数 */
+  audioReplayCount?: number;
+  /** 是否调整过音频速度 */
+  audioSpeedAdjust?: boolean;
+  /** 定义阅读时长（毫秒） */
+  definitionReadMs?: number;
+  /** 例句阅读时长（毫秒） */
+  exampleReadMs?: number;
+  /** 笔记编写次数 */
+  noteWriteCount?: number;
 }
 
 // ============================================

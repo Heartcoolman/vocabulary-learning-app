@@ -316,24 +316,66 @@ impl Default for FsrsPersonalizationConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureFlags {
     pub ensemble_enabled: bool,
-    pub thompson_enabled: bool,
-    pub linucb_enabled: bool,
     pub heuristic_enabled: bool,
+    // Legacy flags (kept for backwards compatibility, but unused)
+    #[serde(default)]
+    pub thompson_enabled: bool,
+    #[serde(default)]
+    pub linucb_enabled: bool,
+    #[serde(default)]
     pub causal_inference_enabled: bool,
+    #[serde(default)]
     pub bayesian_optimizer_enabled: bool,
+    #[serde(default)]
     pub actr_memory_enabled: bool,
+    // UMM flags (kept for backwards compatibility, but always enabled)
+    #[serde(default = "default_true")]
+    pub umm_mdm_enabled: bool,
+    #[serde(default = "default_true")]
+    pub umm_ige_enabled: bool,
+    #[serde(default = "default_true")]
+    pub umm_swd_enabled: bool,
+    #[serde(default = "default_true")]
+    pub umm_msmt_enabled: bool,
+    #[serde(default = "default_true")]
+    pub umm_mtp_enabled: bool,
+    #[serde(default = "default_true")]
+    pub umm_iad_enabled: bool,
+    #[serde(default = "default_true")]
+    pub umm_evm_enabled: bool,
+    #[serde(default)]
+    pub umm_ab_test_enabled: bool,
+    #[serde(default = "default_ab_test_percentage")]
+    pub umm_ab_test_percentage: u8,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_ab_test_percentage() -> u8 {
+    10
 }
 
 impl Default for FeatureFlags {
     fn default() -> Self {
         Self {
             ensemble_enabled: true,
-            thompson_enabled: true,
-            linucb_enabled: true,
             heuristic_enabled: true,
+            thompson_enabled: false,
+            linucb_enabled: false,
             causal_inference_enabled: false,
             bayesian_optimizer_enabled: false,
-            actr_memory_enabled: true,
+            actr_memory_enabled: false,
+            umm_mdm_enabled: true,
+            umm_ige_enabled: true,
+            umm_swd_enabled: true,
+            umm_msmt_enabled: true,
+            umm_mtp_enabled: true,
+            umm_iad_enabled: true,
+            umm_evm_enabled: true,
+            umm_ab_test_enabled: false,
+            umm_ab_test_percentage: 10,
         }
     }
 }
@@ -505,28 +547,24 @@ impl AMASConfig {
         if let Ok(val) = std::env::var("AMAS_ENSEMBLE_ENABLED") {
             config.feature_flags.ensemble_enabled = val.parse().unwrap_or(true);
         }
-        if let Ok(val) = std::env::var("AMAS_THOMPSON_ENABLED") {
-            config.feature_flags.thompson_enabled = val.parse().unwrap_or(true);
-        }
-        if let Ok(val) = std::env::var("AMAS_LINUCB_ENABLED") {
-            config.feature_flags.linucb_enabled = val.parse().unwrap_or(true);
-        }
-        if let Ok(val) = std::env::var("AMAS_THOMPSON_CONTEXT_BINS") {
-            config.thompson_context.bins = val.parse().unwrap_or(config.thompson_context.bins);
-        }
-        if let Ok(val) = std::env::var("AMAS_THOMPSON_CONTEXT_WEIGHT") {
-            config.thompson_context.weight = val.parse().unwrap_or(config.thompson_context.weight);
-        }
-        if let Ok(val) = std::env::var("AMAS_CAUSAL_ENABLED") {
-            config.feature_flags.causal_inference_enabled = val.parse().unwrap_or(false);
-        }
-        if let Ok(val) = std::env::var("AMAS_BAYESIAN_ENABLED") {
-            config.feature_flags.bayesian_optimizer_enabled = val.parse().unwrap_or(false);
-        }
-        if let Ok(val) = std::env::var("AMAS_ACTR_ENABLED") {
-            config.feature_flags.actr_memory_enabled = val.parse().unwrap_or(true);
-        }
 
         config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_feature_flags() {
+        let flags = FeatureFlags::default();
+        assert!(flags.umm_mdm_enabled);
+        assert!(flags.umm_ige_enabled);
+        assert!(flags.umm_swd_enabled);
+        assert!(flags.umm_msmt_enabled);
+        assert!(!flags.thompson_enabled);
+        assert!(!flags.linucb_enabled);
+        assert!(!flags.actr_memory_enabled);
     }
 }

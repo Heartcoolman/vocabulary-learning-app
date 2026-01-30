@@ -124,7 +124,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
             },
             difficultyFactors: { length: 0, accuracy: 0, frequency: 0, forgetting: 0 },
             factors: generateFactorsFromState(latestDecision.state),
-            weights: { thompson: 0.5, linucb: 0.25, actr: 0.15, heuristic: 0.1 },
+            weights: { ige: 0.4, swd: 0.3, msmt: 0.2, heuristic: 0.1 },
           });
         }
 

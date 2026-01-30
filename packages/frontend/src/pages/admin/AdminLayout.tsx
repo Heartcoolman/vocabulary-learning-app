@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '../../hooks/usePrefetch';
 import { useSystemVersion } from '../../hooks/queries';
-import { NotificationDropdown } from '../../components/notification';
 import { useAdminAuthStore } from '../../stores/adminAuthStore';
 import { adminLogout } from '../../services/client/admin/AdminAuthClient';
 import {
@@ -131,9 +130,6 @@ export default function AdminLayout() {
 
       {/* 主内容区 */}
       <main className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-end border-b border-gray-200/60 bg-white/80 px-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
-          <NotificationDropdown systemOnly />
-        </header>
         <div className="flex-1">
           <Outlet />
         </div>

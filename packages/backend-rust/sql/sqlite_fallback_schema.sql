@@ -155,6 +155,18 @@ CREATE TABLE IF NOT EXISTS "answer_records" (
   "masteryLevelBefore" INTEGER,
   "responseTime" INTEGER,
   "sessionId" TEXT,
+  -- VARK interaction tracking columns (Migration 041)
+  "imageViewCount" INTEGER DEFAULT 0,
+  "imageZoomCount" INTEGER DEFAULT 0,
+  "imageLongPressMs" INTEGER DEFAULT 0,
+  "audioPlayCount" INTEGER DEFAULT 0,
+  "audioReplayCount" INTEGER DEFAULT 0,
+  "audioSpeedAdjust" INTEGER DEFAULT 0,
+  "definitionReadMs" INTEGER DEFAULT 0,
+  "exampleReadMs" INTEGER DEFAULT 0,
+  "noteWriteCount" INTEGER DEFAULT 0,
+  -- Device type for EVM (Migration 042)
+  "deviceType" TEXT DEFAULT 'unknown',
   PRIMARY KEY ("id", "timestamp"),
   UNIQUE("userId", "wordId", "timestamp")
 );
@@ -193,6 +205,10 @@ CREATE TABLE IF NOT EXISTS "word_learning_states" (
   "consecutiveWrong" INTEGER DEFAULT 0,
   "halfLife" REAL DEFAULT 1.0,
   "version" INTEGER DEFAULT 0,
+  -- UMM columns (Migration 039)
+  "ummStrength" REAL DEFAULT 1.0,
+  "ummConsolidation" REAL DEFAULT 0.1,
+  "ummLastReviewTs" INTEGER,
   "createdAt" TEXT NOT NULL DEFAULT (datetime('now')),
   "updatedAt" TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE("userId", "wordId")
@@ -328,6 +344,12 @@ CREATE TABLE IF NOT EXISTS "amas_user_states" (
   "trendState" TEXT,
   "coldStartState" TEXT,
   "lastUpdateTs" INTEGER DEFAULT 0,
+  -- Runtime state fields (Migration 043)
+  "visualFatigue" REAL DEFAULT 0.0,
+  "fusedFatigue" REAL DEFAULT 0.0,
+  "masteryHistory" TEXT DEFAULT '[]',
+  "habitSamples" TEXT DEFAULT '[]',
+  "ensemblePerformance" TEXT DEFAULT '{}',
   "createdAt" TEXT NOT NULL DEFAULT (datetime('now')),
   "updatedAt" TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -820,6 +842,14 @@ CREATE TABLE IF NOT EXISTS "user_interaction_stats" (
   "totalInteractions" INTEGER DEFAULT 0,
   "totalSessionDuration" INTEGER DEFAULT 0,
   "lastActivityTime" TEXT NOT NULL DEFAULT (datetime('now')),
+  -- VARK aggregated stats (Migration 041)
+  "avgSessionDurationMs" INTEGER DEFAULT 0,
+  "sessionBreakCount" INTEGER DEFAULT 0,
+  "preferredReviewInterval" INTEGER DEFAULT 24,
+  "totalImageInteractions" INTEGER DEFAULT 0,
+  "totalAudioInteractions" INTEGER DEFAULT 0,
+  "totalReadingMs" INTEGER DEFAULT 0,
+  "totalWritingActions" INTEGER DEFAULT 0,
   "createdAt" TEXT NOT NULL DEFAULT (datetime('now')),
   "updatedAt" TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -1078,3 +1108,83 @@ CREATE TABLE IF NOT EXISTS "word_contexts" (
 
 CREATE INDEX IF NOT EXISTS "idx_word_contexts_wordId" ON "word_contexts" ("wordId");
 CREATE INDEX IF NOT EXISTS "idx_word_contexts_contextType" ON "word_contexts" ("contextType");
+
+-- ============================================
+-- VARK Learning Style (Migration 041)
+-- ============================================
+
+-- VARK model storage
+CREATE TABLE IF NOT EXISTS "user_vark_models" (
+  "id" TEXT PRIMARY KEY,
+  "userId" TEXT NOT NULL UNIQUE,
+  "sampleCount" INTEGER DEFAULT 0,
+  "isMLEnabled" INTEGER DEFAULT 0,
+  "visualWeights" TEXT DEFAULT '[]',
+  "auditoryWeights" TEXT DEFAULT '[]',
+  "readingWeights" TEXT DEFAULT '[]',
+  "kinestheticWeights" TEXT DEFAULT '[]',
+  "visualBias" REAL DEFAULT 0,
+  "auditoryBias" REAL DEFAULT 0,
+  "readingBias" REAL DEFAULT 0,
+  "kinestheticBias" REAL DEFAULT 0,
+  "lastCalibration" INTEGER DEFAULT 0,
+  "lastTrainedAt" TEXT,
+  "createdAt" TEXT NOT NULL DEFAULT (datetime('now')),
+  "updatedAt" TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS "idx_user_vark_models_userId" ON "user_vark_models" ("userId");
+
+-- ============================================
+-- UMM Memory Model (Migration 039, 040)
+-- ============================================
+
+-- Context history table for EVM (Encoding Variability Metric)
+CREATE TABLE IF NOT EXISTS "context_history" (
+  "id" TEXT PRIMARY KEY,
+  "userId" TEXT NOT NULL,
+  "wordId" TEXT NOT NULL,
+  "hourOfDay" INTEGER NOT NULL,
+  "dayOfWeek" INTEGER NOT NULL,
+  "questionType" TEXT NOT NULL,
+  "deviceType" TEXT NOT NULL,
+  "timestamp" INTEGER NOT NULL,
+  "createdAt" TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS "idx_context_history_user_word" ON "context_history" ("userId", "wordId");
+CREATE INDEX IF NOT EXISTS "idx_context_history_timestamp" ON "context_history" ("userId", "timestamp");
+
+-- UMM shadow calculation results for A/B comparison with FSRS
+CREATE TABLE IF NOT EXISTS "umm_shadow_results" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "userId" TEXT NOT NULL,
+  "wordId" TEXT NOT NULL,
+  "sessionId" TEXT,
+  "eventTs" INTEGER NOT NULL,
+  -- FSRS values (baseline)
+  "fsrsInterval" REAL NOT NULL,
+  "fsrsRetrievability" REAL NOT NULL,
+  "fsrsStability" REAL NOT NULL,
+  "fsrsDifficulty" REAL NOT NULL,
+  -- MDM values (shadow)
+  "mdmInterval" REAL,
+  "mdmRetrievability" REAL,
+  "mdmStrength" REAL,
+  "mdmConsolidation" REAL,
+  -- MTP/IAD/EVM bonuses/penalties
+  "mtpBonus" REAL,
+  "iadPenalty" REAL,
+  "evmBonus" REAL,
+  -- Combined UMM retrievability
+  "ummRetrievability" REAL,
+  "ummInterval" REAL,
+  -- Actual outcome (for accuracy calculation)
+  "actualRecalled" INTEGER,
+  "elapsedDays" REAL,
+  -- Metadata
+  "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+CREATE INDEX IF NOT EXISTS "idx_umm_shadow_user_word" ON "umm_shadow_results" ("userId", "wordId");
+CREATE INDEX IF NOT EXISTS "idx_umm_shadow_created" ON "umm_shadow_results" ("createdAt");

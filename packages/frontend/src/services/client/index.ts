@@ -67,6 +67,7 @@ export type {
   WordVariant,
   SystemVersionInfo,
   OTAUpdateStatus,
+  AMASMonitoringOverview,
 } from './admin/AdminClient';
 
 // ==================== Admin Settings 模块 ====================

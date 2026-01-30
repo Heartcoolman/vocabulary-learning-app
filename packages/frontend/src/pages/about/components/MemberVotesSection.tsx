@@ -9,9 +9,9 @@ const MEMBER_CONFIG: Record<
     icon: typeof Brain;
   }
 > = {
-  thompson: { color: '#3b82f6', label: 'Thompson', icon: ChartBar },
-  linucb: { color: '#a855f7', label: 'LinUCB', icon: Target },
-  actr: { color: '#f59e0b', label: 'ACT-R', icon: Brain },
+  ige: { color: '#3b82f6', label: 'IGE', icon: ChartBar },
+  swd: { color: '#a855f7', label: 'SWD', icon: Target },
+  msmt: { color: '#f59e0b', label: 'MSMT', icon: Brain },
   heuristic: { color: '#10b981', label: 'Heuristic', icon: Lightning },
 };
 
@@ -21,7 +21,7 @@ interface MemberVotesSectionProps {
 }
 
 export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) {
-  const members = ['thompson', 'linucb', 'actr', 'heuristic'];
+  const members = ['ige', 'swd', 'msmt', 'heuristic'];
 
   return (
     <div>

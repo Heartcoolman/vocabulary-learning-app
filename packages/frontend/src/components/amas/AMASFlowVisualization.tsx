@@ -26,11 +26,11 @@ interface UserState {
 }
 
 interface AlgorithmWeights {
-  thompson: number;
-  linucb: number;
+  ige: number;
+  swd: number;
   heuristic: number;
-  actr: number;
-  fsrs: number;
+  msmt: number;
+  mdm: number;
   coldstart: number;
 }
 
@@ -58,6 +58,7 @@ export interface AMASFlowVisualizationProps {
   autoPlay?: boolean;
   showControls?: boolean;
   compact?: boolean;
+  adminMode?: boolean;
   onConnectionChange?: (connected: boolean) => void;
 }
 
@@ -111,10 +112,10 @@ function generateMockFrame(prevFrame: FlowFrame | null): FlowFrame {
   );
 
   const weights: AlgorithmWeights = {
-    thompson: 0.2 + Math.random() * 0.2,
-    linucb: 0.15 + Math.random() * 0.2,
-    actr: 0.15 + Math.random() * 0.15,
-    fsrs: 0.12 + Math.random() * 0.18,
+    ige: 0.2 + Math.random() * 0.2,
+    swd: 0.15 + Math.random() * 0.2,
+    msmt: 0.15 + Math.random() * 0.15,
+    mdm: 0.12 + Math.random() * 0.18,
     heuristic: 0.1 + Math.random() * 0.15,
     coldstart: 0.05 + Math.random() * 0.1,
   };
@@ -221,6 +222,7 @@ export default function AMASFlowVisualization({
   autoPlay = true,
   showControls = true,
   compact = false,
+  adminMode = false,
   onConnectionChange,
 }: AMASFlowVisualizationProps) {
   const [mode, setMode] = useState<FlowMode>(initialMode);
@@ -240,6 +242,8 @@ export default function AMASFlowVisualization({
   const containerRef = useRef<HTMLDivElement>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onConnectionChangeRef = useRef(onConnectionChange);
+  onConnectionChangeRef.current = onConnectionChange;
 
   useEffect(() => {
     setMode(initialMode);
@@ -312,10 +316,10 @@ export default function AMASFlowVisualization({
         rawEvent: { ...data.rawEvent, timestamp: data.timestamp },
         state: data.state,
         weights: {
-          thompson: data.weights.thompson ?? 0.25,
-          linucb: data.weights.linucb ?? 0.25,
-          actr: data.weights.actr ?? 0.2,
-          fsrs: data.weights.fsrs ?? 0.15,
+          ige: data.weights.ige ?? 0.25,
+          swd: data.weights.swd ?? 0.25,
+          msmt: data.weights.msmt ?? 0.2,
+          mdm: data.weights.mdm ?? 0.15,
           heuristic: data.weights.heuristic ?? 0.1,
           coldstart: data.weights.coldstart ?? 0.05,
         },
@@ -336,7 +340,8 @@ export default function AMASFlowVisualization({
     if (!userId) return;
     if (eventSourceRef.current) return;
 
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    const tokenKey = adminMode ? 'admin_token' : STORAGE_KEYS.AUTH_TOKEN;
+    const token = localStorage.getItem(tokenKey);
     if (!token) return;
 
     if (reconnectTimeoutRef.current) {
@@ -350,7 +355,7 @@ export default function AMASFlowVisualization({
 
     es.onopen = () => {
       setSseConnected(true);
-      onConnectionChange?.(true);
+      onConnectionChangeRef.current?.(true);
       reconnectAttemptsRef.current = 0;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -371,7 +376,7 @@ export default function AMASFlowVisualization({
 
     es.onerror = () => {
       setSseConnected(false);
-      onConnectionChange?.(false);
+      onConnectionChangeRef.current?.(false);
       es.close();
       eventSourceRef.current = null;
 
@@ -381,7 +386,7 @@ export default function AMASFlowVisualization({
         reconnectTimeoutRef.current = setTimeout(connectSSE, delay);
       }
     };
-  }, [userId, processSSEFrame, onConnectionChange]);
+  }, [userId, processSSEFrame, adminMode]);
 
   const disconnectSSE = useCallback(() => {
     if (eventSourceRef.current) {
@@ -393,8 +398,8 @@ export default function AMASFlowVisualization({
       reconnectTimeoutRef.current = null;
     }
     setSseConnected(false);
-    onConnectionChange?.(false);
-  }, [onConnectionChange]);
+    onConnectionChangeRef.current?.(false);
+  }, []);
 
   useEffect(() => {
     if (mode === 'demo' && isVisible && autoPlay) {
