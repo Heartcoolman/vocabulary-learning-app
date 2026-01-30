@@ -13,7 +13,7 @@ export interface MasteryEvaluation {
   confidence: number;
   factors: {
     srsLevel: number;
-    actrRecall: number;
+    msmtRecall: number;
     recentAccuracy: number;
     userFatigue: number;
   };

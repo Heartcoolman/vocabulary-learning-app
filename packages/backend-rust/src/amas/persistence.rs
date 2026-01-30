@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
+use crate::amas::decision::ensemble::PerformanceTracker;
 use crate::amas::types::{
     HabitProfile, HabitSamples, PersistedAMASState, RhythmPreference, UserState,
 };
 use crate::db::operations::{
-    get_amas_user_model, get_amas_user_state, insert_amas_user_model, upsert_amas_user_state,
-    AmasUserModel, AmasUserState,
+    get_amas_user_model, get_amas_user_model_tx, get_amas_user_state, insert_amas_user_model_tx,
+    upsert_amas_user_state_tx, AmasUserModel, AmasUserState,
 };
 use crate::db::DatabaseProxy;
+use crate::umm::MasteryHistory;
 
 pub struct AMASPersistence {
     db_proxy: Arc<DatabaseProxy>,
@@ -22,12 +24,9 @@ impl AMASPersistence {
         let user_state_row = get_amas_user_state(&self.db_proxy, user_id)
             .await
             .ok()
-            .flatten();
+            .flatten()?;
 
-        let mut user_state = match user_state_row {
-            Some(row) => self.row_to_user_state(&row),
-            None => return None,
-        };
+        let mut user_state = self.row_to_user_state(&user_state_row);
 
         // Load habit profile from database
         user_state.habit = self.load_habit_profile(user_id).await;
@@ -60,6 +59,31 @@ impl AMASPersistence {
             .and_then(|m| m.parameters.get("count").and_then(|v| v.as_i64()))
             .unwrap_or(0) as i32;
 
+        // Parse last_updated from database row
+        let last_updated = chrono::DateTime::parse_from_rfc3339(&user_state_row.updated_at)
+            .map(|dt| dt.timestamp_millis())
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    user_id = %user_id,
+                    updated_at = %user_state_row.updated_at,
+                    error = %e,
+                    "Failed to parse updatedAt timestamp, falling back to Utc::now()"
+                );
+                chrono::Utc::now().timestamp_millis()
+            });
+
+        // Load mastery_history from database row
+        let mastery_history: Option<MasteryHistory> = user_state_row
+            .mastery_history
+            .as_ref()
+            .and_then(|v| serde_json::from_value(v.clone()).ok());
+
+        // Load ensemble_performance from database row
+        let ensemble_performance: Option<PerformanceTracker> = user_state_row
+            .ensemble_performance
+            .as_ref()
+            .and_then(|v| serde_json::from_value(v.clone()).ok());
+
         Some(PersistedAMASState {
             user_id: user_id.to_string(),
             user_state,
@@ -67,8 +91,10 @@ impl AMASPersistence {
             current_strategy,
             cold_start_state,
             interaction_count,
-            last_updated: chrono::Utc::now().timestamp_millis(),
+            last_updated,
             user_fsrs_params: None,
+            mastery_history,
+            ensemble_performance,
         })
     }
 
@@ -118,8 +144,21 @@ impl AMASPersistence {
     }
 
     pub async fn save_state(&self, state: &PersistedAMASState) -> Result<(), String> {
-        let amas_state = self.user_state_to_row(&state.user_id, &state.user_state);
-        upsert_amas_user_state(&self.db_proxy, &amas_state)
+        let pool = self.db_proxy.pool();
+        let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+        // Build AmasUserState row with mastery_history and ensemble_performance
+        let mut amas_state = self.user_state_to_row(&state.user_id, &state.user_state);
+        amas_state.mastery_history = state
+            .mastery_history
+            .as_ref()
+            .and_then(|h| serde_json::to_value(h).ok());
+        amas_state.ensemble_performance = state
+            .ensemble_performance
+            .as_ref()
+            .and_then(|p| serde_json::to_value(p).ok());
+
+        upsert_amas_user_state_tx(&mut tx, &amas_state)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -133,7 +172,7 @@ impl AMASPersistence {
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
             };
-            insert_amas_user_model(&self.db_proxy, &model)
+            insert_amas_user_model_tx(&mut tx, &model)
                 .await
                 .map_err(|e| e.to_string())?;
         }
@@ -148,12 +187,12 @@ impl AMASPersistence {
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
             };
-            insert_amas_user_model(&self.db_proxy, &model)
+            insert_amas_user_model_tx(&mut tx, &model)
                 .await
                 .map_err(|e| e.to_string())?;
         }
 
-        self.save_strategy_snapshot(state).await?;
+        self.save_strategy_snapshot_tx(&mut tx, state).await?;
 
         let count_model = AmasUserModel {
             id: format!("{}:interaction_count", state.user_id),
@@ -164,16 +203,22 @@ impl AMASPersistence {
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: chrono::Utc::now().to_rfc3339(),
         };
-        insert_amas_user_model(&self.db_proxy, &count_model)
+        insert_amas_user_model_tx(&mut tx, &count_model)
             .await
             .map_err(|e| e.to_string())?;
+
+        tx.commit().await.map_err(|e| e.to_string())?;
 
         Ok(())
     }
 
-    async fn save_strategy_snapshot(&self, state: &PersistedAMASState) -> Result<(), String> {
+    async fn save_strategy_snapshot_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        state: &PersistedAMASState,
+    ) -> Result<(), String> {
         let new_parameters = serde_json::to_value(&state.current_strategy).unwrap_or_default();
-        let previous = get_amas_user_model(&self.db_proxy, &state.user_id, "strategy")
+        let previous = get_amas_user_model_tx(tx, &state.user_id, "strategy")
             .await
             .map_err(|e| e.to_string())?;
 
@@ -198,7 +243,7 @@ impl AMASPersistence {
             updated_at: chrono::Utc::now().to_rfc3339(),
         };
 
-        insert_amas_user_model(&self.db_proxy, &strategy_model)
+        insert_amas_user_model_tx(tx, &strategy_model)
             .await
             .map_err(|e| e.to_string())
     }
@@ -219,6 +264,17 @@ impl AMASPersistence {
             .as_ref()
             .map(|s| crate::amas::types::TrendState::parse(s));
 
+        // Parse visual fatigue from row
+        let visual_fatigue =
+            row.visual_fatigue
+                .map(|score| crate::amas::types::VisualFatigueState {
+                    score,
+                    confidence: 0.5,
+                    freshness: 1.0,
+                    trend: 0.0,
+                    last_updated: chrono::Utc::now().timestamp_millis(),
+                });
+
         UserState {
             attention: row.attention,
             fatigue: row.fatigue,
@@ -230,8 +286,8 @@ impl AMASPersistence {
             ts: chrono::DateTime::parse_from_rfc3339(&row.updated_at)
                 .map(|dt| dt.timestamp_millis())
                 .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis()),
-            visual_fatigue: None,
-            fused_fatigue: None,
+            visual_fatigue,
+            fused_fatigue: row.fused_fatigue,
         }
     }
 
@@ -251,6 +307,14 @@ impl AMASPersistence {
             cognitive_profile,
             trend_state: state.trend.map(|t| t.as_str().to_string()),
             confidence: state.conf,
+            visual_fatigue: state.visual_fatigue.as_ref().map(|v| v.score),
+            fused_fatigue: state.fused_fatigue,
+            mastery_history: None, // Set by save_state after this call
+            habit_samples: state
+                .habit
+                .as_ref()
+                .map(|h| serde_json::to_value(&h.samples).unwrap_or_default()),
+            ensemble_performance: None, // Set by save_state after this call
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: chrono::Utc::now().to_rfc3339(),
         }

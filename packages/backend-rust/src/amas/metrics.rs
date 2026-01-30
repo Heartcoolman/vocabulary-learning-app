@@ -27,6 +27,14 @@ pub enum AlgorithmId {
     Fsrs,
     // Management
     ColdStartManager,
+    // UMM (Unified Memory Model) - Original Algorithms
+    Mdm,  // Memory Dynamics Model
+    Ige,  // Information Gain Exploration
+    Swd,  // Similarity-Weighted Decision
+    Msmt, // Multi-Scale Memory Trace
+    Mtp,  // Morphological Transfer Propagation
+    Iad,  // Interference Attenuation by Distance
+    Evm,  // Encoding Variability Metric
 }
 
 impl AlgorithmId {
@@ -43,6 +51,13 @@ impl AlgorithmId {
             AlgorithmId::ActrMemory,
             AlgorithmId::Fsrs,
             AlgorithmId::ColdStartManager,
+            AlgorithmId::Mdm,
+            AlgorithmId::Ige,
+            AlgorithmId::Swd,
+            AlgorithmId::Msmt,
+            AlgorithmId::Mtp,
+            AlgorithmId::Iad,
+            AlgorithmId::Evm,
         ]
     }
 
@@ -59,6 +74,13 @@ impl AlgorithmId {
             AlgorithmId::ActrMemory => "actr_memory",
             AlgorithmId::Fsrs => "fsrs",
             AlgorithmId::ColdStartManager => "coldstart_manager",
+            AlgorithmId::Mdm => "umm_mdm",
+            AlgorithmId::Ige => "umm_ige",
+            AlgorithmId::Swd => "umm_swd",
+            AlgorithmId::Msmt => "umm_msmt",
+            AlgorithmId::Mtp => "umm_mtp",
+            AlgorithmId::Iad => "umm_iad",
+            AlgorithmId::Evm => "umm_evm",
         }
     }
 
@@ -75,6 +97,13 @@ impl AlgorithmId {
             AlgorithmId::ActrMemory => "ACT-R Memory",
             AlgorithmId::Fsrs => "FSRS",
             AlgorithmId::ColdStartManager => "ColdStart Manager",
+            AlgorithmId::Mdm => "UMM Memory Dynamics",
+            AlgorithmId::Ige => "UMM Information Gain Exploration",
+            AlgorithmId::Swd => "UMM Similarity-Weighted Decision",
+            AlgorithmId::Msmt => "UMM Multi-Scale Memory Trace",
+            AlgorithmId::Mtp => "UMM Morphological Transfer",
+            AlgorithmId::Iad => "UMM Interference Attenuation",
+            AlgorithmId::Evm => "UMM Encoding Variability",
         }
     }
 
@@ -88,6 +117,9 @@ impl AlgorithmId {
             | AlgorithmId::TrendAnalyzer => "modeling",
             AlgorithmId::ActrMemory | AlgorithmId::Fsrs => "memory",
             AlgorithmId::ColdStartManager => "management",
+            AlgorithmId::Ige | AlgorithmId::Swd => "umm_decision",
+            AlgorithmId::Mdm | AlgorithmId::Msmt => "umm_memory",
+            AlgorithmId::Mtp | AlgorithmId::Iad | AlgorithmId::Evm => "umm_vocabulary",
         }
     }
 
@@ -126,6 +158,13 @@ impl FromStr for AlgorithmId {
             "actr_memory" => Ok(AlgorithmId::ActrMemory),
             "fsrs" => Ok(AlgorithmId::Fsrs),
             "coldstart_manager" => Ok(AlgorithmId::ColdStartManager),
+            "umm_mdm" => Ok(AlgorithmId::Mdm),
+            "umm_ige" => Ok(AlgorithmId::Ige),
+            "umm_swd" => Ok(AlgorithmId::Swd),
+            "umm_msmt" => Ok(AlgorithmId::Msmt),
+            "umm_mtp" => Ok(AlgorithmId::Mtp),
+            "umm_iad" => Ok(AlgorithmId::Iad),
+            "umm_evm" => Ok(AlgorithmId::Evm),
             _ => Err(()),
         }
     }

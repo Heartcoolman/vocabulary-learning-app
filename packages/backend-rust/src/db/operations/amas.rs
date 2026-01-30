@@ -15,6 +15,12 @@ pub struct AmasUserState {
     pub cognitive_profile: serde_json::Value,
     pub trend_state: Option<String>,
     pub confidence: f64,
+    // Runtime state fields (Migration 043)
+    pub visual_fatigue: Option<f64>,
+    pub fused_fatigue: Option<f64>,
+    pub mastery_history: Option<serde_json::Value>,
+    pub habit_samples: Option<serde_json::Value>,
+    pub ensemble_performance: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -121,8 +127,10 @@ pub async fn upsert_amas_user_state(
         r#"
         INSERT INTO "amas_user_states" (
             "id", "userId", "attention", "fatigue", "motivation",
-            "cognitiveProfile", "trendState", "confidence", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            "cognitiveProfile", "trendState", "confidence",
+            "visualFatigue", "fusedFatigue", "masteryHistory", "habitSamples", "ensemblePerformance",
+            "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         ON CONFLICT ("userId") DO UPDATE SET
             "attention" = EXCLUDED."attention",
             "fatigue" = EXCLUDED."fatigue",
@@ -130,6 +138,11 @@ pub async fn upsert_amas_user_state(
             "cognitiveProfile" = EXCLUDED."cognitiveProfile",
             "trendState" = EXCLUDED."trendState",
             "confidence" = EXCLUDED."confidence",
+            "visualFatigue" = EXCLUDED."visualFatigue",
+            "fusedFatigue" = EXCLUDED."fusedFatigue",
+            "masteryHistory" = EXCLUDED."masteryHistory",
+            "habitSamples" = EXCLUDED."habitSamples",
+            "ensemblePerformance" = EXCLUDED."ensemblePerformance",
             "updatedAt" = EXCLUDED."updatedAt"
         "#,
     )
@@ -141,6 +154,11 @@ pub async fn upsert_amas_user_state(
     .bind(&user_state.cognitive_profile)
     .bind(&user_state.trend_state)
     .bind(user_state.confidence)
+    .bind(user_state.visual_fatigue)
+    .bind(user_state.fused_fatigue)
+    .bind(&user_state.mastery_history)
+    .bind(&user_state.habit_samples)
+    .bind(&user_state.ensemble_performance)
     .bind(now)
     .bind(now)
     .execute(proxy.pool())
@@ -194,6 +212,102 @@ pub async fn insert_amas_user_model(
     .execute(proxy.pool())
     .await?;
     Ok(())
+}
+
+pub async fn upsert_amas_user_state_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_state: &AmasUserState,
+) -> Result<(), sqlx::Error> {
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "amas_user_states" (
+            "id", "userId", "attention", "fatigue", "motivation",
+            "cognitiveProfile", "trendState", "confidence",
+            "visualFatigue", "fusedFatigue", "masteryHistory", "habitSamples", "ensemblePerformance",
+            "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT ("userId") DO UPDATE SET
+            "attention" = EXCLUDED."attention",
+            "fatigue" = EXCLUDED."fatigue",
+            "motivation" = EXCLUDED."motivation",
+            "cognitiveProfile" = EXCLUDED."cognitiveProfile",
+            "trendState" = EXCLUDED."trendState",
+            "confidence" = EXCLUDED."confidence",
+            "visualFatigue" = EXCLUDED."visualFatigue",
+            "fusedFatigue" = EXCLUDED."fusedFatigue",
+            "masteryHistory" = EXCLUDED."masteryHistory",
+            "habitSamples" = EXCLUDED."habitSamples",
+            "ensemblePerformance" = EXCLUDED."ensemblePerformance",
+            "updatedAt" = EXCLUDED."updatedAt"
+        "#,
+    )
+    .bind(&user_state.id)
+    .bind(&user_state.user_id)
+    .bind(user_state.attention)
+    .bind(user_state.fatigue)
+    .bind(user_state.motivation)
+    .bind(&user_state.cognitive_profile)
+    .bind(&user_state.trend_state)
+    .bind(user_state.confidence)
+    .bind(user_state.visual_fatigue)
+    .bind(user_state.fused_fatigue)
+    .bind(&user_state.mastery_history)
+    .bind(&user_state.habit_samples)
+    .bind(&user_state.ensemble_performance)
+    .bind(now)
+    .bind(now)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+pub async fn insert_amas_user_model_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    model: &AmasUserModel,
+) -> Result<(), sqlx::Error> {
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "amas_user_models" (
+            "id", "userId", "modelType", "parameters", "version", "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT ("userId", "modelType") DO UPDATE SET
+            "parameters" = EXCLUDED."parameters",
+            "version" = EXCLUDED."version",
+            "updatedAt" = EXCLUDED."updatedAt"
+        "#,
+    )
+    .bind(&model.id)
+    .bind(&model.user_id)
+    .bind(&model.model_type)
+    .bind(&model.parameters)
+    .bind(model.version)
+    .bind(now)
+    .bind(now)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+pub async fn get_amas_user_model_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_id: &str,
+    model_type: &str,
+) -> Result<Option<AmasUserModel>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        SELECT * FROM "amas_user_models"
+        WHERE "userId" = $1 AND "modelType" = $2
+        ORDER BY "version" DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .bind(model_type)
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(row.map(|r| map_amas_user_model(&r)))
 }
 
 pub async fn insert_decision_record(
@@ -449,6 +563,11 @@ fn map_amas_user_state(row: &sqlx::postgres::PgRow) -> AmasUserState {
         cognitive_profile: row.try_get("cognitiveProfile").unwrap_or(default_cognitive),
         trend_state: row.try_get("trendState").ok(),
         confidence: row.try_get("confidence").unwrap_or(0.5),
+        visual_fatigue: row.try_get("visualFatigue").ok(),
+        fused_fatigue: row.try_get("fusedFatigue").ok(),
+        mastery_history: row.try_get("masteryHistory").ok(),
+        habit_samples: row.try_get("habitSamples").ok(),
+        ensemble_performance: row.try_get("ensemblePerformance").ok(),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),
     }

@@ -38,7 +38,7 @@ const PerformanceTestPage: React.FC = () => {
       isLearned: true,
       factors: {
         srsLevel: 5,
-        actrRecall: 0.88,
+        msmtRecall: 0.88,
         recentAccuracy: 0.92,
         userFatigue: 0.1,
       },

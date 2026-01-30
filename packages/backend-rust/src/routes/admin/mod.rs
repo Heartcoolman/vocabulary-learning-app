@@ -227,7 +227,7 @@ struct DistributionCounts {
 
 async fn get_visual_fatigue_stats(
     State(state): State<AppState>,
-    Extension(_user): Extension<crate::auth::AuthUser>,
+    Extension(_user): Extension<crate::services::admin_auth::AdminAuthUser>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
         return Err(json_error(

@@ -5,10 +5,7 @@ use std::time::Instant;
 use tokio::sync::RwLock;
 
 use crate::amas::config::AMASConfig;
-use crate::amas::decision::{
-    linucb::ACTION_FEATURE_DIM, ColdStartManager, EnsembleDecision, LinUCBModel,
-    ThompsonSamplingModel,
-};
+use crate::amas::decision::{ColdStartManager, EnsembleDecision};
 use crate::amas::metrics::AlgorithmId;
 use crate::amas::modeling::{
     AttentionMonitor, CognitiveProfiler, FatigueEstimator, MotivationTracker, TrendAnalyzer,
@@ -17,12 +14,18 @@ use crate::amas::monitoring::AMASMonitor;
 use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
 use crate::db::DatabaseProxy;
-use crate::services::amas_config::AMASConfigService;
-use crate::services::fsrs::{
-    compute_fsrs_mastery_score, fsrs5_retrievability, fsrs_next_interval_with_root, FSRSState,
-    Rating, RetentionSample, UserFSRSParams,
-};
 use crate::track_algorithm;
+use crate::umm::adaptive_mastery::{
+    compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory,
+};
+use crate::umm::evm::ContextEntry;
+use crate::umm::iad::ConfusionPair;
+use crate::umm::ige::IgeModel;
+use crate::umm::mdm::{compute_quality as mdm_compute_quality, MdmState};
+use crate::umm::msmt::{MsmtModel, ReviewEvent as MsmtReviewEvent};
+use crate::umm::mtp::MorphemeState;
+use crate::umm::swd::SwdModel;
+use crate::umm::UmmEngine;
 
 struct UserModels {
     attention: AttentionMonitor,
@@ -31,14 +34,12 @@ struct UserModels {
     motivation: MotivationTracker,
     trend: TrendAnalyzer,
     cold_start: Option<ColdStartManager>,
-    linucb: LinUCBModel,
-    thompson: ThompsonSamplingModel,
+    ige: IgeModel,
+    swd: SwdModel,
 }
 
 impl UserModels {
     fn new(config: &AMASConfig) -> Self {
-        let mut thompson = ThompsonSamplingModel::new(1.0, 1.0);
-        thompson.set_context_config(config.thompson_context.bins, config.thompson_context.weight);
         Self {
             attention: AttentionMonitor::new(
                 config.attention_weights.clone(),
@@ -49,12 +50,8 @@ impl UserModels {
             motivation: MotivationTracker::new(config.motivation.clone()),
             trend: TrendAnalyzer::new(config.trend.clone()),
             cold_start: Some(ColdStartManager::new(config.cold_start.clone())),
-            linucb: LinUCBModel::new(
-                config.bandit.context_dim,
-                ACTION_FEATURE_DIM,
-                config.bandit.alpha,
-            ),
-            thompson,
+            ige: IgeModel::new(),
+            swd: SwdModel::new(),
         }
     }
 
@@ -101,25 +98,11 @@ impl AMASEngine {
     }
 
     pub async fn reload_config(&self) -> Result<(), String> {
-        let mut new_config = AMASConfig::from_env();
-        if let Some(ref proxy) = self.db_proxy {
-            let service = AMASConfigService::new(Arc::clone(proxy));
-            match service.get_config().await {
-                Ok(db_config) => {
-                    new_config.thompson_context.bins = db_config.thompson_context.bins;
-                    new_config.thompson_context.weight = db_config.thompson_context.weight;
-                }
-                Err(err) => {
-                    tracing::warn!(error = %err, "Failed to load AMAS config from DB");
-                }
-            }
-        }
+        let new_config = AMASConfig::from_env();
         let new_ensemble = EnsembleDecision::with_config(
             new_config.feature_flags.clone(),
             new_config.ensemble.clone(),
         );
-        let thompson_bins = new_config.thompson_context.bins;
-        let thompson_weight = new_config.thompson_context.weight;
 
         {
             let mut config = self.config.write().await;
@@ -128,14 +111,6 @@ impl AMASEngine {
         {
             let mut ensemble = self.ensemble.write().await;
             *ensemble = new_ensemble;
-        }
-        {
-            let mut model_map = self.user_models.write().await;
-            for models in model_map.values_mut() {
-                models
-                    .thompson
-                    .set_context_config(thompson_bins, thompson_weight);
-            }
         }
 
         tracing::info!("AMAS config reloaded");
@@ -166,6 +141,7 @@ impl AMASEngine {
     ) -> Result<ProcessResult, String> {
         let start_time = Instant::now();
         let config = self.config.read().await.clone();
+
         let mut state = self.load_or_init_state(user_id).await;
         let mut models = self.get_or_init_models(user_id, &state, &config).await;
 
@@ -208,62 +184,80 @@ impl AMASEngine {
             let strategy_candidates =
                 self.generate_strategy_candidates(&current_strategy, &new_user_state);
 
-            let linucb_action = if config.feature_flags.linucb_enabled {
+            // UMM IGE for strategy exploration
+            let ige_action = {
+                let strategy_keys: Vec<String> = strategy_candidates
+                    .iter()
+                    .map(|s| format!("{:?}:{}", s.difficulty, s.batch_size))
+                    .collect();
+                let context_key = Some(format!(
+                    "{}:{}",
+                    (new_user_state.attention * 10.0).floor() as i32,
+                    (new_user_state.fatigue * 10.0).floor() as i32
+                ));
                 track_algorithm!(
-                    AlgorithmId::LinUCB,
-                    models.linucb.select_action(
-                        &new_user_state,
-                        &feature_vector,
-                        &strategy_candidates
-                    )
+                    AlgorithmId::Ige,
+                    models
+                        .ige
+                        .select_action(&strategy_keys, context_key.as_deref())
+                        .and_then(|key| {
+                            strategy_candidates
+                                .iter()
+                                .find(|s| format!("{:?}:{}", s.difficulty, s.batch_size) == key)
+                                .cloned()
+                        })
                 )
-            } else {
-                None
             };
-            let conf_map = &config.ensemble.confidence_map;
-            let linucb_confidence = linucb_action.as_ref().map(|a| {
-                models.linucb.get_confidence_with_params(
-                    &feature_vector,
-                    a,
-                    conf_map.linucb_exploration_scale,
-                    conf_map.min_confidence,
-                    conf_map.max_confidence,
-                )
+            let ige_confidence = ige_action.as_ref().map(|a| {
+                let key = format!("{:?}:{}", a.difficulty, a.batch_size);
+                models.ige.get_confidence(&key, None)
             });
 
-            let thompson_action = if config.feature_flags.thompson_enabled {
+            // UMM SWD for strategy decision
+            let swd_action = {
+                let context_vec: Vec<f64> = vec![
+                    new_user_state.attention,
+                    new_user_state.fatigue,
+                    new_user_state.motivation,
+                    new_user_state.cognitive.mem,
+                ];
+                let strategy_keys: Vec<String> = strategy_candidates
+                    .iter()
+                    .map(|s| format!("{:?}:{}", s.difficulty, s.batch_size))
+                    .collect();
                 track_algorithm!(
-                    AlgorithmId::Thompson,
-                    models.thompson.select_action(
-                        &new_user_state,
-                        &feature_vector,
-                        &strategy_candidates
-                    )
+                    AlgorithmId::Swd,
+                    models
+                        .swd
+                        .select_action(&context_vec, &strategy_keys)
+                        .and_then(|key| {
+                            strategy_candidates
+                                .iter()
+                                .find(|s| format!("{:?}:{}", s.difficulty, s.batch_size) == key)
+                                .cloned()
+                        })
                 )
-            } else {
-                None
             };
-            let thompson_confidence = thompson_action.as_ref().map(|a| {
-                models.thompson.get_confidence_with_params(
-                    &new_user_state,
-                    a,
-                    conf_map.thompson_ess_k,
-                    conf_map.min_confidence,
-                    conf_map.max_confidence,
-                )
+            let swd_confidence = swd_action.as_ref().map(|a| {
+                let key = format!("{:?}:{}", a.difficulty, a.batch_size);
+                models.swd.get_confidence(&key)
             });
 
             let ensemble = self.ensemble.read().await;
             let (raw_strategy, candidates) = track_algorithm!(
                 AlgorithmId::Heuristic,
-                ensemble.decide(
+                ensemble.decide_extended(
                     &new_user_state,
                     &feature_vector,
                     &current_strategy,
-                    thompson_action.as_ref(),
-                    thompson_confidence,
-                    linucb_action.as_ref(),
-                    linucb_confidence,
+                    None, // thompson_action removed
+                    None, // thompson_confidence removed
+                    None, // linucb_action removed
+                    None, // linucb_confidence removed
+                    ige_action.as_ref(),
+                    ige_confidence,
+                    swd_action.as_ref(),
+                    swd_confidence,
                 )
             );
 
@@ -283,12 +277,6 @@ impl AMASEngine {
         let reward = self.compute_reward(&event, &new_user_state, &options, &config);
 
         if cold_start_result.is_none() {
-            let linucb_feature = models.linucb.build_features(&feature_vector, &new_strategy);
-            models.linucb.update(&linucb_feature, reward.value);
-            models
-                .thompson
-                .update(&new_user_state, &new_strategy, reward.value);
-
             {
                 let mut ensemble = self.ensemble.write().await;
                 ensemble.update_performance(&candidates, &new_strategy, reward.value);
@@ -302,183 +290,225 @@ impl AMASEngine {
             &new_strategy,
         );
 
-        // Calculate interval using FSRS when word state is available
+        // Convert vocabulary specialization inputs
+        let morpheme_states: Vec<MorphemeState> = options
+            .morpheme_states
+            .as_ref()
+            .map(|ms| {
+                ms.iter()
+                    .map(|m| MorphemeState {
+                        morpheme_id: m.morpheme_id.clone(),
+                        mastery_level: m.mastery_level,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let confusion_pairs: Vec<ConfusionPair> = options
+            .confusion_pairs
+            .as_ref()
+            .map(|cp| {
+                cp.iter()
+                    .map(|c| ConfusionPair {
+                        confusing_word_id: c.confusing_word_id.clone(),
+                        distance: c.distance,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let recent_word_ids: Vec<String> = options.recent_word_ids.clone().unwrap_or_default();
+
+        let context_history: Vec<ContextEntry> = options
+            .context_history
+            .as_ref()
+            .map(|ch| {
+                ch.iter()
+                    .map(|c| ContextEntry {
+                        hour_of_day: c.hour_of_day,
+                        day_of_week: c.day_of_week,
+                        question_type: c.question_type.clone(),
+                        device_type: c.device_type.clone(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Calculate interval using UMM (MDM + vocabulary specialization)
         let word_mastery_decision = event.word_id.as_ref().map(|wid| {
-            let rating = Rating::from_correct(event.is_correct, event.response_time);
-            let fsrs_params = state
-                .user_fsrs_params
-                .as_ref()
-                .map(|p| p.effective_params())
-                .unwrap_or_default();
+            let quality = mdm_compute_quality(
+                event.is_correct,
+                event.response_time,
+                if event.hint_used { 1 } else { 0 },
+            );
 
             if let Some(ref ws) = options.word_state {
-                // Use FSRS with existing word state
-                let fsrs_state = FSRSState {
-                    stability: ws.stability,
-                    difficulty: ws.difficulty,
-                    elapsed_days: ws.elapsed_days,
-                    scheduled_days: ws.scheduled_days,
-                    reps: ws.reps,
-                    lapses: ws.lapses,
+                let now_ts = chrono::Utc::now().timestamp_millis();
+                let desired_retention =
+                    self.adjust_retention(ws.desired_retention, &new_user_state, &options, &config);
+
+                // Load or create MDM state
+                let mut mdm = if let (Some(s), Some(c)) = (ws.umm_strength, ws.umm_consolidation) {
+                    MdmState {
+                        strength: s,
+                        consolidation: c,
+                        last_review_ts: ws.umm_last_review_ts.unwrap_or(0),
+                    }
+                } else {
+                    // Migrate from FSRS
+                    MdmState::from_fsrs(ws.stability, ws.difficulty)
                 };
-                let desired_retention = self.adjust_fsrs_retention(
-                    ws.desired_retention,
-                    &new_user_state,
-                    &options,
-                    &config,
-                );
-                let root_bonus = options
-                    .root_features
-                    .as_ref()
-                    .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
-                    .unwrap_or(0.0);
-                let result = track_algorithm!(
-                    AlgorithmId::Fsrs,
-                    fsrs_next_interval_with_root(
-                        &fsrs_state,
-                        rating,
-                        desired_retention,
-                        &fsrs_params,
-                        root_bonus,
+
+                // Compute retrievability BEFORE update (with vocabulary specialization)
+                let prev_retrievability = track_algorithm!(
+                    AlgorithmId::Mdm,
+                    UmmEngine::compute_retrievability(
+                        &mdm,
+                        ws.elapsed_days,
+                        &morpheme_states,
+                        &confusion_pairs,
+                        &recent_word_ids,
+                        &context_history,
                     )
                 );
-                let now_ts = chrono::Utc::now().timestamp_millis();
-                let last_review_ts = if ws.elapsed_days > 0.0 {
-                    Some(now_ts - (ws.elapsed_days * 86_400_000.0) as i64)
-                } else {
-                    None
+
+                // Update MDM state
+                mdm.update(quality, now_ts);
+
+                // Calculate interval with vocabulary specialization
+                let new_interval = track_algorithm!(
+                    AlgorithmId::Mdm,
+                    UmmEngine::compute_interval(
+                        &mdm,
+                        desired_retention,
+                        &morpheme_states,
+                        &confusion_pairs,
+                        &recent_word_ids,
+                        &context_history,
+                    )
+                );
+
+                // New retrievability after update
+                let new_retrievability = mdm.retrievability(0.0);
+
+                // Adaptive mastery decision based on user's personal cognitive profile
+                let mastery_context = MasteryContext {
+                    is_first_attempt: ws.reps == 0,
+                    correct_count: if event.is_correct {
+                        ws.reps + 1
+                    } else {
+                        ws.reps - ws.lapses
+                    },
+                    total_attempts: ws.reps + 1,
+                    response_time_ms: event.response_time,
+                    hint_used: event.hint_used,
+                    consecutive_correct: if event.is_correct {
+                        // Estimate consecutive correct from lapses ratio
+                        ((ws.reps - ws.lapses * 2).max(0) + 1).min(5)
+                    } else {
+                        0
+                    },
                 };
-                let retrievability =
-                    fsrs5_retrievability(ws.stability, ws.elapsed_days, last_review_ts, now_ts);
 
-                // AMAS comprehensive mastery decision
-                let (fsrs_score, _fsrs_conf) = compute_fsrs_mastery_score(&result.state, rating);
-                let is_first_attempt = ws.reps == 0;
-
-                // Cognitive state adjustment (0-30 points)
-                let cognitive_score = (new_user_state.cognitive.mem * 0.4
-                    + new_user_state.cognitive.speed * 0.3
-                    + new_user_state.cognitive.stability * 0.3)
-                    * 20.0;
-                let attention_bonus = new_user_state.attention * 10.0;
-                let fatigue_penalty = new_user_state
-                    .fused_fatigue
-                    .unwrap_or(new_user_state.fatigue)
-                    * 10.0;
-                let user_state_score = cognitive_score + attention_bonus - fatigue_penalty;
-
-                // First attempt fast correct bonus
-                let first_attempt_bonus = if is_first_attempt && rating == Rating::Easy {
-                    15.0
-                } else {
-                    0.0
-                };
-
-                let total_score = fsrs_score + user_state_score + first_attempt_bonus;
-                let confidence = (total_score / 100.0).clamp(0.0, 1.0);
-                let is_mastered_decision = total_score >= 60.0;
+                let mastery_result = compute_adaptive_mastery_with_history(
+                    &mdm,
+                    &new_user_state,
+                    &mastery_context,
+                    new_strategy.difficulty,
+                    event.is_correct,
+                    state.mastery_history.as_ref(),
+                );
 
                 WordMasteryDecision {
                     word_id: wid.clone(),
-                    prev_mastery: retrievability,
-                    new_mastery: result.retrievability,
+                    prev_mastery: prev_retrievability,
+                    new_mastery: new_retrievability,
                     prev_interval: ws.scheduled_days,
-                    new_interval: result.interval_days * new_strategy.interval_scale,
-                    quality: rating as i32,
-                    stability: result.state.stability,
-                    difficulty: result.state.difficulty,
-                    retrievability: result.retrievability,
-                    is_mastered: is_mastered_decision,
-                    lapses: result.state.lapses,
-                    reps: result.state.reps,
-                    confidence,
+                    new_interval: new_interval * new_strategy.interval_scale,
+                    quality: if event.is_correct { 3 } else { 1 },
+                    stability: mdm.strength,
+                    difficulty: 1.0 - mdm.consolidation,
+                    retrievability: new_retrievability,
+                    is_mastered: mastery_result.is_mastered,
+                    lapses: if event.is_correct {
+                        ws.lapses
+                    } else {
+                        ws.lapses + 1
+                    },
+                    reps: ws.reps + 1,
+                    confidence: mastery_result.confidence,
+                    umm_strength: Some(mdm.strength),
+                    umm_consolidation: Some(mdm.consolidation),
+                    umm_last_review_ts: Some(mdm.last_review_ts),
+                    mastery_score: Some(mastery_result.score),
+                    mastery_threshold: Some(mastery_result.threshold),
                 }
             } else {
-                // New word: use FSRS with default state
-                let fsrs_state = FSRSState::default();
-                let root_bonus = options
-                    .root_features
-                    .as_ref()
-                    .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
-                    .unwrap_or(0.0);
+                // New word
+                let now_ts = chrono::Utc::now().timestamp_millis();
                 let desired_retention =
-                    self.adjust_fsrs_retention(0.9, &new_user_state, &options, &config);
-                let result = track_algorithm!(
-                    AlgorithmId::Fsrs,
-                    fsrs_next_interval_with_root(
-                        &fsrs_state,
-                        rating,
+                    self.adjust_retention(0.9, &new_user_state, &options, &config);
+
+                let mut mdm = MdmState::new();
+                mdm.update(quality, now_ts);
+
+                let new_interval = track_algorithm!(
+                    AlgorithmId::Mdm,
+                    UmmEngine::compute_interval(
+                        &mdm,
                         desired_retention,
-                        &fsrs_params,
-                        root_bonus,
+                        &morpheme_states,
+                        &confusion_pairs,
+                        &recent_word_ids,
+                        &context_history,
                     )
                 );
 
-                // AMAS comprehensive mastery decision for new word
-                let (fsrs_score, _) = compute_fsrs_mastery_score(&result.state, rating);
+                let new_retrievability = mdm.retrievability(0.0);
 
-                // Cognitive state adjustment (0-30 points)
-                let cognitive_score = (new_user_state.cognitive.mem * 0.4
-                    + new_user_state.cognitive.speed * 0.3
-                    + new_user_state.cognitive.stability * 0.3)
-                    * 20.0;
-                let attention_bonus = new_user_state.attention * 10.0;
-                let fatigue_penalty = new_user_state
-                    .fused_fatigue
-                    .unwrap_or(new_user_state.fatigue)
-                    * 10.0;
-                let user_state_score = cognitive_score + attention_bonus - fatigue_penalty;
+                // Adaptive mastery decision for new word
+                let mastery_context = MasteryContext {
+                    is_first_attempt: true,
+                    correct_count: if event.is_correct { 1 } else { 0 },
+                    total_attempts: 1,
+                    response_time_ms: event.response_time,
+                    hint_used: event.hint_used,
+                    consecutive_correct: if event.is_correct { 1 } else { 0 },
+                };
 
-                // First attempt fast correct bonus (always true for new word)
-                let first_attempt_bonus = if rating == Rating::Easy { 15.0 } else { 0.0 };
-
-                let total_score = fsrs_score + user_state_score + first_attempt_bonus;
-                let confidence = (total_score / 100.0).clamp(0.0, 1.0);
-                let is_mastered_decision = total_score >= 60.0;
+                let mastery_result = compute_adaptive_mastery_with_history(
+                    &mdm,
+                    &new_user_state,
+                    &mastery_context,
+                    new_strategy.difficulty,
+                    event.is_correct,
+                    state.mastery_history.as_ref(),
+                );
 
                 WordMasteryDecision {
                     word_id: wid.clone(),
                     prev_mastery: 0.0,
-                    new_mastery: result.retrievability,
+                    new_mastery: new_retrievability,
                     prev_interval: 0.0,
-                    new_interval: result.interval_days * new_strategy.interval_scale,
-                    quality: rating as i32,
-                    stability: result.state.stability,
-                    difficulty: result.state.difficulty,
-                    retrievability: result.retrievability,
-                    is_mastered: is_mastered_decision,
-                    lapses: result.state.lapses,
-                    reps: result.state.reps,
-                    confidence,
+                    new_interval: new_interval * new_strategy.interval_scale,
+                    quality: if event.is_correct { 3 } else { 1 },
+                    stability: mdm.strength,
+                    difficulty: 1.0 - mdm.consolidation,
+                    retrievability: new_retrievability,
+                    is_mastered: mastery_result.is_mastered,
+                    lapses: if event.is_correct { 0 } else { 1 },
+                    reps: 1,
+                    confidence: mastery_result.confidence,
+                    umm_strength: Some(mdm.strength),
+                    umm_consolidation: Some(mdm.consolidation),
+                    umm_last_review_ts: Some(mdm.last_review_ts),
+                    mastery_score: Some(mastery_result.score),
+                    mastery_threshold: Some(mastery_result.threshold),
                 }
             }
         });
 
         let cold_start_phase = models.cold_start.as_ref().map(|cs| cs.phase());
-
-        // Collect Bayesian FSRS sample for parameter optimization
-        if let (Some(ref ws), Some(ref _wmd)) = (&options.word_state, &word_mastery_decision) {
-            if ws.reps > 0 && ws.elapsed_days > 0.0 {
-                let sample = RetentionSample {
-                    stability: ws.stability,
-                    elapsed_days: ws.elapsed_days,
-                    actual_recalled: event.is_correct,
-                };
-                let user_params = state
-                    .user_fsrs_params
-                    .get_or_insert_with(UserFSRSParams::default);
-                if let Some(ref mut bayesian) = user_params.bayesian {
-                    bayesian.add_sample(sample);
-                    if bayesian.samples.len() >= 20 {
-                        bayesian.optimize(0.01);
-                    }
-                } else {
-                    let mut bayesian = crate::services::fsrs::BayesianFSRSParams::default();
-                    bayesian.add_sample(sample);
-                    user_params.bayesian = Some(bayesian);
-                }
-            }
-        }
 
         state.user_state = new_user_state.clone();
         state.current_strategy = new_strategy.clone();
@@ -489,12 +519,31 @@ impl AMASEngine {
             state.cold_start_state = Some(cs.state().clone());
         }
 
-        // Update bandit_model for persistence with actual model state
+        // Store IGE/SWD model state for persistence
         state.bandit_model = Some(crate::amas::types::BanditModel {
-            thompson_params: serde_json::to_value(&models.thompson).ok(),
-            linucb_state: serde_json::to_value(&models.linucb).ok(),
+            thompson_params: serde_json::to_value(&models.ige).ok(),
+            linucb_state: serde_json::to_value(&models.swd).ok(),
             last_action_idx: None,
         });
+
+        // Update mastery history for adaptive threshold
+        if let Some(ref mastery) = word_mastery_decision {
+            if let (Some(score), Some(threshold)) =
+                (mastery.mastery_score, mastery.mastery_threshold)
+            {
+                let mut history = state
+                    .mastery_history
+                    .take()
+                    .unwrap_or_else(MasteryHistory::new);
+                history.record(
+                    score,
+                    threshold,
+                    mastery.is_mastered,
+                    chrono::Utc::now().timestamp_millis(),
+                );
+                state.mastery_history = Some(history);
+            }
+        }
 
         {
             let mut states = self.user_states.write().await;
@@ -532,10 +581,9 @@ impl AMASEngine {
             let mut weights = AlgorithmWeights::default();
             for c in &candidates {
                 match c.source.as_str() {
-                    "thompson" => weights.thompson = normalize(c.weight, c.confidence),
-                    "linucb" => weights.linucb = normalize(c.weight, c.confidence),
+                    "ige" => weights.ige = normalize(c.weight, c.confidence),
+                    "swd" => weights.swd = normalize(c.weight, c.confidence),
                     "heuristic" => weights.heuristic = normalize(c.weight, c.confidence),
-                    "actr" => weights.actr = normalize(c.weight, c.confidence),
                     "coldstart" => weights.coldstart = normalize(c.weight, c.confidence),
                     _ => {}
                 }
@@ -681,6 +729,8 @@ impl AMASEngine {
             interaction_count: 0,
             last_updated: chrono::Utc::now().timestamp_millis(),
             user_fsrs_params: None,
+            mastery_history: None,
+            ensemble_performance: None,
         };
 
         let mut states = self.user_states.write().await;
@@ -698,74 +748,56 @@ impl AMASEngine {
         {
             let models = self.user_models.read().await;
             if let Some(m) = models.get(user_id) {
-                let mut linucb = m.linucb.clone();
-                linucb.ensure_dimensions(
-                    config.bandit.context_dim,
-                    ACTION_FEATURE_DIM,
-                    config.bandit.alpha,
+                return self.create_models_from_state(
+                    state,
+                    config,
+                    m.ige.clone(),
+                    m.swd.clone(),
+                    m.cold_start.as_ref().map(|cs| cs.state().clone()),
                 );
-                let mut thompson = m.thompson.clone();
-                thompson.set_context_config(
-                    config.thompson_context.bins,
-                    config.thompson_context.weight,
-                );
-                let mut attention = AttentionMonitor::new(
-                    config.attention_weights.clone(),
-                    config.attention_smoothing,
-                );
-                attention.set_value(state.user_state.attention);
-
-                let mut fatigue = FatigueEstimator::new(config.fatigue.clone());
-                fatigue.set_value(state.user_state.fatigue);
-
-                let mut cognitive = CognitiveProfiler::new(config.cognitive.clone());
-                cognitive.set_profile(state.user_state.cognitive.clone());
-
-                let mut motivation = MotivationTracker::new(config.motivation.clone());
-                motivation.set_value(state.user_state.motivation);
-
-                return UserModels {
-                    attention,
-                    fatigue,
-                    cognitive,
-                    motivation,
-                    trend: TrendAnalyzer::new(config.trend.clone()),
-                    cold_start: m.cold_start.as_ref().map(|cs| {
-                        ColdStartManager::from_state(config.cold_start.clone(), cs.state().clone())
-                    }),
-                    linucb,
-                    thompson,
-                };
             }
         }
 
-        // Restore bandit models from persisted state
-        let mut linucb = state
-            .bandit_model
-            .as_ref()
-            .and_then(|b| b.linucb_state.as_ref())
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_else(|| {
-                LinUCBModel::new(
-                    config.bandit.context_dim,
-                    ACTION_FEATURE_DIM,
-                    config.bandit.alpha,
-                )
-            });
-        linucb.ensure_dimensions(
-            config.bandit.context_dim,
-            ACTION_FEATURE_DIM,
-            config.bandit.alpha,
-        );
-
-        let mut thompson = state
+        // Restore IGE/SWD models from persisted state
+        let ige: IgeModel = state
             .bandit_model
             .as_ref()
             .and_then(|b| b.thompson_params.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_else(|| ThompsonSamplingModel::new(1.0, 1.0));
-        thompson.set_context_config(config.thompson_context.bins, config.thompson_context.weight);
+            .unwrap_or_default();
 
+        let swd: SwdModel = state
+            .bandit_model
+            .as_ref()
+            .and_then(|b| b.linucb_state.as_ref())
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default();
+
+        let models = self.create_models_from_state(
+            state,
+            config,
+            ige.clone(),
+            swd.clone(),
+            state.cold_start_state.clone(),
+        );
+
+        let mut model_map = self.user_models.write().await;
+        model_map.insert(
+            user_id.to_string(),
+            self.create_models_from_state(state, config, ige, swd, state.cold_start_state.clone()),
+        );
+
+        models
+    }
+
+    fn create_models_from_state(
+        &self,
+        state: &PersistedAMASState,
+        config: &AMASConfig,
+        ige: IgeModel,
+        swd: SwdModel,
+        cold_start_state: Option<ColdStartState>,
+    ) -> UserModels {
         let mut attention =
             AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
         attention.set_value(state.user_state.attention);
@@ -779,53 +811,17 @@ impl AMASEngine {
         let mut motivation = MotivationTracker::new(config.motivation.clone());
         motivation.set_value(state.user_state.motivation);
 
-        let models = UserModels {
+        UserModels {
             attention,
             fatigue,
             cognitive,
             motivation,
             trend: TrendAnalyzer::new(config.trend.clone()),
-            cold_start: state
-                .cold_start_state
-                .as_ref()
-                .map(|cs| ColdStartManager::from_state(config.cold_start.clone(), cs.clone())),
-            linucb: linucb.clone(),
-            thompson: thompson.clone(),
-        };
-
-        let mut model_map = self.user_models.write().await;
-
-        let mut attention2 =
-            AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
-        attention2.set_value(state.user_state.attention);
-
-        let mut fatigue2 = FatigueEstimator::new(config.fatigue.clone());
-        fatigue2.set_value(state.user_state.fatigue);
-
-        let mut cognitive2 = CognitiveProfiler::new(config.cognitive.clone());
-        cognitive2.set_profile(state.user_state.cognitive.clone());
-
-        let mut motivation2 = MotivationTracker::new(config.motivation.clone());
-        motivation2.set_value(state.user_state.motivation);
-
-        model_map.insert(
-            user_id.to_string(),
-            UserModels {
-                attention: attention2,
-                fatigue: fatigue2,
-                cognitive: cognitive2,
-                motivation: motivation2,
-                trend: TrendAnalyzer::new(config.trend.clone()),
-                cold_start: state
-                    .cold_start_state
-                    .as_ref()
-                    .map(|cs| ColdStartManager::from_state(config.cold_start.clone(), cs.clone())),
-                linucb,
-                thompson,
-            },
-        );
-
-        models
+            cold_start: cold_start_state
+                .map(|cs| ColdStartManager::from_state(config.cold_start.clone(), cs)),
+            ige,
+            swd,
+        }
     }
 
     fn build_feature_vector(
@@ -957,16 +953,12 @@ impl AMASEngine {
             })
         );
 
-        // Integrate ACT-R memory model if enabled and history is available
-        let actr_mem = if config.feature_flags.actr_memory_enabled {
-            track_algorithm!(AlgorithmId::ActrMemory, self.compute_actr_memory(options))
-        } else {
-            None
-        };
+        // Integrate MSMT memory model (UMM original algorithm)
+        let msmt_mem = track_algorithm!(AlgorithmId::Msmt, self.compute_msmt_memory(options));
 
-        // Blend ACT-R memory with cognitive profile
-        let final_cognitive = if let Some(actr_recall) = actr_mem {
-            let blended_mem = 0.6 * cognitive.mem + 0.4 * actr_recall;
+        // Blend MSMT memory model with cognitive profile
+        let final_cognitive = if let Some(msmt_recall) = msmt_mem {
+            let blended_mem = 0.6 * cognitive.mem + 0.4 * msmt_recall;
             CognitiveProfile {
                 mem: blended_mem.clamp(0.0, 1.0),
                 speed: cognitive.speed,
@@ -1026,26 +1018,26 @@ impl AMASEngine {
         }
     }
 
-    fn compute_actr_memory(&self, options: &ProcessOptions) -> Option<f64> {
+    fn compute_msmt_memory(&self, options: &ProcessOptions) -> Option<f64> {
         let history = options.word_review_history.as_ref()?;
         if history.is_empty() {
             return None;
         }
 
-        let traces: Vec<danci_algo::MemoryTrace> = history
+        let now_hours = 0.0;
+        let events: Vec<MsmtReviewEvent> = history
             .iter()
-            .map(|h| danci_algo::MemoryTrace {
-                timestamp: h.seconds_ago as f64,
+            .map(|h| MsmtReviewEvent {
+                timestamp_hours: now_hours - (h.seconds_ago as f64 / 3600.0),
                 is_correct: h.is_correct.unwrap_or(true),
             })
             .collect();
 
-        let model = danci_algo::ACTRMemoryNative::new(None, None, None);
-        let recall = model.predict_recall(traces).recall_probability;
+        let recall = MsmtModel::predict_recall(&events, now_hours);
         Some(recall.clamp(0.0, 1.0))
     }
 
-    fn adjust_fsrs_retention(
+    fn adjust_retention(
         &self,
         base_retention: f64,
         state: &UserState,

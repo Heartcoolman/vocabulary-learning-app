@@ -183,6 +183,14 @@ fn format_naive_iso(value: NaiveDateTime) -> String {
         .to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
+#[derive(Default)]
+pub struct VarkInteractionStats {
+    pub total_image_interactions: i32,
+    pub total_audio_interactions: i32,
+    pub total_reading_ms: i64,
+    pub total_writing_actions: i32,
+}
+
 pub async fn upsert_user_interaction_stats(
     proxy: &DatabaseProxy,
     user_id: &str,
@@ -191,20 +199,47 @@ pub async fn upsert_user_interaction_stats(
     page_switch_count: i32,
     total_interactions: i32,
 ) -> Result<(), sqlx::Error> {
+    upsert_user_interaction_stats_with_vark(
+        proxy,
+        user_id,
+        pronunciation_clicks,
+        pause_count,
+        page_switch_count,
+        total_interactions,
+        None,
+    )
+    .await
+}
+
+pub async fn upsert_user_interaction_stats_with_vark(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    pronunciation_clicks: i32,
+    pause_count: i32,
+    page_switch_count: i32,
+    total_interactions: i32,
+    vark: Option<VarkInteractionStats>,
+) -> Result<(), sqlx::Error> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now().naive_utc();
+    let vark = vark.unwrap_or_default();
     sqlx::query(
         r#"
         INSERT INTO "user_interaction_stats" (
             "id", "userId", "pronunciationClicks", "pauseCount", "pageSwitchCount",
             "totalInteractions", "totalSessionDuration", "lastActivityTime",
+            "totalImageInteractions", "totalAudioInteractions", "totalReadingMs", "totalWritingActions",
             "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $7, $7)
+        ) VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, $9, $10, $11, $7, $7)
         ON CONFLICT ("userId") DO UPDATE SET
             "pronunciationClicks" = "user_interaction_stats"."pronunciationClicks" + EXCLUDED."pronunciationClicks",
             "pauseCount" = "user_interaction_stats"."pauseCount" + EXCLUDED."pauseCount",
             "pageSwitchCount" = "user_interaction_stats"."pageSwitchCount" + EXCLUDED."pageSwitchCount",
             "totalInteractions" = "user_interaction_stats"."totalInteractions" + EXCLUDED."totalInteractions",
+            "totalImageInteractions" = "user_interaction_stats"."totalImageInteractions" + EXCLUDED."totalImageInteractions",
+            "totalAudioInteractions" = "user_interaction_stats"."totalAudioInteractions" + EXCLUDED."totalAudioInteractions",
+            "totalReadingMs" = "user_interaction_stats"."totalReadingMs" + EXCLUDED."totalReadingMs",
+            "totalWritingActions" = "user_interaction_stats"."totalWritingActions" + EXCLUDED."totalWritingActions",
             "lastActivityTime" = EXCLUDED."lastActivityTime",
             "updatedAt" = EXCLUDED."updatedAt"
         "#,
@@ -216,6 +251,10 @@ pub async fn upsert_user_interaction_stats(
     .bind(page_switch_count)
     .bind(total_interactions)
     .bind(now)
+    .bind(vark.total_image_interactions)
+    .bind(vark.total_audio_interactions)
+    .bind(vark.total_reading_ms)
+    .bind(vark.total_writing_actions)
     .execute(proxy.pool())
     .await?;
     Ok(())

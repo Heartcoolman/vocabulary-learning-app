@@ -37,8 +37,8 @@ const STAGES: StageConfig[] = [
     icon: <Brain size={32} />,
     description: '构建动态的学习者认知模型，量化核心认知能力维度。',
     details: [
-      '个性化遗忘曲线拟合',
-      'ACT-R 记忆激活度追踪',
+      'MDM 记忆动力学模型',
+      'MSMT 多尺度记忆痕迹',
       '认知反应速度建模',
       'TrendAnalyzer 学习趋势洞察',
     ],
@@ -51,9 +51,9 @@ const STAGES: StageConfig[] = [
     icon: <Lightning size={32} />,
     description: '持续进化的算法集成引擎，从交互数据中提取最优策略。',
     details: [
-      'Thompson Sampling 采样',
-      'LinUCB 上下文赌博机',
-      'FSRS 个性化间隔调度',
+      'IGE 信息增益探索',
+      'SWD 相似度加权决策',
+      'MTP/IAD/EVM 词汇特化层',
       'Ensemble 集成策略投票',
     ],
     accentColor: 'bg-amber-500',

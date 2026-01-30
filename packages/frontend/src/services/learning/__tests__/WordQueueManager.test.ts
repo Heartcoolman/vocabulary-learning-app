@@ -173,6 +173,50 @@ describe('WordQueueManager', () => {
         expect(shownIds.slice(-2)).not.toContain(result3.word.id);
       }
     });
+
+    it('should handle small active queue without infinite loop', () => {
+      // 模拟只有2个活跃词且pendingWords为空的场景
+      const words = createTestWords(2);
+      const config: Partial<QueueConfig> = {
+        maxActiveWords: 8, // 高于实际词数
+        minRepeatInterval: 2,
+        targetMasteryCount: 20,
+        masteryThreshold: 10, // 高阈值防止意外掌握
+        maxTotalQuestions: 100,
+      };
+      const manager = new WordQueueManager(words, config);
+
+      // 获取所有词到活跃队列
+      const word1 = manager.getNextWordWithReason().word!;
+      const word2 = manager.getNextWordWithReason().word!;
+
+      // 确认两个不同的词
+      expect(word1.id).not.toBe(word2.id);
+
+      // 现在 pendingWords 为空，activeWords 只有2个
+      // 连续获取多次，应该能正常选择而不是卡住
+      const shownSequence: string[] = [word1.id, word2.id];
+
+      for (let i = 0; i < 6; i++) {
+        const result = manager.getNextWordWithReason();
+        expect(result.word).not.toBeNull();
+        expect(result.isCompleted).toBe(false);
+        shownSequence.push(result.word!.id);
+      }
+
+      // 验证能正常循环选择（即使只有2个词也不会卡住）
+      expect(shownSequence.length).toBe(8);
+
+      // 验证两个词都有被选择（而不是只选一个）
+      const wordCounts = new Map<string, number>();
+      shownSequence.forEach((id) => {
+        wordCounts.set(id, (wordCounts.get(id) || 0) + 1);
+      });
+      expect(wordCounts.size).toBe(2);
+      // 两个词的出现次数应该相对均衡
+      const counts = Array.from(wordCounts.values());
+      expect(Math.abs(counts[0] - counts[1])).toBeLessThanOrEqual(2);
+    });
   });
 
   describe('markCompleted', () => {

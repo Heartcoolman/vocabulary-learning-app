@@ -63,7 +63,7 @@ const mockMastery: MasteryEvaluation = {
   confidence: 0.85,
   factors: {
     srsLevel: 3,
-    actrRecall: 0.8,
+    msmtRecall: 0.8,
     recentAccuracy: 0.9,
     userFatigue: 0.2,
   },
@@ -364,7 +364,7 @@ describe('MasteryWordItem', () => {
       await waitFor(() => {
         expect(screen.getByText('SRS等级')).toBeInTheDocument();
         expect(screen.getByText('3')).toBeInTheDocument();
-        expect(screen.getByText('ACT-R提取概率')).toBeInTheDocument();
+        expect(screen.getByText('MSMT提取概率')).toBeInTheDocument();
         expect(screen.getByText('80%')).toBeInTheDocument();
         expect(screen.getByText('近期准确率')).toBeInTheDocument();
         expect(screen.getByText('90%')).toBeInTheDocument();

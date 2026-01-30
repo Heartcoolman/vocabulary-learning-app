@@ -15,8 +15,24 @@ import { processLearningEvent } from '../mastery';
 import type { LearningEventInput, AmasProcessResult } from '../../types/amas';
 import { learningLogger } from '../../utils/logger';
 import { trackingService } from '../../services/TrackingService';
+import { getDeviceType } from '../../utils/device';
 
 // ==================== 类型定义 ====================
+
+/**
+ * VARK 交互数据
+ */
+export interface VarkInteractionData {
+  imageViewCount?: number;
+  imageZoomCount?: number;
+  imageLongPressMs?: number;
+  audioPlayCount?: number;
+  audioReplayCount?: number;
+  audioSpeedAdjust?: boolean;
+  definitionReadMs?: number;
+  exampleReadMs?: number;
+  noteWriteCount?: number;
+}
 
 /**
  * 答题提交参数
@@ -38,6 +54,8 @@ export interface SubmitAnswerParams {
     attention: number;
     motivation: number;
   };
+  /** VARK 交互数据 */
+  varkInteraction?: VarkInteractionData;
 }
 
 /**
@@ -191,6 +209,17 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
       interactionDensity:
         stats.sessionDuration > 0 ? stats.totalInteractions / (stats.sessionDuration / 1000) : 1,
       timestamp: now,
+      deviceType: getDeviceType(),
+      // VARK interaction data
+      imageViewCount: params.varkInteraction?.imageViewCount,
+      imageZoomCount: params.varkInteraction?.imageZoomCount,
+      imageLongPressMs: params.varkInteraction?.imageLongPressMs,
+      audioPlayCount: params.varkInteraction?.audioPlayCount,
+      audioReplayCount: params.varkInteraction?.audioReplayCount,
+      audioSpeedAdjust: params.varkInteraction?.audioSpeedAdjust,
+      definitionReadMs: params.varkInteraction?.definitionReadMs,
+      exampleReadMs: params.varkInteraction?.exampleReadMs,
+      noteWriteCount: params.varkInteraction?.noteWriteCount,
     };
   }, []);
 

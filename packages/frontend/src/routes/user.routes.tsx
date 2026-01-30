@@ -56,9 +56,9 @@ const ProtectedLazy = ({ children }: { children: React.ReactNode }) => (
  * 需要登录后访问的用户功能页面
  */
 export const userRoutes: AppRoute[] = [
-  // 首页 - 学习页面（同步加载）
+  // 学习页面
   {
-    path: '/',
+    path: '/learning',
     element: (
       <ProtectedRoute>
         <LearningPage />
@@ -291,13 +291,8 @@ export const userRoutes: AppRoute[] = [
 
   // 路径统一：重定向到主学习页面
   {
-    path: '/learning',
-    element: <Navigate to="/" replace />,
-    meta: { title: '学习', requireAuth: false },
-  },
-  {
     path: '/learn',
-    element: <Navigate to="/" replace />,
+    element: <Navigate to="/learning" replace />,
     meta: { title: '学习', requireAuth: false },
   },
 ];

@@ -23,6 +23,7 @@ use crate::services::learning_state::{upsert_word_state, WordState, WordStateUpd
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
 use crate::state::AppState;
+use crate::umm::{mdm::MdmState, UmmEngine};
 
 #[derive(Debug, Serialize)]
 struct SuccessResponse<T> {
@@ -85,6 +86,16 @@ struct ProcessEventRequest {
     interaction_density: Option<f64>,
     paused_time_ms: Option<i64>,
     hint_used: Option<bool>,
+    // VARK interaction fields
+    image_view_count: Option<i32>,
+    image_zoom_count: Option<i32>,
+    image_long_press_ms: Option<i64>,
+    audio_play_count: Option<i32>,
+    audio_replay_count: Option<i32>,
+    audio_speed_adjust: Option<bool>,
+    definition_read_ms: Option<i64>,
+    example_read_ms: Option<i64>,
+    note_write_count: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -335,6 +346,9 @@ async fn process_event(
             reps: ws.reps,
             lapses: ws.lapses,
             desired_retention: ws.desired_retention,
+            umm_strength: ws.umm_strength,
+            umm_consolidation: ws.umm_consolidation,
+            umm_last_review_ts: ws.umm_last_review_ts,
         }
     });
 
@@ -348,6 +362,12 @@ async fn process_event(
 
     // Calculate study duration from session start
     let study_duration_minutes = load_session_duration_minutes(proxy.pool(), &session_id).await;
+
+    // Load UMM vocabulary specialization data
+    let morpheme_states = load_morpheme_states_for_word(proxy.pool(), &user.id, &word_id).await;
+    let confusion_pairs = load_confusion_pairs_for_word(proxy.pool(), &word_id).await;
+    let recent_word_ids = load_recent_word_ids(proxy.pool(), &user.id, &session_id, 20).await;
+    let context_history = load_context_history(proxy.pool(), &user.id, &word_id, 50).await;
 
     let raw_event = RawEvent {
         word_id: Some(body.word_id),
@@ -373,6 +393,27 @@ async fn process_event(
         visual_fatigue_confidence: visual_fatigue.as_ref().map(|v| v.confidence),
         study_duration_minutes: Some(study_duration_minutes),
         session_id: Some(session_id.clone()),
+        // UMM vocabulary specialization inputs
+        morpheme_states: if morpheme_states.is_empty() {
+            None
+        } else {
+            Some(morpheme_states.clone())
+        },
+        confusion_pairs: if confusion_pairs.is_empty() {
+            None
+        } else {
+            Some(confusion_pairs.clone())
+        },
+        recent_word_ids: if recent_word_ids.is_empty() {
+            None
+        } else {
+            Some(recent_word_ids.clone())
+        },
+        context_history: if context_history.is_empty() {
+            None
+        } else {
+            Some(context_history.clone())
+        },
         ..Default::default()
     };
 
@@ -388,19 +429,17 @@ async fn process_event(
         .as_ref()
         .map(|w| {
             serde_json::json!({
-                "thompson": w.thompson,
-                "linucb": w.linucb,
+                "ige": w.ige,
+                "swd": w.swd,
                 "heuristic": w.heuristic,
-                "actr": w.actr,
                 "coldstart": w.coldstart,
             })
         })
         .unwrap_or_else(|| {
             serde_json::json!({
-                "thompson": 0.25,
-                "linucb": 0.25,
-                "actr": 0.2,
-                "heuristic": 0.2,
+                "ige": 0.3,
+                "swd": 0.3,
+                "heuristic": 0.3,
                 "coldstart": 0.1,
             })
         });
@@ -486,6 +525,10 @@ async fn process_event(
             reps: Some(mastery.reps),
             scheduled_days: Some(mastery.new_interval),
             elapsed_days: Some(0.0),
+            // UMM fields
+            umm_strength: mastery.umm_strength,
+            umm_consolidation: mastery.umm_consolidation,
+            umm_last_review_ts: mastery.umm_last_review_ts,
         };
 
         if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
@@ -500,6 +543,10 @@ async fn process_event(
         is_correct = body.is_correct,
         "Creating answer record with responseTime"
     );
+    let user_agent = headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok());
+    let device_type = crate::services::record::normalize_device_type(user_agent);
     let record_input = CreateRecordInput {
         word_id: word_id.clone(),
         selected_option: None,
@@ -515,6 +562,16 @@ async fn process_event(
             .word_mastery_decision
             .as_ref()
             .map(|m| ((m.new_mastery * 5.0).round() as i64).clamp(0, 5)),
+        image_view_count: body.image_view_count,
+        image_zoom_count: body.image_zoom_count,
+        image_long_press_ms: body.image_long_press_ms,
+        audio_play_count: body.audio_play_count,
+        audio_replay_count: body.audio_replay_count,
+        audio_speed_adjust: body.audio_speed_adjust,
+        definition_read_ms: body.definition_read_ms,
+        example_read_ms: body.example_read_ms,
+        note_write_count: body.note_write_count,
+        device_type: Some(device_type.to_string()),
     };
     match create_record(&proxy, &user.id, record_input).await {
         Ok(record) => {
@@ -529,6 +586,31 @@ async fn process_event(
             .await
             {
                 tracing::warn!(error = %e, "Failed to update Elo ratings");
+            }
+
+            // Update VARK learning style model
+            let vark_data = crate::amas::modeling::VarkInteractionData {
+                image_view_count: body.image_view_count.unwrap_or(0),
+                image_zoom_count: body.image_zoom_count.unwrap_or(0),
+                image_long_press_ms: body.image_long_press_ms.unwrap_or(0),
+                dwell_time: body.dwell_time.unwrap_or(0),
+                audio_play_count: body.audio_play_count.unwrap_or(0),
+                audio_replay_count: body.audio_replay_count.unwrap_or(0),
+                audio_speed_adjust: body.audio_speed_adjust.unwrap_or(false),
+                definition_read_ms: body.definition_read_ms.unwrap_or(0),
+                example_read_ms: body.example_read_ms.unwrap_or(0),
+                note_write_count: body.note_write_count.unwrap_or(0),
+                response_time: Some(body.response_time),
+                timestamp_ms: chrono::Utc::now().timestamp_millis(),
+            };
+            if let Err(e) = crate::amas::modeling::update_learning_style_model(
+                proxy.pool(),
+                &user.id,
+                &vark_data,
+            )
+            .await
+            {
+                tracing::warn!(error = %e, "Failed to update VARK learning style model");
             }
 
             let delay_ms = 5 * 60 * 1000i64;
@@ -593,6 +675,116 @@ async fn process_event(
         }
         Err(e) => {
             tracing::warn!(error = %e, "Failed to create answer record");
+        }
+    }
+
+    // Compute and write UMM shadow results for A/B comparison
+    if let Some(ref mastery) = result.word_mastery_decision {
+        let shadow_result = {
+            // Build MDM state from UMM fields if available
+            let mdm_state = match (mastery.umm_strength, mastery.umm_consolidation) {
+                (Some(strength), Some(consolidation)) => Some(MdmState {
+                    strength,
+                    consolidation,
+                    ..Default::default()
+                }),
+                _ => None,
+            };
+
+            // Convert types for UMM engine
+            let morpheme_states_umm: Vec<crate::umm::mtp::MorphemeState> = morpheme_states
+                .iter()
+                .map(|m| crate::umm::mtp::MorphemeState {
+                    morpheme_id: m.morpheme_id.clone(),
+                    mastery_level: m.mastery_level,
+                })
+                .collect();
+
+            let confusion_pairs_umm: Vec<crate::umm::iad::ConfusionPair> = confusion_pairs
+                .iter()
+                .map(|c| crate::umm::iad::ConfusionPair {
+                    confusing_word_id: c.confusing_word_id.clone(),
+                    distance: c.distance,
+                })
+                .collect();
+
+            let context_history_umm: Vec<crate::umm::evm::ContextEntry> = context_history
+                .iter()
+                .map(|c| crate::umm::evm::ContextEntry {
+                    hour_of_day: c.hour_of_day,
+                    day_of_week: c.day_of_week,
+                    question_type: c.question_type.clone(),
+                    device_type: c.device_type.clone(),
+                })
+                .collect();
+
+            // Calculate elapsed days from last review
+            let elapsed_days = existing_word_state
+                .as_ref()
+                .and_then(|ws| ws.last_review_date)
+                .map(|lr| {
+                    let now_ms = chrono::Utc::now().timestamp_millis();
+                    ((now_ms - lr) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).max(0.0)
+                })
+                .unwrap_or(0.0);
+
+            UmmEngine::compute_shadow(
+                mastery.new_interval,
+                mastery.retrievability,
+                mastery.stability,
+                mastery.difficulty,
+                mdm_state.as_ref(),
+                elapsed_days,
+                0.9, // r_target (desired retention)
+                &morpheme_states_umm,
+                &confusion_pairs_umm,
+                &recent_word_ids,
+                &context_history_umm,
+            )
+        };
+
+        // Write to umm_shadow_results table
+        let pool = proxy.pool();
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        if let Err(e) = sqlx::query(
+            r#"
+            INSERT INTO "umm_shadow_results"
+                ("userId", "wordId", "sessionId", "eventTs",
+                 "fsrsInterval", "fsrsRetrievability", "fsrsStability", "fsrsDifficulty",
+                 "mdmInterval", "mdmRetrievability", "mdmStrength", "mdmConsolidation",
+                 "mtpBonus", "iadPenalty", "evmBonus",
+                 "ummRetrievability", "ummInterval",
+                 "actualRecalled", "elapsedDays", "createdAt")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+            "#,
+        )
+        .bind(&user.id)
+        .bind(&word_id)
+        .bind(&session_id)
+        .bind(now_ms)
+        .bind(shadow_result.fsrs_interval)
+        .bind(shadow_result.fsrs_retrievability)
+        .bind(shadow_result.fsrs_stability)
+        .bind(shadow_result.fsrs_difficulty)
+        .bind(shadow_result.mdm_interval)
+        .bind(shadow_result.mdm_retrievability)
+        .bind(shadow_result.mdm_strength)
+        .bind(shadow_result.mdm_consolidation)
+        .bind(shadow_result.mtp_bonus)
+        .bind(shadow_result.iad_penalty)
+        .bind(shadow_result.evm_bonus)
+        .bind(shadow_result.umm_retrievability)
+        .bind(shadow_result.umm_interval)
+        .bind(body.is_correct as i32)
+        .bind(existing_word_state.as_ref().and_then(|ws| ws.last_review_date).map(|lr| {
+            let now_ms = chrono::Utc::now().timestamp_millis();
+            ((now_ms - lr) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).max(0.0)
+        }))
+        .bind(now_ms)
+        .execute(pool)
+        .await
+        {
+            tracing::warn!(error = %e, "Failed to write UMM shadow result");
         }
     }
 
@@ -866,6 +1058,9 @@ async fn batch_process(
                         reps: Some(mastery.reps),
                         scheduled_days: Some(mastery.new_interval),
                         elapsed_days: Some(0.0),
+                        umm_strength: mastery.umm_strength,
+                        umm_consolidation: mastery.umm_consolidation,
+                        umm_last_review_ts: mastery.umm_last_review_ts,
                     };
 
                     if let Err(e) =
@@ -876,6 +1071,10 @@ async fn batch_process(
                 }
 
                 // Create answer record (same as process_event)
+                let user_agent = headers
+                    .get(axum::http::header::USER_AGENT)
+                    .and_then(|v| v.to_str().ok());
+                let device_type = crate::services::record::normalize_device_type(user_agent);
                 let record_input = CreateRecordInput {
                     word_id: word_id.clone(),
                     selected_option: None,
@@ -891,6 +1090,16 @@ async fn batch_process(
                         .word_mastery_decision
                         .as_ref()
                         .map(|m| ((m.new_mastery * 5.0).floor() as i64).clamp(0, 5)),
+                    image_view_count: None,
+                    image_zoom_count: None,
+                    image_long_press_ms: None,
+                    audio_play_count: None,
+                    audio_replay_count: None,
+                    audio_speed_adjust: None,
+                    definition_read_ms: None,
+                    example_read_ms: None,
+                    note_write_count: None,
+                    device_type: Some(device_type.to_string()),
                 };
                 match create_record(&proxy, &user.id, record_input).await {
                     Ok(record) => {
@@ -2039,4 +2248,154 @@ async fn get_algorithm_metrics_history(
         success: true,
         data,
     }))
+}
+
+// ==================== UMM Vocabulary Specialization Data Loading ====================
+
+use crate::amas::types::{ConfusionPairInput, ContextEntryInput, MorphemeStateInput};
+
+/// Load morpheme mastery states for a word's morphemes
+async fn load_morpheme_states_for_word(
+    pool: &PgPool,
+    user_id: &str,
+    word_id: &str,
+) -> Vec<MorphemeStateInput> {
+    let result = sqlx::query(
+        r#"
+        SELECT ums."morphemeId", ums."masteryLevel"
+        FROM "user_morpheme_states" ums
+        JOIN "word_morphemes" wm ON wm."morphemeId" = ums."morphemeId"
+        WHERE ums."userId" = $1 AND wm."wordId" = $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_all(pool)
+    .await;
+
+    match result {
+        Ok(rows) => rows
+            .iter()
+            .map(|row| MorphemeStateInput {
+                morpheme_id: row.get("morphemeId"),
+                mastery_level: row.get("masteryLevel"),
+            })
+            .collect(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to load morpheme states");
+            vec![]
+        }
+    }
+}
+
+/// Load confusion pairs for a word
+async fn load_confusion_pairs_for_word(pool: &PgPool, word_id: &str) -> Vec<ConfusionPairInput> {
+    let result = sqlx::query(
+        r#"
+        SELECT "word2Id" as confusing_word_id, "distance"
+        FROM "confusion_pairs_cache"
+        WHERE "word1Id" = $1 AND "distance" < 0.5
+        UNION
+        SELECT "word1Id" as confusing_word_id, "distance"
+        FROM "confusion_pairs_cache"
+        WHERE "word2Id" = $1 AND "distance" < 0.5
+        ORDER BY "distance" ASC
+        LIMIT 10
+        "#,
+    )
+    .bind(word_id)
+    .fetch_all(pool)
+    .await;
+
+    match result {
+        Ok(rows) => rows
+            .iter()
+            .map(|row| ConfusionPairInput {
+                confusing_word_id: row.get("confusing_word_id"),
+                distance: row.get("distance"),
+            })
+            .collect(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to load confusion pairs");
+            vec![]
+        }
+    }
+}
+
+/// Load recent word IDs from session
+async fn load_recent_word_ids(
+    pool: &PgPool,
+    user_id: &str,
+    session_id: &str,
+    limit: i32,
+) -> Vec<String> {
+    let result = sqlx::query(
+        r#"
+        SELECT "wordId"
+        FROM "answer_records"
+        WHERE "userId" = $1 AND "sessionId" = $2
+        ORDER BY "createdAt" DESC
+        LIMIT $3
+        "#,
+    )
+    .bind(user_id)
+    .bind(session_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await;
+
+    match result {
+        Ok(rows) => rows.iter().map(|row| row.get("wordId")).collect(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to load recent word IDs");
+            vec![]
+        }
+    }
+}
+
+/// Load context history for EVM (encoding variability)
+async fn load_context_history(
+    pool: &PgPool,
+    user_id: &str,
+    word_id: &str,
+    limit: i32,
+) -> Vec<ContextEntryInput> {
+    let result = sqlx::query(
+        r#"
+        SELECT
+            EXTRACT(HOUR FROM "createdAt")::int as hour_of_day,
+            EXTRACT(DOW FROM "createdAt")::int as day_of_week,
+            COALESCE("questionType", 'unknown') as question_type,
+            COALESCE("deviceType", 'unknown') as device_type
+        FROM "answer_records"
+        WHERE "userId" = $1 AND "wordId" = $2
+        ORDER BY "createdAt" DESC
+        LIMIT $3
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await;
+
+    match result {
+        Ok(rows) => rows
+            .iter()
+            .map(|row| {
+                let hour: i32 = row.get("hour_of_day");
+                let day: i32 = row.get("day_of_week");
+                ContextEntryInput {
+                    hour_of_day: hour as u8,
+                    day_of_week: day as u8,
+                    question_type: row.get("question_type"),
+                    device_type: row.get("device_type"),
+                }
+            })
+            .collect(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to load context history");
+            vec![]
+        }
+    }
 }

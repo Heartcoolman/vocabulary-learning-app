@@ -1,0 +1,54 @@
+{
+  "landing": {
+    "hero": {
+      "title": "Smart Vocabulary",
+      "subtitle": "AMAS Adaptive Learning System",
+      "description": "Personalized learning experience based on cognitive science for more efficient memorization",
+      "cta": {
+        "start": "Start Learning",
+        "demo": "View Demo"
+      }
+    },
+    "features": {
+      "title": "Core Features",
+      "adaptive": {
+        "title": "Adaptive Learning",
+        "description": "Real-time difficulty and pace adjustment based on your learning state"
+      },
+      "memory": {
+        "title": "Scientific Memory",
+        "description": "Smart review scheduling based on forgetting curves"
+      },
+      "analytics": {
+        "title": "Learning Analytics",
+        "description": "Detailed learning data and progress tracking"
+      },
+      "personalized": {
+        "title": "Personalized Recommendations",
+        "description": "AI-driven word recommendations and learning paths"
+      }
+    },
+    "demo": {
+      "title": "AMAS Workflow Demo",
+      "description": "Watch how the adaptive learning system works in real-time"
+    },
+    "stats": {
+      "title": "Platform Statistics",
+      "users": "Active Users",
+      "words": "Total Words",
+      "decisions": "Today's Decisions",
+      "accuracy": "Average Accuracy"
+    },
+    "cta": {
+      "title": "Ready to Start?",
+      "description": "Join us and begin your smart learning journey",
+      "button": "Sign Up Free"
+    },
+    "footer": {
+      "copyright": "© 2024 Vocabulary Learning Platform",
+      "about": "About Us",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    }
+  }
+}

@@ -375,11 +375,24 @@ fn llm_config_valid(summary: &LlmConfigSummaryDto) -> (bool, String) {
     (true, "配置有效".to_string())
 }
 
-async fn require_user(
+fn extract_admin_token(headers: &HeaderMap) -> Option<String> {
+    let auth_header = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())?;
+    auth_header.strip_prefix("Bearer ").map(|s| s.to_string())
+}
+
+async fn require_admin_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
-    let token = crate::auth::extract_token(headers)
+) -> Result<
+    (
+        Arc<crate::db::DatabaseProxy>,
+        crate::services::admin_auth::AdminAuthUser,
+    ),
+    AppError,
+> {
+    let token = extract_admin_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
     let proxy = state.db_proxy().ok_or_else(|| {
@@ -390,7 +403,7 @@ async fn require_user(
         )
     })?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
+    let user = crate::services::admin_auth::verify_admin_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| {
             json_error(
@@ -400,21 +413,6 @@ async fn require_user(
             )
         })?;
 
-    Ok((proxy, user))
-}
-
-async fn require_admin_user(
-    state: &AppState,
-    headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
-    let (proxy, user) = require_user(state, headers).await?;
-    if user.role != "ADMIN" {
-        return Err(json_error(
-            StatusCode::FORBIDDEN,
-            "FORBIDDEN",
-            "权限不足，需要管理员权限",
-        ));
-    }
     Ok((proxy, user))
 }
 

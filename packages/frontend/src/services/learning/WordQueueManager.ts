@@ -157,27 +157,53 @@ export class WordQueueManager {
       return { word: newWord, isCompleted: false };
     }
 
-    // 5. 如果活跃队列还有词,强制选一个(忽略间隔，但避免选刚刚显示的那个)
+    // 5. 如果活跃队列还有词,使用动态间隔选择（避免简单的两词循环）
     if (this.activeWords.size > 0) {
-      const activeKeys = Array.from(this.activeWords.keys());
-      // 获取最近显示的词ID（如果有）
-      const lastShownId =
-        this.recentlyShown.length > 0 ? this.recentlyShown[this.recentlyShown.length - 1] : null;
+      const activeEntries = Array.from(this.activeWords.entries()).filter(
+        ([, progress]) => progress.attempts < this.config.maxAttemptsPerWord,
+      );
 
-      // 尝试找一个不是刚刚显示的词
-      let forcePick = activeKeys.find((id) => id !== lastShownId);
-
-      // 如果所有活跃词都是刚显示的（只有一个词的情况），就用第一个
-      if (!forcePick) {
-        forcePick = activeKeys[0];
+      if (activeEntries.length === 0) {
+        // 所有活跃词都达到最大尝试次数
+        return { word: null, isCompleted: true, completionReason: 'words_exhausted' };
       }
+
+      // 动态调整间隔：确保至少能选出一个词
+      // 当活跃词数量 <= minRepeatInterval 时，逐步放宽限制
+      let effectiveInterval = this.config.minRepeatInterval;
+      let candidates: Array<[string, WordProgress]> = [];
+
+      while (effectiveInterval >= 0 && candidates.length === 0) {
+        const recentSlice = this.recentlyShown.slice(-effectiveInterval);
+        candidates = activeEntries.filter(([wordId]) => !recentSlice.includes(wordId));
+        if (candidates.length === 0) {
+          effectiveInterval--;
+        }
+      }
+
+      // 如果还是没有候选（极端情况），使用所有活跃词
+      if (candidates.length === 0) {
+        candidates = activeEntries;
+      }
+
+      // 按错误次数排序，优先选错误多的
+      candidates.sort((a, b) => {
+        const wrongDiff = b[1].wrongCount - a[1].wrongCount;
+        if (wrongDiff !== 0) return wrongDiff;
+        return a[1].attempts - b[1].attempts;
+      });
+
+      const forcePick = candidates[0][0];
 
       if (consume) {
         this.totalQuestions++;
         this.updateRecentlyShown(forcePick);
       }
 
-      learningLogger.debug({ forcePick, lastShownId }, '强制选择活跃队列中的词');
+      learningLogger.debug(
+        { forcePick, effectiveInterval, activeCount: activeEntries.length },
+        '动态间隔选择活跃队列中的词',
+      );
 
       return { word: this.getWordItem(forcePick), isCompleted: false };
     }

@@ -27,17 +27,41 @@ export interface ChronotypeProfile {
 }
 
 /**
- * 学习风格类型
+ * 学习风格类型（VARK 四维 + multimodal）
+ * 注意：'mixed' 保留用于向后兼容旧版 API 返回
  */
-export type LearningStyleType = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
+export type LearningStyleType =
+  | 'visual'
+  | 'auditory'
+  | 'reading'
+  | 'kinesthetic'
+  | 'multimodal'
+  | 'mixed';
 
 /**
- * 学习风格评分
+ * 学习风格类型（旧版兼容）
+ */
+export type LearningStyleTypeLegacy = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
+
+/**
+ * 学习风格评分（VARK 四维）
+ * 注意：reading 字段可选以兼容旧版 API
  */
 export interface LearningStyleScores {
   visual: number;
   auditory: number;
+  reading?: number;
   kinesthetic: number;
+}
+
+/**
+ * 学习风格交互模式
+ */
+export interface LearningStyleInteractionPatterns {
+  avgDwellTime: number;
+  avgResponseTime: number;
+  pauseFrequency: number;
+  switchFrequency: number;
 }
 
 /**
@@ -45,8 +69,12 @@ export interface LearningStyleScores {
  */
 export interface LearningStyleProfile {
   style: LearningStyleType;
+  styleLegacy?: LearningStyleTypeLegacy;
   confidence: number;
+  sampleCount?: number;
   scores: LearningStyleScores;
+  interactionPatterns?: LearningStyleInteractionPatterns;
+  modelType?: 'rule_engine' | 'ml_sgd';
 }
 
 /**

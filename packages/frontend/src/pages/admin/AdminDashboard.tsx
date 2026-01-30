@@ -9,7 +9,8 @@ import {
   useCombinedHealth,
 } from '../../hooks/queries';
 import { useLLMPendingCount } from '../../hooks/queries/useLLMAdvisor';
-import { amasClient } from '../../services/client';
+import { adminClient } from '../../services/client';
+import type { AMASMonitoringOverview } from '../../services/client';
 import {
   UsersThree,
   Sparkle,
@@ -25,7 +26,6 @@ import {
   Gear,
   Brain,
   ArrowClockwise,
-  Lightning,
   Eye,
   Robot,
   Download,
@@ -33,9 +33,10 @@ import {
   Database,
   Clock,
   Timer,
+  ArrowRight,
+  Lightning,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
-import { LearningStrategy } from '../../types/amas';
 import { ConfirmModal, AlertModal, Modal, Button, Progress, Spinner } from '../../components/ui';
 import { useOTAUpdate, useRestartBackend } from '../../hooks/mutations';
 
@@ -88,16 +89,14 @@ export default function AdminDashboard() {
     closeConfirmModal: closeRestartModal,
   } = useRestartBackend();
 
-  const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
+  const [amasOverview, setAmasOverview] = useState<AMASMonitoringOverview | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
   const [amasError, setAmasError] = useState<string | null>(null);
-  const [isResetting, setIsResetting] = useState(false);
 
   // 自动刷新配置
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0); // 0 表示关闭
 
   // 对话框状态
-  const [resetConfirm, setResetConfirm] = useState(false);
   const [alertModal, setAlertModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -142,24 +141,24 @@ export default function AdminDashboard() {
     return '未知错误';
   };
 
-  // 加载 AMAS 策略（保留原有逻辑）
-  const loadAmasStrategy = async () => {
+  // 加载 AMAS 监控概览
+  const loadAmasOverview = async () => {
     try {
       setIsAmasLoading(true);
       setAmasError(null);
-      const strategy = await amasClient.getAmasStrategy();
-      setAmasStrategy(strategy);
+      const overview = await adminClient.getAMASMonitoringOverview();
+      setAmasOverview(overview);
     } catch (err) {
-      adminLogger.error({ err }, '加载AMAS策略失败');
+      adminLogger.error({ err }, '加载AMAS监控概览失败');
       setAmasError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setIsAmasLoading(false);
     }
   };
 
-  // 初始加载 AMAS 策略
+  // 初始加载 AMAS 概览
   React.useEffect(() => {
-    loadAmasStrategy();
+    loadAmasOverview();
   }, []);
 
   // 自动刷新定时器
@@ -172,35 +171,6 @@ export default function AdminDashboard() {
 
     return () => clearInterval(intervalId);
   }, [autoRefreshInterval, refetchStats]);
-
-  const handleResetAmas = async () => {
-    setResetConfirm(true);
-  };
-
-  const confirmResetAmas = async () => {
-    setResetConfirm(false);
-    try {
-      setIsResetting(true);
-      await amasClient.resetAmasState();
-      setAlertModal({
-        isOpen: true,
-        title: '操作成功',
-        message: 'AMAS状态已重置',
-        variant: 'success',
-      });
-      await loadAmasStrategy();
-    } catch (err) {
-      adminLogger.error({ err }, '重置AMAS状态失败');
-      setAlertModal({
-        isOpen: true,
-        title: '操作失败',
-        message: err instanceof Error ? err.message : '重置失败',
-        variant: 'error',
-      });
-    } finally {
-      setIsResetting(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -618,11 +588,11 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* AMAS 管理面板 */}
+      {/* AMAS 监控概览 */}
       <div className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
           <Brain size={28} className="text-purple-500" />
-          AMAS 管理面板
+          AMAS 监控概览
         </h2>
         <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           {isAmasLoading ? (
@@ -634,75 +604,74 @@ export default function AdminDashboard() {
               <Warning size={48} color="#ef4444" className="mx-auto mb-4" />
               <p className="mb-4 text-gray-600 dark:text-gray-400">{amasError}</p>
               <button
-                onClick={loadAmasStrategy}
+                onClick={loadAmasOverview}
                 className="rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
               >
                 重试
               </button>
             </div>
-          ) : amasStrategy ? (
+          ) : amasOverview ? (
             <div>
-              <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <div className="mb-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Lightning size={20} className="text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">新单词比例</span>
+                    <ChartBar size={20} className="text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">24h事件数</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {Math.round((amasStrategy.new_ratio || 0) * 100)}%
+                    {amasOverview.eventsLast24h.toLocaleString()}
                   </p>
                 </div>
                 <div className="rounded-button bg-green-50 p-4 dark:bg-green-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Pulse size={20} className="text-green-600 dark:text-green-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">难度级别</span>
+                    <CheckCircle size={20} className="text-green-600 dark:text-green-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">约束满足率</span>
                   </div>
-                  <p className="text-2xl font-bold capitalize text-gray-900 dark:text-white">
-                    {amasStrategy.difficulty || 'mid'}
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {(amasOverview.constraintsSatisfiedRate * 100).toFixed(1)}%
                   </p>
                 </div>
                 <div className="rounded-button bg-purple-50 p-4 dark:bg-purple-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <ChartBar size={20} className="text-purple-600 dark:text-purple-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">批次大小</span>
+                    <Pulse size={20} className="text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">平均延迟</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {amasStrategy.batch_size || 'N/A'}
+                    {amasOverview.avgLatencyMs.toFixed(0)}ms
+                  </p>
+                </div>
+                <div className="rounded-button bg-amber-50 p-4 dark:bg-amber-900/30">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Warning size={20} className="text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">异常率</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {(amasOverview.anomalyRate * 100).toFixed(2)}%
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <button
-                  onClick={loadAmasStrategy}
+                  onClick={loadAmasOverview}
                   disabled={isAmasLoading}
                   className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ArrowClockwise size={18} />
-                  刷新策略
+                  刷新
                 </button>
                 <button
-                  onClick={handleResetAmas}
-                  disabled={isResetting}
-                  className="flex items-center gap-2 rounded-button bg-yellow-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-yellow-600 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => navigate('/admin/amas-monitoring')}
+                  className="flex items-center gap-2 rounded-button bg-purple-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 active:scale-95"
                 >
-                  {isResetting ? (
-                    <>
-                      <Spinner className="animate-spin" size="sm" color="white" />
-                      重置中...
-                    </>
-                  ) : (
-                    <>
-                      <Warning size={18} weight="bold" />
-                      重置状态
-                    </>
-                  )}
+                  查看详情
+                  <ArrowRight size={18} />
                 </button>
               </div>
             </div>
           ) : (
             <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-              暂无AMAS策略数据
+              暂无AMAS监控数据
             </div>
           )}
         </div>
@@ -1009,19 +978,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-
-      {/* 重置确认对话框 */}
-      <ConfirmModal
-        isOpen={resetConfirm}
-        onClose={() => setResetConfirm(false)}
-        onConfirm={confirmResetAmas}
-        title="重置 AMAS 状态"
-        message="确定要重置AMAS状态吗？这将清除用户的所有AMAS学习历史。"
-        confirmText="确认重置"
-        cancelText="取消"
-        variant="warning"
-        isLoading={isResetting}
-      />
 
       {/* 提示对话框 */}
       <AlertModal

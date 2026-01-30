@@ -22,6 +22,7 @@ export interface WordCardProps {
   masteryLevel?: number;
   wordScore?: number;
   nextReviewDate?: string;
+  onAudioPlay?: (isReplay?: boolean) => void;
 }
 
 /**
@@ -38,15 +39,20 @@ function WordCard({
   masteryLevel,
   wordScore,
   nextReviewDate,
+  onAudioPlay,
 }: WordCardProps) {
   const pronounceButtonRef = useRef<HTMLButtonElement>(null);
+  const audioPlayCountRef = useRef(0);
 
   // 处理发音按钮点击，包含埋点
   const handlePronounce = useCallback(() => {
     // 记录发音按钮点击事件（用于学习风格分析-听觉偏好）
     trackingService.trackPronunciationClick(word.id, word.spelling);
+    const isReplay = audioPlayCountRef.current > 0;
+    audioPlayCountRef.current += 1;
+    onAudioPlay?.(isReplay);
     onPronounce();
-  }, [word.id, word.spelling, onPronounce]);
+  }, [word.id, word.spelling, onPronounce, onAudioPlay]);
 
   // 使用 ref 存储最新的 handlePronounce，避免 useEffect 依赖变化
   const handlePronounceRef = useRef(handlePronounce);

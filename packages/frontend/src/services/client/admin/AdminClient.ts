@@ -41,6 +41,25 @@ export interface AdminUsersResponse {
   };
 }
 
+export interface OnlineUserDetail {
+  userId: string;
+  email: string;
+  name: string | null;
+}
+
+export interface OnlineUsersPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface OnlineUsersResponse {
+  success: boolean;
+  data: OnlineUserDetail[];
+  pagination: OnlineUsersPagination;
+}
+
 /**
  * 用户学习数据（管理员）
  */
@@ -489,6 +508,23 @@ export class AdminClient extends BaseClient {
 
     const query = queryParams.toString();
     return this.request<AdminUsersResponse>(`/api/admin/users${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * 获取在线用户详情（管理员）
+   */
+  async getOnlineUsersWithDetails(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<OnlineUsersResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const query = queryParams.toString();
+    return this.requestAdminFull<OnlineUsersResponse>(
+      `/api/admin/broadcasts/online-users${query ? `?${query}` : ''}`,
+    );
   }
 
   /**
@@ -1227,6 +1263,13 @@ export class AdminClient extends BaseClient {
    */
   async retryLLMTask(taskId: string): Promise<void> {
     await this.request(`/api/admin/llm/tasks/${taskId}/retry`, { method: 'PUT' });
+  }
+
+  /**
+   * 获取 LLM Advisor 待审核建议数量
+   */
+  async getLLMAdvisorPendingCount(): Promise<{ count: number }> {
+    return this.request<{ count: number }>('/api/llm-advisor/pending-count');
   }
 
   // ==================== 单词内容变体 API ====================

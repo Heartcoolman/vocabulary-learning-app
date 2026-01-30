@@ -390,7 +390,52 @@ async fn start_experiment(
             "数据库不可用",
         ));
     };
+
+    // Get experiment info before starting
+    let exp_row = sqlx::query(r#"SELECT "name" FROM "ab_experiments" WHERE "id" = $1"#)
+        .bind(experiment_id)
+        .fetch_optional(&pool)
+        .await
+        .ok()
+        .flatten();
+
+    let exp_name = exp_row
+        .as_ref()
+        .and_then(|row| row.try_get::<String, _>("name").ok())
+        .unwrap_or_default();
+
     start_experiment_pg(&pool, experiment_id).await?;
+
+    // If this is the UMM vs FSRS experiment, auto-enable the feature flag
+    if exp_name == "umm-vs-fsrs" {
+        // Get treatment variant weight from experiment config
+        let treatment_weight = sqlx::query(
+            r#"SELECT "weight" FROM "ab_variants" WHERE "experimentId" = $1 AND "isControl" = false"#,
+        )
+        .bind(experiment_id)
+        .fetch_optional(&pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|row| row.try_get::<f64, _>("weight").ok())
+        .unwrap_or(0.5);
+
+        let percentage = (treatment_weight * 100.0).round() as u8;
+
+        let mut config = state.amas_engine().get_config().await;
+        config.feature_flags.umm_ab_test_enabled = true;
+        config.feature_flags.umm_ab_test_percentage = percentage;
+        state
+            .amas_engine()
+            .set_feature_flags(config.feature_flags.clone())
+            .await;
+        state.runtime().set_amas_flags(config.feature_flags).await;
+        tracing::info!(
+            "UMM A/B test enabled: experiment={}, treatment_percentage={}%",
+            exp_name,
+            percentage
+        );
+    }
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -415,7 +460,33 @@ async fn stop_experiment(
             "数据库不可用",
         ));
     };
+
+    // Get experiment name before stopping
+    let exp_name = sqlx::query(r#"SELECT "name" FROM "ab_experiments" WHERE "id" = $1"#)
+        .bind(experiment_id)
+        .fetch_optional(&pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|row| row.try_get::<String, _>("name").ok())
+        .unwrap_or_default();
+
     stop_experiment_pg(&pool, experiment_id).await?;
+
+    // If this is the UMM vs FSRS experiment, disable the feature flag
+    if exp_name == "umm-vs-fsrs" {
+        let mut config = state.amas_engine().get_config().await;
+        config.feature_flags.umm_ab_test_enabled = false;
+        state
+            .amas_engine()
+            .set_feature_flags(config.feature_flags.clone())
+            .await;
+        state.runtime().set_amas_flags(config.feature_flags).await;
+        tracing::info!(
+            "UMM A/B test disabled automatically for experiment: {}",
+            exp_name
+        );
+    }
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -846,9 +917,9 @@ async fn create_experiment_pg(
     sqlx::query(
         r#"
         INSERT INTO "ab_experiments"
-          ("id","name","description","trafficAllocation","minSampleSize","significanceLevel","minimumDetectableEffect","autoDecision","status")
+          ("id","name","description","trafficAllocation","minSampleSize","significanceLevel","minimumDetectableEffect","autoDecision","status","createdAt","updatedAt")
         VALUES
-          ($1,$2,$3,$4,$5,$6,$7,$8,'DRAFT')
+          ($1,$2,$3,$4::"ABTrafficAllocation",$5,$6,$7,$8,'DRAFT'::"ABExperimentStatus",NOW(),NOW())
         "#,
     )
     .bind(experiment_id)
@@ -861,18 +932,22 @@ async fn create_experiment_pg(
     .bind(auto_decision)
     .execute(&mut *tx)
     .await
-    .map_err(|_| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "创建实验失败"))?;
+    .map_err(|e| {
+        tracing::error!("Failed to create experiment: {:?}", e);
+        json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("创建实验失败: {}", e))
+    })?;
 
     for variant in &payload.variants {
+        let variant_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"
             INSERT INTO "ab_variants"
-              ("id","experimentId","name","weight","isControl","parameters")
+              ("id","experimentId","name","weight","isControl","parameters","createdAt","updatedAt")
             VALUES
-              ($1,$2,$3,$4,$5,$6)
+              ($1,$2,$3,$4,$5,$6,NOW(),NOW())
             "#,
         )
-        .bind(variant.id.trim())
+        .bind(&variant_id)
         .bind(experiment_id)
         .bind(variant.name.trim())
         .bind(variant.weight)
@@ -880,7 +955,14 @@ async fn create_experiment_pg(
         .bind(sqlx::types::Json(variant.parameters.clone()))
         .execute(&mut *tx)
         .await
-        .map_err(|_| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "创建变体失败"))?;
+        .map_err(|e| {
+            tracing::error!("Failed to create variant: {:?}", e);
+            json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                format!("创建变体失败: {}", e),
+            )
+        })?;
     }
 
     tx.commit().await.map_err(|_| {
@@ -1116,7 +1198,7 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
     }
 
     sqlx::query(
-        r#"UPDATE "ab_experiments" SET "status" = 'RUNNING', "startedAt" = NOW() WHERE "id" = $1"#,
+        r#"UPDATE "ab_experiments" SET "status" = 'RUNNING'::"ABExperimentStatus", "startedAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $1"#,
     )
     .bind(experiment_id)
     .execute(&mut *tx)
@@ -1137,9 +1219,9 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
         sqlx::query(
             r#"
             INSERT INTO "ab_experiment_metrics"
-              ("id","experimentId","variantId","sampleCount","primaryMetric","averageReward","stdDev","m2")
+              ("id","experimentId","variantId","sampleCount","primaryMetric","averageReward","stdDev","m2","updatedAt")
             VALUES
-              ($1,$2,$3,0,0,0,0,0)
+              ($1,$2,$3,0,0,0,0,0,NOW())
             ON CONFLICT ("experimentId","variantId") DO NOTHING
             "#,
         )
@@ -1148,7 +1230,10 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
         .bind(variant_id)
         .execute(&mut *tx)
         .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+        .map_err(|e| {
+            tracing::error!("Failed to create metrics: {:?}", e);
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", format!("服务器内部错误: {}", e))
+        })?;
     }
 
     tx.commit().await.map_err(|_| {

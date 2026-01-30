@@ -27,9 +27,9 @@ const mockOverviewStats = {
 };
 
 const mockAlgorithmDistribution = {
-  thompson: 0.35,
-  linucb: 0.25,
-  actr: 0.2,
+  ige: 0.35,
+  swd: 0.25,
+  msmt: 0.2,
   heuristic: 0.15,
   coldstart: 0.05,
 };
@@ -48,7 +48,7 @@ const mockOptimizationEvents = [
     id: 'event-1',
     type: 'bayesian',
     title: '参数优化',
-    description: 'Thompson Sampling 权重调整',
+    description: 'IGE 权重调整',
     timestamp: '2024-01-15T10:00:00.000Z',
     impact: '+2.3% 准确率',
   },
@@ -258,10 +258,10 @@ describe('StatsPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('Thompson Sampling')).toBeInTheDocument();
-        expect(screen.getByText('LinUCB Contextual')).toBeInTheDocument();
-        expect(screen.getByText('ACT-R Memory')).toBeInTheDocument();
-        expect(screen.getByText('Heuristic Rules')).toBeInTheDocument();
+        expect(screen.getByText('IGE 信息增益探索')).toBeInTheDocument();
+        expect(screen.getByText('SWD 相似度加权')).toBeInTheDocument();
+        expect(screen.getByText('MSMT 多尺度记忆')).toBeInTheDocument();
+        expect(screen.getByText('Heuristic 规则')).toBeInTheDocument();
       });
     });
 
@@ -358,7 +358,7 @@ describe('StatsPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('Thompson Sampling 权重调整')).toBeInTheDocument();
+        expect(screen.getByText('IGE 权重调整')).toBeInTheDocument();
         expect(screen.getByText('新复习间隔算法测试')).toBeInTheDocument();
       });
     });

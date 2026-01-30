@@ -1,0 +1,16 @@
+[Unit]
+Description=Danci Backend Restart Listener
+Documentation=https://github.com/heartcoolman/vocabulary-learning-app
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/opt/danci/scripts/prod-restart-listener.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

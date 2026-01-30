@@ -1,0 +1,54 @@
+{
+  "landing": {
+    "hero": {
+      "title": "智能背单词",
+      "subtitle": "AMAS 自适应学习系统",
+      "description": "基于认知科学的个性化学习体验，让记忆更高效",
+      "cta": {
+        "start": "开始学习",
+        "demo": "查看演示"
+      }
+    },
+    "features": {
+      "title": "核心特性",
+      "adaptive": {
+        "title": "自适应学习",
+        "description": "根据你的学习状态实时调整难度和节奏"
+      },
+      "memory": {
+        "title": "科学记忆",
+        "description": "基于遗忘曲线的智能复习安排"
+      },
+      "analytics": {
+        "title": "学习分析",
+        "description": "详细的学习数据和进度追踪"
+      },
+      "personalized": {
+        "title": "个性化推荐",
+        "description": "AI 驱动的单词推荐和学习路径"
+      }
+    },
+    "demo": {
+      "title": "AMAS 工作流演示",
+      "description": "实时观察自适应学习系统如何工作"
+    },
+    "stats": {
+      "title": "平台数据",
+      "users": "活跃用户",
+      "words": "单词总量",
+      "decisions": "今日决策",
+      "accuracy": "平均正确率"
+    },
+    "cta": {
+      "title": "准备好开始了吗？",
+      "description": "加入我们，开启智能学习之旅",
+      "button": "免费注册"
+    },
+    "footer": {
+      "copyright": "© 2024 单词学习平台",
+      "about": "关于我们",
+      "privacy": "隐私政策",
+      "terms": "服务条款"
+    }
+  }
+}

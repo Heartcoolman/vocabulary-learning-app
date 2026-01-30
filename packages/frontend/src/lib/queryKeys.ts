@@ -182,6 +182,14 @@ export const queryKeys = {
       detail: (id: string) => [...queryKeys.admin.users.details(), id] as const,
     },
 
+    // 在线用户
+    onlineUsers: {
+      all: ['admin', 'onlineUsers'] as const,
+      lists: () => [...queryKeys.admin.onlineUsers.all, 'list'] as const,
+      list: (filters: Record<string, unknown>) =>
+        [...queryKeys.admin.onlineUsers.lists(), filters] as const,
+    },
+
     // 用户统计数据
     userStatistics: {
       all: ['admin', 'statistics'] as const,

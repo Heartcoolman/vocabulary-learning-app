@@ -177,8 +177,8 @@ const mockFeatureFlags = {
   flags: {
     trendAnalyzer: { enabled: true, status: 'healthy', latencyMs: 40 },
     heuristicBaseline: { enabled: true, status: 'healthy', latencyMs: 25 },
-    thompsonSampling: { enabled: true, status: 'healthy', latencyMs: 30 },
-    actrMemory: { enabled: true, status: 'healthy', latencyMs: 20 },
+    igeSampling: { enabled: true, status: 'healthy', latencyMs: 30 },
+    msmtMemory: { enabled: true, status: 'healthy', latencyMs: 20 },
     ensemble: { enabled: true, status: 'healthy' },
     coldStartManager: { enabled: true, status: 'healthy' },
     userParamsManager: { enabled: true, status: 'healthy' },
@@ -536,8 +536,8 @@ describe('SystemStatusPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('趋势分析')).toBeInTheDocument();
-        expect(screen.getByText('Thompson采样')).toBeInTheDocument();
-        expect(screen.getByText('ACT-R记忆')).toBeInTheDocument();
+        expect(screen.getByText('IGE 信息增益探索')).toBeInTheDocument();
+        expect(screen.getByText('MSMT 多尺度记忆')).toBeInTheDocument();
         expect(screen.getByText('集成学习')).toBeInTheDocument();
       });
     });

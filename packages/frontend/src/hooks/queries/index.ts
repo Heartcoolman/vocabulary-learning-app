@@ -174,6 +174,7 @@ export * from './useAchievements';
 
 // ==================== 管理后台相关 ====================
 export * from './useAdminUsers';
+export * from './useOnlineUsersWithDetails';
 export * from './useUserDetail';
 export * from './useUserStatistics';
 export * from './useAdminStatistics';

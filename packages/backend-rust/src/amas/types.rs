@@ -451,6 +451,9 @@ pub struct RawEvent {
     pub focus_loss_duration: Option<i64>,
     pub interaction_density: Option<f64>,
     pub timestamp: i64,
+    // EVM context tracking
+    #[serde(default)]
+    pub device_type: Option<String>,
 }
 
 impl Default for RawEvent {
@@ -470,6 +473,7 @@ impl Default for RawEvent {
             focus_loss_duration: None,
             interaction_density: None,
             timestamp: chrono::Utc::now().timestamp_millis(),
+            device_type: None,
         }
     }
 }
@@ -527,16 +531,34 @@ pub struct WordMasteryDecision {
     pub lapses: i32,
     pub reps: i32,
     pub confidence: f64,
+    // UMM MDM fields (optional, populated when umm_mdm_enabled)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub umm_strength: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub umm_consolidation: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub umm_last_review_ts: Option<i64>,
+    // Adaptive mastery fields for history tracking
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mastery_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mastery_threshold: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AlgorithmWeights {
-    pub thompson: f64,
-    pub linucb: f64,
+    pub ige: f64,
+    pub swd: f64,
     pub heuristic: f64,
-    pub actr: f64,
     pub coldstart: f64,
+    // Legacy fields for backwards compatibility
+    #[serde(default)]
+    pub thompson: f64,
+    #[serde(default)]
+    pub linucb: f64,
+    #[serde(default)]
+    pub actr: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -607,6 +629,36 @@ pub struct FSRSWordState {
     pub reps: i32,
     pub lapses: i32,
     pub desired_retention: f64,
+    // UMM MDM fields (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub umm_strength: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub umm_consolidation: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub umm_last_review_ts: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MorphemeStateInput {
+    pub morpheme_id: String,
+    pub mastery_level: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfusionPairInput {
+    pub confusing_word_id: String,
+    pub distance: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextEntryInput {
+    pub hour_of_day: u8,
+    pub day_of_week: u8,
+    pub question_type: String,
+    pub device_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -628,6 +680,15 @@ pub struct ProcessOptions {
     pub pace_cv: Option<f64>,
     pub root_features: Option<RootFeatures>,
     pub total_sessions: Option<u32>,
+    // UMM vocabulary specialization inputs
+    #[serde(default)]
+    pub morpheme_states: Option<Vec<MorphemeStateInput>>,
+    #[serde(default)]
+    pub confusion_pairs: Option<Vec<ConfusionPairInput>>,
+    #[serde(default)]
+    pub recent_word_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub context_history: Option<Vec<ContextEntryInput>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -679,4 +740,8 @@ pub struct PersistedAMASState {
     pub last_updated: i64,
     #[serde(default)]
     pub user_fsrs_params: Option<crate::services::fsrs::UserFSRSParams>,
+    #[serde(default)]
+    pub mastery_history: Option<crate::umm::MasteryHistory>,
+    #[serde(default)]
+    pub ensemble_performance: Option<crate::amas::decision::ensemble::PerformanceTracker>,
 }

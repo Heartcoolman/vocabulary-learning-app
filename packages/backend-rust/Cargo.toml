@@ -50,3 +50,4 @@ urlencoding = "2"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+proptest = "1.4"

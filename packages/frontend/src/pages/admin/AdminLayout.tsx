@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '../../hooks/usePrefetch';
 import { useSystemVersion } from '../../hooks/queries';
-import { NotificationDropdown } from '../../components/notification';
 import { useAdminAuthStore } from '../../stores/adminAuthStore';
 import { adminLogout } from '../../services/client/admin/AdminAuthClient';
 import {
@@ -22,6 +21,7 @@ import {
   Sparkle,
   Queue,
   Heartbeat,
+  Activity,
 } from '../../components/Icon';
 
 function VersionDisplay() {
@@ -72,6 +72,7 @@ export default function AdminLayout() {
     { path: '/admin/llm-advisor', label: 'LLM 顾问', icon: Robot },
     { path: '/admin/llm-tasks', label: 'LLM 任务', icon: Queue },
     { path: '/admin/amas-monitoring', label: 'AMAS 监控', icon: Heartbeat },
+    { path: '/admin/workflow-monitor', label: '工作流监控', icon: Activity },
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
     { path: '/admin/weekly-report', label: '运营周报', icon: ChartLine },
     { path: '/admin/broadcasts', label: '广播通知', icon: Bell },
@@ -129,9 +130,6 @@ export default function AdminLayout() {
 
       {/* 主内容区 */}
       <main className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-end border-b border-gray-200/60 bg-white/80 px-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
-          <NotificationDropdown systemOnly />
-        </header>
         <div className="flex-1">
           <Outlet />
         </div>

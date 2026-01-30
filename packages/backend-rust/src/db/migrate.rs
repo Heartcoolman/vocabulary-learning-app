@@ -174,6 +174,26 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "038_add_broadcasts",
             include_str!("../../sql/038_add_broadcasts.sql"),
         ),
+        (
+            "039_add_umm_columns",
+            include_str!("../../sql/039_add_umm_columns.sql"),
+        ),
+        (
+            "040_add_umm_shadow_results",
+            include_str!("../../sql/040_add_umm_shadow_results.sql"),
+        ),
+        (
+            "041_add_vark_columns",
+            include_str!("../../sql/041_add_vark_columns.sql"),
+        ),
+        (
+            "042_add_device_type_to_answer_records",
+            include_str!("../../sql/042_add_device_type_to_answer_records.sql"),
+        ),
+        (
+            "043_add_amas_runtime_states",
+            include_str!("../../sql/043_add_amas_runtime_states.sql"),
+        ),
     ];
 
     let mut applied_count = 0;

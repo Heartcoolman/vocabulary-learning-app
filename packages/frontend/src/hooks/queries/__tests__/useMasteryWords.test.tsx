@@ -74,7 +74,7 @@ const mockMasteryData: MasteryEvaluation[] = [
     confidence: 0.9,
     factors: {
       srsLevel: 5,
-      actrRecall: 0.9,
+      msmtRecall: 0.9,
       recentAccuracy: 0.85,
       userFatigue: 0.1,
     },
@@ -86,7 +86,7 @@ const mockMasteryData: MasteryEvaluation[] = [
     confidence: 0.7,
     factors: {
       srsLevel: 3,
-      actrRecall: 0.7,
+      msmtRecall: 0.7,
       recentAccuracy: 0.65,
       userFatigue: 0.3,
     },

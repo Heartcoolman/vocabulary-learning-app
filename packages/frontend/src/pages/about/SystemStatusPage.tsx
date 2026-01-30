@@ -200,16 +200,16 @@ const AlgorithmCard = memo(function AlgorithmCard({
   layer: string;
 }) {
   const colorMap: Record<string, string> = {
-    thompson: 'from-blue-500 to-blue-600',
-    linucb: 'from-purple-500 to-purple-600',
+    ige: 'from-blue-500 to-blue-600',
+    swd: 'from-purple-500 to-purple-600',
     heuristic: 'from-emerald-500 to-emerald-600',
     attention_monitor: 'from-cyan-500 to-cyan-600',
     fatigue_estimator: 'from-orange-500 to-orange-600',
     cognitive_profiler: 'from-pink-500 to-pink-600',
     motivation_tracker: 'from-teal-500 to-teal-600',
     trend_analyzer: 'from-blue-500 to-blue-600',
-    actr_memory: 'from-amber-500 to-amber-600',
-    fsrs: 'from-rose-500 to-rose-600',
+    msmt: 'from-amber-500 to-amber-600',
+    mdm: 'from-rose-500 to-rose-600',
     coldstart_manager: 'from-violet-500 to-violet-600',
   };
 
@@ -754,7 +754,7 @@ const FeatureFlagsPanel = memo(function FeatureFlagsPanel({
       icon: <Brain size={16} className="text-purple-500" />,
       gradient: 'from-purple-500/10 to-blue-500/10',
       borderColor: 'border-purple-200/60',
-      keys: ['ensemble', 'thompsonSampling', 'heuristicBaseline', 'actrMemory'],
+      keys: ['ensemble', 'igeSampling', 'heuristicBaseline', 'msmtMemory'],
     },
     {
       title: '决策管理',
@@ -782,8 +782,8 @@ const FeatureFlagsPanel = memo(function FeatureFlagsPanel({
   const flagNames: Record<string, string> = {
     trendAnalyzer: '趋势分析',
     heuristicBaseline: '启发式基准',
-    thompsonSampling: 'Thompson采样',
-    actrMemory: 'ACT-R记忆',
+    igeSampling: 'IGE 信息增益探索',
+    msmtMemory: 'MSMT 多尺度记忆',
     coldStartManager: '冷启动管理',
     ensemble: '集成学习',
     userParamsManager: '参数管理',

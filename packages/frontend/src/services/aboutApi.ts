@@ -53,9 +53,9 @@ export interface MemberVote {
 
 /** 集成权重 */
 export interface EnsembleWeights {
-  thompson: number;
-  linucb: number;
-  actr: number;
+  ige: number;
+  swd: number;
+  msmt: number;
   heuristic: number;
 }
 
@@ -127,9 +127,9 @@ export interface MasteryRadarData {
 
 /** 算法分布 */
 export interface AlgorithmDistribution {
-  thompson: number;
-  linucb: number;
-  actr: number;
+  ige: number;
+  swd: number;
+  msmt: number;
   heuristic: number;
   coldstart: number;
 }
@@ -1020,9 +1020,9 @@ export interface HalfLifeDistributionResponse {
 
 /** 算法趋势数据 */
 export interface AlgorithmTrend {
-  thompson: number[];
-  linucb: number[];
-  actr: number[];
+  ige: number[];
+  swd: number[];
+  msmt: number[];
   heuristic: number[];
   coldstart: number[];
 }

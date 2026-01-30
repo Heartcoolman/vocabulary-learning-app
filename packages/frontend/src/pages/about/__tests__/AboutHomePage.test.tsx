@@ -146,16 +146,16 @@ describe('AboutHomePage', () => {
     it('should display modeling stage details', () => {
       renderComponent();
 
-      expect(screen.getByText(/个性化遗忘曲线/)).toBeInTheDocument();
-      expect(screen.getByText(/ACT-R 记忆激活度追踪/)).toBeInTheDocument();
+      expect(screen.getByText(/MDM 记忆动力学模型/)).toBeInTheDocument();
+      expect(screen.getByText(/MSMT 多尺度记忆痕迹/)).toBeInTheDocument();
     });
 
     it('should display learning stage details', () => {
       renderComponent();
 
-      expect(screen.getByText(/Thompson Sampling/)).toBeInTheDocument();
-      expect(screen.getByText(/LinUCB/)).toBeInTheDocument();
-      expect(screen.getByText(/FSRS/)).toBeInTheDocument();
+      expect(screen.getByText(/IGE 信息增益探索/)).toBeInTheDocument();
+      expect(screen.getByText(/SWD 相似度加权决策/)).toBeInTheDocument();
+      expect(screen.getByText(/Ensemble 集成策略投票/)).toBeInTheDocument();
     });
 
     it('should display decision stage details', () => {

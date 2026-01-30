@@ -36,20 +36,20 @@ import { amasLogger } from '../../utils/logger';
 type ExtendedSimulateResponse = SimulateResponse;
 
 const ALGO_COLORS: Record<string, string> = {
-  thompson: 'text-blue-500',
-  linucb: 'text-purple-500',
-  actr: 'text-amber-500',
-  fsrs: 'text-cyan-500',
+  ige: 'text-blue-500',
+  swd: 'text-purple-500',
+  msmt: 'text-amber-500',
+  mdm: 'text-cyan-500',
   heuristic: 'text-emerald-500',
   coldstart: 'text-gray-500',
   trendAnalyzer: 'text-teal-500',
 };
 
 const ALGO_BG: Record<string, string> = {
-  thompson: 'bg-blue-500',
-  linucb: 'bg-purple-500',
-  actr: 'bg-amber-500',
-  fsrs: 'bg-cyan-500',
+  ige: 'bg-blue-500',
+  swd: 'bg-purple-500',
+  msmt: 'bg-amber-500',
+  mdm: 'bg-cyan-500',
   heuristic: 'bg-emerald-500',
   coldstart: 'bg-gray-500',
   trendAnalyzer: 'bg-teal-500',
@@ -135,9 +135,9 @@ function ConsensusVisualizer({
 
     return members.map((id) => {
       let bias = 0;
-      if (id === 'actr') bias = -0.1;
-      if (id === 'thompson') bias = 0.15;
-      if (id === 'linucb') bias = 0.05;
+      if (id === 'msmt') bias = -0.1;
+      if (id === 'ige') bias = 0.15;
+      if (id === 'swd') bias = 0.05;
 
       const weight = weights[id as keyof typeof weights];
       const position = Math.max(

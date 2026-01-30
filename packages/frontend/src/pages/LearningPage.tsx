@@ -24,6 +24,7 @@ import {
 import { FloatingEyeIndicator, FatigueAlertModal } from '../components/visual-fatigue';
 import { useVisualFatigueStore } from '../stores/visualFatigueStore';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
+import { useInteractionTracker } from '../hooks/useInteractionTracker';
 import { useConfusionBatchLearning } from '../hooks/useConfusionBatchLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
@@ -111,6 +112,9 @@ export default function LearningPage() {
 
   // 视觉疲劳状态
   const { enabled: fatigueEnabled, metrics: fatigueMetrics } = useVisualFatigueStore();
+
+  // VARK 交互追踪
+  const interactionTracker = useInteractionTracker();
 
   // 保存学习类型偏好
   useEffect(() => {
@@ -236,13 +240,14 @@ export default function LearningPage() {
     optionsGenerator,
   );
 
-  // 当单词变化时重置答题状态
+  // 当单词变化时重置答题状态并开始 VARK 阅读追踪
   useEffect(() => {
     if (!currentWord) return;
     setSelectedAnswer(undefined);
     setShowResult(false);
     setResponseStartTime(Date.now());
-  }, [currentWord]);
+    interactionTracker.trackReadingStart('definition');
+  }, [currentWord, interactionTracker]);
 
   const handlePronounce = useCallback(async () => {
     if (!currentWord || isPronouncing) return;
@@ -271,8 +276,11 @@ export default function LearningPage() {
       const isCorrect = correctAnswers.includes(answer);
       const responseTime = Date.now() - responseStartTime;
 
+      // 获取 VARK 交互数据
+      const varkData = interactionTracker.getData();
+
       try {
-        await submitAnswer(isCorrect, responseTime);
+        await submitAnswer(isCorrect, responseTime, varkData);
       } catch (error) {
         // 提交失败时记录错误，但不阻止用户继续学习
         // 答案会被保存到本地队列，后续会自动重试同步
@@ -280,7 +288,7 @@ export default function LearningPage() {
       }
       // 注意: isSubmittingRef 在 handleNext 中重置，确保用户看到结果后才能进入下一题
     },
-    [currentWord, showResult, responseStartTime, submitAnswer, learningType],
+    [currentWord, showResult, responseStartTime, submitAnswer, learningType, interactionTracker],
   );
 
   const handleNext = useCallback(() => {
@@ -294,7 +302,8 @@ export default function LearningPage() {
     setResponseStartTime(Date.now());
     regenerateOptions(); // 强制触发选项重新生成
     isSubmittingRef.current = false; // 重置提交状态
-  }, [advanceToNext, regenerateOptions, isConfusionBatchMode, confusionBatch]);
+    interactionTracker.reset(); // 重置 VARK 交互追踪
+  }, [advanceToNext, regenerateOptions, isConfusionBatchMode, confusionBatch, interactionTracker]);
 
   // 始终保持 ref 指向最新的 handleNext
   handleNextRef.current = handleNext;
@@ -601,6 +610,7 @@ export default function LearningPage() {
               word={currentWord}
               onPronounce={handlePronounce}
               isPronouncing={isPronouncing}
+              onAudioPlay={interactionTracker.trackAudioPlay}
             />
           ) : (
             <ReverseWordCard

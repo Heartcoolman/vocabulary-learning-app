@@ -24,9 +24,9 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
 
   // Data processing
   const data = [
-    { key: 'Thompson', value: weights.thompson, label: 'Thompson' },
-    { key: 'LinUCB', value: weights.linucb, label: 'LinUCB' },
-    { key: 'ACT-R', value: weights.actr, label: 'ACT-R' },
+    { key: 'IGE', value: weights.ige, label: 'IGE' },
+    { key: 'SWD', value: weights.swd, label: 'SWD' },
+    { key: 'MSMT', value: weights.msmt, label: 'MSMT' },
     { key: 'Heuristic', value: weights.heuristic, label: 'Heuristic' },
   ];
 

@@ -36,11 +36,11 @@ interface UserState {
 }
 
 interface AlgorithmWeights {
-  thompson: number;
-  linucb: number;
+  ige: number;
+  swd: number;
+  msmt: number;
+  mdm: number;
   heuristic: number;
-  actr: number;
-  fsrs: number;
   coldstart: number;
 }
 
@@ -98,10 +98,10 @@ const LAYERS = [
 ];
 
 const ALGORITHMS = [
-  { id: 'thompson', name: 'Thompson', desc: '概率采样', color: '#3B82F6' },
-  { id: 'linucb', name: 'LinUCB', desc: '上下文探索', color: '#8B5CF6' },
-  { id: 'actr', name: 'ACT-R', desc: '记忆模型', color: '#F59E0B' },
-  { id: 'fsrs', name: 'FSRS', desc: '17参数间隔调度', color: '#06B6D4' },
+  { id: 'ige', name: 'IGE', desc: '信息增益探索', color: '#3B82F6' },
+  { id: 'swd', name: 'SWD', desc: '相似度加权决策', color: '#8B5CF6' },
+  { id: 'msmt', name: 'MSMT', desc: '多尺度记忆痕迹', color: '#F59E0B' },
+  { id: 'mdm', name: 'MDM', desc: '记忆动力学模型', color: '#06B6D4' },
   { id: 'heuristic', name: '启发式', desc: '规则推理', color: '#10B981' },
   { id: 'coldstart', name: '冷启动', desc: '新用户策略', color: '#EC4899' },
 ];
@@ -147,24 +147,19 @@ function generateMockFrame(prevFrame: FlowFrame | null): FlowFrame {
   );
 
   const weights: AlgorithmWeights = {
-    thompson: 0.2 + Math.random() * 0.2,
-    linucb: 0.15 + Math.random() * 0.2,
-    actr: 0.15 + Math.random() * 0.15,
-    fsrs: 0.12 + Math.random() * 0.18,
+    ige: 0.2 + Math.random() * 0.2,
+    swd: 0.15 + Math.random() * 0.2,
+    msmt: 0.15 + Math.random() * 0.15,
+    mdm: 0.12 + Math.random() * 0.18,
     heuristic: 0.1 + Math.random() * 0.15,
     coldstart: 0.05 + Math.random() * 0.1,
   };
   const total =
-    weights.thompson +
-    weights.linucb +
-    weights.actr +
-    weights.fsrs +
-    weights.heuristic +
-    weights.coldstart;
-  weights.thompson /= total;
-  weights.linucb /= total;
-  weights.actr /= total;
-  weights.fsrs /= total;
+    weights.ige + weights.swd + weights.msmt + weights.mdm + weights.heuristic + weights.coldstart;
+  weights.ige /= total;
+  weights.swd /= total;
+  weights.msmt /= total;
+  weights.mdm /= total;
   weights.heuristic /= total;
   weights.coldstart /= total;
 
@@ -441,12 +436,12 @@ const INTRO_STAGES = [
     subtitle: 'Modeling',
     icon: Brain,
     description: '构建动态的学习者认知模型，量化核心认知能力维度。',
-    details: ['遗忘曲线拟合', '认知反应速度', 'TrendAnalyzer'],
+    details: ['MDM 记忆动力学', 'MSMT 多尺度痕迹', 'TrendAnalyzer'],
     fullDescription:
-      '建模层将感知层的原始数据转化为结构化的用户认知模型。采用 ACT-R 认知架构理论，动态拟合个性化遗忘曲线，追踪记忆激活度衰减规律，量化用户的记忆强度、学习速度和知识稳定性。',
+      '建模层将感知层的原始数据转化为结构化的用户认知模型。采用 MDM（记忆动力学模型）和 MSMT（多尺度记忆痕迹），动态拟合个性化遗忘曲线，追踪多时间尺度的记忆衰减规律，量化用户的记忆强度、学习速度和知识稳定性。',
     features: [
-      { name: '个性化遗忘曲线', desc: '基于历史数据拟合用户专属记忆衰减模型' },
-      { name: 'ACT-R 记忆激活', desc: '计算每个知识点的实时激活强度' },
+      { name: 'MDM 记忆动力学', desc: '基于物理启发的记忆衰减与强化模型' },
+      { name: 'MSMT 多尺度痕迹', desc: '追踪短期、中期、长期多尺度记忆状态' },
       { name: '认知负荷评估', desc: '评估当前学习任务的认知资源消耗' },
       { name: 'TrendAnalyzer', desc: '分析学习趋势与掌握度演化轨迹' },
     ],
@@ -460,13 +455,13 @@ const INTRO_STAGES = [
     subtitle: 'Learning',
     icon: GraduationCap,
     description: '持续进化的算法集成引擎，从交互数据中提取最优策略。',
-    details: ['Thompson采样', 'FSRS调度', '集成策略投票'],
+    details: ['IGE 信息增益', 'SWD 加权决策', '词汇特化层'],
     fullDescription:
-      '学习层是 AMAS 的智能核心，集成多种强化学习和间隔重复算法。通过 Thompson Sampling 进行概率探索，LinUCB 处理上下文特征，FSRS 实现个性化间隔调度，在探索与利用之间动态平衡，持续优化学习策略。',
+      '学习层是 AMAS 的智能核心，集成 UMM（统一记忆模型）算法族。通过 IGE（信息增益探索）进行主动学习探索，SWD（相似度加权决策）处理上下文特征，配合 MTP/IAD/EVM 词汇特化层，在探索与利用之间动态平衡，持续优化学习策略。',
     features: [
-      { name: 'Thompson Sampling', desc: '贝叶斯概率采样，平衡探索与利用' },
-      { name: 'LinUCB 上下文赌博机', desc: '根据用户特征选择最优复习策略' },
-      { name: 'FSRS 17参数调度', desc: '17维参数驱动的个性化间隔优化' },
+      { name: 'IGE 信息增益探索', desc: '主动学习驱动的最优复习选择' },
+      { name: 'SWD 相似度加权决策', desc: '根据词汇相似度动态调整策略' },
+      { name: 'MTP/IAD/EVM 词汇特化', desc: '形态迁移、干扰惩罚、编码变异' },
       { name: 'Ensemble 集成投票', desc: '多算法加权融合，提高决策鲁棒性' },
     ],
     accentColor: 'bg-amber-500',
@@ -1019,10 +1014,10 @@ export default function AboutDataFlow() {
           cognitive: data.state.cognitive,
         },
         weights: {
-          thompson: data.weights.thompson ?? 0.25,
-          linucb: data.weights.linucb ?? 0.25,
-          actr: data.weights.actr ?? 0.2,
-          fsrs: data.weights.fsrs ?? 0.15,
+          ige: data.weights.ige ?? 0.25,
+          swd: data.weights.swd ?? 0.25,
+          msmt: data.weights.msmt ?? 0.2,
+          mdm: data.weights.mdm ?? 0.15,
           heuristic: data.weights.heuristic ?? 0.1,
           coldstart: data.weights.coldstart ?? 0.05,
         },

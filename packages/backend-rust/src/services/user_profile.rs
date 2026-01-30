@@ -4,6 +4,10 @@ use chrono::{DateTime, Local, NaiveDateTime, SecondsFormat, TimeZone, Timelike, 
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 
+use crate::amas::modeling::vark::{
+    compute_ml_confidence, load_vark_model, save_vark_model, VarkClassifier, VarkFeatures,
+    VarkLabels,
+};
 use crate::db::DatabaseProxy;
 
 // ========== Types ==========
@@ -67,7 +71,72 @@ pub struct ChronotypeProfile {
 pub struct LearningStyleScores {
     pub visual: f64,
     pub auditory: f64,
+    pub reading: f64,
     pub kinesthetic: f64,
+}
+
+impl Default for LearningStyleScores {
+    fn default() -> Self {
+        Self {
+            visual: 0.25,
+            auditory: 0.25,
+            reading: 0.25,
+            kinesthetic: 0.25,
+        }
+    }
+}
+
+impl LearningStyleScores {
+    pub fn normalize(&mut self) {
+        let total = self.visual + self.auditory + self.reading + self.kinesthetic;
+        if total > 0.0 {
+            self.visual /= total;
+            self.auditory /= total;
+            self.reading /= total;
+            self.kinesthetic /= total;
+        }
+    }
+
+    pub fn variance(&self) -> f64 {
+        let mean = 0.25;
+        let sum_sq = (self.visual - mean).powi(2)
+            + (self.auditory - mean).powi(2)
+            + (self.reading - mean).powi(2)
+            + (self.kinesthetic - mean).powi(2);
+        sum_sq / 4.0
+    }
+
+    pub fn is_multimodal(&self) -> bool {
+        self.variance() < 0.01
+    }
+
+    pub fn dominant_style(&self) -> &'static str {
+        if self.is_multimodal() {
+            return "multimodal";
+        }
+        let max_score = self
+            .visual
+            .max(self.auditory)
+            .max(self.reading)
+            .max(self.kinesthetic);
+        if (self.visual - max_score).abs() < f64::EPSILON {
+            "visual"
+        } else if (self.auditory - max_score).abs() < f64::EPSILON {
+            "auditory"
+        } else if (self.reading - max_score).abs() < f64::EPSILON {
+            "reading"
+        } else {
+            "kinesthetic"
+        }
+    }
+
+    pub fn legacy_style(&self) -> &'static str {
+        let style = self.dominant_style();
+        match style {
+            "reading" | "multimodal" => "mixed",
+            other => other,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,10 +152,12 @@ pub struct LearningStyleInteractionPatterns {
 #[serde(rename_all = "camelCase")]
 pub struct LearningStyleProfile {
     pub style: &'static str,
+    pub style_legacy: &'static str,
     pub confidence: f64,
     pub sample_count: i64,
     pub scores: LearningStyleScores,
     pub interaction_patterns: LearningStyleInteractionPatterns,
+    pub model_type: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -130,6 +201,18 @@ struct TrackingStats {
     pause_count: i32,
     page_switch_count: i32,
     total_interactions: i32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct VarkStats {
+    pub total_image_view: i64,
+    pub total_image_zoom: i64,
+    pub total_image_press_ms: i64,
+    pub total_audio_play: i64,
+    pub total_audio_replay: i64,
+    pub has_speed_adjust: bool,
+    pub total_reading_ms: i64,
+    pub total_note_count: i64,
 }
 
 // ========== Validation ==========
@@ -352,22 +435,22 @@ pub async fn compute_learning_style(
     let tracking = fetch_tracking_stats(pool, user_id).await;
     let sample_count = interactions.len() as i64;
 
+    let default_patterns = LearningStyleInteractionPatterns {
+        avg_dwell_time: 0.0,
+        avg_response_time: 0.0,
+        pause_frequency: 0.0,
+        switch_frequency: 0.0,
+    };
+
     if interactions.is_empty() {
         return Ok(LearningStyleProfile {
-            style: "mixed",
+            style: "multimodal",
+            style_legacy: "mixed",
             confidence: 0.3,
             sample_count: 0,
-            scores: LearningStyleScores {
-                visual: 0.33,
-                auditory: 0.33,
-                kinesthetic: 0.33,
-            },
-            interaction_patterns: LearningStyleInteractionPatterns {
-                avg_dwell_time: 0.0,
-                avg_response_time: 0.0,
-                pause_frequency: 0.0,
-                switch_frequency: 0.0,
-            },
+            scores: LearningStyleScores::default(),
+            interaction_patterns: default_patterns,
+            model_type: "rule_engine",
         });
     }
 
@@ -422,94 +505,63 @@ pub async fn compute_learning_style(
         }
     };
 
-    if sample_count < 50 {
+    let interaction_patterns = LearningStyleInteractionPatterns {
+        avg_dwell_time,
+        avg_response_time,
+        pause_frequency,
+        switch_frequency,
+    };
+
+    if sample_count < 20 {
         return Ok(LearningStyleProfile {
-            style: "mixed",
+            style: "multimodal",
+            style_legacy: "mixed",
             confidence: 0.3,
             sample_count,
-            scores: LearningStyleScores {
-                visual: 0.33,
-                auditory: 0.33,
-                kinesthetic: 0.33,
-            },
-            interaction_patterns: LearningStyleInteractionPatterns {
-                avg_dwell_time,
-                avg_response_time,
-                pause_frequency,
-                switch_frequency,
-            },
+            scores: LearningStyleScores::default(),
+            interaction_patterns,
+            model_type: "rule_engine",
         });
     }
+
+    // Compute VARK four-dimensional scores
+    let visual_raw = compute_visual_score(avg_dwell_time);
+    let auditory_raw = compute_auditory_score_with_tracking(
+        avg_dwell_time,
+        dwell_variance,
+        pause_count,
+        sample_count,
+        &tracking,
+    );
+    let reading_raw = compute_reading_score(avg_dwell_time, &tracking);
+    let kinesthetic_raw = compute_kinesthetic_score_with_tracking(
+        avg_response_time,
+        response_variance,
+        switch_count,
+        sample_count,
+        &tracking,
+    );
 
     let mut scores = LearningStyleScores {
-        visual: compute_visual_score(avg_dwell_time),
-        auditory: compute_auditory_score_with_tracking(
-            avg_dwell_time,
-            dwell_variance,
-            pause_count,
-            sample_count,
-            &tracking,
-        ),
-        kinesthetic: compute_kinesthetic_score_with_tracking(
-            avg_response_time,
-            response_variance,
-            switch_count,
-            sample_count,
-            &tracking,
-        ),
+        visual: visual_raw,
+        auditory: auditory_raw,
+        reading: reading_raw,
+        kinesthetic: kinesthetic_raw,
     };
+    scores.normalize();
 
-    let total_score = scores.visual + scores.auditory + scores.kinesthetic;
-    if total_score > 0.0 {
-        scores.visual /= total_score;
-        scores.auditory /= total_score;
-        scores.kinesthetic /= total_score;
-    }
+    let style = scores.dominant_style();
+    let style_legacy = scores.legacy_style();
+    let confidence = compute_style_confidence(&scores, sample_count, &tracking);
 
-    let normalized_max = scores.visual.max(scores.auditory.max(scores.kinesthetic));
-    let tracking_confidence = if tracking
-        .as_ref()
-        .map(|t| t.total_interactions >= 20)
-        .unwrap_or(false)
-    {
-        0.1
-    } else {
-        0.0
-    };
-
-    if normalized_max < 0.4 {
-        return Ok(LearningStyleProfile {
-            style: "mixed",
-            confidence: 0.5 + tracking_confidence,
-            sample_count,
-            scores,
-            interaction_patterns: LearningStyleInteractionPatterns {
-                avg_dwell_time,
-                avg_response_time,
-                pause_frequency,
-                switch_frequency,
-            },
-        });
-    }
-
-    let style = if scores.visual == normalized_max {
-        "visual"
-    } else if scores.auditory == normalized_max {
-        "auditory"
-    } else {
-        "kinesthetic"
-    };
     Ok(LearningStyleProfile {
         style,
-        confidence: (normalized_max + tracking_confidence).min(0.95),
+        style_legacy,
+        confidence,
         sample_count,
         scores,
-        interaction_patterns: LearningStyleInteractionPatterns {
-            avg_dwell_time,
-            avg_response_time,
-            pause_frequency,
-            switch_frequency,
-        },
+        interaction_patterns,
+        model_type: "rule_engine",
     })
 }
 
@@ -588,6 +640,42 @@ async fn fetch_tracking_stats(pool: &PgPool, user_id: &str) -> Option<TrackingSt
     })
 }
 
+pub async fn fetch_vark_stats(pool: &PgPool, user_id: &str) -> VarkStats {
+    let row = sqlx::query(
+        r#"SELECT
+            COALESCE(SUM("imageViewCount"), 0) as total_image_view,
+            COALESCE(SUM("imageZoomCount"), 0) as total_image_zoom,
+            COALESCE(SUM("imageLongPressMs"), 0) as total_image_press,
+            COALESCE(SUM("audioPlayCount"), 0) as total_audio_play,
+            COALESCE(SUM("audioReplayCount"), 0) as total_audio_replay,
+            COALESCE(bool_or("audioSpeedAdjust"), false) as has_speed_adjust,
+            COALESCE(SUM("definitionReadMs") + SUM("exampleReadMs"), 0) as total_reading_ms,
+            COALESCE(SUM("noteWriteCount"), 0) as total_note_count
+        FROM "answer_records"
+        WHERE "userId" = $1
+          AND "timestamp" > NOW() - INTERVAL '30 days'"#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+
+    match row {
+        Some(r) => VarkStats {
+            total_image_view: r.try_get("total_image_view").unwrap_or(0),
+            total_image_zoom: r.try_get("total_image_zoom").unwrap_or(0),
+            total_image_press_ms: r.try_get("total_image_press").unwrap_or(0),
+            total_audio_play: r.try_get("total_audio_play").unwrap_or(0),
+            total_audio_replay: r.try_get("total_audio_replay").unwrap_or(0),
+            has_speed_adjust: r.try_get("has_speed_adjust").unwrap_or(false),
+            total_reading_ms: r.try_get("total_reading_ms").unwrap_or(0),
+            total_note_count: r.try_get("total_note_count").unwrap_or(0),
+        },
+        None => VarkStats::default(),
+    }
+}
+
 // ========== Write Operations ==========
 
 pub async fn update_reward_profile(
@@ -626,6 +714,62 @@ pub async fn update_password(
         .execute(pool)
         .await
         .map_err(|e| format!("写入失败: {e}"))?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn update_learning_style_model(
+    pool: &PgPool,
+    user_id: &str,
+    timestamp_ms: i64,
+    image_view_count: i32,
+    image_zoom_count: i32,
+    image_long_press_ms: i64,
+    dwell_time: i64,
+    audio_play_count: i32,
+    audio_replay_count: i32,
+    audio_speed_adjust: bool,
+    definition_read_ms: i64,
+    example_read_ms: i64,
+    note_write_count: i32,
+    response_time: Option<i64>,
+) -> Result<(), String> {
+    let mut classifier = load_vark_model(pool, user_id)
+        .await
+        .map_err(|e| format!("加载模型失败: {e}"))?
+        .unwrap_or_else(VarkClassifier::new);
+
+    let features = VarkFeatures::from_interaction(
+        image_view_count,
+        image_zoom_count,
+        image_long_press_ms,
+        dwell_time,
+        audio_play_count,
+        audio_replay_count,
+        audio_speed_adjust,
+        definition_read_ms,
+        example_read_ms,
+        note_write_count,
+        response_time,
+    );
+
+    let labels = VarkLabels::infer(
+        image_view_count,
+        image_zoom_count,
+        image_long_press_ms,
+        dwell_time,
+        audio_play_count,
+        audio_replay_count,
+        note_write_count,
+        response_time,
+    );
+
+    classifier.update(&features.to_vec(), timestamp_ms, &labels);
+
+    save_vark_model(pool, user_id, &classifier)
+        .await
+        .map_err(|e| format!("保存模型失败: {e}"))?;
+
     Ok(())
 }
 
@@ -762,4 +906,393 @@ fn compute_kinesthetic_score_with_tracking(
         _ => 0.0,
     };
     (speed_score + switch_score + variability_score + page_switch_score).min(1.0)
+}
+
+fn compute_reading_score(avg_dwell_time: f64, tracking: &Option<TrackingStats>) -> f64 {
+    // Reading score based on dwell time > 5000ms without audio
+    if avg_dwell_time <= 5000.0 {
+        return 0.0;
+    }
+
+    let base_score = ((avg_dwell_time - 5000.0) / 10000.0).min(1.0);
+
+    // Audio discount factor: if there's pronunciation clicks, reduce reading score
+    let audio_factor = match tracking {
+        Some(t) if t.pronunciation_clicks > 0 => 0.5,
+        _ => 1.0,
+    };
+
+    (base_score * audio_factor).min(1.0)
+}
+
+fn compute_style_confidence(
+    scores: &LearningStyleScores,
+    sample_count: i64,
+    tracking: &Option<TrackingStats>,
+) -> f64 {
+    // Sample confidence: sample_count / 100, capped at 0.5
+    let sample_confidence = (sample_count as f64 / 100.0).min(0.5);
+
+    // Model confidence: difference between max and second max score
+    let mut sorted = [
+        scores.visual,
+        scores.auditory,
+        scores.reading,
+        scores.kinesthetic,
+    ];
+    sorted.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+    let model_confidence = sorted[0] - sorted[1];
+
+    // Tracking bonus
+    let tracking_bonus = if tracking
+        .as_ref()
+        .map(|t| t.total_interactions >= 20)
+        .unwrap_or(false)
+    {
+        0.05
+    } else {
+        0.0
+    };
+
+    (sample_confidence + model_confidence + tracking_bonus).min(0.95)
+}
+
+/// Compute aggregated VARK features from recent answer records for ML prediction
+async fn compute_aggregated_features(pool: &PgPool, user_id: &str) -> Result<VarkFeatures, String> {
+    let row = sqlx::query(
+        r#"SELECT
+            COUNT(*) as record_count,
+            COALESCE(AVG("imageViewCount"), 0) as avg_image_view,
+            COALESCE(AVG("imageZoomCount"), 0) as avg_image_zoom,
+            COALESCE(AVG("imageLongPressMs"), 0) as avg_image_press,
+            COALESCE(AVG("dwellTime"), 0) as avg_dwell_time,
+            COALESCE(AVG("audioPlayCount"), 0) as avg_audio_play,
+            COALESCE(AVG("audioReplayCount"), 0) as avg_audio_replay,
+            COALESCE(bool_or("audioSpeedAdjust"), false) as has_speed_adjust,
+            COALESCE(AVG("definitionReadMs"), 0) as avg_def_read,
+            COALESCE(AVG("exampleReadMs"), 0) as avg_example_read,
+            COALESCE(AVG("noteWriteCount"), 0) as avg_note_write,
+            COALESCE(AVG("responseTime"), 0) as avg_response_time,
+            COALESCE(STDDEV("responseTime"), 0) as stddev_response_time
+        FROM "answer_records"
+        WHERE "userId" = $1
+          AND "timestamp" > NOW() - INTERVAL '30 days'"#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("Query failed: {e}"))?;
+
+    let tracking = fetch_tracking_stats(pool, user_id).await;
+
+    match row {
+        Some(r) => {
+            let record_count: i64 = r.try_get("record_count").unwrap_or(0);
+            if record_count == 0 {
+                return Err("No records found".to_string());
+            }
+
+            let avg_image_view: f64 = r.try_get("avg_image_view").unwrap_or(0.0);
+            let avg_image_zoom: f64 = r.try_get("avg_image_zoom").unwrap_or(0.0);
+            let avg_image_press: f64 = r.try_get("avg_image_press").unwrap_or(0.0);
+            let avg_dwell_time: f64 = r.try_get("avg_dwell_time").unwrap_or(0.0);
+            let avg_audio_play: f64 = r.try_get("avg_audio_play").unwrap_or(0.0);
+            let avg_audio_replay: f64 = r.try_get("avg_audio_replay").unwrap_or(0.0);
+            let has_speed_adjust: bool = r.try_get("has_speed_adjust").unwrap_or(false);
+            let avg_def_read: f64 = r.try_get("avg_def_read").unwrap_or(0.0);
+            let avg_example_read: f64 = r.try_get("avg_example_read").unwrap_or(0.0);
+            let avg_note_write: f64 = r.try_get("avg_note_write").unwrap_or(0.0);
+            let avg_response_time: f64 = r.try_get("avg_response_time").unwrap_or(0.0);
+            let stddev_response_time: f64 = r.try_get("stddev_response_time").unwrap_or(0.0);
+
+            let pronunciation_clicks_ratio = match &tracking {
+                Some(t) if t.total_interactions > 0 => {
+                    t.pronunciation_clicks as f64 / t.total_interactions as f64
+                }
+                _ => 0.0,
+            };
+
+            let page_switch_rate = match &tracking {
+                Some(t) if t.total_interactions > 0 => {
+                    t.page_switch_count as f64 / t.total_interactions as f64
+                }
+                _ => 0.0,
+            };
+
+            let response_cv = if avg_response_time > 0.0 {
+                stddev_response_time / avg_response_time
+            } else {
+                0.0
+            };
+
+            Ok(VarkFeatures {
+                img_view_normalized: (avg_image_view / 10.0).min(1.0),
+                img_zoom_normalized: (avg_image_zoom / 5.0).min(1.0),
+                img_press_normalized: (avg_image_press / 10000.0).min(1.0),
+                dwell_for_visual: (avg_dwell_time / 10000.0).min(1.0),
+                audio_play_normalized: (avg_audio_play / 5.0).min(1.0),
+                audio_replay_normalized: (avg_audio_replay / 3.0).min(1.0),
+                speed_adjust: if has_speed_adjust { 1.0 } else { 0.0 },
+                pronunciation_clicks: pronunciation_clicks_ratio.min(1.0),
+                def_read_normalized: (avg_def_read / 10000.0).min(1.0),
+                example_read_normalized: (avg_example_read / 10000.0).min(1.0),
+                dwell_for_reading: ((avg_dwell_time - 5000.0).max(0.0) / 10000.0).min(1.0),
+                reading_no_audio: if avg_audio_play < 0.1 { 1.0 } else { 0.5 },
+                response_speed: 1.0 / (1.0 + avg_response_time / 1000.0),
+                response_variance: response_cv.min(1.0),
+                page_switch_rate: page_switch_rate.min(1.0),
+                note_write_normalized: (avg_note_write / 3.0).min(1.0),
+            })
+        }
+        None => Err("No records found".to_string()),
+    }
+}
+
+/// Compute learning style with adaptive model selection (rule engine or ML)
+pub async fn compute_learning_style_adaptive(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<LearningStyleProfile, String> {
+    // Try to load the ML model
+    let classifier = load_vark_model(pool, user_id)
+        .await
+        .map_err(|e| format!("Failed to load model: {e}"))?;
+
+    match classifier {
+        Some(c) if c.is_enabled() => {
+            // Use ML model: sample_count >= 50 (cold start threshold)
+            let features = match compute_aggregated_features(pool, user_id).await {
+                Ok(f) => f,
+                Err(_) => {
+                    // Fallback to rule engine if aggregated features unavailable
+                    return compute_learning_style(pool, user_id).await;
+                }
+            };
+
+            let scores = c.predict(&features.to_vec());
+            let interaction_patterns = compute_interaction_patterns_for_ml(pool, user_id).await;
+
+            Ok(LearningStyleProfile {
+                style: scores.dominant_style(),
+                style_legacy: scores.legacy_style(),
+                confidence: compute_ml_confidence(&scores, c.sample_count),
+                sample_count: c.sample_count,
+                scores,
+                interaction_patterns,
+                model_type: "ml_sgd",
+            })
+        }
+        _ => {
+            // Use rule engine: sample_count < 50 or no model exists
+            compute_learning_style(pool, user_id).await
+        }
+    }
+}
+
+async fn compute_interaction_patterns_for_ml(
+    pool: &PgPool,
+    user_id: &str,
+) -> LearningStyleInteractionPatterns {
+    let row = sqlx::query(
+        r#"SELECT
+            COALESCE(AVG("dwellTime"), 0) as avg_dwell_time,
+            COALESCE(AVG("responseTime"), 0) as avg_response_time
+        FROM "answer_records"
+        WHERE "userId" = $1
+          AND "timestamp" > NOW() - INTERVAL '30 days'"#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+
+    let tracking = fetch_tracking_stats(pool, user_id).await;
+
+    let (avg_dwell_time, avg_response_time) = match row {
+        Some(r) => (
+            r.try_get("avg_dwell_time").unwrap_or(0.0),
+            r.try_get("avg_response_time").unwrap_or(0.0),
+        ),
+        None => (0.0, 0.0),
+    };
+
+    let (pause_frequency, switch_frequency) = match &tracking {
+        Some(t) if t.total_interactions >= 10 => (
+            t.pause_count as f64 / t.total_interactions as f64,
+            t.page_switch_count as f64 / t.total_interactions as f64,
+        ),
+        _ => (0.0, 0.0),
+    };
+
+    LearningStyleInteractionPatterns {
+        avg_dwell_time,
+        avg_response_time,
+        pause_frequency,
+        switch_frequency,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LearningStyleScores;
+
+    #[test]
+    fn test_normalize_sums_to_one() {
+        let mut scores = LearningStyleScores {
+            visual: 0.4,
+            auditory: 0.3,
+            reading: 0.2,
+            kinesthetic: 0.1,
+        };
+        scores.normalize();
+        let total = scores.visual + scores.auditory + scores.reading + scores.kinesthetic;
+        assert!((total - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_normalize_uneven_scores() {
+        let mut scores = LearningStyleScores {
+            visual: 2.0,
+            auditory: 3.0,
+            reading: 1.0,
+            kinesthetic: 4.0,
+        };
+        scores.normalize();
+        let total = scores.visual + scores.auditory + scores.reading + scores.kinesthetic;
+        assert!((total - 1.0).abs() < 1e-10);
+        assert!((scores.visual - 0.2).abs() < 1e-10);
+        assert!((scores.auditory - 0.3).abs() < 1e-10);
+        assert!((scores.reading - 0.1).abs() < 1e-10);
+        assert!((scores.kinesthetic - 0.4).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_normalize_zero_scores_unchanged() {
+        let mut scores = LearningStyleScores {
+            visual: 0.0,
+            auditory: 0.0,
+            reading: 0.0,
+            kinesthetic: 0.0,
+        };
+        scores.normalize();
+        assert!((scores.visual).abs() < 1e-10);
+        assert!((scores.auditory).abs() < 1e-10);
+        assert!((scores.reading).abs() < 1e-10);
+        assert!((scores.kinesthetic).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_variance_uniform_distribution() {
+        let scores = LearningStyleScores {
+            visual: 0.25,
+            auditory: 0.25,
+            reading: 0.25,
+            kinesthetic: 0.25,
+        };
+        assert!((scores.variance()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_variance_skewed_distribution() {
+        let scores = LearningStyleScores {
+            visual: 0.7,
+            auditory: 0.1,
+            reading: 0.1,
+            kinesthetic: 0.1,
+        };
+        // Expected: ((0.7-0.25)^2 + 3*(0.1-0.25)^2) / 4
+        // = (0.2025 + 3*0.0225) / 4 = (0.2025 + 0.0675) / 4 = 0.0675
+        let expected = 0.0675;
+        assert!((scores.variance() - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_is_multimodal_uniform_returns_true() {
+        let scores = LearningStyleScores {
+            visual: 0.25,
+            auditory: 0.25,
+            reading: 0.25,
+            kinesthetic: 0.25,
+        };
+        assert!(scores.is_multimodal());
+    }
+
+    #[test]
+    fn test_is_multimodal_near_uniform_returns_true() {
+        let scores = LearningStyleScores {
+            visual: 0.26,
+            auditory: 0.24,
+            reading: 0.25,
+            kinesthetic: 0.25,
+        };
+        // Variance = ((0.01)^2 + (-0.01)^2 + 0 + 0) / 4 = 0.0002 / 4 = 0.00005 < 0.01
+        assert!(scores.is_multimodal());
+    }
+
+    #[test]
+    fn test_is_multimodal_skewed_returns_false() {
+        let scores = LearningStyleScores {
+            visual: 0.5,
+            auditory: 0.2,
+            reading: 0.2,
+            kinesthetic: 0.1,
+        };
+        assert!(!scores.is_multimodal());
+    }
+
+    #[test]
+    fn test_legacy_style_visual() {
+        let scores = LearningStyleScores {
+            visual: 0.5,
+            auditory: 0.2,
+            reading: 0.2,
+            kinesthetic: 0.1,
+        };
+        assert_eq!(scores.legacy_style(), "visual");
+    }
+
+    #[test]
+    fn test_legacy_style_auditory() {
+        let scores = LearningStyleScores {
+            visual: 0.1,
+            auditory: 0.5,
+            reading: 0.2,
+            kinesthetic: 0.2,
+        };
+        assert_eq!(scores.legacy_style(), "auditory");
+    }
+
+    #[test]
+    fn test_legacy_style_kinesthetic() {
+        let scores = LearningStyleScores {
+            visual: 0.1,
+            auditory: 0.2,
+            reading: 0.2,
+            kinesthetic: 0.5,
+        };
+        assert_eq!(scores.legacy_style(), "kinesthetic");
+    }
+
+    #[test]
+    fn test_legacy_style_reading_maps_to_mixed() {
+        let scores = LearningStyleScores {
+            visual: 0.1,
+            auditory: 0.2,
+            reading: 0.5,
+            kinesthetic: 0.2,
+        };
+        assert_eq!(scores.legacy_style(), "mixed");
+    }
+
+    #[test]
+    fn test_legacy_style_multimodal_maps_to_mixed() {
+        let scores = LearningStyleScores {
+            visual: 0.25,
+            auditory: 0.25,
+            reading: 0.25,
+            kinesthetic: 0.25,
+        };
+        assert_eq!(scores.legacy_style(), "mixed");
+    }
 }

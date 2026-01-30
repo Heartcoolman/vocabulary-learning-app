@@ -48,11 +48,11 @@ import { amasLogger } from '../../utils/logger';
 // ==================== 配置 ====================
 
 const ALGO_CONFIG: Record<string, { name: string; color: string; icon: ElementType }> = {
-  thompson: { name: 'Thompson Sampling', color: 'text-blue-500', icon: ChartBar },
-  linucb: { name: 'LinUCB Contextual', color: 'text-purple-500', icon: Graph },
-  actr: { name: 'ACT-R Memory', color: 'text-amber-500', icon: Brain },
-  heuristic: { name: 'Heuristic Rules', color: 'text-emerald-500', icon: CheckCircle },
-  coldstart: { name: 'ColdStart Manager', color: 'text-slate-500', icon: Lightning },
+  ige: { name: 'IGE 信息增益探索', color: 'text-blue-500', icon: ChartBar },
+  swd: { name: 'SWD 相似度加权', color: 'text-purple-500', icon: Graph },
+  msmt: { name: 'MSMT 多尺度记忆', color: 'text-amber-500', icon: Brain },
+  heuristic: { name: 'Heuristic 规则', color: 'text-emerald-500', icon: CheckCircle },
+  coldstart: { name: 'ColdStart 冷启动', color: 'text-slate-500', icon: Lightning },
 };
 
 // ==================== 子组件 ====================

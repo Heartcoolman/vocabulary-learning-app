@@ -208,10 +208,10 @@ const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
                       </div>
                       <div>
                         <p className="mb-1 text-xs text-gray-400 dark:text-slate-500">
-                          ACT-R提取概率
+                          MSMT提取概率
                         </p>
                         <p className="text-lg font-semibold text-green-600">
-                          {Math.round(mastery.factors.actrRecall * 100)}%
+                          {Math.round(mastery.factors.msmtRecall * 100)}%
                         </p>
                       </div>
                       <div>
@@ -254,7 +254,7 @@ const compareMasteryEvaluation = (
     prev.confidence === next.confidence &&
     prev.isLearned === next.isLearned &&
     prev.factors.srsLevel === next.factors.srsLevel &&
-    prev.factors.actrRecall === next.factors.actrRecall &&
+    prev.factors.msmtRecall === next.factors.msmtRecall &&
     prev.factors.recentAccuracy === next.factors.recentAccuracy &&
     prev.factors.userFatigue === next.factors.userFatigue &&
     prev.suggestion === next.suggestion

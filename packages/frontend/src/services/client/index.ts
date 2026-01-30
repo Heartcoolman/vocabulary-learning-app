@@ -50,6 +50,9 @@ export { AdminClient } from './admin/AdminClient';
 export type {
   UserOverview,
   AdminUsersResponse,
+  OnlineUserDetail,
+  OnlineUsersPagination,
+  OnlineUsersResponse,
   UserLearningData,
   UserDetailedStatistics,
   UserWordDetail,
@@ -64,6 +67,7 @@ export type {
   WordVariant,
   SystemVersionInfo,
   OTAUpdateStatus,
+  AMASMonitoringOverview,
 } from './admin/AdminClient';
 
 // ==================== Admin Settings 模块 ====================
@@ -335,6 +339,7 @@ export const apiClient = {
 
   // ==================== 管理员相关 ====================
   adminGetUsers: adminClient.getUsers.bind(adminClient),
+  adminGetOnlineUsersWithDetails: adminClient.getOnlineUsersWithDetails.bind(adminClient),
   adminGetUserById: adminClient.getUserById.bind(adminClient),
   adminGetUserLearningData: adminClient.getUserLearningData.bind(adminClient),
   adminGetUserStatistics: adminClient.getUserStatistics.bind(adminClient),
