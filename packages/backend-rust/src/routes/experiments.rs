@@ -925,7 +925,7 @@ async fn create_experiment_pg(
     .await
     .map_err(|e| {
         tracing::error!("Failed to create experiment: {:?}", e);
-        json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", &format!("创建实验失败: {}", e))
+        json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("创建实验失败: {}", e))
     })?;
 
     for variant in &payload.variants {
@@ -948,7 +948,7 @@ async fn create_experiment_pg(
         .await
         .map_err(|e| {
             tracing::error!("Failed to create variant: {:?}", e);
-            json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", &format!("创建变体失败: {}", e))
+            json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("创建变体失败: {}", e))
         })?;
     }
 
@@ -1219,7 +1219,7 @@ async fn start_experiment_pg(pool: &sqlx::PgPool, experiment_id: &str) -> Result
         .await
         .map_err(|e| {
             tracing::error!("Failed to create metrics: {:?}", e);
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", &format!("服务器内部错误: {}", e))
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", format!("服务器内部错误: {}", e))
         })?;
     }
 

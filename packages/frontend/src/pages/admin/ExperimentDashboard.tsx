@@ -497,10 +497,8 @@ const CreateExperimentModal = ({
                     {v.isControl ? 'CONTROL' : 'TREATMENT'}
                   </div>
                   <div className="font-medium text-gray-900">{v.name}</div>
-                  {v.parameters.description && (
-                    <div className="mt-1 text-xs text-gray-500">
-                      {String(v.parameters.description)}
-                    </div>
+                  {typeof v.parameters.description === 'string' && v.parameters.description && (
+                    <div className="mt-1 text-xs text-gray-500">{v.parameters.description}</div>
                   )}
                 </div>
               ))}

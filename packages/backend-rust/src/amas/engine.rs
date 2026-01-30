@@ -390,13 +390,13 @@ impl AMASEngine {
                 // Adaptive mastery decision based on user's personal cognitive profile
                 let mastery_context = MasteryContext {
                     is_first_attempt: ws.reps == 0,
-                    correct_count: if event.is_correct { ws.reps as i32 + 1 } else { ws.reps as i32 - ws.lapses as i32 },
-                    total_attempts: ws.reps as i32 + 1,
+                    correct_count: if event.is_correct { ws.reps + 1 } else { ws.reps - ws.lapses },
+                    total_attempts: ws.reps + 1,
                     response_time_ms: event.response_time,
                     hint_used: event.hint_used,
                     consecutive_correct: if event.is_correct {
                         // Estimate consecutive correct from lapses ratio
-                        ((ws.reps as i32 - ws.lapses as i32 * 2).max(0) + 1).min(5)
+                        ((ws.reps - ws.lapses * 2).max(0) + 1).min(5)
                     } else {
                         0
                     },
@@ -740,14 +740,14 @@ impl AMASEngine {
             .as_ref()
             .and_then(|b| b.thompson_params.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_else(IgeModel::new);
+            .unwrap_or_default();
 
         let swd = state
             .bandit_model
             .as_ref()
             .and_then(|b| b.linucb_state.as_ref())
             .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_else(SwdModel::new);
+            .unwrap_or_default();
 
         let models = self.create_models_from_state(state, config, ige.clone(), swd.clone(), state.cold_start_state.clone());
 

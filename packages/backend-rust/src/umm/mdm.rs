@@ -46,7 +46,7 @@ impl MdmState {
 
     pub fn from_fsrs(stability: f64, difficulty: f64) -> Self {
         Self {
-            strength: (stability + 1.0).ln().max(M_MIN).min(M_MAX),
+            strength: (stability + 1.0).ln().clamp(M_MIN, M_MAX),
             consolidation: (1.0 - difficulty / 10.0).clamp(0.0, 1.0),
             last_review_ts: 0,
         }
@@ -82,7 +82,7 @@ impl MdmState {
             return 365.0;
         }
         let interval = -r_target.ln() / lambda;
-        interval.max(0.0).min(365.0)
+        interval.clamp(0.0, 365.0)
     }
 }
 

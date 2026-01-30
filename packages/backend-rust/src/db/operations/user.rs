@@ -183,22 +183,12 @@ fn format_naive_iso(value: NaiveDateTime) -> String {
         .to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
+#[derive(Default)]
 pub struct VarkInteractionStats {
     pub total_image_interactions: i32,
     pub total_audio_interactions: i32,
     pub total_reading_ms: i64,
     pub total_writing_actions: i32,
-}
-
-impl Default for VarkInteractionStats {
-    fn default() -> Self {
-        Self {
-            total_image_interactions: 0,
-            total_audio_interactions: 0,
-            total_reading_ms: 0,
-            total_writing_actions: 0,
-        }
-    }
 }
 
 pub async fn upsert_user_interaction_stats(
