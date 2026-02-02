@@ -167,7 +167,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
           {/* 主内容卡片 */}
           <motion.div
-            className="relative mx-4 w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl dark:bg-slate-800"
+            className="relative mx-4 w-full max-w-md rounded-card bg-white p-8 shadow-elevated dark:bg-slate-800"
             variants={celebrationVariants}
             initial="hidden"
             animate="visible"

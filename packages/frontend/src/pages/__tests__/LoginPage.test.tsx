@@ -17,7 +17,7 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
-vi.mock('@/contexts/AuthContext', () => ({
+vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
     login: mockLogin,
   }),
@@ -44,12 +44,12 @@ describe('LoginPage', () => {
 
     it('should render email input', () => {
       render(<LoginPage />);
-      expect(screen.getByLabelText('邮箱地址')).toBeInTheDocument();
+      expect(screen.getByLabelText(/邮箱地址/)).toBeInTheDocument();
     });
 
     it('should render password input', () => {
       render(<LoginPage />);
-      expect(screen.getByLabelText('密码')).toBeInTheDocument();
+      expect(screen.getByLabelText(/^密码/)).toBeInTheDocument();
     });
 
     it('should render login button', () => {
@@ -71,9 +71,10 @@ describe('LoginPage', () => {
   describe('validation', () => {
     it('should show error for empty fields', async () => {
       render(<LoginPage />);
-      const submitButton = screen.getByRole('button', { name: '登录' });
 
-      fireEvent.click(submitButton);
+      // Use fireEvent.submit to bypass HTML5 native validation
+      const form = document.querySelector('form')!;
+      fireEvent.submit(form);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent('请填写所有字段');
@@ -92,8 +93,11 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.click(screen.getByRole('button', { name: '登录' }));
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+
+      // Use fireEvent.submit to bypass HTML5 native validation
+      const form = document.querySelector('form')!;
+      fireEvent.submit(form);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent('请填写所有字段');
@@ -107,8 +111,8 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'password123');
       await user.click(screen.getByRole('button', { name: '登录' }));
 
       await waitFor(() => {
@@ -121,8 +125,8 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'password123');
       await user.click(screen.getByRole('button', { name: '登录' }));
 
       await waitFor(() => {
@@ -135,8 +139,8 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'wrongpassword');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'wrongpassword');
       await user.click(screen.getByRole('button', { name: '登录' }));
 
       await waitFor(() => {
@@ -151,12 +155,14 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'password123');
       await user.click(screen.getByRole('button', { name: '登录' }));
 
       await waitFor(() => {
-        expect(screen.getByText('登录中...')).toBeInTheDocument();
+        // Button is disabled when loading
+        const button = screen.getByRole('button', { name: /登录/ });
+        expect(button).toBeDisabled();
       });
     });
 
@@ -165,13 +171,13 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'password123');
       await user.click(screen.getByRole('button', { name: '登录' }));
 
       await waitFor(() => {
-        expect(screen.getByLabelText('邮箱地址')).toBeDisabled();
-        expect(screen.getByLabelText('密码')).toBeDisabled();
+        expect(screen.getByLabelText(/邮箱地址/)).toBeDisabled();
+        expect(screen.getByLabelText(/^密码/)).toBeDisabled();
       });
     });
   });
@@ -182,8 +188,8 @@ describe('LoginPage', () => {
       render(<LoginPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'password123');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'password123');
       await user.keyboard('{Enter}');
 
       await waitFor(() => {

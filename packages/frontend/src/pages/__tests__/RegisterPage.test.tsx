@@ -17,7 +17,7 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
-vi.mock('@/contexts/AuthContext', () => ({
+vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
     register: mockRegister,
   }),
@@ -44,10 +44,10 @@ describe('RegisterPage', () => {
 
     it('should render all form fields', () => {
       render(<RegisterPage />);
-      expect(screen.getByLabelText('用户名')).toBeInTheDocument();
-      expect(screen.getByLabelText('邮箱地址')).toBeInTheDocument();
-      expect(screen.getByLabelText('密码')).toBeInTheDocument();
-      expect(screen.getByLabelText('确认密码')).toBeInTheDocument();
+      expect(screen.getByLabelText(/用户名/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/邮箱地址/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^密码/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/确认密码/)).toBeInTheDocument();
     });
 
     it('should render register button', () => {
@@ -70,7 +70,9 @@ describe('RegisterPage', () => {
     it('should show error for empty fields', async () => {
       render(<RegisterPage />);
 
-      fireEvent.click(screen.getByRole('button', { name: '注册' }));
+      // Use fireEvent.submit to bypass HTML5 native validation
+      const form = document.querySelector('form')!;
+      fireEvent.submit(form);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent('请填写所有字段');
@@ -89,10 +91,10 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Ab1!');
-      await user.type(screen.getByLabelText('确认密码'), 'Ab1!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Ab1!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Ab1!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -104,10 +106,10 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Different123!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Different123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -119,10 +121,10 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'a');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
+      await user.type(screen.getByLabelText(/用户名/), 'a');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -137,10 +139,10 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -153,10 +155,10 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -169,10 +171,10 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'existing@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'existing@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
@@ -187,14 +189,15 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
-        expect(screen.getByText('注册中...')).toBeInTheDocument();
+        // Button shows spinner when loading, and button is disabled
+        expect(screen.getByRole('button', { name: /注册/ })).toBeDisabled();
       });
     });
 
@@ -203,17 +206,17 @@ describe('RegisterPage', () => {
       render(<RegisterPage />);
       const user = userEvent.setup();
 
-      await user.type(screen.getByLabelText('用户名'), 'testuser');
-      await user.type(screen.getByLabelText('邮箱地址'), 'test@example.com');
-      await user.type(screen.getByLabelText('密码'), 'Password123!');
-      await user.type(screen.getByLabelText('确认密码'), 'Password123!');
+      await user.type(screen.getByLabelText(/用户名/), 'testuser');
+      await user.type(screen.getByLabelText(/邮箱地址/), 'test@example.com');
+      await user.type(screen.getByLabelText(/^密码/), 'Password123!');
+      await user.type(screen.getByLabelText(/确认密码/), 'Password123!');
       await user.click(screen.getByRole('button', { name: '注册' }));
 
       await waitFor(() => {
-        expect(screen.getByLabelText('用户名')).toBeDisabled();
-        expect(screen.getByLabelText('邮箱地址')).toBeDisabled();
-        expect(screen.getByLabelText('密码')).toBeDisabled();
-        expect(screen.getByLabelText('确认密码')).toBeDisabled();
+        expect(screen.getByLabelText(/用户名/)).toBeDisabled();
+        expect(screen.getByLabelText(/邮箱地址/)).toBeDisabled();
+        expect(screen.getByLabelText(/^密码/)).toBeDisabled();
+        expect(screen.getByLabelText(/确认密码/)).toBeDisabled();
       });
     });
   });

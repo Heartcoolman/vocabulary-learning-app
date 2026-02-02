@@ -11,7 +11,7 @@ import {
   Plus,
   Funnel,
 } from '../../components/Icon';
-import { useToast } from '../../components/ui';
+import { Modal, useToast } from '../../components/ui';
 import { adminClient, LLMTask, WordVariant } from '../../services/client';
 
 type TabType = 'tasks' | 'variants';
@@ -484,102 +484,91 @@ function VariantList({
 
 function TaskDetailModal({ task, onClose }: { task: LLMTask; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">任务详情</h2>
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700"
-          >
-            <XCircle size={20} />
-          </button>
-        </div>
-        <div className="max-h-[70vh] overflow-y-auto p-6">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">任务ID</label>
-                <p className="font-mono text-sm text-gray-900 dark:text-white">{task.id}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">任务类型</label>
-                <p className="text-gray-900 dark:text-white">{task.taskType}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">状态</label>
-                <p className="text-gray-900 dark:text-white">{task.status}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">优先级</label>
-                <p className="text-gray-900 dark:text-white">{task.priority}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">重试次数</label>
-                <p
-                  className={`font-medium ${task.retryCount > 0 ? 'text-orange-600' : 'text-gray-900 dark:text-white'}`}
-                >
-                  {task.retryCount}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">创建时间</label>
-                <p className="text-gray-900 dark:text-white">
-                  {new Date(task.createdAt).toLocaleString()}
-                </p>
-              </div>
-              {task.startedAt && (
-                <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">开始时间</label>
-                  <p className="text-gray-900 dark:text-white">
-                    {new Date(task.startedAt).toLocaleString()}
-                  </p>
-                </div>
-              )}
-              {task.completedAt && (
-                <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">完成时间</label>
-                  <p className="text-gray-900 dark:text-white">
-                    {new Date(task.completedAt).toLocaleString()}
-                  </p>
-                </div>
-              )}
-              {task.tokensUsed && (
-                <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Token 消耗</label>
-                  <p className="text-gray-900 dark:text-white">{task.tokensUsed}</p>
-                </div>
-              )}
-            </div>
-
+    <Modal isOpen={true} onClose={onClose} title="任务详情" maxWidth="2xl">
+      <div className="max-h-[70vh] overflow-y-auto">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-500 dark:text-gray-400">输入参数</label>
-              <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
-                {JSON.stringify(task.input, null, 2)}
-              </pre>
+              <label className="text-sm text-gray-500 dark:text-gray-400">任务ID</label>
+              <p className="font-mono text-sm text-gray-900 dark:text-white">{task.id}</p>
             </div>
-
-            {task.output && (
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">任务类型</label>
+              <p className="text-gray-900 dark:text-white">{task.taskType}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">状态</label>
+              <p className="text-gray-900 dark:text-white">{task.status}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">优先级</label>
+              <p className="text-gray-900 dark:text-white">{task.priority}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">重试次数</label>
+              <p
+                className={`font-medium ${task.retryCount > 0 ? 'text-orange-600' : 'text-gray-900 dark:text-white'}`}
+              >
+                {task.retryCount}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">创建时间</label>
+              <p className="text-gray-900 dark:text-white">
+                {new Date(task.createdAt).toLocaleString()}
+              </p>
+            </div>
+            {task.startedAt && (
               <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">输出结果</label>
-                <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
-                  {JSON.stringify(task.output, null, 2)}
-                </pre>
+                <label className="text-sm text-gray-500 dark:text-gray-400">开始时间</label>
+                <p className="text-gray-900 dark:text-white">
+                  {new Date(task.startedAt).toLocaleString()}
+                </p>
               </div>
             )}
-
-            {task.error && (
+            {task.completedAt && (
               <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">错误信息</label>
-                <p className="mt-1 rounded-button bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
-                  {task.error}
+                <label className="text-sm text-gray-500 dark:text-gray-400">完成时间</label>
+                <p className="text-gray-900 dark:text-white">
+                  {new Date(task.completedAt).toLocaleString()}
                 </p>
+              </div>
+            )}
+            {task.tokensUsed && (
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Token 消耗</label>
+                <p className="text-gray-900 dark:text-white">{task.tokensUsed}</p>
               </div>
             )}
           </div>
+
+          <div>
+            <label className="text-sm text-gray-500 dark:text-gray-400">输入参数</label>
+            <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
+              {JSON.stringify(task.input, null, 2)}
+            </pre>
+          </div>
+
+          {task.output && (
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">输出结果</label>
+              <pre className="mt-1 overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
+                {JSON.stringify(task.output, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {task.error && (
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">错误信息</label>
+              <p className="mt-1 rounded-button bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                {task.error}
+              </p>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -597,78 +586,67 @@ function VariantDetailModal({
   const isPending = variant.status === 'pending';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">内容变体详情</h2>
+    <Modal isOpen={true} onClose={onClose} title="内容变体详情" maxWidth="3xl">
+      <div className="max-h-[60vh] overflow-y-auto">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">变体ID</label>
+              <p className="font-mono text-sm text-gray-900 dark:text-white">{variant.id}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">单词ID</label>
+              <p className="font-mono text-sm text-gray-900 dark:text-white">{variant.wordId}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">字段</label>
+              <p className="text-gray-900 dark:text-white">{variant.field}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">置信度</label>
+              <p className="text-gray-900 dark:text-white">
+                {(variant.confidence * 100).toFixed(1)}%
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                原始值
+              </label>
+              <pre className="overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
+                {variant.originalValue ? JSON.stringify(variant.originalValue, null, 2) : '(空)'}
+              </pre>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                AI 生成值
+              </label>
+              <pre className="overflow-x-auto rounded-button bg-blue-50 p-3 text-xs dark:bg-blue-900/20">
+                {JSON.stringify(variant.generatedValue, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isPending && (
+        <div className="mt-6 flex justify-end gap-3 pt-4">
           <button
-            onClick={onClose}
-            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700"
+            onClick={onReject}
+            className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
           >
-            <XCircle size={20} />
+            拒绝
+          </button>
+          <button
+            onClick={onApprove}
+            className="rounded-button bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+          >
+            批准应用
           </button>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto p-6">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">变体ID</label>
-                <p className="font-mono text-sm text-gray-900 dark:text-white">{variant.id}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">单词ID</label>
-                <p className="font-mono text-sm text-gray-900 dark:text-white">{variant.wordId}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">字段</label>
-                <p className="text-gray-900 dark:text-white">{variant.field}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">置信度</label>
-                <p className="text-gray-900 dark:text-white">
-                  {(variant.confidence * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  原始值
-                </label>
-                <pre className="overflow-x-auto rounded-button bg-gray-50 p-3 text-xs dark:bg-slate-900">
-                  {variant.originalValue ? JSON.stringify(variant.originalValue, null, 2) : '(空)'}
-                </pre>
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  AI 生成值
-                </label>
-                <pre className="overflow-x-auto rounded-button bg-blue-50 p-3 text-xs dark:bg-blue-900/20">
-                  {JSON.stringify(variant.generatedValue, null, 2)}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {isPending && (
-          <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-            <button
-              onClick={onReject}
-              className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
-            >
-              拒绝
-            </button>
-            <button
-              onClick={onApprove}
-              className="rounded-button bg-green-500 px-4 py-2 text-white hover:bg-green-600"
-            >
-              批准应用
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

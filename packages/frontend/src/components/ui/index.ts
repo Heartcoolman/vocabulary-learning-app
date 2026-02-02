@@ -104,7 +104,7 @@ export type { ContainerProps, BoxProps, SectionProps, AspectRatioProps } from '.
  * ======================================== */
 
 // Button 按钮
-export { Button } from './Button';
+export { Button, buttonVariants } from './Button';
 export type { ButtonProps, ButtonVariant } from './Button';
 
 // Input 输入框

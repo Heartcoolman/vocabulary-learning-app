@@ -351,10 +351,10 @@ describe('BadgeDetailModal', () => {
       const user = userEvent.setup();
       render(<BadgeDetailModal badge={badge} onClose={mockOnClose} />);
 
-      // Click on the backdrop (the outermost div rendered via portal)
-      const backdrop = document.body.querySelector('.fixed.inset-0');
-      if (backdrop) {
-        await user.click(backdrop);
+      // Click on the overlay (the backdrop element with bg-black/50)
+      const overlay = document.body.querySelector('.bg-black\\/50');
+      if (overlay) {
+        await user.click(overlay);
       }
 
       expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -521,8 +521,8 @@ describe('BadgeDetailModal', () => {
 
       // Should have backdrop
       expect(document.body.querySelector('.fixed.inset-0')).toBeInTheDocument();
-      // Should have modal content
-      expect(document.body.querySelector('.bg-white.rounded-3xl')).toBeInTheDocument();
+      // Should have modal content with rounded corners
+      expect(document.body.querySelector('.bg-white.rounded-card')).toBeInTheDocument();
     });
   });
 });
