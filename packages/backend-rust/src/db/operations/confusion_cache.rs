@@ -200,3 +200,78 @@ pub async fn clear_all(proxy: &DatabaseProxy) -> Result<u64, sqlx::Error> {
         .await?;
     Ok(result.rows_affected())
 }
+
+/// Batch query confusable words for multiple word IDs.
+/// Returns a map of word_id -> Vec<(confusable_word_id, distance)> sorted by distance ASC.
+pub async fn find_confusable_words_batch(
+    proxy: &DatabaseProxy,
+    word_ids: &[String],
+    threshold: f64,
+    per_word_limit: usize,
+) -> Result<std::collections::HashMap<String, Vec<(String, f64)>>, sqlx::Error> {
+    use std::collections::HashMap;
+
+    if word_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let placeholders: Vec<String> = word_ids
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect();
+    let in_clause = placeholders.join(",");
+
+    // Query both directions (word as word1 or word2) and union the results
+    let query = format!(
+        r#"
+        WITH ranked AS (
+            SELECT
+                "word1Id" as target_id,
+                "word2Id" as confusable_id,
+                "distance",
+                ROW_NUMBER() OVER (PARTITION BY "word1Id" ORDER BY "distance" ASC) as rn
+            FROM "confusion_pairs_cache"
+            WHERE "word1Id" IN ({0}) AND "distance" < ${1}
+            UNION ALL
+            SELECT
+                "word2Id" as target_id,
+                "word1Id" as confusable_id,
+                "distance",
+                ROW_NUMBER() OVER (PARTITION BY "word2Id" ORDER BY "distance" ASC) as rn
+            FROM "confusion_pairs_cache"
+            WHERE "word2Id" IN ({0}) AND "distance" < ${1}
+        )
+        SELECT target_id, confusable_id, distance
+        FROM ranked
+        WHERE rn <= ${2}
+        ORDER BY target_id, distance ASC
+        "#,
+        in_clause,
+        word_ids.len() + 1,
+        word_ids.len() + 2
+    );
+
+    let mut q = sqlx::query(&query);
+    for id in word_ids {
+        q = q.bind(id);
+    }
+    q = q.bind(threshold);
+    q = q.bind(per_word_limit as i64);
+
+    let rows = q.fetch_all(proxy.pool()).await?;
+
+    let mut result: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+    for row in rows {
+        let target_id: String = row.get("target_id");
+        let confusable_id: String = row.get("confusable_id");
+        let distance: f64 = row.get("distance");
+
+        result
+            .entry(target_id)
+            .or_default()
+            .push((confusable_id, distance));
+    }
+
+    Ok(result)
+}

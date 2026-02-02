@@ -1,7 +1,5 @@
 use danci_backend_rust::amas::config::{ColdStartConfig, EnsembleConfig, FeatureFlags};
-use danci_backend_rust::amas::decision::{
-    ColdStartManager, EnsembleDecision, LinUCBModel, ThompsonSamplingModel,
-};
+use danci_backend_rust::amas::decision::{ColdStartManager, EnsembleDecision};
 use danci_backend_rust::amas::types::{
     CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState,
 };
@@ -36,61 +34,6 @@ fn sample_feature_vector(dim: usize) -> FeatureVector {
 }
 
 #[test]
-fn integration_linucb_select_and_update() {
-    let mut model = LinUCBModel::new(5, 5, 1.0);
-    let state = sample_user_state();
-    let feature = sample_feature_vector(5);
-    let candidates = vec![
-        StrategyParams {
-            difficulty: DifficultyLevel::Easy,
-            ..sample_strategy()
-        },
-        StrategyParams {
-            difficulty: DifficultyLevel::Mid,
-            ..sample_strategy()
-        },
-        StrategyParams {
-            difficulty: DifficultyLevel::Hard,
-            ..sample_strategy()
-        },
-    ];
-
-    let selected = model.select_action(&state, &feature, &candidates);
-    assert!(selected.is_some());
-
-    let x = model.build_features(&feature, &selected.as_ref().unwrap());
-    model.update(&x, 1.0);
-
-    let selected_after = model.select_action(&state, &feature, &candidates);
-    assert!(selected_after.is_some());
-}
-
-#[test]
-fn integration_thompson_select_and_update() {
-    let mut model = ThompsonSamplingModel::default();
-    let state = sample_user_state();
-    let feature = sample_feature_vector(5);
-    let candidates = vec![
-        StrategyParams {
-            difficulty: DifficultyLevel::Easy,
-            ..sample_strategy()
-        },
-        StrategyParams {
-            difficulty: DifficultyLevel::Hard,
-            ..sample_strategy()
-        },
-    ];
-
-    let selected = model.select_action(&state, &feature, &candidates);
-    assert!(selected.is_some());
-
-    model.update(&state, &selected.as_ref().unwrap(), 1.0);
-
-    let conf = model.get_confidence(&state, &selected.as_ref().unwrap());
-    assert!(conf > 0.0);
-}
-
-#[test]
 fn integration_coldstart_full_lifecycle() {
     let config = ColdStartConfig {
         classify_samples: 3,
@@ -120,8 +63,8 @@ fn integration_coldstart_full_lifecycle() {
 #[test]
 fn integration_ensemble_decision_flow() {
     let flags = FeatureFlags {
-        thompson_enabled: true,
-        linucb_enabled: true,
+        amas_ige_enabled: true,
+        amas_swd_enabled: true,
         heuristic_enabled: true,
         ..Default::default()
     };
@@ -130,12 +73,12 @@ fn integration_ensemble_decision_flow() {
     let feature = sample_feature_vector(10);
     let current = sample_strategy();
 
-    let thompson_action = StrategyParams {
+    let ige_action = StrategyParams {
         difficulty: DifficultyLevel::Hard,
         new_ratio: 0.3,
         ..sample_strategy()
     };
-    let linucb_action = StrategyParams {
+    let swd_action = StrategyParams {
         difficulty: DifficultyLevel::Easy,
         new_ratio: 0.1,
         ..sample_strategy()
@@ -145,9 +88,9 @@ fn integration_ensemble_decision_flow() {
         &state,
         &feature,
         &current,
-        Some(&thompson_action),
+        Some(&ige_action),
         Some(0.8),
-        Some(&linucb_action),
+        Some(&swd_action),
         Some(0.7),
     );
 
@@ -164,8 +107,8 @@ fn integration_ensemble_decision_flow() {
 #[test]
 fn integration_ensemble_with_fatigue() {
     let flags = FeatureFlags {
-        thompson_enabled: true,
-        linucb_enabled: true,
+        amas_ige_enabled: true,
+        amas_swd_enabled: true,
         heuristic_enabled: true,
         ..Default::default()
     };
@@ -175,7 +118,7 @@ fn integration_ensemble_with_fatigue() {
     let feature = sample_feature_vector(10);
     let current = sample_strategy();
 
-    let thompson_action = StrategyParams {
+    let ige_action = StrategyParams {
         difficulty: DifficultyLevel::Hard,
         batch_size: 16,
         ..sample_strategy()
@@ -185,7 +128,7 @@ fn integration_ensemble_with_fatigue() {
         &state,
         &feature,
         &current,
-        Some(&thompson_action),
+        Some(&ige_action),
         Some(0.9),
         None,
         None,
@@ -194,47 +137,6 @@ fn integration_ensemble_with_fatigue() {
     let filtered = ensemble.post_filter(final_strategy, &state, None);
     assert_eq!(filtered.difficulty, DifficultyLevel::Easy);
     assert!(filtered.batch_size <= 5);
-}
-
-#[test]
-fn integration_algorithms_converge_with_feedback() {
-    let mut thompson = ThompsonSamplingModel::default();
-    let mut linucb = LinUCBModel::new(5, 5, 1.0);
-    let state = sample_user_state();
-    let feature = sample_feature_vector(5);
-
-    let good_strategy = StrategyParams {
-        difficulty: DifficultyLevel::Mid,
-        new_ratio: 0.2,
-        batch_size: 8,
-        ..sample_strategy()
-    };
-    let bad_strategy = StrategyParams {
-        difficulty: DifficultyLevel::Hard,
-        new_ratio: 0.4,
-        batch_size: 16,
-        ..sample_strategy()
-    };
-
-    for _ in 0..50 {
-        thompson.update(&state, &good_strategy, 1.0);
-        thompson.update(&state, &bad_strategy, -0.5);
-
-        let x_good = linucb.build_features(&feature, &good_strategy);
-        let x_bad = linucb.build_features(&feature, &bad_strategy);
-        linucb.update(&x_good, 1.0);
-        linucb.update(&x_bad, 0.2);
-    }
-
-    let good_conf = thompson.get_confidence(&state, &good_strategy);
-    let bad_conf = thompson.get_confidence(&state, &bad_strategy);
-    assert!(good_conf > 0.5);
-    assert!(bad_conf > 0.5);
-
-    let linucb_good_conf = linucb.get_confidence(&feature, &good_strategy);
-    let linucb_bad_conf = linucb.get_confidence(&feature, &bad_strategy);
-    assert!(linucb_good_conf > 0.0);
-    assert!(linucb_bad_conf > 0.0);
 }
 
 #[test]
@@ -270,14 +172,12 @@ fn integration_coldstart_to_ensemble_handoff() {
 #[test]
 fn integration_performance_tracker_adapts_weights() {
     let config = EnsembleConfig {
-        thompson_base_weight: 0.4,
-        linucb_base_weight: 0.4,
-        heuristic_base_weight: 0.2,
+        heuristic_base_weight: 1.0,
         ..Default::default()
     };
     let flags = FeatureFlags {
-        thompson_enabled: true,
-        linucb_enabled: true,
+        amas_ige_enabled: true,
+        amas_swd_enabled: true,
         heuristic_enabled: true,
         ..Default::default()
     };
@@ -286,8 +186,8 @@ fn integration_performance_tracker_adapts_weights() {
     let feature = sample_feature_vector(10);
     let current = sample_strategy();
 
-    let thompson_action = sample_strategy();
-    let linucb_action = StrategyParams {
+    let ige_action = sample_strategy();
+    let swd_action = StrategyParams {
         difficulty: DifficultyLevel::Easy,
         ..sample_strategy()
     };
@@ -297,9 +197,9 @@ fn integration_performance_tracker_adapts_weights() {
             &state,
             &feature,
             &current,
-            Some(&thompson_action),
+            Some(&ige_action),
             Some(0.8),
-            Some(&linucb_action),
+            Some(&swd_action),
             Some(0.6),
         );
 
@@ -310,7 +210,36 @@ fn integration_performance_tracker_adapts_weights() {
     let weights =
         ensemble
             .performance
-            .get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
+            .get_weights(&[("ige", 0.4), ("swd", 0.4), ("heuristic", 0.2)]);
     let total: f64 = weights.values().sum();
     assert!((total - 1.0).abs() < 1e-6);
+}
+
+#[test]
+fn integration_all_original_algorithms_shadow_mode() {
+    // Test that decision flow works with all original algorithm flags enabled.
+    // These algorithms run in shadow/parallel mode alongside baseline models.
+    let flags = FeatureFlags {
+        amas_ige_enabled: true,
+        amas_swd_enabled: true,
+        heuristic_enabled: true,
+        ..Default::default()
+    };
+    let ensemble = EnsembleDecision::new(flags);
+    let state = sample_user_state();
+    let feature = sample_feature_vector(10);
+    let current = sample_strategy();
+
+    // Decision flow should work normally with all shadow algorithms enabled
+    let (final_strategy, candidates) =
+        ensemble.decide(&state, &feature, &current, None, None, None, None);
+
+    // Verify the decision flow completes and produces valid output
+    assert!(candidates.len() >= 1);
+    assert!(final_strategy.batch_size >= 5 && final_strategy.batch_size <= 16);
+    assert!(final_strategy.new_ratio >= 0.05 && final_strategy.new_ratio <= 0.5);
+
+    // Post-filter should also work with these flags
+    let filtered = ensemble.post_filter(final_strategy.clone(), &state, None);
+    assert!(filtered.batch_size >= 5 && filtered.batch_size <= 16);
 }

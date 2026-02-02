@@ -366,6 +366,10 @@ export class LearningClient extends BaseClient {
       examples: string[];
       audioUrl?: string;
       isNew: boolean;
+      distractors?: {
+        meaningOptions: string[];
+        spellingOptions: string[];
+      };
     }>;
     meta: {
       mode: string;
@@ -406,6 +410,10 @@ export class LearningClient extends BaseClient {
       audioUrl?: string;
       difficulty: number;
       isNew: boolean;
+      distractors?: {
+        meaningOptions: string[];
+        spellingOptions: string[];
+      };
     }>;
     strategy: {
       new_ratio: number;

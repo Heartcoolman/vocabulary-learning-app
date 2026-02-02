@@ -31,6 +31,8 @@ export interface UseVisualFatigueOptions {
   onDetection?: (result: DetectionResult) => void;
   /** 错误回调 */
   onError?: (error: Error) => void;
+  /** 获取当前会话ID */
+  getSessionId?: () => string | undefined;
 }
 
 /**
@@ -80,7 +82,13 @@ export interface UseVisualFatigueReturn {
  * 视觉疲劳检测 Hook
  */
 export function useVisualFatigue(options: UseVisualFatigueOptions = {}): UseVisualFatigueReturn {
-  const { autoStart = false, reportIntervalMs = 5000, onDetection, onError } = options;
+  const {
+    autoStart = false,
+    reportIntervalMs = 5000,
+    onDetection,
+    onError,
+    getSessionId,
+  } = options;
 
   // Store 状态
   const {
@@ -200,15 +208,26 @@ export function useVisualFatigue(options: UseVisualFatigueOptions = {}): UseVisu
         yawnCount: latestMetrics.yawnCount,
         headPitch: latestMetrics.headPose?.pitch,
         headYaw: latestMetrics.headPose?.yaw,
+        headRoll: latestMetrics.headPose?.roll,
         confidence: latestMetrics.confidence,
         timestamp: latestMetrics.timestamp,
+        sessionId: getSessionId?.(),
+        // Extended fields for TFM algorithm
+        eyeAspectRatio: latestMetrics.eyeAspectRatio,
+        avgBlinkDuration: latestMetrics.avgBlinkDuration,
+        headStability: latestMetrics.headStability,
+        squintIntensity: latestMetrics.squintIntensity,
+        gazeOffScreenRatio: latestMetrics.gazeOffScreenRatio,
+        expressionFatigueScore: latestMetrics.expressionFatigueScore,
+        browDownIntensity: latestMetrics.browDownIntensity,
+        mouthOpenRatio: latestMetrics.mouthOpenRatio,
       });
       console.log('[useVisualFatigue] Metrics reported to backend');
     } catch (error) {
       console.error('[useVisualFatigue] Failed to report metrics:', error);
       // 不阻塞用户体验，静默失败
     }
-  }, [setFullMetrics]);
+  }, [setFullMetrics, getSessionId]);
 
   /**
    * 请求摄像头权限

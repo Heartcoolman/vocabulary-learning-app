@@ -78,6 +78,14 @@ vi.mock('../../services/LearningService', () => ({
       correctIndex: 0,
     }),
     simplifyMeaning: vi.fn().mockImplementation((meaning: string) => meaning),
+    fetchCurrentStrategy: vi.fn().mockResolvedValue({
+      new_ratio: 0.3,
+      difficulty: 'mid',
+      batch_size: 10,
+      session_length: 20,
+      review_ratio: 0.3,
+    }),
+    getRecommendedWordCount: vi.fn().mockImplementation((base: number) => base),
   },
 }));
 
@@ -182,6 +190,18 @@ vi.mock('../../components/explainability/ExplainabilityModal', () => ({
 
 vi.mock('../../components/semantic/RelatedWordsPanel', () => ({
   RelatedWordsPanel: () => null,
+}));
+
+// Mock StateCheckIn - immediately trigger onSkip to bypass the check-in dialog
+vi.mock('../../components/StateCheckIn', () => ({
+  default: ({ onSkip }: { onSkip: () => void }) => {
+    // Use useEffect to call onSkip after mount
+    const React = require('react');
+    React.useEffect(() => {
+      onSkip();
+    }, [onSkip]);
+    return null;
+  },
 }));
 
 // Mock logger

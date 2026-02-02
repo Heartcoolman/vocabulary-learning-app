@@ -8,7 +8,7 @@ import type {
   QueueProgress,
   CompletionReason,
 } from '../services/learning/WordQueueManager';
-import type { AmasProcessResult } from '../types/amas';
+import type { AmasProcessResult, LearningStrategy } from '../types/amas';
 
 import {
   useWordQueue,
@@ -16,6 +16,7 @@ import {
   getMasteryStudyWords,
   createMasterySession,
   endHabitSession,
+  sendQuitEvent,
 } from './mastery';
 import { useSubmitAnswer, extractAmasState } from './mutations';
 import { learningLogger } from '../utils/logger';
@@ -24,6 +25,7 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 const END_SESSION_ENDPOINT = '/api/habit-profile/end-session';
 
 import type { VarkInteractionData } from './mutations/useSubmitAnswer';
+import type { MicroInteractionData } from '../types/amas';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -43,6 +45,8 @@ export interface UseMasteryLearningReturn {
     isCorrect: boolean,
     responseTime: number,
     varkInteraction?: VarkInteractionData,
+    isGuess?: boolean,
+    microInteraction?: MicroInteractionData,
   ) => Promise<void>;
   advanceToNext: () => void;
   skipWord: () => void;
@@ -51,7 +55,8 @@ export interface UseMasteryLearningReturn {
   allWords: WordItem[];
   error: string | null;
   latestAmasResult: AmasProcessResult | null;
-  isSubmitting: boolean; // 提交状态（来自 React Query mutation）
+  isSubmitting: boolean;
+  getSessionId: () => string;
 }
 
 export function useMasteryLearning(
@@ -82,6 +87,7 @@ export function useMasteryLearning(
   const prevUserIdRef = useRef(user?.id);
   const endSessionRef = useRef<(mode: 'async' | 'beacon') => void>(() => {});
   const initCheckCounterRef = useRef(0); // 用于强制触发初始化后的单词补充检查
+  const prevStrategyRef = useRef<LearningStrategy | null>(null); // 跟踪策略变化
 
   // 子 hooks
   const wordQueue = useWordQueue({ targetMasteryCount: initialTargetCount });
@@ -134,6 +140,20 @@ export function useMasteryLearning(
           hintLevel: result.strategy.hint_level,
           intervalScale: result.strategy.interval_scale,
         });
+        // 策略变化时触发队列调整
+        const prev = prevStrategyRef.current;
+        if (
+          prev &&
+          (prev.difficulty !== result.strategy.difficulty ||
+            prev.batch_size !== result.strategy.batch_size)
+        ) {
+          syncRef.current?.triggerQueueAdjustment(
+            'periodic',
+            { accuracy: 0, avgResponseTime: 0, consecutiveWrong: 0 },
+            extractAmasState(result),
+          );
+        }
+        prevStrategyRef.current = result.strategy;
       }
       // 同步后端掌握判定
       if (result.wordMasteryDecision?.wordId !== undefined) {
@@ -145,7 +165,6 @@ export function useMasteryLearning(
     },
     onQueueAdjusted: () => {
       saveCacheRef.current();
-      wordQueueRef.current.resetAdaptiveCounter();
     },
   });
   syncRef.current = sync;
@@ -154,10 +173,14 @@ export function useMasteryLearning(
     const sid = currentSessionIdRef.current;
     if (!sid || sessionStartTimeRef.current <= 0 || sessionEndedRef.current) return;
 
+    const isNormalCompletion = wordQueueRef.current.isCompleted;
     sessionEndedRef.current = true;
     sessionStartTimeRef.current = 0;
 
     if (mode === 'beacon') {
+      // Beacon mode: used for page unload (beforeunload/pagehide)
+      // Note: quit event not sent via beacon as AMAS endpoint requires auth header.
+      // Backend will detect quit via 30-minute timeout on next session.
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
       const payload = JSON.stringify({ sessionId: sid, authToken: token });
       const url = `${import.meta.env.VITE_API_URL || ''}${END_SESSION_ENDPOINT}`;
@@ -180,6 +203,11 @@ export function useMasteryLearning(
       }
     }
 
+    // Send quit event only for abnormal session end (not normal completion)
+    if (!isNormalCompletion) {
+      const lastWordId = wordQueueRef.current.currentWord?.id;
+      sendQuitEvent(sid, lastWordId).catch(() => {});
+    }
     endHabitSession(sid).catch(() => {});
   };
 
@@ -200,6 +228,20 @@ export function useMasteryLearning(
           hintLevel: result.strategy.hint_level,
           intervalScale: result.strategy.interval_scale,
         });
+        // 策略变化时触发队列调整
+        const prev = prevStrategyRef.current;
+        if (
+          prev &&
+          (prev.difficulty !== result.strategy.difficulty ||
+            prev.batch_size !== result.strategy.batch_size)
+        ) {
+          syncRef.current?.triggerQueueAdjustment(
+            'periodic',
+            { accuracy: 0, avgResponseTime: 0, consecutiveWrong: 0 },
+            extractAmasState(result),
+          );
+        }
+        prevStrategyRef.current = result.strategy;
       }
       // 同步后端掌握判定
       if (result.wordMasteryDecision?.wordId !== undefined) {
@@ -371,6 +413,25 @@ export function useMasteryLearning(
     prevUserIdRef.current = curr ?? undefined;
   }, [user?.id]);
 
+  // 监听目标数量变化并实时更新队列
+  const prevTargetCountRef = useRef(initialTargetCount);
+  useEffect(() => {
+    // 跳过初始化阶段和种子会话
+    if (isLoading || isSeedSession) return;
+    // 只在值真正变化时更新
+    if (prevTargetCountRef.current === initialTargetCount) return;
+
+    prevTargetCountRef.current = initialTargetCount;
+    const shouldComplete = wordQueueRef.current.updateTargetMasteryCount(initialTargetCount);
+
+    learningLogger.info(
+      `[useMasteryLearning] 目标数量已实时更新: ${initialTargetCount}, 会话完成: ${shouldComplete}`,
+    );
+
+    // 保存更新后的缓存
+    saveCacheRef.current();
+  }, [initialTargetCount, isLoading, isSeedSession]);
+
   // 初始化 effect - 在组件挂载时和导航返回时执行
   const initSessionRef = useRef(initSession);
   initSessionRef.current = initSession;
@@ -436,7 +497,13 @@ export function useMasteryLearning(
 
   // Actions
   const submitAnswer = useCallback(
-    async (isCorrect: boolean, responseTime: number, varkInteraction?: VarkInteractionData) => {
+    async (
+      isCorrect: boolean,
+      responseTime: number,
+      varkInteraction?: VarkInteractionData,
+      isGuess?: boolean,
+      microInteraction?: MicroInteractionData,
+    ) => {
       const word = wordQueue.currentWord;
       if (!wordQueue.queueManagerRef.current || !word) return;
 
@@ -455,19 +522,6 @@ export function useMasteryLearning(
       });
       saveCache();
 
-      // 检查自适应调整
-      const adaptive = wordQueue.adaptiveManagerRef.current;
-      if (adaptive) {
-        const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-        if (should && reason) {
-          sync.triggerQueueAdjustment(
-            reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
-            adaptive.getRecentPerformance(),
-            amasState,
-          );
-        }
-      }
-
       // 获取暂停时间
       const pausedTimeMs = getDialogPausedTime?.() ?? 0;
       if (pausedTimeMs > 0) resetDialogPausedTime?.();
@@ -482,6 +536,8 @@ export function useMasteryLearning(
         pausedTimeMs,
         latestAmasState: amasState,
         varkInteraction,
+        isGuess,
+        microInteraction,
       });
     },
     [
@@ -522,6 +578,8 @@ export function useMasteryLearning(
     await initSession(true);
   }, [sync, wordQueue, initSession, isSeedSession]);
 
+  const getSessionId = useCallback(() => currentSessionIdRef.current, []);
+
   return {
     currentWord: wordQueue.currentWord,
     isLoading,
@@ -536,6 +594,7 @@ export function useMasteryLearning(
     allWords: wordQueue.allWords,
     error,
     latestAmasResult,
-    isSubmitting: submitAnswerMutation.isPending, // 提交状态
+    isSubmitting: submitAnswerMutation.isPending,
+    getSessionId,
   };
 }

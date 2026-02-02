@@ -13,7 +13,7 @@ use danci_backend_rust::amas::decision::ensemble::PerformanceTracker;
 use danci_backend_rust::amas::types::{
     CognitiveProfile, DifficultyLevel, PersistedAMASState, StrategyParams, UserState,
 };
-use danci_backend_rust::umm::adaptive_mastery::{MasteryAttempt, MasteryHistory};
+use danci_backend_rust::amas::memory::{MasteryAttempt, MasteryHistory};
 
 // ============================================================================
 // Arbitrary Generators
@@ -150,9 +150,9 @@ fn arb_persisted_amas_state() -> impl Strategy<Value = PersistedAMASState> {
                     cold_start_state: None,
                     interaction_count,
                     last_updated,
-                    user_fsrs_params: None,
                     mastery_history,
                     ensemble_performance,
+                    algorithm_states: None,
                 }
             },
         )
@@ -268,9 +268,9 @@ proptest! {
             cold_start_state: None,
             interaction_count: 0,
             last_updated: 0,
-            user_fsrs_params: None,
             mastery_history,
             ensemble_performance,
+            algorithm_states: None,
         };
 
         let json = serde_json::to_value(&state).unwrap();
@@ -372,9 +372,9 @@ fn persisted_state_with_all_none_fields() {
         cold_start_state: None,
         interaction_count: 0,
         last_updated: 0,
-        user_fsrs_params: None,
         mastery_history: None,
         ensemble_performance: None,
+        algorithm_states: None,
     };
 
     let json = serde_json::to_value(&state).unwrap();

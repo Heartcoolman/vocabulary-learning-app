@@ -3,12 +3,12 @@
 pub mod coldstart;
 pub mod ensemble;
 pub mod heuristic;
-pub mod linucb;
-pub mod thompson;
+pub mod ige;
+pub mod swd;
 
 pub use coldstart::ColdStartManager;
 pub use ensemble::EnsembleDecision;
 #[allow(unused_imports)]
 pub use heuristic::HeuristicLearner;
-pub use linucb::LinUCBModel;
-pub use thompson::ThompsonSamplingModel;
+pub use ige::IgeModel;
+pub use swd::SwdModel;

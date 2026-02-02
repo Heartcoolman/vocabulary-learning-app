@@ -295,7 +295,60 @@ export interface LearningEventInput {
   exampleReadMs?: number;
   /** 笔记编写次数 */
   noteWriteCount?: number;
+  /** 是否为会话中止事件（用于 MDS 动机动力学） */
+  isQuit?: boolean;
+  /** 蒙题标记（用户主动标记为不确定/猜测） */
+  isGuess?: boolean;
+  /** 微观交互数据 */
+  microInteraction?: MicroInteractionData;
 }
+
+// ============================================
+// 微观行为数据类型
+// ============================================
+
+/** 单个轨迹点 - 双字段时间戳 */
+export interface TrajectoryPoint {
+  x: number;
+  y: number;
+  t: number;
+  epochMs: number;
+}
+
+/** 悬停事件 - 双字段时间戳 */
+export interface HoverEvent {
+  optionId: string;
+  enterTime: number;
+  leaveTime: number;
+  enterEpochMs: number;
+  leaveEpochMs: number;
+}
+
+/** 按键事件 - 双字段时间戳 */
+export interface KeystrokeEvent {
+  key: string;
+  downTime: number;
+  upTime: number | null;
+  downEpochMs: number;
+  upEpochMs: number | null;
+}
+
+/** 微观交互数据 */
+export interface MicroInteractionData {
+  pointerType: 'mouse' | 'touch' | 'pen';
+  trajectoryPoints: TrajectoryPoint[];
+  hoverEvents: HoverEvent[];
+  tentativeSelections: string[];
+  keystrokeEvents: KeystrokeEvent[];
+  reactionLatencyMs: number | null;
+  trajectoryLength: number;
+  directDistance: number;
+  optionSwitchCount: number;
+  questionRenderEpochMs: number;
+}
+
+/** 用户精力状态 */
+export type EnergyLevel = 'high' | 'normal' | 'low';
 
 // ============================================
 // 单词掌握评估

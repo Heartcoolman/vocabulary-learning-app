@@ -9,9 +9,11 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
 import { learningLogger } from '../utils/logger';
+import type { Distractors } from '../services/learning/WordQueueManager';
 
 const EMPTY_STRING_ARRAY: string[] = [];
-const DEFAULT_FALLBACK_DISTRACTORS = ['未知释义', '其他含义', '暂无解释'] as const;
+const DEFAULT_FALLBACK_MEANING_DISTRACTORS = ['未知释义', '其他含义', '暂无解释'] as const;
+const DEFAULT_FALLBACK_SPELLING_DISTRACTORS = ['unknown', 'other', 'none'] as const;
 
 export interface TestOption {
   id: string;
@@ -211,7 +213,9 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
   const currentWord = config.currentWord;
   const allWords = config.allWords;
   const numberOfOptions = config.numberOfOptions ?? 4;
-  const fallbackDistractors = config.fallbackDistractors ?? DEFAULT_FALLBACK_DISTRACTORS;
+  const fallbackDistractors = config.fallbackDistractors ?? [
+    ...DEFAULT_FALLBACK_MEANING_DISTRACTORS,
+  ];
   const fallbackDistractorsKey = useMemo(
     () => fallbackDistractors.join('\u0000'),
     [fallbackDistractors],
@@ -255,6 +259,77 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
   /**
    * 重新生成选项（递增 questionIndex 强制触发重新生成）
    */
+  const regenerateOptions = useCallback(() => {
+    setQuestionIndex((prev) => prev + 1);
+  }, []);
+
+  return {
+    options: testOptions,
+    regenerateOptions,
+    questionIndex,
+  };
+}
+
+/**
+ * 简化版本：直接从后端返回的 distractors 读取选项
+ *
+ * @param config - 配置（包含当前单词和学习类型）
+ * @returns 选项列表和重新生成方法
+ */
+export interface UseBackendDistractorsConfig {
+  /** 当前单词（需包含 distractors 字段） */
+  currentWord: {
+    id: string;
+    spelling: string;
+    meanings: string[];
+    distractors?: Distractors;
+  } | null;
+  /** 学习类型：word-to-meaning 或 meaning-to-word */
+  learningType: 'word-to-meaning' | 'meaning-to-word';
+}
+
+export function useBackendDistractors(
+  config: UseBackendDistractorsConfig,
+): TestOptionsGeneratorReturn {
+  const { currentWord, learningType } = config;
+  const [testOptions, setTestOptions] = useState<string[]>([]);
+  const [questionIndex, setQuestionIndex] = useState(0);
+
+  useEffect(() => {
+    if (!currentWord) return;
+
+    const distractors = currentWord.distractors;
+
+    if (learningType === 'word-to-meaning') {
+      // 看词选义：使用 meaningOptions
+      if (distractors?.meaningOptions?.length) {
+        setTestOptions(distractors.meaningOptions);
+      } else {
+        // 降级：使用简化的含义 + 默认干扰项
+        const rawMeaning = currentWord.meanings[0] ?? '';
+        const correctAnswer = rawMeaning.split(/[；;、]/)[0]?.trim() || rawMeaning;
+        const fallback = [...DEFAULT_FALLBACK_MEANING_DISTRACTORS].filter(
+          (f) => f !== correctAnswer,
+        );
+        setTestOptions(randomShuffle([correctAnswer, ...fallback.slice(0, 3)]));
+        learningLogger.warn({ wordId: currentWord.id }, '后端未返回 meaningOptions，使用降级方案');
+      }
+    } else {
+      // 看义选词：使用 spellingOptions
+      if (distractors?.spellingOptions?.length) {
+        setTestOptions(distractors.spellingOptions);
+      } else {
+        // 降级：使用拼写 + 默认干扰项
+        const correctAnswer = currentWord.spelling;
+        const fallback = [...DEFAULT_FALLBACK_SPELLING_DISTRACTORS].filter(
+          (f) => f !== correctAnswer,
+        );
+        setTestOptions(randomShuffle([correctAnswer, ...fallback.slice(0, 3)]));
+        learningLogger.warn({ wordId: currentWord.id }, '后端未返回 spellingOptions，使用降级方案');
+      }
+    }
+  }, [currentWord, learningType, questionIndex]);
+
   const regenerateOptions = useCallback(() => {
     setQuestionIndex((prev) => prev + 1);
   }, []);

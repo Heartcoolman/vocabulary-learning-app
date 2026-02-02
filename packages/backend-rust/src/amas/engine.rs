@@ -8,31 +8,27 @@ use crate::amas::config::AMASConfig;
 use crate::amas::decision::{ColdStartManager, EnsembleDecision};
 use crate::amas::metrics::AlgorithmId;
 use crate::amas::modeling::{
-    AttentionMonitor, CognitiveProfiler, FatigueEstimator, MotivationTracker, TrendAnalyzer,
+    ActiveUserClassifier, AdaptiveItemResponse, AdfFeatures, AdfState, AirItemParams, AirResponse,
+    AirUserState, AttentionDynamicsFilter, AucState, BayesianCognitiveProfiler,
+    BcpObservation, BcpState, CognitiveFatigueInput, MdsEvent,
+    MentalFatigueInput, MotivationDynamics, MtdState, MultiScaleTrendDetector,
+    PlForgettingConfig, PlForgettingCurve, PlForgettingInput, ProbeResponse,
+    TriPoolFatigue, TriPoolFatigueState,
 };
 use crate::amas::monitoring::AMASMonitor;
 use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
 use crate::db::DatabaseProxy;
 use crate::track_algorithm;
-use crate::umm::adaptive_mastery::{
-    compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory,
+use crate::amas::decision::{IgeModel, SwdModel};
+use crate::amas::memory::{
+    compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory, MemoryEngine,
+    MdmState, MsmtModel, ReviewEvent as MsmtReviewEvent,
 };
-use crate::umm::evm::ContextEntry;
-use crate::umm::iad::ConfusionPair;
-use crate::umm::ige::IgeModel;
-use crate::umm::mdm::{compute_quality as mdm_compute_quality, MdmState};
-use crate::umm::msmt::{MsmtModel, ReviewEvent as MsmtReviewEvent};
-use crate::umm::mtp::MorphemeState;
-use crate::umm::swd::SwdModel;
-use crate::umm::UmmEngine;
+use crate::amas::memory::mdm::compute_quality as mdm_compute_quality;
+use crate::amas::vocabulary::{ConfusionPair, ContextEntry, MorphemeState};
 
 struct UserModels {
-    attention: AttentionMonitor,
-    fatigue: FatigueEstimator,
-    cognitive: CognitiveProfiler,
-    motivation: MotivationTracker,
-    trend: TrendAnalyzer,
     cold_start: Option<ColdStartManager>,
     ige: IgeModel,
     swd: SwdModel,
@@ -41,14 +37,6 @@ struct UserModels {
 impl UserModels {
     fn new(config: &AMASConfig) -> Self {
         Self {
-            attention: AttentionMonitor::new(
-                config.attention_weights.clone(),
-                config.attention_smoothing,
-            ),
-            fatigue: FatigueEstimator::new(config.fatigue.clone()),
-            cognitive: CognitiveProfiler::new(config.cognitive.clone()),
-            motivation: MotivationTracker::new(config.motivation.clone()),
-            trend: TrendAnalyzer::new(config.trend.clone()),
             cold_start: Some(ColdStartManager::new(config.cold_start.clone())),
             ige: IgeModel::new(),
             swd: SwdModel::new(),
@@ -56,13 +44,26 @@ impl UserModels {
     }
 
     fn from_cold_start_state(config: &AMASConfig, cold_start: ColdStartState) -> Self {
-        let mut models = Self::new(config);
-        models.cold_start = Some(ColdStartManager::from_state(
-            config.cold_start.clone(),
-            cold_start,
-        ));
-        models
+        Self {
+            cold_start: Some(ColdStartManager::from_state(
+                config.cold_start.clone(),
+                cold_start,
+            )),
+            ige: IgeModel::new(),
+            swd: SwdModel::new(),
+        }
     }
+}
+
+fn restore_algorithm_state<T: Default + serde::de::DeserializeOwned>(
+    algorithm_states: &Option<serde_json::Value>,
+    key: &str,
+) -> T {
+    algorithm_states
+        .as_ref()
+        .and_then(|s| s.get(key))
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default()
 }
 
 pub struct AMASEngine {
@@ -147,9 +148,16 @@ impl AMASEngine {
 
         let feature_vector = self.build_feature_vector(&event, &state.user_state, &config);
 
-        let new_user_state =
-            self.update_modeling(&mut models, &event, &state.user_state, &options, &config);
+        let (new_user_state, algo_states) = self.update_modeling(
+            &mut models,
+            &event,
+            &state.user_state,
+            &options,
+            &config,
+            &state.algorithm_states,
+        );
 
+        let mut auc_state_to_save: Option<AucState> = None;
         let cold_start_result = if let Some(ref mut cs) = models.cold_start {
             if !cs.is_complete() {
                 let accuracy = if event.is_correct { 1.0 } else { 0.0 };
@@ -160,10 +168,35 @@ impl AMASEngine {
                     rt_variance: options.rt_cv.unwrap_or(0.5),
                     has_signals: true,
                 };
-                track_algorithm!(
-                    AlgorithmId::ColdStartManager,
-                    cs.update_with_signals(accuracy, event.response_time, &signals)
-                )
+
+                // AUC classification to augment cold start
+                let auc = ActiveUserClassifier::default();
+                let mut auc_state: AucState =
+                    restore_algorithm_state(&state.algorithm_states, "auc");
+                let auc_output = track_algorithm!(
+                    AlgorithmId::Auc,
+                    auc.update(&mut auc_state, &ProbeResponse {
+                        is_correct: event.is_correct,
+                        response_time_ms: event.response_time,
+                        difficulty: state.current_strategy.difficulty.difficulty_range().0,
+                    })
+                );
+
+                if let Some(auc_user_type) = auc_output.classified {
+                    let mapped_type = match auc_user_type {
+                        crate::amas::modeling::auc::UserType::Fast => UserType::Fast,
+                        crate::amas::modeling::auc::UserType::Stable => UserType::Stable,
+                        crate::amas::modeling::auc::UserType::Cautious => UserType::Cautious,
+                    };
+                    auc_state_to_save = Some(auc_state);
+                    Some(StrategyParams::for_user_type(mapped_type))
+                } else {
+                    auc_state_to_save = Some(auc_state);
+                    track_algorithm!(
+                        AlgorithmId::ColdStartManager,
+                        cs.update_with_signals(accuracy, event.response_time, &signals)
+                    )
+                }
             } else {
                 None
             }
@@ -246,14 +279,10 @@ impl AMASEngine {
             let ensemble = self.ensemble.read().await;
             let (raw_strategy, candidates) = track_algorithm!(
                 AlgorithmId::Heuristic,
-                ensemble.decide_extended(
+                ensemble.decide(
                     &new_user_state,
                     &feature_vector,
                     &current_strategy,
-                    None, // thompson_action removed
-                    None, // thompson_confidence removed
-                    None, // linucb_action removed
-                    None, // linucb_confidence removed
                     ige_action.as_ref(),
                     ige_confidence,
                     swd_action.as_ref(),
@@ -334,6 +363,9 @@ impl AMASEngine {
             })
             .unwrap_or_default();
 
+        // Load AIR user state for potential use in word mastery calculation
+        let mut air_user_state_to_save: Option<AirUserState> = None;
+
         // Calculate interval using UMM (MDM + vocabulary specialization)
         let word_mastery_decision = event.word_id.as_ref().map(|wid| {
             let quality = mdm_compute_quality(
@@ -342,17 +374,50 @@ impl AMASEngine {
                 if event.hint_used { 1 } else { 0 },
             );
 
+            // AIR: Adaptive Item Response
+            let air_result = {
+                let air = AdaptiveItemResponse::default();
+                let mut air_user: AirUserState =
+                    restore_algorithm_state(&state.algorithm_states, "air_user");
+
+                let (init_alpha, init_beta) = options
+                    .word_state
+                    .as_ref()
+                    .map(|ws| {
+                        (
+                            ws.air_alpha.unwrap_or(1.0),
+                            ws.air_beta.unwrap_or(0.0),
+                        )
+                    })
+                    .unwrap_or((1.0, 0.0));
+
+                let mut air_item = AirItemParams {
+                    alpha: init_alpha,
+                    beta: init_beta,
+                };
+
+                let air_out = track_algorithm!(
+                    AlgorithmId::Air,
+                    air.update(&mut air_user, &mut air_item, &AirResponse {
+                        is_correct: event.is_correct,
+                    })
+                );
+
+                air_user_state_to_save = Some(air_user);
+                Some((air_out.theta, air_out.item_alpha, air_out.item_beta, air_out.probability, air_out.confidence))
+            };
+
             if let Some(ref ws) = options.word_state {
                 let now_ts = chrono::Utc::now().timestamp_millis();
                 let desired_retention =
                     self.adjust_retention(ws.desired_retention, &new_user_state, &options, &config);
 
                 // Load or create MDM state
-                let mut mdm = if let (Some(s), Some(c)) = (ws.umm_strength, ws.umm_consolidation) {
+                let mut mdm = if let (Some(s), Some(c)) = (ws.amas_strength, ws.amas_consolidation) {
                     MdmState {
                         strength: s,
                         consolidation: c,
-                        last_review_ts: ws.umm_last_review_ts.unwrap_or(0),
+                        last_review_ts: ws.amas_last_review_ts.unwrap_or(0),
                     }
                 } else {
                     // Migrate from FSRS
@@ -362,7 +427,7 @@ impl AMASEngine {
                 // Compute retrievability BEFORE update (with vocabulary specialization)
                 let prev_retrievability = track_algorithm!(
                     AlgorithmId::Mdm,
-                    UmmEngine::compute_retrievability(
+                    MemoryEngine::compute_retrievability(
                         &mdm,
                         ws.elapsed_days,
                         &morpheme_states,
@@ -378,7 +443,7 @@ impl AMASEngine {
                 // Calculate interval with vocabulary specialization
                 let new_interval = track_algorithm!(
                     AlgorithmId::Mdm,
-                    UmmEngine::compute_interval(
+                    MemoryEngine::compute_interval(
                         &mdm,
                         desired_retention,
                         &morpheme_states,
@@ -408,6 +473,8 @@ impl AMASEngine {
                     } else {
                         0
                     },
+                    indecision_index: None, // Passed via ProcessOptions in future
+                    keystroke_fluency: None, // Passed via ProcessOptions in future
                 };
 
                 let mastery_result = compute_adaptive_mastery_with_history(
@@ -429,7 +496,8 @@ impl AMASEngine {
                     stability: mdm.strength,
                     difficulty: 1.0 - mdm.consolidation,
                     retrievability: new_retrievability,
-                    is_mastered: mastery_result.is_mastered,
+                    // Guess veto: if user marked as guess and answered correctly, deny mastery
+                    is_mastered: mastery_result.is_mastered && !(event.is_guess && event.is_correct),
                     lapses: if event.is_correct {
                         ws.lapses
                     } else {
@@ -437,11 +505,16 @@ impl AMASEngine {
                     },
                     reps: ws.reps + 1,
                     confidence: mastery_result.confidence,
-                    umm_strength: Some(mdm.strength),
-                    umm_consolidation: Some(mdm.consolidation),
-                    umm_last_review_ts: Some(mdm.last_review_ts),
+                    amas_strength: Some(mdm.strength),
+                    amas_consolidation: Some(mdm.consolidation),
+                    amas_last_review_ts: Some(mdm.last_review_ts),
                     mastery_score: Some(mastery_result.score),
                     mastery_threshold: Some(mastery_result.threshold),
+                    air_theta: air_result.map(|(theta, _, _, _, _)| theta),
+                    air_alpha: air_result.map(|(_, alpha, _, _, _)| alpha),
+                    air_beta: air_result.map(|(_, _, beta, _, _)| beta),
+                    air_probability: air_result.map(|(_, _, _, prob, _)| prob),
+                    air_confidence: air_result.map(|(_, _, _, _, conf)| conf),
                 }
             } else {
                 // New word
@@ -454,7 +527,7 @@ impl AMASEngine {
 
                 let new_interval = track_algorithm!(
                     AlgorithmId::Mdm,
-                    UmmEngine::compute_interval(
+                    MemoryEngine::compute_interval(
                         &mdm,
                         desired_retention,
                         &morpheme_states,
@@ -474,6 +547,8 @@ impl AMASEngine {
                     response_time_ms: event.response_time,
                     hint_used: event.hint_used,
                     consecutive_correct: if event.is_correct { 1 } else { 0 },
+                    indecision_index: None,
+                    keystroke_fluency: None,
                 };
 
                 let mastery_result = compute_adaptive_mastery_with_history(
@@ -495,18 +570,50 @@ impl AMASEngine {
                     stability: mdm.strength,
                     difficulty: 1.0 - mdm.consolidation,
                     retrievability: new_retrievability,
-                    is_mastered: mastery_result.is_mastered,
+                    // Guess veto: if user marked as guess and answered correctly, deny mastery
+                    is_mastered: mastery_result.is_mastered && !(event.is_guess && event.is_correct),
                     lapses: if event.is_correct { 0 } else { 1 },
                     reps: 1,
                     confidence: mastery_result.confidence,
-                    umm_strength: Some(mdm.strength),
-                    umm_consolidation: Some(mdm.consolidation),
-                    umm_last_review_ts: Some(mdm.last_review_ts),
+                    amas_strength: Some(mdm.strength),
+                    amas_consolidation: Some(mdm.consolidation),
+                    amas_last_review_ts: Some(mdm.last_review_ts),
                     mastery_score: Some(mastery_result.score),
                     mastery_threshold: Some(mastery_result.threshold),
+                    air_theta: air_result.map(|(theta, _, _, _, _)| theta),
+                    air_alpha: air_result.map(|(_, alpha, _, _, _)| alpha),
+                    air_beta: air_result.map(|(_, _, beta, _, _)| beta),
+                    air_probability: air_result.map(|(_, _, _, prob, _)| prob),
+                    air_confidence: air_result.map(|(_, _, _, _, conf)| conf),
                 }
             }
         });
+
+        // PLF: Power-Law Forgetting (shadow predictor)
+        if let Some(ref ws) = options.word_state {
+                let plf = PlForgettingCurve::new(PlForgettingConfig::default());
+                let elapsed_ms = ws.elapsed_days * 86_400_000.0;
+                let plf_out = track_algorithm!(
+                    AlgorithmId::Plf,
+                    plf.predict(&PlForgettingInput {
+                        elapsed_ms: elapsed_ms.max(0.0),
+                        review_count: ws.reps.max(0) as u32,
+                        stability_days: if ws.stability > 0.0 {
+                            Some(ws.stability)
+                        } else {
+                            None
+                        },
+                        difficulty: Some(ws.difficulty),
+                    })
+                );
+                tracing::debug!(
+                    user_id = %user_id,
+                    word_id = ?event.word_id,
+                    plf_retrievability = %plf_out.retrievability,
+                    mdm_retrievability = ?word_mastery_decision.as_ref().map(|d| d.retrievability),
+                    "PLF shadow prediction"
+                );
+            }
 
         let cold_start_phase = models.cold_start.as_ref().map(|cs| cs.phase());
 
@@ -525,6 +632,36 @@ impl AMASEngine {
             linucb_state: serde_json::to_value(&models.swd).ok(),
             last_action_idx: None,
         });
+
+        // Merge algorithm states for persistence (preserve existing states, add new ones)
+        let mut final_algo_states = state
+            .algorithm_states
+            .as_ref()
+            .and_then(|v| v.as_object())
+            .cloned()
+            .map(serde_json::Value::Object)
+            .unwrap_or_else(|| serde_json::json!({}));
+
+        if let (Some(final_obj), Some(delta_obj)) =
+            (final_algo_states.as_object_mut(), algo_states.as_object())
+        {
+            for (k, v) in delta_obj {
+                final_obj.insert(k.clone(), v.clone());
+            }
+        }
+        if let Some(auc_state) = auc_state_to_save {
+            if let Ok(v) = serde_json::to_value(&auc_state) {
+                final_algo_states["auc"] = v;
+            }
+        }
+        if let Some(air_user_state) = air_user_state_to_save {
+            if let Ok(v) = serde_json::to_value(&air_user_state) {
+                final_algo_states["air_user"] = v;
+            }
+        }
+        if !final_algo_states.as_object().map_or(true, |o| o.is_empty()) {
+            state.algorithm_states = Some(final_algo_states);
+        }
 
         // Update mastery history for adaptive threshold
         if let Some(ref mastery) = word_mastery_decision {
@@ -728,9 +865,9 @@ impl AMASEngine {
             cold_start_state: Some(ColdStartState::default()),
             interaction_count: 0,
             last_updated: chrono::Utc::now().timestamp_millis(),
-            user_fsrs_params: None,
             mastery_history: None,
             ensemble_performance: None,
+            algorithm_states: None,
         };
 
         let mut states = self.user_states.write().await;
@@ -792,31 +929,13 @@ impl AMASEngine {
 
     fn create_models_from_state(
         &self,
-        state: &PersistedAMASState,
+        _state: &PersistedAMASState,
         config: &AMASConfig,
         ige: IgeModel,
         swd: SwdModel,
         cold_start_state: Option<ColdStartState>,
     ) -> UserModels {
-        let mut attention =
-            AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing);
-        attention.set_value(state.user_state.attention);
-
-        let mut fatigue = FatigueEstimator::new(config.fatigue.clone());
-        fatigue.set_value(state.user_state.fatigue);
-
-        let mut cognitive = CognitiveProfiler::new(config.cognitive.clone());
-        cognitive.set_profile(state.user_state.cognitive.clone());
-
-        let mut motivation = MotivationTracker::new(config.motivation.clone());
-        motivation.set_value(state.user_state.motivation);
-
         UserModels {
-            attention,
-            fatigue,
-            cognitive,
-            motivation,
-            trend: TrendAnalyzer::new(config.trend.clone()),
             cold_start: cold_start_state
                 .map(|cs| ColdStartManager::from_state(config.cold_start.clone(), cs)),
             ige,
@@ -877,86 +996,96 @@ impl AMASEngine {
 
     fn update_modeling(
         &self,
-        models: &mut UserModels,
+        _models: &mut UserModels,
         event: &RawEvent,
         prev_state: &UserState,
         options: &ProcessOptions,
         config: &AMASConfig,
-    ) -> UserState {
-        use crate::amas::modeling::attention::AttentionFeatures;
-        use crate::amas::modeling::cognitive::CognitiveInput;
-        use crate::amas::modeling::fatigue::FatigueFeatures;
+        algorithm_states: &Option<serde_json::Value>,
+    ) -> (UserState, serde_json::Value) {
         use crate::amas::modeling::fatigue_fusion::fuse_fatigue;
-        use crate::amas::modeling::motivation::MotivationEvent;
+
+        let mut new_algo_states = serde_json::json!({});
 
         let rt_norm =
             (event.response_time as f64 / config.perception.max_response_time as f64).min(1.0);
 
-        let dwell_norm = event
-            .dwell_time
-            .map(|ms| (ms as f64 / config.perception.max_response_time as f64).min(1.0))
-            .unwrap_or(rt_norm);
+        let break_minutes = event.paused_time_ms.map(|ms| ms as f64 / 60000.0);
 
-        let hour_of_day = chrono::Local::now().hour();
-
+        // ADF: Attention Dynamics Filter
+        let adf = AttentionDynamicsFilter::default();
+        let mut adf_state: AdfState = restore_algorithm_state(algorithm_states, "adf");
         let attention = track_algorithm!(
-            AlgorithmId::AttentionMonitor,
-            models.attention.update(AttentionFeatures {
-                rt_mean: rt_norm,
-                rt_cv: options.rt_cv.unwrap_or(0.0),
-                pace_cv: options.pace_cv.unwrap_or(0.0),
+            AlgorithmId::Adf,
+            adf.update(&mut adf_state, &AdfFeatures {
+                rt_norm,
+                accuracy: if event.is_correct { 1.0 } else { 0.0 },
                 pause_count: event.pause_count as f64,
                 switch_count: event.switch_count as f64,
-                drift: 0.0,
+                focus_loss: event.focus_loss_duration.map(|ms| ms as f64 / 60000.0).unwrap_or(0.0),
                 interaction_density: event.interaction_density.unwrap_or(0.5),
-                focus_loss: event
-                    .focus_loss_duration
-                    .map(|ms| ms as f64 / 60000.0)
-                    .unwrap_or(0.0),
-                recent_accuracy: options.recent_accuracy.unwrap_or(0.7),
-                is_correct: Some(event.is_correct),
-                hint_used: event.hint_used,
-                retry_count: event.retry_count,
-                dwell_time: dwell_norm,
-                visual_fatigue: options.visual_fatigue_score.unwrap_or(0.0),
-                visual_fatigue_confidence: options.visual_fatigue_confidence.unwrap_or(0.5),
-                motivation: prev_state.motivation,
-                cognitive: prev_state.cognitive.clone(),
-                study_duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
-                hour_of_day,
             })
         );
+        if let Ok(v) = serde_json::to_value(&adf_state) {
+            new_algo_states["adf"] = v;
+        }
 
-        let break_minutes = event.paused_time_ms.map(|ms| ms as f64 / 60000.0);
-        let fatigue = track_algorithm!(
-            AlgorithmId::FatigueEstimator,
-            models.fatigue.update(FatigueFeatures {
-                error_rate_trend: if event.is_correct { -0.05 } else { 0.1 },
-                rt_increase_rate: rt_norm,
-                repeat_errors: event.retry_count,
+        // TFM: Tri-pool Fatigue Model
+        let tfm = TriPoolFatigue::default();
+        let mut tfm_state: TriPoolFatigueState =
+            restore_algorithm_state(algorithm_states, "tfm");
+        let tfm_output = track_algorithm!(
+            AlgorithmId::Tfm,
+            tfm.update(
+                &mut tfm_state,
+                &CognitiveFatigueInput {
+                    error_rate_trend: if event.is_correct { -0.05 } else { 0.1 },
+                    rt_increase_rate: rt_norm,
+                    repeat_errors: event.retry_count,
+                },
+                options.visual_fatigue_raw.as_ref(),
+                &MentalFatigueInput {
+                    consecutive_failures: 0,
+                    is_quit: event.is_quit,
+                    motivation: prev_state.motivation,
+                },
                 break_minutes,
-            })
+            )
         );
+        if let Ok(v) = serde_json::to_value(&tfm_state) {
+            new_algo_states["tfm"] = v;
+        }
+        let fatigue = tfm_output.total;
 
+        // BCP: Bayesian Cognitive Profiling
         let recent_accuracy =
             options
                 .recent_accuracy
                 .unwrap_or(if event.is_correct { 0.8 } else { 0.6 });
         let error_variance = recent_accuracy * (1.0 - recent_accuracy);
 
-        let cognitive = track_algorithm!(
-            AlgorithmId::CognitiveProfiler,
-            models.cognitive.update(CognitiveInput {
+        let bcp = BayesianCognitiveProfiler::default();
+        let mut bcp_state: BcpState = restore_algorithm_state(algorithm_states, "bcp");
+        let bcp_output = track_algorithm!(
+            AlgorithmId::Bcp,
+            bcp.update(&mut bcp_state, &BcpObservation {
                 accuracy: if event.is_correct { 1.0 } else { 0.0 },
-                avg_response_time: event.response_time,
-                error_variance,
+                speed: (1.0 - rt_norm).clamp(0.0, 1.0),
+                consistency: 1.0 - error_variance,
             })
         );
+        if let Ok(v) = serde_json::to_value(&bcp_state) {
+            new_algo_states["bcp"] = v;
+        }
+        let cognitive = CognitiveProfile {
+            mem: bcp_output.mem,
+            speed: bcp_output.speed,
+            stability: bcp_output.stability,
+        };
 
-        // Integrate MSMT memory model (UMM original algorithm)
+        // MSMT: Multi-Scale Memory Trace
         let msmt_mem = track_algorithm!(AlgorithmId::Msmt, self.compute_msmt_memory(options));
 
-        // Blend MSMT memory model with cognitive profile
         let final_cognitive = if let Some(msmt_recall) = msmt_mem {
             let blended_mem = 0.6 * cognitive.mem + 0.4 * msmt_recall;
             CognitiveProfile {
@@ -968,21 +1097,26 @@ impl AMASEngine {
             cognitive
         };
 
+        // MDS: Motivation Dynamics System
+        let mds = MotivationDynamics::default();
         let motivation = track_algorithm!(
-            AlgorithmId::MotivationTracker,
-            models.motivation.update(MotivationEvent {
+            AlgorithmId::Mds,
+            mds.update(prev_state.motivation, &MdsEvent {
                 is_correct: event.is_correct,
-                is_quit: false,
-                streak_length: models.motivation.streak(),
+                is_quit: event.is_quit,
             })
         );
 
+        // MTD: Multi-scale Trend Detector
         let mastery_score =
             (final_cognitive.mem + final_cognitive.speed + final_cognitive.stability) / 3.0;
-        let trend = track_algorithm!(
-            AlgorithmId::TrendAnalyzer,
-            models.trend.update(mastery_score)
-        );
+        let mtd = MultiScaleTrendDetector::default();
+        let mut mtd_state: MtdState = restore_algorithm_state(algorithm_states, "mtd");
+        let mtd_output = track_algorithm!(AlgorithmId::Mtd, mtd.update(&mut mtd_state, mastery_score));
+        if let Ok(v) = serde_json::to_value(&mtd_state) {
+            new_algo_states["mtd"] = v;
+        }
+        let trend = mtd_output.to_trend_state();
 
         let conf = (config.confidence_decay * prev_state.conf
             + (1.0 - config.confidence_decay) * 0.7)
@@ -995,27 +1129,30 @@ impl AMASEngine {
             options.study_duration_minutes.unwrap_or(0.0),
         );
 
-        UserState {
-            attention,
-            fatigue,
-            cognitive: final_cognitive,
-            motivation,
-            habit: prev_state.habit.clone(),
-            trend: Some(trend),
-            conf,
-            ts: chrono::Utc::now().timestamp_millis(),
-            visual_fatigue: options
-                .visual_fatigue_score
-                .map(|score| VisualFatigueState {
-                    score,
-                    confidence: options.visual_fatigue_confidence.unwrap_or(0.5),
-                    freshness: 1.0,
-                    trend: 0.0,
-                    last_updated: chrono::Utc::now().timestamp_millis(),
-                })
-                .or_else(|| prev_state.visual_fatigue.clone()),
-            fused_fatigue: Some(fused),
-        }
+        (
+            UserState {
+                attention,
+                fatigue,
+                cognitive: final_cognitive,
+                motivation,
+                habit: prev_state.habit.clone(),
+                trend: Some(trend),
+                conf,
+                ts: chrono::Utc::now().timestamp_millis(),
+                visual_fatigue: options
+                    .visual_fatigue_score
+                    .map(|score| VisualFatigueState {
+                        score,
+                        confidence: options.visual_fatigue_confidence.unwrap_or(0.5),
+                        freshness: 1.0,
+                        trend: 0.0,
+                        last_updated: chrono::Utc::now().timestamp_millis(),
+                    })
+                    .or_else(|| prev_state.visual_fatigue.clone()),
+                fused_fatigue: Some(fused),
+            },
+            new_algo_states,
+        )
     }
 
     fn compute_msmt_memory(&self, options: &ProcessOptions) -> Option<f64> {
@@ -1042,21 +1179,20 @@ impl AMASEngine {
         base_retention: f64,
         state: &UserState,
         options: &ProcessOptions,
-        config: &AMASConfig,
+        _config: &AMASConfig,
     ) -> f64 {
-        let cfg = &config.fsrs_personalization;
         let accuracy = options.recent_accuracy.unwrap_or(0.7);
         let cognitive = (state.cognitive.mem + state.cognitive.stability) / 2.0;
         let fatigue = state.fused_fatigue.unwrap_or(state.fatigue);
         let motivation = (state.motivation + 1.0) / 2.0;
 
-        let delta = cfg.accuracy_weight * (accuracy - 0.7)
-            + cfg.cognitive_weight * (cognitive - 0.5)
-            - cfg.fatigue_weight * (fatigue - 0.3)
-            + cfg.motivation_weight * (motivation - 0.5);
+        let delta = 0.1 * (accuracy - 0.7)
+            + 0.1 * (cognitive - 0.5)
+            - 0.05 * (fatigue - 0.3)
+            + 0.05 * (motivation - 0.5);
 
-        let base = base_retention.clamp(cfg.min_retention, cfg.max_retention);
-        (base + delta).clamp(cfg.min_retention, cfg.max_retention)
+        let base = base_retention.clamp(0.8, 0.95);
+        (base + delta).clamp(0.8, 0.95)
     }
 
     fn compute_reward(

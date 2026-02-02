@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 export interface InteractionData {
   imageViewCount: number;
@@ -103,19 +103,34 @@ export function useInteractionTracker() {
     readingStartRef.current = null;
   }, []);
 
-  return {
-    trackImageView,
-    trackImageZoom,
-    trackImageLongPressStart,
-    trackImageLongPressEnd,
-    trackAudioPlay,
-    trackAudioSpeedAdjust,
-    trackReadingStart,
-    trackReadingEnd,
-    trackNote,
-    getData,
-    reset,
-  };
+  return useMemo(
+    () => ({
+      trackImageView,
+      trackImageZoom,
+      trackImageLongPressStart,
+      trackImageLongPressEnd,
+      trackAudioPlay,
+      trackAudioSpeedAdjust,
+      trackReadingStart,
+      trackReadingEnd,
+      trackNote,
+      getData,
+      reset,
+    }),
+    [
+      trackImageView,
+      trackImageZoom,
+      trackImageLongPressStart,
+      trackImageLongPressEnd,
+      trackAudioPlay,
+      trackAudioSpeedAdjust,
+      trackReadingStart,
+      trackReadingEnd,
+      trackNote,
+      getData,
+      reset,
+    ],
+  );
 }
 
 export type InteractionTracker = ReturnType<typeof useInteractionTracker>;

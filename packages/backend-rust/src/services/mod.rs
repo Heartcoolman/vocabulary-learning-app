@@ -16,7 +16,6 @@ pub mod etymology;
 pub mod evaluation;
 pub mod experiment;
 pub mod explainability;
-pub mod fsrs;
 pub mod habit_profile;
 pub mod insight_generator;
 pub mod learning_state;

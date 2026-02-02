@@ -4,11 +4,13 @@ import WordCard from '../components/WordCard';
 import ReverseWordCard from '../components/ReverseWordCard';
 import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
+import StateCheckIn from '../components/StateCheckIn';
 import { StatusModal, SuggestionModal } from '../components';
-import { Spinner } from '../components/ui';
+import { Spinner, useToast } from '../components/ui';
 import { LearningModeSelector } from '../components/LearningModeSelector';
 import ExplainabilityModal from '../components/explainability/ExplainabilityModal';
 import LearningService from '../services/LearningService';
+import { microBehaviorTracker } from '../services/MicroBehaviorTracker';
 import {
   Confetti,
   Books,
@@ -28,15 +30,17 @@ import { useInteractionTracker } from '../hooks/useInteractionTracker';
 import { useConfusionBatchLearning } from '../hooks/useConfusionBatchLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
-import { useTestOptionsGenerator } from '../hooks/useTestOptions';
+import { useBackendDistractors } from '../hooks/useTestOptions';
 import { useStudyConfig } from '../hooks/queries/useStudyConfig';
 import { trackingService } from '../services/TrackingService';
 import { apiLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import type { LearningSeedState } from '../utils/learningSeed';
+import type { EnergyLevel } from '@danci/shared';
 
 export default function LearningPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const location = useLocation();
   const seedState = location.state as LearningSeedState | null;
   const seedWords = seedState?.seedWords?.length ? seedState.seedWords : undefined;
@@ -54,6 +58,8 @@ export default function LearningPage() {
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
   const [isFatigueAlertOpen, setIsFatigueAlertOpen] = useState(false);
   const fatigueAlertShownRef = useRef(false);
+  const [showStateCheckIn, setShowStateCheckIn] = useState(true);
+  const [energyLevel, setEnergyLevel] = useState<EnergyLevel | null>(null);
   const [learningType, setLearningType] = useState<'word-to-meaning' | 'meaning-to-word'>(() => {
     return (
       (localStorage.getItem(STORAGE_KEYS.LEARNING_TYPE) as 'word-to-meaning' | 'meaning-to-word') ||
@@ -70,9 +76,45 @@ export default function LearningPage() {
       isFatigueAlertOpen,
     ]);
 
+  const [recommendedCount, setRecommendedCount] = useState<number | null>(null);
+
   // 获取用户学习配置
   const { data: studyConfig } = useStudyConfig();
-  const targetWordCount = seedWords?.length ?? studyConfig?.dailyWordCount ?? 20;
+
+  // 获取并应用 SWD 智能推荐策略
+  useEffect(() => {
+    const fetchStrategy = async () => {
+      // 仅在非种子模式下（常规学习）获取推荐
+      if (!seedWords?.length) {
+        await LearningService.fetchCurrentStrategy();
+        const baseCount = studyConfig?.dailyWordCount ?? 20;
+        const count = LearningService.getRecommendedWordCount(baseCount);
+
+        // 如果推荐值与基础值不同（且未设置过），则应用推荐值
+        if (count !== baseCount) {
+          setRecommendedCount(count);
+          // 仅提示一次
+          const hasShownToast = sessionStorage.getItem(`swd_toast_${new Date().toDateString()}`);
+          if (!hasShownToast) {
+            if (count < baseCount) {
+              toast.info(`根据您的状态，已智能调整今日学习量为 ${count} 个`, 3000);
+            } else {
+              toast.success(`状态不错！已智能为您增加学习量至 ${count} 个`, 3000);
+            }
+            sessionStorage.setItem(`swd_toast_${new Date().toDateString()}`, 'true');
+          }
+        }
+      }
+    };
+
+    // 当配置加载完成后尝试获取策略
+    if (studyConfig) {
+      fetchStrategy();
+    }
+  }, [studyConfig?.dailyWordCount, seedWords?.length, toast]);
+
+  const targetWordCount =
+    seedWords?.length ?? recommendedCount ?? studyConfig?.dailyWordCount ?? 20;
 
   const seedSessionInfo = useMemo(() => {
     if (!seedSource) return null;
@@ -172,6 +214,7 @@ export default function LearningPage() {
     allWords,
     error,
     latestAmasResult,
+    getSessionId,
   } = useMasteryLearning({
     targetMasteryCount: targetWordCount,
     getDialogPausedTime,
@@ -188,57 +231,11 @@ export default function LearningPage() {
     showResult,
   });
 
-  // 转换单词格式以适配选项生成器
-  const allWordsForOptions = useMemo(
-    () =>
-      allWords.map((w) => ({
-        id: w.id,
-        spelling: w.spelling,
-        phonetic: w.phonetic,
-        meanings: w.meanings,
-        examples: w.examples,
-        createdAt: 0,
-        updatedAt: 0,
-      })),
-    [allWords],
-  );
-
-  // 转换当前单词格式
-  const currentWordForOptions = useMemo(() => {
-    if (!currentWord) return null;
-    return {
-      ...currentWord,
-      createdAt: 0,
-      updatedAt: 0,
-    };
-  }, [currentWord]);
-
-  // 使用测试选项生成器 Hook - 稳定函数引用避免 useEffect 依赖问题
-  const optionsGenerator = useMemo(
-    () =>
-      learningType === 'word-to-meaning'
-        ? LearningService.generateTestOptions.bind(LearningService)
-        : LearningService.generateReverseTestOptions.bind(LearningService),
-    [learningType],
-  );
-
-  const fallbackDistractors = useMemo(
-    () =>
-      learningType === 'word-to-meaning'
-        ? ['未知释义', '其他含义', '暂无解释']
-        : ['unknown', 'other', 'none'],
-    [learningType],
-  );
-
-  const { options: testOptions, regenerateOptions } = useTestOptionsGenerator(
-    {
-      currentWord: currentWordForOptions,
-      allWords: allWordsForOptions,
-      numberOfOptions: 4,
-      fallbackDistractors,
-    },
-    optionsGenerator,
-  );
+  // 直接使用后端返回的干扰项
+  const { options: testOptions, regenerateOptions } = useBackendDistractors({
+    currentWord,
+    learningType,
+  });
 
   // 当单词变化时重置答题状态并开始 VARK 阅读追踪
   useEffect(() => {
@@ -261,7 +258,7 @@ export default function LearningPage() {
   const handleNextRef = useRef<() => void>(() => {});
 
   const handleSelectAnswer = useCallback(
-    async (answer: string) => {
+    async (answer: string, isGuess?: boolean) => {
       if (!currentWord || showResult || isSubmittingRef.current) return;
       isSubmittingRef.current = true;
 
@@ -279,8 +276,11 @@ export default function LearningPage() {
       // 获取 VARK 交互数据
       const varkData = interactionTracker.getData();
 
+      // 获取微行为数据
+      const microData = microBehaviorTracker.getData();
+
       try {
-        await submitAnswer(isCorrect, responseTime, varkData);
+        await submitAnswer(isCorrect, responseTime, varkData, isGuess, microData);
       } catch (error) {
         // 提交失败时记录错误，但不阻止用户继续学习
         // 答案会被保存到本地队列，后续会自动重试同步
@@ -303,6 +303,7 @@ export default function LearningPage() {
     regenerateOptions(); // 强制触发选项重新生成
     isSubmittingRef.current = false; // 重置提交状态
     interactionTracker.reset(); // 重置 VARK 交互追踪
+    microBehaviorTracker.reset(); // 重置微行为追踪
   }, [advanceToNext, regenerateOptions, isConfusionBatchMode, confusionBatch, interactionTracker]);
 
   // 始终保持 ref 指向最新的 handleNext
@@ -323,6 +324,30 @@ export default function LearningPage() {
   }, [showResult]);
 
   // 自动朗读已由 useAutoPlayPronunciation Hook 处理
+
+  // 处理状态打卡选择
+  const handleEnergySelect = useCallback(
+    (level: EnergyLevel) => {
+      setEnergyLevel(level);
+      setShowStateCheckIn(false);
+      // TODO: Send energy level to backend for TFM calibration
+      if (level === 'low') {
+        toast.info('已开启轻松模式，减少学习强度', 2000);
+      } else if (level === 'high') {
+        toast.success('状态不错，祝学习愉快！', 2000);
+      }
+    },
+    [toast],
+  );
+
+  const handleEnergySkip = useCallback(() => {
+    setShowStateCheckIn(false);
+  }, []);
+
+  // 显示状态打卡浮层（仅首次加载时）
+  if (showStateCheckIn && !isLoading && allWords.length > 0) {
+    return <StateCheckIn onSelect={handleEnergySelect} onSkip={handleEnergySkip} />;
+  }
 
   if (isLoading) {
     return (
@@ -601,7 +626,7 @@ export default function LearningPage() {
                 >
                   <Brain size={20} />
                 </button>
-                <FloatingEyeIndicator embedded size="sm" />
+                <FloatingEyeIndicator embedded size="sm" getSessionId={getSessionId} />
               </>
             }
           />

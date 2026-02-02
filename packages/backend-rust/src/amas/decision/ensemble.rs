@@ -179,35 +179,6 @@ impl EnsembleDecision {
         state: &UserState,
         _feature_vector: &FeatureVector,
         current: &StrategyParams,
-        thompson_action: Option<&StrategyParams>,
-        thompson_confidence: Option<f64>,
-        linucb_action: Option<&StrategyParams>,
-        linucb_confidence: Option<f64>,
-    ) -> (StrategyParams, Vec<DecisionCandidate>) {
-        self.decide_extended(
-            state,
-            _feature_vector,
-            current,
-            thompson_action,
-            thompson_confidence,
-            linucb_action,
-            linucb_confidence,
-            None,
-            None,
-            None,
-            None,
-        )
-    }
-
-    pub fn decide_extended(
-        &self,
-        state: &UserState,
-        _feature_vector: &FeatureVector,
-        current: &StrategyParams,
-        thompson_action: Option<&StrategyParams>,
-        thompson_confidence: Option<f64>,
-        linucb_action: Option<&StrategyParams>,
-        linucb_confidence: Option<f64>,
         ige_action: Option<&StrategyParams>,
         ige_confidence: Option<f64>,
         swd_action: Option<&StrategyParams>,
@@ -216,11 +187,9 @@ impl EnsembleDecision {
         let mut candidates: Vec<DecisionCandidate> = Vec::new();
 
         let dynamic_weights = self.performance.get_weights(&[
-            ("thompson", self.config.thompson_base_weight),
-            ("linucb", self.config.linucb_base_weight),
             ("heuristic", self.config.heuristic_base_weight),
-            ("ige", self.config.thompson_base_weight),
-            ("swd", self.config.linucb_base_weight),
+            ("ige", 0.4),
+            ("swd", 0.4),
         ]);
 
         if self.feature_flags.heuristic_enabled {
@@ -236,56 +205,26 @@ impl EnsembleDecision {
             });
         }
 
-        if self.feature_flags.thompson_enabled {
-            if let Some(action) = thompson_action {
-                candidates.push(DecisionCandidate {
-                    source: "thompson".to_string(),
-                    strategy: action.clone(),
-                    confidence: thompson_confidence.unwrap_or(0.7),
-                    weight: *dynamic_weights
-                        .get("thompson")
-                        .unwrap_or(&self.config.thompson_base_weight),
-                });
-            }
-        }
-
-        if self.feature_flags.linucb_enabled {
-            if let Some(action) = linucb_action {
-                candidates.push(DecisionCandidate {
-                    source: "linucb".to_string(),
-                    strategy: action.clone(),
-                    confidence: linucb_confidence.unwrap_or(state.conf),
-                    weight: *dynamic_weights
-                        .get("linucb")
-                        .unwrap_or(&self.config.linucb_base_weight),
-                });
-            }
-        }
-
-        // UMM IGE (replaces Thompson Sampling)
-        if self.feature_flags.umm_ige_enabled {
+        // UMM IGE
+        if self.feature_flags.amas_ige_enabled {
             if let Some(action) = ige_action {
                 candidates.push(DecisionCandidate {
                     source: "ige".to_string(),
                     strategy: action.clone(),
                     confidence: ige_confidence.unwrap_or(0.7),
-                    weight: *dynamic_weights
-                        .get("ige")
-                        .unwrap_or(&self.config.thompson_base_weight),
+                    weight: *dynamic_weights.get("ige").unwrap_or(&0.4),
                 });
             }
         }
 
-        // UMM SWD (replaces LinUCB)
-        if self.feature_flags.umm_swd_enabled {
+        // UMM SWD
+        if self.feature_flags.amas_swd_enabled {
             if let Some(action) = swd_action {
                 candidates.push(DecisionCandidate {
                     source: "swd".to_string(),
                     strategy: action.clone(),
                     confidence: swd_confidence.unwrap_or(state.conf),
-                    weight: *dynamic_weights
-                        .get("swd")
-                        .unwrap_or(&self.config.linucb_base_weight),
+                    weight: *dynamic_weights.get("swd").unwrap_or(&0.4),
                 });
             }
         }
@@ -475,12 +414,8 @@ impl Default for EnsembleDecision {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::amas::config::{
-        EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig,
-    };
-    use crate::amas::types::{
-        CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState,
-    };
+    use crate::amas::config::{EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig};
+    use crate::amas::types::{CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState};
 
     fn sample_strategy() -> StrategyParams {
         StrategyParams {
@@ -514,22 +449,19 @@ mod tests {
     #[test]
     fn new_creates_with_feature_flags() {
         let flags = FeatureFlags {
-            thompson_enabled: true,
-            linucb_enabled: false,
             heuristic_enabled: true,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags.clone());
-        assert_eq!(ensemble.feature_flags.thompson_enabled, true);
-        assert_eq!(ensemble.feature_flags.linucb_enabled, false);
+        assert!(ensemble.feature_flags.heuristic_enabled);
     }
 
     #[test]
     fn decide_returns_current_when_no_candidates() {
         let flags = FeatureFlags {
-            thompson_enabled: false,
-            linucb_enabled: false,
             heuristic_enabled: false,
+            amas_ige_enabled: false,
+            amas_swd_enabled: false,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
@@ -545,9 +477,9 @@ mod tests {
     #[test]
     fn decide_includes_heuristic_when_enabled() {
         let flags = FeatureFlags {
-            thompson_enabled: false,
-            linucb_enabled: false,
             heuristic_enabled: true,
+            amas_ige_enabled: false,
+            amas_swd_enabled: false,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
@@ -560,18 +492,18 @@ mod tests {
     }
 
     #[test]
-    fn decide_includes_thompson_when_provided() {
+    fn decide_includes_ige_when_provided() {
         let flags = FeatureFlags {
-            thompson_enabled: true,
-            linucb_enabled: false,
             heuristic_enabled: false,
+            amas_ige_enabled: true,
+            amas_swd_enabled: false,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
         let state = sample_user_state();
         let feature = sample_feature_vector();
         let current = sample_strategy();
-        let thompson_action = StrategyParams {
+        let ige_action = StrategyParams {
             difficulty: DifficultyLevel::Hard,
             ..sample_strategy()
         };
@@ -579,27 +511,27 @@ mod tests {
             &state,
             &feature,
             &current,
-            Some(&thompson_action),
+            Some(&ige_action),
             Some(0.8),
             None,
             None,
         );
-        assert!(candidates.iter().any(|c| c.source == "thompson"));
+        assert!(candidates.iter().any(|c| c.source == "ige"));
     }
 
     #[test]
-    fn decide_includes_linucb_when_provided() {
+    fn decide_includes_swd_when_provided() {
         let flags = FeatureFlags {
-            thompson_enabled: false,
-            linucb_enabled: true,
             heuristic_enabled: false,
+            amas_ige_enabled: false,
+            amas_swd_enabled: true,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
         let state = sample_user_state();
         let feature = sample_feature_vector();
         let current = sample_strategy();
-        let linucb_action = StrategyParams {
+        let swd_action = StrategyParams {
             difficulty: DifficultyLevel::Easy,
             ..sample_strategy()
         };
@@ -609,10 +541,10 @@ mod tests {
             &current,
             None,
             None,
-            Some(&linucb_action),
+            Some(&swd_action),
             Some(0.7),
         );
-        assert!(candidates.iter().any(|c| c.source == "linucb"));
+        assert!(candidates.iter().any(|c| c.source == "swd"));
     }
 
     #[test]
@@ -866,8 +798,7 @@ mod tests {
             ..Default::default()
         };
         let tracker = PerformanceTracker::new(config);
-        let weights =
-            tracker.get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
+        let weights = tracker.get_weights(&[("ige", 0.4), ("swd", 0.4), ("heuristic", 0.2)]);
         let total: f64 = weights.values().sum();
         assert!((total - 1.0).abs() < 1e-6);
     }
@@ -913,22 +844,22 @@ mod tests {
     fn set_feature_flags_updates_flags() {
         let mut ensemble = EnsembleDecision::default();
         let new_flags = FeatureFlags {
-            thompson_enabled: false,
+            amas_ige_enabled: false,
             ..Default::default()
         };
         ensemble.set_feature_flags(new_flags);
-        assert_eq!(ensemble.feature_flags.thompson_enabled, false);
+        assert!(!ensemble.feature_flags.amas_ige_enabled);
     }
 
     #[test]
     fn set_config_resets_performance_tracker() {
         let mut ensemble = EnsembleDecision::default();
         let new_config = EnsembleConfig {
-            thompson_base_weight: 0.5,
+            heuristic_base_weight: 0.5,
             ..Default::default()
         };
         ensemble.set_config(new_config);
-        assert!((ensemble.config.thompson_base_weight - 0.5).abs() < 1e-6);
+        assert!((ensemble.config.heuristic_base_weight - 0.5).abs() < 1e-6);
     }
 
     #[test]

@@ -433,10 +433,19 @@ async fn insert_visual_fatigue_record(
             "yawnCount",
             "headPitch",
             "headYaw",
+            "headRoll",
             "confidence",
+            "eyeAspectRatio",
+            "avgBlinkDuration",
+            "headStability",
+            "squintIntensity",
+            "expressionFatigueScore",
+            "gazeOffScreenRatio",
+            "browDownIntensity",
+            "mouthOpenRatio",
             "createdAt"
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
         "#,
     )
     .bind(id)
@@ -449,7 +458,16 @@ async fn insert_visual_fatigue_record(
     .bind(payload.yawn_count)
     .bind(payload.head_pitch)
     .bind(payload.head_yaw)
+    .bind(payload.head_roll)
     .bind(payload.confidence)
+    .bind(payload.eye_aspect_ratio)
+    .bind(payload.avg_blink_duration)
+    .bind(payload.head_stability)
+    .bind(payload.squint_intensity)
+    .bind(payload.expression_fatigue_score)
+    .bind(payload.gaze_off_screen_ratio)
+    .bind(payload.brow_down_intensity)
+    .bind(payload.mouth_open_ratio)
     .bind(now)
     .execute(pool)
     .await

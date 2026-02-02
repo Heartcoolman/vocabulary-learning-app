@@ -66,7 +66,7 @@ describe('TestOptions', () => {
 
       fireEvent.click(screen.getByText('再见'));
 
-      expect(onSelect).toHaveBeenCalledWith('再见');
+      expect(onSelect).toHaveBeenCalledWith('再见', false);
     });
 
     it('should not call onSelect when showResult is true', () => {
@@ -84,7 +84,7 @@ describe('TestOptions', () => {
 
       fireEvent.keyDown(window, { key: '2' });
 
-      expect(onSelect).toHaveBeenCalledWith('再见');
+      expect(onSelect).toHaveBeenCalledWith('再见', false);
     });
 
     it('should call onSelect for keys 1-4', () => {
@@ -92,13 +92,13 @@ describe('TestOptions', () => {
       render(<TestOptions {...defaultProps} onSelect={onSelect} />);
 
       fireEvent.keyDown(window, { key: '1' });
-      expect(onSelect).toHaveBeenCalledWith('你好');
+      expect(onSelect).toHaveBeenCalledWith('你好', false);
 
       fireEvent.keyDown(window, { key: '3' });
-      expect(onSelect).toHaveBeenCalledWith('谢谢');
+      expect(onSelect).toHaveBeenCalledWith('谢谢', false);
 
       fireEvent.keyDown(window, { key: '4' });
-      expect(onSelect).toHaveBeenCalledWith('对不起');
+      expect(onSelect).toHaveBeenCalledWith('对不起', false);
     });
 
     it('should not respond to keys when showResult is true', () => {
@@ -190,7 +190,7 @@ describe('TestOptions', () => {
       const button = screen.getByText('你好').closest('button')!;
       fireEvent.keyDown(button, { key: 'Enter' });
 
-      expect(onSelect).toHaveBeenCalledWith('你好');
+      expect(onSelect).toHaveBeenCalledWith('你好', false);
     });
 
     it('should remove tab focus from buttons when showing result', () => {
