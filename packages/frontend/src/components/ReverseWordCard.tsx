@@ -1,6 +1,8 @@
 import { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SpeakerHigh } from './Icon';
+import { Button } from './ui';
+import { cn } from './ui/utils';
 import {
   slideUpVariants,
   fadeInVariants,
@@ -93,7 +95,7 @@ function ReverseWordCard({
 
           {/* 发音按钮 */}
           {onPronounce && (
-            <motion.button
+            <Button
               onClick={handlePronounce}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -102,16 +104,23 @@ function ReverseWordCard({
                 }
               }}
               disabled={isPronouncing}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              transition={g3SpringSnappy}
-              className={`flex h-12 w-12 items-center justify-center rounded-full bg-blue-500 shadow-elevated hover:bg-blue-600 hover:shadow-floating ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
+              variant="ghost"
+              size="lg"
+              className={cn(
+                'h-12 w-12 rounded-full p-0',
+                'border border-blue-100 bg-blue-50 shadow-sm',
+                'text-blue-500 hover:text-blue-600',
+                'hover:border-blue-200 hover:bg-blue-100/80 hover:shadow',
+                'dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/20',
+                'transition-all duration-300',
+                isPronouncing && 'animate-pulse ring-2 ring-blue-200 dark:ring-blue-500/30',
+              )}
               aria-label={isPronouncing ? '正在播放发音' : `播放 ${word.spelling} 的发音`}
               aria-pressed={isPronouncing}
               title="播放发音"
             >
-              <SpeakerHigh size={24} weight="fill" className="text-white" aria-hidden="true" />
-            </motion.button>
+              <SpeakerHigh size={32} weight="fill" className="text-blue-500 dark:text-blue-400" />
+            </Button>
           )}
         </motion.div>
       )}

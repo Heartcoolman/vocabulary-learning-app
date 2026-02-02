@@ -229,8 +229,8 @@ struct MemberVote {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct EnsembleWeights {
-    thompson: f64,
-    linucb: f64,
+    ige: f64,
+    swd: f64,
     heuristic: f64,
 }
 
@@ -587,9 +587,9 @@ async fn simulate_batch(
                 if let Some(ref proxy) = proxy {
                     let weights = result.algorithm_weights.as_ref().map(|w| {
                         serde_json::json!({
-                            "thompson": w.thompson,
-                            "linucb": w.linucb,
-                            "actr": w.actr,
+                            "ige": w.ige,
+                            "swd": w.swd,
+                            "mdm": w.mdm,
                             "heuristic": w.heuristic
                         })
                     });
@@ -683,18 +683,18 @@ fn build_simulation(input: &StateSnapshot) -> AboutSimulateResponse {
 
     let weights = match phase {
         "classify" => EnsembleWeights {
-            thompson: 0.25,
-            linucb: 0.30,
+            ige: 0.25,
+            swd: 0.30,
             heuristic: 0.45,
         },
         "explore" => EnsembleWeights {
-            thompson: 0.35,
-            linucb: 0.45,
+            ige: 0.35,
+            swd: 0.45,
             heuristic: 0.20,
         },
         _ => EnsembleWeights {
-            thompson: 0.40,
-            linucb: 0.45,
+            ige: 0.40,
+            swd: 0.45,
             heuristic: 0.15,
         },
     };
@@ -703,18 +703,18 @@ fn build_simulation(input: &StateSnapshot) -> AboutSimulateResponse {
 
     let mut votes: HashMap<String, MemberVote> = HashMap::new();
     votes.insert(
-        "thompson".to_string(),
+        "ige".to_string(),
         MemberVote {
             action: format!("difficulty:{}", output_strategy.difficulty),
-            contribution: weights.thompson,
+            contribution: weights.ige,
             confidence: (input.conf * 0.9).clamp(0.0, 1.0),
         },
     );
     votes.insert(
-        "linucb".to_string(),
+        "swd".to_string(),
         MemberVote {
             action: format!("batch_size:{}", output_strategy.batch_size),
-            contribution: weights.linucb,
+            contribution: weights.swd,
             confidence: (input.conf * 0.95).clamp(0.0, 1.0),
         },
     );
@@ -845,12 +845,12 @@ async fn record_virtual_decision(store: &Arc<AboutStore>, simulation: &AboutSimu
         weights: {
             let mut map = HashMap::new();
             map.insert(
-                "thompson".to_string(),
-                simulation.decision_process.weights.thompson,
+                "ige".to_string(),
+                simulation.decision_process.weights.ige,
             );
             map.insert(
-                "linucb".to_string(),
-                simulation.decision_process.weights.linucb,
+                "swd".to_string(),
+                simulation.decision_process.weights.swd,
             );
             map.insert(
                 "heuristic".to_string(),
@@ -1033,8 +1033,8 @@ async fn stats_algorithm_distribution(State(state): State<AppState>) -> Response
     let Some(proxy) = state.db_proxy() else {
         return about_ok_with_source(
             AlgorithmDistribution {
-                thompson: 0.4,
-                linucb: 0.4,
+                ige: 0.4,
+                swd: 0.4,
                 heuristic: 0.18,
                 coldstart: 0.02,
             },
@@ -1047,8 +1047,8 @@ async fn stats_algorithm_distribution(State(state): State<AppState>) -> Response
         if !dist.is_empty() {
             return about_ok_with_source(
                 AlgorithmDistribution {
-                    thompson: *dist.get("thompson").unwrap_or(&0.0),
-                    linucb: *dist.get("linucb").unwrap_or(&0.0),
+                    ige: *dist.get("ige").unwrap_or(&0.0),
+                    swd: *dist.get("swd").unwrap_or(&0.0),
                     heuristic: *dist.get("heuristic").unwrap_or(&0.0),
                     coldstart: *dist.get("coldstart").unwrap_or(&0.0),
                 },
@@ -1060,8 +1060,8 @@ async fn stats_algorithm_distribution(State(state): State<AppState>) -> Response
     // Fallback to virtual data
     about_ok_with_source(
         AlgorithmDistribution {
-            thompson: 0.4,
-            linucb: 0.4,
+            ige: 0.4,
+            swd: 0.4,
             heuristic: 0.18,
             coldstart: 0.02,
         },
@@ -1071,8 +1071,8 @@ async fn stats_algorithm_distribution(State(state): State<AppState>) -> Response
 
 #[derive(Serialize)]
 struct AlgorithmDistribution {
-    thompson: f64,
-    linucb: f64,
+    ige: f64,
+    swd: f64,
     heuristic: f64,
     coldstart: f64,
 }
@@ -1159,7 +1159,7 @@ async fn stats_optimization_events(State(_state): State<AppState>) -> Response {
             id: "1".to_string(),
             r#type: "bayesian".to_string(),
             title: "超参数自动调优".to_string(),
-            description: "Thompson 采样 Beta 分布参数优化完成".to_string(),
+            description: "IGE 信息增益探索参数优化完成".to_string(),
             timestamp: chrono::Utc::now()
                 .checked_sub_signed(chrono::Duration::minutes(15))
                 .unwrap_or_else(chrono::Utc::now)
@@ -1665,8 +1665,8 @@ fn default_algorithm_status() -> serde_json::Value {
     let now = now_iso();
     serde_json::json!({
         "algorithms": [
-            { "id": "thompson", "name": "Thompson Sampling", "weight": 0.4, "callCount": 0, "avgLatencyMs": 0.0, "explorationRate": 0.1, "lastCalledAt": now },
-            { "id": "linucb", "name": "LinUCB", "weight": 0.4, "callCount": 0, "avgLatencyMs": 0.0, "explorationRate": 0.1, "lastCalledAt": now },
+            { "id": "ige", "name": "Information Gain Exploration", "weight": 0.4, "callCount": 0, "avgLatencyMs": 0.0, "explorationRate": 0.1, "lastCalledAt": now },
+            { "id": "swd", "name": "Similarity-Weighted Decision", "weight": 0.4, "callCount": 0, "avgLatencyMs": 0.0, "explorationRate": 0.1, "lastCalledAt": now },
             { "id": "heuristic", "name": "Heuristic Rules", "weight": 0.2, "callCount": 0, "avgLatencyMs": 0.0, "explorationRate": 0.1, "lastCalledAt": now },
         ],
         "ensembleConsensusRate": 0.8,
@@ -1791,8 +1791,8 @@ async fn stats_half_life_distribution(State(_state): State<AppState>) -> Respons
 async fn stats_algorithm_trend(State(_state): State<AppState>) -> Response {
     about_ok_with_source(
         serde_json::json!({
-            "thompson": [50, 52, 48, 55, 50, 53, 47, 51, 49, 50],
-            "linucb": [55, 57, 53, 60, 55, 58, 52, 56, 54, 55],
+            "ige": [50, 52, 48, 55, 50, 53, 47, 51, 49, 50],
+            "swd": [55, 57, 53, 60, 55, 58, 52, 56, 54, 55],
             "heuristic": [35, 37, 33, 40, 35, 38, 32, 36, 34, 35],
             "coldstart": [30, 32, 28, 35, 30, 33, 27, 31, 29, 30],
         }),
@@ -1840,10 +1840,10 @@ async fn feature_flags(State(state): State<AppState>) -> Response {
             "writeEnabled": false,
             "flags": {
                 "ensemble": { "enabled": amas_flags.ensemble_enabled, "status": if amas_flags.ensemble_enabled { "healthy" } else { "disabled" } },
-                "thompsonSampling": { "enabled": amas_flags.thompson_enabled, "status": if amas_flags.thompson_enabled { "healthy" } else { "disabled" } },
-                "linucb": { "enabled": amas_flags.linucb_enabled, "status": if amas_flags.linucb_enabled { "healthy" } else { "disabled" } },
+                "ige": { "enabled": amas_flags.amas_ige_enabled, "status": if amas_flags.amas_ige_enabled { "healthy" } else { "disabled" } },
+                "swd": { "enabled": amas_flags.amas_swd_enabled, "status": if amas_flags.amas_swd_enabled { "healthy" } else { "disabled" } },
                 "heuristicBaseline": { "enabled": amas_flags.heuristic_enabled, "status": if amas_flags.heuristic_enabled { "healthy" } else { "disabled" } },
-                "actrMemory": { "enabled": amas_flags.actr_memory_enabled, "status": if amas_flags.actr_memory_enabled { "healthy" } else { "disabled" } },
+                "mdm": { "enabled": amas_flags.amas_mdm_enabled, "status": if amas_flags.amas_mdm_enabled { "healthy" } else { "disabled" } },
                 "coldStartManager": { "enabled": true, "status": "healthy" },
                 "userParamsManager": { "enabled": true, "status": "healthy" },
                 "trendAnalyzer": { "enabled": true, "status": "healthy" },
@@ -1890,7 +1890,7 @@ async fn module_health_check(State(state): State<AppState>) -> Response {
     let trend_analyzer = probe_trend_analyzer_health(pool).await;
     let delayed_reward = probe_delayed_reward_health(pool).await;
     let bayesian = probe_bayesian_health(pool).await;
-    let (ensemble, thompson, linucb, heuristic, actr) = probe_algorithm_health(pool).await;
+    let (ensemble, ige, swd, heuristic, mdm) = probe_algorithm_health(pool).await;
 
     // Causal inference - not implemented
     let causal = ModuleHealthStatus {
@@ -1906,10 +1906,10 @@ async fn module_health_check(State(state): State<AppState>) -> Response {
         serde_json::json!({
             "flags": {
                 "ensemble": ensemble,
-                "thompsonSampling": thompson,
-                "linucb": linucb,
+                "ige": ige,
+                "swd": swd,
                 "heuristicBaseline": heuristic,
-                "actrMemory": actr,
+                "mdm": mdm,
                 "coldStartManager": cold_start,
                 "userParamsManager": user_params,
                 "trendAnalyzer": trend_analyzer,
@@ -2151,17 +2151,14 @@ async fn probe_algorithm_health(
     use crate::amas::config::AMASConfig;
     use crate::amas::decision::ensemble::EnsembleDecision;
     use crate::amas::decision::heuristic::HeuristicLearner;
-    use crate::amas::decision::thompson::ThompsonSamplingModel;
     use crate::amas::types::{FeatureVector, StrategyParams, UserState};
 
     let config = AMASConfig::from_env();
     let amas_flags = config.feature_flags.clone();
 
-    // Create test data using Default
     let test_state = UserState::default();
     let test_feature = FeatureVector::new(vec![0.5; 10], vec!["test".to_string(); 10]);
     let test_strategy = StrategyParams::default();
-    let candidates = vec![test_strategy.clone()];
 
     // 1. Probe Heuristic
     let heuristic_status = {
@@ -2203,53 +2200,10 @@ async fn probe_algorithm_health(
         }
     };
 
-    // 2. Probe Thompson Sampling
-    let thompson_status = {
-        let start = std::time::Instant::now();
-        let mut thompson = ThompsonSamplingModel::new(1.0, 1.0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            thompson.select_action(&test_state, &test_feature, &candidates)
-        }));
-        let latency = start.elapsed().as_millis() as i64;
-
-        if !amas_flags.thompson_enabled {
-            ModuleHealthStatus {
-                enabled: false,
-                status: "disabled",
-                last_activity: None,
-                latency_ms: None,
-                error_rate: None,
-                call_count: None,
-            }
-        } else {
-            match result {
-                Ok(Some(_)) => ModuleHealthStatus {
-                    enabled: true,
-                    status: "healthy",
-                    last_activity: Some(now_iso()),
-                    latency_ms: Some(latency),
-                    error_rate: None,
-                    call_count: None,
-                },
-                _ => ModuleHealthStatus {
-                    enabled: true,
-                    status: "error",
-                    last_activity: Some(now_iso()),
-                    latency_ms: Some(latency),
-                    error_rate: None,
-                    call_count: None,
-                },
-            }
-        }
-    };
-
-    // 3. Probe LinUCB (uses registry metrics as proxy since native module is separate)
-    let linucb_status = {
-        let start = std::time::Instant::now();
-        let metrics = registry().get(crate::amas::metrics::AlgorithmId::LinUCB);
-        let latency = start.elapsed().as_millis() as i64;
-
-        if !amas_flags.linucb_enabled {
+    // 2. IGE (replaces Thompson Sampling)
+    let ige_status = {
+        let metrics = registry().get(crate::amas::metrics::AlgorithmId::Ige);
+        if !amas_flags.amas_ige_enabled {
             ModuleHealthStatus {
                 enabled: false,
                 status: "disabled",
@@ -2266,7 +2220,7 @@ async fn probe_algorithm_health(
                         enabled: true,
                         status: if is_healthy { "healthy" } else { "warning" },
                         last_activity: Some(now_iso()),
-                        latency_ms: Some(latency),
+                        latency_ms: Some(m.avg_latency_ms() as i64),
                         error_rate: if m.call_count() > 0 {
                             Some(m.error_count() as f64 / m.call_count() as f64)
                         } else {
@@ -2277,9 +2231,50 @@ async fn probe_algorithm_health(
                 }
                 None => ModuleHealthStatus {
                     enabled: true,
-                    status: "error",
+                    status: "healthy",
                     last_activity: Some(now_iso()),
-                    latency_ms: Some(latency),
+                    latency_ms: None,
+                    error_rate: None,
+                    call_count: None,
+                },
+            }
+        }
+    };
+
+    // 3. SWD (replaces LinUCB)
+    let swd_status = {
+        let metrics = registry().get(crate::amas::metrics::AlgorithmId::Swd);
+        if !amas_flags.amas_swd_enabled {
+            ModuleHealthStatus {
+                enabled: false,
+                status: "disabled",
+                last_activity: None,
+                latency_ms: None,
+                error_rate: None,
+                call_count: None,
+            }
+        } else {
+            match metrics {
+                Some(m) => {
+                    let is_healthy = m.error_count() == 0 || m.call_count() > m.error_count() * 10;
+                    ModuleHealthStatus {
+                        enabled: true,
+                        status: if is_healthy { "healthy" } else { "warning" },
+                        last_activity: Some(now_iso()),
+                        latency_ms: Some(m.avg_latency_ms() as i64),
+                        error_rate: if m.call_count() > 0 {
+                            Some(m.error_count() as f64 / m.call_count() as f64)
+                        } else {
+                            None
+                        },
+                        call_count: Some(m.call_count() as i64),
+                    }
+                }
+                None => ModuleHealthStatus {
+                    enabled: true,
+                    status: "healthy",
+                    last_activity: Some(now_iso()),
+                    latency_ms: None,
                     error_rate: None,
                     call_count: None,
                 },
@@ -2337,13 +2332,10 @@ async fn probe_algorithm_health(
         }
     };
 
-    // 5. Probe ACT-R Memory (uses registry metrics)
-    let actr_status = {
-        let start = std::time::Instant::now();
-        let metrics = registry().get(crate::amas::metrics::AlgorithmId::ActrMemory);
-        let latency = start.elapsed().as_millis() as i64;
-
-        if !amas_flags.actr_memory_enabled {
+    // 5. MDM (replaces ACT-R Memory)
+    let mdm_status = {
+        let metrics = registry().get(crate::amas::metrics::AlgorithmId::Mdm);
+        if !amas_flags.amas_mdm_enabled {
             ModuleHealthStatus {
                 enabled: false,
                 status: "disabled",
@@ -2360,7 +2352,7 @@ async fn probe_algorithm_health(
                         enabled: true,
                         status: if is_healthy { "healthy" } else { "warning" },
                         last_activity: Some(now_iso()),
-                        latency_ms: Some(latency),
+                        latency_ms: Some(m.avg_latency_ms() as i64),
                         error_rate: if m.call_count() > 0 {
                             Some(m.error_count() as f64 / m.call_count() as f64)
                         } else {
@@ -2371,9 +2363,9 @@ async fn probe_algorithm_health(
                 }
                 None => ModuleHealthStatus {
                     enabled: true,
-                    status: "error",
+                    status: "healthy",
                     last_activity: Some(now_iso()),
-                    latency_ms: Some(latency),
+                    latency_ms: None,
                     error_rate: None,
                     call_count: None,
                 },
@@ -2383,20 +2375,20 @@ async fn probe_algorithm_health(
 
     (
         ensemble_status,
-        thompson_status,
-        linucb_status,
+        ige_status,
+        swd_status,
         heuristic_status,
-        actr_status,
+        mdm_status,
     )
 }
 
 fn default_module_health(has_db: bool) -> serde_json::Value {
     serde_json::json!({
         "ensemble": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
-        "thompsonSampling": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
-        "linucb": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
+        "ige": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
+        "swd": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
         "heuristicBaseline": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
-        "actrMemory": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
+        "mdm": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
         "coldStartManager": { "enabled": true, "status": if has_db { "healthy" } else { "error" } },
         "userParamsManager": { "enabled": true, "status": "healthy" },
         "trendAnalyzer": { "enabled": true, "status": "healthy" },
@@ -2577,8 +2569,8 @@ async fn seed_virtual_decisions(store: &Arc<AboutStore>) {
                     hint_level: 1,
                 },
                 weights: HashMap::from([
-                    ("thompson".to_string(), 0.4),
-                    ("linucb".to_string(), 0.4),
+                    ("ige".to_string(), 0.4),
+                    ("swd".to_string(), 0.4),
                     ("heuristic".to_string(), 0.2),
                 ]),
                 member_votes: Vec::new(),

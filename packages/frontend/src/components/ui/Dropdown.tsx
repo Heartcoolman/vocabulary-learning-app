@@ -41,6 +41,8 @@ export interface DropdownProps extends Omit<HTMLAttributes<HTMLDivElement>, 'chi
   items: DropdownItem[];
   /** 菜单位置 */
   placement?: Placement;
+  /** 按钮变体 */
+  variant?: 'outline' | 'ghost' | 'primary';
   /** 是否禁用 */
   disabled?: boolean;
   /** 打开状态变化回调 */
@@ -50,7 +52,16 @@ export interface DropdownProps extends Omit<HTMLAttributes<HTMLDivElement>, 'chi
 export const Dropdown = memo(
   forwardRef<HTMLDivElement, DropdownProps>(
     (
-      { trigger, items, placement = 'bottom', disabled = false, onOpenChange, className, ...props },
+      {
+        trigger,
+        items,
+        placement = 'bottom',
+        variant = 'outline',
+        disabled = false,
+        onOpenChange,
+        className,
+        ...props
+      },
       ref,
     ) => {
       const [isOpen, setIsOpen] = useState(false);
@@ -159,6 +170,33 @@ export const Dropdown = memo(
         right: 'left-full ml-1',
       };
 
+      const getTriggerClass = () => {
+        const baseClass =
+          'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all duration-g3-fast ease-g3 rounded-button focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
+
+        if (variant === 'ghost') {
+          return cn(
+            baseClass,
+            'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white',
+          );
+        }
+
+        if (variant === 'primary') {
+          return cn(
+            baseClass,
+            'bg-blue-600 text-white hover:bg-blue-700 shadow-button-rest hover:shadow-button-hover',
+          );
+        }
+
+        // default: outline
+        return cn(
+          baseClass,
+          'border border-gray-200 bg-white dark:border-slate-600 dark:bg-slate-800',
+          'text-gray-700 dark:text-gray-200',
+          'hover:border-gray-300 hover:bg-gray-50 dark:hover:border-slate-500 dark:hover:bg-slate-700',
+        );
+      };
+
       return (
         <div ref={ref} className={cn('relative inline-block', className)} {...props}>
           {/* Trigger */}
@@ -171,15 +209,7 @@ export const Dropdown = memo(
             aria-controls={menuId}
             onClick={() => handleOpen(!isOpen)}
             onKeyDown={handleKeyDown}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-2',
-              'rounded-button border border-gray-200 bg-white dark:border-slate-600 dark:bg-slate-800',
-              'text-sm font-medium text-gray-700 dark:text-gray-200',
-              'transition-all duration-g3-fast ease-g3',
-              'hover:border-gray-300 hover:bg-gray-50 dark:hover:border-slate-500 dark:hover:bg-slate-700',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
-              disabled && 'cursor-not-allowed opacity-50',
-            )}
+            className={cn(getTriggerClass(), disabled && 'cursor-not-allowed opacity-50')}
           >
             {trigger}
             <CaretDown

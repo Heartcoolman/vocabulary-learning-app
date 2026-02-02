@@ -97,7 +97,7 @@ export default function AboutGlassStack() {
                   rotateX: distance * -2,
                 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                className={`absolute inset-0 rounded-[2rem] border ${layer.borderColor} bg-gradient-to-br ${layer.color} flex origin-bottom cursor-pointer flex-col p-8 shadow-2xl backdrop-blur-xl transition-all duration-g3-normal hover:brightness-105`}
+                className={`absolute inset-0 rounded-3xl border ${layer.borderColor} bg-gradient-to-br ${layer.color} flex origin-bottom cursor-pointer flex-col p-8 shadow-2xl backdrop-blur-xl transition-all duration-g3-normal hover:brightness-105`}
                 style={{
                   zIndex,
                   background:

@@ -36,6 +36,11 @@ pub struct CreateRecordInput {
     pub note_write_count: Option<i32>,
     // Device type for EVM
     pub device_type: Option<String>,
+    // Micro behavior fields
+    pub is_guess: Option<bool>,
+    pub indecision_index: Option<f64>,
+    pub reaction_latency_ms: Option<i64>,
+    pub keystroke_fluency: Option<f64>,
 }
 
 /// Normalize User-Agent to device type for EVM calculations
@@ -250,8 +255,9 @@ pub async fn create_record(
         r#"
         INSERT INTO "answer_records"
           ("id","userId","wordId","selectedAnswer","correctAnswer","isCorrect","timestamp","dwellTime","masteryLevelAfter","masteryLevelBefore","responseTime","sessionId",
-           "imageViewCount","imageZoomCount","imageLongPressMs","audioPlayCount","audioReplayCount","audioSpeedAdjust","definitionReadMs","exampleReadMs","noteWriteCount","deviceType")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+           "imageViewCount","imageZoomCount","imageLongPressMs","audioPlayCount","audioReplayCount","audioSpeedAdjust","definitionReadMs","exampleReadMs","noteWriteCount","deviceType",
+           "isGuess","indecisionIndex","reactionLatencyMs","keystrokeFluency")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
         "#,
     )
     .bind(&record_id)
@@ -276,6 +282,10 @@ pub async fn create_record(
     .bind(input.example_read_ms.unwrap_or(0))
     .bind(input.note_write_count.unwrap_or(0))
     .bind(input.device_type.as_deref().unwrap_or("unknown"))
+    .bind(input.is_guess.unwrap_or(false))
+    .bind(input.indecision_index.map(|v| v as f32))
+    .bind(input.reaction_latency_ms.map(|v| v as i32))
+    .bind(input.keystroke_fluency.map(|v| v as f32))
     .execute(pool)
     .await?;
 

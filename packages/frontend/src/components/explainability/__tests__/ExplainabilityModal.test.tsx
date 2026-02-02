@@ -284,7 +284,7 @@ describe('ExplainabilityModal', () => {
         <ExplainabilityModal isOpen={true} onClose={onClose} latestDecision={mockLatestDecision} />,
       );
 
-      const overlay = document.querySelector('.backdrop-blur-sm');
+      const overlay = document.querySelector('.bg-black\\/50');
       await act(async () => {
         fireEvent.click(overlay!);
       });

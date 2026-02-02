@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft } from '../components/Icon';
-import { Spinner } from '../components/ui/Spinner';
+import { Button, Input } from '../components/ui';
 
 /**
  * 注册页面组件
@@ -96,12 +96,12 @@ export default function RegisterPage() {
         </div>
 
         {/* 注册表单 */}
-        <div className="rounded-button border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800 md:p-8">
-          <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800 md:p-8">
+          <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
             {/* 错误提示 */}
             {error && (
               <div
-                className="mb-4 rounded-button border border-red-300 bg-red-100 p-3 text-sm text-red-700"
+                className="rounded-button border border-red-300 bg-red-100 p-3 text-sm text-red-700"
                 role="alert"
                 aria-live="assertive"
               >
@@ -109,114 +109,83 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* 用户名输入 */}
-            <div className="mb-4">
-              <label
-                htmlFor="username"
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                用户名
-              </label>
-              <input
+            <div className="space-y-4">
+              {/* 用户名输入 */}
+              <Input
                 id="username"
                 type="text"
+                label="用户名"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="您的昵称"
                 autoComplete="name"
-                aria-required="true"
-                aria-invalid={!!error}
+                required
+                fullWidth
+                error={!!error && error.includes('用户名')}
               />
-            </div>
 
-            {/* 邮箱输入 */}
-            <div className="mb-4">
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                邮箱地址
-              </label>
-              <input
+              {/* 邮箱输入 */}
+              <Input
                 id="email"
                 type="email"
+                label="邮箱地址"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="your@email.com"
                 autoComplete="email"
-                aria-required="true"
-                aria-invalid={!!error}
+                required
+                fullWidth
+                error={!!error && error.includes('邮箱')}
               />
-            </div>
 
-            {/* 密码输入 */}
-            <div className="mb-4">
-              <label
-                htmlFor="password"
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                密码
-              </label>
-              <input
+              {/* 密码输入 */}
+              <Input
                 id="password"
                 type="password"
+                label="密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="至少10个字符"
                 autoComplete="new-password"
-                aria-required="true"
-                aria-invalid={!!error}
-                aria-describedby="password-hint"
+                required
+                fullWidth
+                error={
+                  !!error &&
+                  (error.includes('密码') || error.includes('长度') || error.includes('一致'))
+                }
+                helperText="密码长度至少10个字符，需包含字母、数字和特殊符号"
               />
-              <p id="password-hint" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                密码长度至少10个字符，需包含字母、数字和特殊符号
-              </p>
-            </div>
 
-            {/* 确认密码输入 */}
-            <div className="mb-6">
-              <label
-                htmlFor="confirmPassword"
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                确认密码
-              </label>
-              <input
+              {/* 确认密码输入 */}
+              <Input
                 id="confirmPassword"
                 type="password"
+                label="确认密码"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="再次输入密码"
                 autoComplete="new-password"
-                aria-required="true"
-                aria-invalid={!!error}
+                required
+                fullWidth
+                error={!!error && error.includes('一致')}
               />
             </div>
 
             {/* 注册按钮 */}
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-              aria-label={loading ? '正在注册...' : '注册'}
+              loading={loading}
+              fullWidth
+              variant="primary"
+              size="lg"
             >
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <Spinner size="sm" color="white" className="mr-2" />
-                  注册中...
-                </span>
-              ) : (
-                '注册'
-              )}
-            </button>
+              注册
+            </Button>
           </form>
 
           {/* 登录链接 */}

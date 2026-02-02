@@ -1,7 +1,7 @@
 import { useEffect, useRef, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Clock, Target, SpeakerHigh, CircleNotch } from './Icon';
-import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
+import { slideUpVariants, fadeInVariants } from '../utils/animations';
 import { trackingService } from '../services/TrackingService';
 import { IconColor } from '../utils/iconColors';
 
@@ -24,6 +24,19 @@ export interface WordCardProps {
   nextReviewDate?: string;
   onAudioPlay?: (isReplay?: boolean) => void;
 }
+
+/**
+ * WordCard 组件 - 显示单词的完整信息
+ * 包括单词拼写、音标、例句、发音按钮、掌握程度、得分和复习时间
+ * 使用 React.memo 优化：避免因父组件状态变化导致的不必要重渲染
+ */
+import { Button, Card } from './ui';
+import { cn } from './ui/utils';
+
+// ... other imports ...
+
+// 创建 MotionCard 组件
+const MotionCard = motion(Card);
 
 /**
  * WordCard 组件 - 显示单词的完整信息
@@ -75,17 +88,18 @@ function WordCard({
   }, [isPronouncing]);
 
   return (
-    <motion.div
+    <MotionCard
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80 md:px-16 md:py-14"
+      variant="glass"
+      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 px-10 py-10 md:px-16 md:py-14"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
       data-testid="word-card"
     >
       {/* 发音按钮 */}
-      <motion.button
+      <Button
         ref={pronounceButtonRef}
         onClick={handlePronounce}
         onKeyDown={(e) => {
@@ -95,10 +109,17 @@ function WordCard({
           }
         }}
         disabled={isPronouncing || isAudioLoading}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        transition={g3SpringSnappy}
-        className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-elevated hover:bg-blue-600 hover:shadow-floating ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
+        variant="ghost"
+        size="lg"
+        className={cn(
+          'relative h-12 w-12 rounded-full p-0',
+          'border border-blue-100 bg-blue-50 shadow-sm',
+          'text-blue-500 hover:text-blue-600',
+          'hover:border-blue-200 hover:bg-blue-100/80 hover:shadow',
+          'dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/20',
+          'transition-all duration-300',
+          isPronouncing && 'animate-pulse ring-2 ring-blue-200 dark:ring-blue-500/30',
+        )}
         aria-label={
           isAudioLoading
             ? '正在加载音频'
@@ -118,8 +139,9 @@ function WordCard({
               exit={{ opacity: 0 }}
               transition={{ rotate: { duration: 0.8, repeat: Infinity, ease: 'linear' } }}
               aria-hidden="true"
+              className="flex items-center justify-center"
             >
-              <CircleNotch size={32} weight="bold" className="text-white" />
+              <CircleNotch size={32} weight="bold" className="text-blue-500 dark:text-blue-400" />
             </motion.span>
           ) : (
             <motion.span
@@ -128,12 +150,13 @@ function WordCard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               aria-hidden="true"
+              className="effect-scale flex items-center justify-center"
             >
-              <SpeakerHigh size={32} weight="fill" className="text-white" />
+              <SpeakerHigh size={36} weight="fill" className="text-blue-500 dark:text-blue-400" />
             </motion.span>
           )}
         </AnimatePresence>
-      </motion.button>
+      </Button>
 
       {/* 单词拼写 */}
       <motion.h2
@@ -167,10 +190,7 @@ function WordCard({
 
       {/* 学习状态信息 */}
       {(masteryLevel !== undefined || wordScore !== undefined || nextReviewDate) && (
-        <motion.div
-          variants={fadeInVariants}
-          className="mt-8 rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80"
-        >
+        <MotionCard variants={fadeInVariants} variant="glass" className="mt-8 p-4">
           <div className="flex flex-wrap items-center justify-center gap-6">
             {/* 掌握程度 - 用星星表示 */}
             {masteryLevel !== undefined && (
@@ -245,9 +265,9 @@ function WordCard({
               </div>
             )}
           </div>
-        </motion.div>
+        </MotionCard>
       )}
-    </motion.div>
+    </MotionCard>
   );
 }
 

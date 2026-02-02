@@ -6,6 +6,8 @@ use sqlx::{QueryBuilder, Row};
 
 use crate::amas::types::StrategyParams as AmasStrategyParams;
 use crate::amas::AMASEngine;
+use crate::db::operations::confusion_cache::find_confusable_words_batch;
+use crate::db::operations::content::get_words_by_ids;
 use crate::db::operations::get_amas_user_model;
 use crate::db::DatabaseProxy;
 use crate::services::amas::{
@@ -36,6 +38,15 @@ fn effective_batch_size(requested: Option<i64>, strategy: &StrategyParams) -> us
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Distractors {
+    /// 看词选义：含正确答案的4个释义
+    pub meaning_options: Vec<String>,
+    /// 看义选词：含正确答案的4个拼写
+    pub spelling_options: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LearningWord {
     pub id: String,
     pub spelling: String,
@@ -46,6 +57,8 @@ pub struct LearningWord {
     pub audio_url: Option<String>,
     pub is_new: bool,
     pub difficulty: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distractors: Option<Distractors>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -547,11 +560,22 @@ async fn fetch_words_with_strategy(
 
     let mut out: Vec<LearningWord> = Vec::new();
     for w in review_words {
-        out.push(word_to_learning_word(w.word, false, w.difficulty));
+        out.push(word_to_learning_word(w.word, false, w.difficulty, None));
     }
     for w in new_words {
         out.push(w);
     }
+
+    // Fetch additional words for distractor pool to ensure diverse options
+    let out_ids: Vec<String> = out.iter().map(|w| w.id.clone()).collect();
+    let mut all_exclude: Vec<String> = exclude_ids.to_vec();
+    all_exclude.extend(out_ids);
+    let distractor_pool = fetch_distractor_pool_words(proxy, user_id, &all_exclude, 20).await?;
+    let semantic_pool = fetch_semantic_distractor_pool(proxy, &out)
+        .await
+        .unwrap_or_default();
+
+    populate_distractors(&mut out, &distractor_pool, &semantic_pool);
     Ok(out)
 }
 
@@ -702,6 +726,7 @@ async fn fetch_new_words_in_range(
                 audio_url: w.audio_url,
                 is_new: true,
                 difficulty,
+                distractors: None,
             }
         })
         .collect();
@@ -762,7 +787,7 @@ async fn fetch_words_in_difficulty_range(
     let learned_set = select_learned_word_set(proxy, user_id, &candidate_ids).await?;
     let difficulty_map = batch_compute_difficulty(proxy, user_id, &candidate_ids).await?;
 
-    Ok(candidates
+    let mut result: Vec<LearningWord> = candidates
         .into_iter()
         .map(|w| {
             let id = w.id;
@@ -778,11 +803,24 @@ async fn fetch_words_in_difficulty_range(
                 audio_url: w.audio_url,
                 is_new,
                 difficulty,
+                distractors: None,
             }
         })
         .filter(|w| w.difficulty >= range.min && w.difficulty <= range.max)
         .take(count)
-        .collect())
+        .collect();
+
+    // Fetch distractor pool and populate distractors
+    let result_ids: Vec<String> = result.iter().map(|w| w.id.clone()).collect();
+    let mut all_exclude: Vec<String> = exclude_ids.to_vec();
+    all_exclude.extend(result_ids);
+    let distractor_pool = fetch_distractor_pool_words(proxy, user_id, &all_exclude, 20).await?;
+    let semantic_pool = fetch_semantic_distractor_pool(proxy, &result)
+        .await
+        .unwrap_or_default();
+    populate_distractors(&mut result, &distractor_pool, &semantic_pool);
+
+    Ok(result)
 }
 
 async fn batch_compute_difficulty(
@@ -947,7 +985,175 @@ fn compute_difficulty_from_score(score: Option<&WordScoreRow>, error_rate: f64) 
     (error_rate * 0.6 + score_factor * 0.4).clamp(0.0, 1.0)
 }
 
-fn word_to_learning_word(word: WordBase, is_new: bool, difficulty: f64) -> LearningWord {
+/// Simplifies a meaning by taking only the first part (before ；/;/、)
+fn simplify_meaning(meaning: &str) -> String {
+    let trimmed = meaning.trim();
+    if trimmed.is_empty() {
+        return trimmed.to_string();
+    }
+    // Split by Chinese/English semicolons and enumeration comma
+    for c in ['；', ';', '、'] {
+        if let Some(pos) = trimmed.find(c) {
+            let first_part = trimmed[..pos].trim();
+            if !first_part.is_empty() {
+                return first_part.to_string();
+            }
+        }
+    }
+    trimmed.to_string()
+}
+
+/// Fisher-Yates shuffle with internal RNG
+fn shuffle_vec<T>(items: &mut [T]) {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+
+    let state = RandomState::new();
+    let mut hasher = state.build_hasher();
+    hasher.write_usize(items.len());
+    let mut seed = hasher.finish();
+
+    for i in (1..items.len()).rev() {
+        // Simple LCG
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let j = (seed as usize) % (i + 1);
+        items.swap(i, j);
+    }
+}
+
+/// Generates distractors for a word given the pool of other words.
+/// Pool order is preserved (semantic distractors first), only final options are shuffled.
+fn generate_distractors_for_word(word: &LearningWord, pool: &[LearningWord]) -> Distractors {
+    const NUM_OPTIONS: usize = 4;
+    const FALLBACK_MEANINGS: &[&str] = &["未知释义", "其他含义", "暂无解释", "无此选项"];
+    const FALLBACK_SPELLINGS: &[&str] = &["unknown", "other", "none", "N/A"];
+
+    // --- Meaning options (word-to-meaning) ---
+    let correct_meaning = word
+        .meanings
+        .first()
+        .map(|m| simplify_meaning(m))
+        .unwrap_or_default();
+
+    // Preserve pool order, deduplicate via seen set
+    let mut seen_meanings: HashSet<String> = HashSet::new();
+    seen_meanings.insert(correct_meaning.clone());
+    let meaning_candidates: Vec<String> = pool
+        .iter()
+        .filter(|w| w.id != word.id)
+        .flat_map(|w| w.meanings.iter())
+        .map(|m| simplify_meaning(m))
+        .filter(|m| !m.is_empty() && seen_meanings.insert(m.clone()))
+        .collect();
+
+    let needed = NUM_OPTIONS.saturating_sub(1);
+    let mut distractors_m: Vec<String> = meaning_candidates.into_iter().take(needed).collect();
+
+    // Fill with fallbacks if not enough
+    if distractors_m.len() < needed {
+        for fb in FALLBACK_MEANINGS {
+            if distractors_m.len() >= needed {
+                break;
+            }
+            let s = (*fb).to_string();
+            if s != correct_meaning && !distractors_m.contains(&s) {
+                distractors_m.push(s);
+            }
+        }
+    }
+
+    let mut meaning_options: Vec<String> =
+        std::iter::once(correct_meaning).chain(distractors_m).collect();
+    shuffle_vec(&mut meaning_options);
+
+    // --- Spelling options (meaning-to-word) ---
+    let correct_spelling = word.spelling.clone();
+
+    // Preserve pool order, deduplicate via seen set
+    let mut seen_spellings: HashSet<String> = HashSet::new();
+    seen_spellings.insert(correct_spelling.clone());
+    let spelling_candidates: Vec<String> = pool
+        .iter()
+        .filter(|w| w.id != word.id)
+        .map(|w| w.spelling.clone())
+        .filter(|s| !s.is_empty() && seen_spellings.insert(s.clone()))
+        .collect();
+
+    let mut distractors_s: Vec<String> = spelling_candidates.into_iter().take(needed).collect();
+
+    if distractors_s.len() < needed {
+        for fb in FALLBACK_SPELLINGS {
+            if distractors_s.len() >= needed {
+                break;
+            }
+            let s = (*fb).to_string();
+            if s != correct_spelling && !distractors_s.contains(&s) {
+                distractors_s.push(s);
+            }
+        }
+    }
+
+    let mut spelling_options: Vec<String> = std::iter::once(correct_spelling)
+        .chain(distractors_s)
+        .collect();
+    shuffle_vec(&mut spelling_options);
+
+    Distractors {
+        meaning_options,
+        spelling_options,
+    }
+}
+
+/// Populates distractors for all words using provided pools.
+/// For each word, builds a per-word pool: semantic distractors first (if available),
+/// then random pool, then other words as fallback.
+fn populate_distractors(
+    words: &mut [LearningWord],
+    random_pool: &[LearningWord],
+    semantic_pool: &HashMap<String, Vec<LearningWord>>,
+) {
+    // Clone words once upfront for fallback usage
+    let words_clone: Vec<LearningWord> = words.iter().cloned().collect();
+
+    for word in words.iter_mut() {
+        // Build per-word pool: semantic first, then random, then other words
+        let mut pool: Vec<LearningWord> = Vec::new();
+        let mut pool_ids: HashSet<String> = HashSet::new();
+        pool_ids.insert(word.id.clone()); // Exclude self
+
+        // 1. Add semantic distractors first (already sorted by distance)
+        if let Some(semantic_words) = semantic_pool.get(&word.id) {
+            for w in semantic_words {
+                if pool_ids.insert(w.id.clone()) {
+                    pool.push(w.clone());
+                }
+            }
+        }
+
+        // 2. Add random pool (excluding duplicates)
+        for w in random_pool {
+            if pool_ids.insert(w.id.clone()) {
+                pool.push(w.clone());
+            }
+        }
+
+        // 3. Add other target words as fallback (excluding duplicates)
+        for w in &words_clone {
+            if pool_ids.insert(w.id.clone()) {
+                pool.push(w.clone());
+            }
+        }
+
+        word.distractors = Some(generate_distractors_for_word(word, &pool));
+    }
+}
+
+fn word_to_learning_word(
+    word: WordBase,
+    is_new: bool,
+    difficulty: f64,
+    distractors: Option<Distractors>,
+) -> LearningWord {
     LearningWord {
         id: word.id,
         spelling: word.spelling,
@@ -957,6 +1163,7 @@ fn word_to_learning_word(word: WordBase, is_new: bool, difficulty: f64) -> Learn
         audio_url: word.audio_url,
         is_new,
         difficulty,
+        distractors,
     }
 }
 
@@ -1332,6 +1539,111 @@ async fn select_candidate_words_from_word_books(
     qb.push_bind(take as i64);
     let rows = qb.build().fetch_all(pool).await?;
     Ok(rows.into_iter().map(map_postgres_word_row).collect())
+}
+
+/// Fetch random words for distractor pool (not for learning, just for generating options)
+async fn fetch_distractor_pool_words(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    exclude_ids: &[String],
+    count: usize,
+) -> Result<Vec<LearningWord>, sqlx::Error> {
+    const DISTRACTOR_POOL_SIZE: usize = 20;
+    let take = count.max(DISTRACTOR_POOL_SIZE);
+
+    let config = get_or_create_user_study_config(proxy, user_id).await?;
+    if config.selected_word_book_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let candidates = select_candidate_words_from_word_books(
+        proxy,
+        &config.selected_word_book_ids,
+        exclude_ids,
+        "random", // Always random for distractor pool
+        take,
+    )
+    .await?;
+
+    Ok(candidates
+        .into_iter()
+        .map(|w| LearningWord {
+            id: w.id,
+            spelling: w.spelling,
+            phonetic: w.phonetic,
+            meanings: w.meanings,
+            examples: w.examples,
+            audio_url: w.audio_url,
+            is_new: false,
+            difficulty: 0.5,
+            distractors: None,
+        })
+        .collect())
+}
+
+/// Fetch semantic distractor pool from confusion_pairs_cache.
+/// Returns a map of target_word_id -> Vec<LearningWord> (confusable words sorted by distance).
+async fn fetch_semantic_distractor_pool(
+    proxy: &DatabaseProxy,
+    target_words: &[LearningWord],
+) -> Result<HashMap<String, Vec<LearningWord>>, sqlx::Error> {
+    const SEMANTIC_THRESHOLD: f64 = 0.5;
+    const PER_WORD_LIMIT: usize = 10;
+
+    if target_words.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let word_ids: Vec<String> = target_words.iter().map(|w| w.id.clone()).collect();
+    let confusable_map =
+        find_confusable_words_batch(proxy, &word_ids, SEMANTIC_THRESHOLD, PER_WORD_LIMIT).await?;
+
+    if confusable_map.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Collect all unique confusable word IDs
+    let all_confusable_ids: Vec<String> = confusable_map
+        .values()
+        .flat_map(|pairs| pairs.iter().map(|(id, _)| id.clone()))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    if all_confusable_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Batch fetch word data
+    let words = get_words_by_ids(proxy, &all_confusable_ids).await?;
+    let word_map: HashMap<&str, &crate::db::operations::content::Word> =
+        words.iter().map(|w| (w.id.as_str(), w)).collect();
+
+    // Build result map preserving distance order
+    let mut result: HashMap<String, Vec<LearningWord>> = HashMap::new();
+    for (target_id, pairs) in confusable_map {
+        let mut semantic_words: Vec<LearningWord> = Vec::new();
+        for (confusable_id, _distance) in pairs {
+            if let Some(w) = word_map.get(confusable_id.as_str()) {
+                semantic_words.push(LearningWord {
+                    id: w.id.clone(),
+                    spelling: w.spelling.clone(),
+                    phonetic: w.phonetic.clone(),
+                    meanings: w.meanings.clone(),
+                    examples: w.examples.clone(),
+                    audio_url: w.audio_url.clone(),
+                    is_new: false,
+                    difficulty: w.difficulty.unwrap_or(0.5),
+                    distractors: None,
+                });
+            }
+        }
+        if !semantic_words.is_empty() {
+            result.insert(target_id, semantic_words);
+        }
+    }
+
+    Ok(result)
 }
 
 async fn select_learning_session(

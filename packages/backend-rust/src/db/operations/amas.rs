@@ -15,12 +15,12 @@ pub struct AmasUserState {
     pub cognitive_profile: serde_json::Value,
     pub trend_state: Option<String>,
     pub confidence: f64,
-    // Runtime state fields (Migration 043)
     pub visual_fatigue: Option<f64>,
     pub fused_fatigue: Option<f64>,
     pub mastery_history: Option<serde_json::Value>,
     pub habit_samples: Option<serde_json::Value>,
     pub ensemble_performance: Option<serde_json::Value>,
+    pub algorithm_states: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -129,8 +129,9 @@ pub async fn upsert_amas_user_state(
             "id", "userId", "attention", "fatigue", "motivation",
             "cognitiveProfile", "trendState", "confidence",
             "visualFatigue", "fusedFatigue", "masteryHistory", "habitSamples", "ensemblePerformance",
+            "algorithmStates",
             "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT ("userId") DO UPDATE SET
             "attention" = EXCLUDED."attention",
             "fatigue" = EXCLUDED."fatigue",
@@ -143,6 +144,7 @@ pub async fn upsert_amas_user_state(
             "masteryHistory" = EXCLUDED."masteryHistory",
             "habitSamples" = EXCLUDED."habitSamples",
             "ensemblePerformance" = EXCLUDED."ensemblePerformance",
+            "algorithmStates" = EXCLUDED."algorithmStates",
             "updatedAt" = EXCLUDED."updatedAt"
         "#,
     )
@@ -159,6 +161,7 @@ pub async fn upsert_amas_user_state(
     .bind(&user_state.mastery_history)
     .bind(&user_state.habit_samples)
     .bind(&user_state.ensemble_performance)
+    .bind(&user_state.algorithm_states)
     .bind(now)
     .bind(now)
     .execute(proxy.pool())
@@ -225,8 +228,9 @@ pub async fn upsert_amas_user_state_tx(
             "id", "userId", "attention", "fatigue", "motivation",
             "cognitiveProfile", "trendState", "confidence",
             "visualFatigue", "fusedFatigue", "masteryHistory", "habitSamples", "ensemblePerformance",
+            "algorithmStates",
             "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT ("userId") DO UPDATE SET
             "attention" = EXCLUDED."attention",
             "fatigue" = EXCLUDED."fatigue",
@@ -239,6 +243,7 @@ pub async fn upsert_amas_user_state_tx(
             "masteryHistory" = EXCLUDED."masteryHistory",
             "habitSamples" = EXCLUDED."habitSamples",
             "ensemblePerformance" = EXCLUDED."ensemblePerformance",
+            "algorithmStates" = EXCLUDED."algorithmStates",
             "updatedAt" = EXCLUDED."updatedAt"
         "#,
     )
@@ -255,6 +260,7 @@ pub async fn upsert_amas_user_state_tx(
     .bind(&user_state.mastery_history)
     .bind(&user_state.habit_samples)
     .bind(&user_state.ensemble_performance)
+    .bind(&user_state.algorithm_states)
     .bind(now)
     .bind(now)
     .execute(&mut **tx)
@@ -568,6 +574,7 @@ fn map_amas_user_state(row: &sqlx::postgres::PgRow) -> AmasUserState {
         mastery_history: row.try_get("masteryHistory").ok(),
         habit_samples: row.try_get("habitSamples").ok(),
         ensemble_performance: row.try_get("ensemblePerformance").ok(),
+        algorithm_states: row.try_get("algorithmStates").ok(),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),
     }

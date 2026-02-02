@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { Modal } from '../ui/Modal';
 import {
   X,
   SpeakerHigh,
@@ -18,12 +18,7 @@ import { MemoryTraceChart } from './MemoryTraceChart';
 import { RelatedWords } from '../semantic';
 import { useWordDetailData } from '../../hooks/useWordDetailData';
 import type { MasteryEvaluation } from '../../types/word-mastery';
-import {
-  scaleInVariants,
-  backdropVariants,
-  staggerContainerVariants,
-  staggerItemVariants,
-} from '../../utils/animations';
+import { staggerContainerVariants, staggerItemVariants } from '../../utils/animations';
 
 interface WordMasteryDetailModalProps {
   wordId: string;
@@ -332,47 +327,34 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
     );
   };
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
-          <motion.div
-            variants={backdropVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            onClick={onClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          />
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="" // 使用自定义 Header
+      maxWidth="4xl"
+      showCloseButton={false} // 使用内部自定义关闭按钮
+      closeOnOverlayClick={true}
+    >
+      <motion.div
+        variants={staggerContainerVariants}
+        initial="hidden"
+        animate="visible"
+        className="relative flex max-h-[85vh] flex-col overflow-hidden bg-white dark:bg-slate-900"
+      >
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="关闭"
+          className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+        >
+          <X size={24} />
+        </button>
 
-          {/* Modal Container */}
-          <motion.div
-            variants={scaleInVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            role="dialog"
-            aria-modal="true"
-            aria-label="单词掌握度详情"
-            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
-          >
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="关闭"
-              className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
-            >
-              <X size={24} />
-            </button>
-
-            {/* Scrollable Content */}
-            <div className="custom-scrollbar flex-1 overflow-y-auto">{renderContent()}</div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>,
-    document.body,
+        {/* Scrollable Content */}
+        <div className="custom-scrollbar flex-1 overflow-y-auto">{renderContent()}</div>
+      </motion.div>
+    </Modal>
   );
 };

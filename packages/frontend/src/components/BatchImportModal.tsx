@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { X, Warning, CheckCircle, CircleNotch, FileText } from './Icon';
+import { Modal } from './ui/Modal';
 import FileUpload from './FileUpload';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
 import { adminClient, wordClient } from '../services/client';
@@ -136,28 +136,20 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
+  // 移除 createPortal，直接返回 Modal
+  // Modal 组件内部处理了 createPortal 和样式
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="批量导入单词"
+      maxWidth="2xl"
+      closeOnOverlayClick={!isImporting}
+      showCloseButton={!isImporting}
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-scale-in flex-col overflow-hidden rounded-card bg-white shadow-floating dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-slate-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">批量导入单词</h2>
-          <button
-            onClick={handleClose}
-            disabled={isImporting}
-            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:hover:bg-slate-700 dark:hover:text-gray-300"
-            aria-label="Close modal"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex max-h-[70vh] flex-col overflow-hidden">
+        {/* Step Content */}
+        <div className="flex-1 overflow-y-auto p-1">
           {step === 'upload' && (
             <div className="space-y-6">
               <div className="rounded-button border border-blue-100 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30">
@@ -326,7 +318,8 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
           )}
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
+        {/* Footer Buttons */}
+        <div className="mt-6 flex justify-end gap-3 pt-4">
           {step === 'preview' ? (
             <>
               <button
@@ -360,8 +353,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
           ) : null}
         </div>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 };
 

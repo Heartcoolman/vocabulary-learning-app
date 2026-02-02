@@ -592,7 +592,7 @@ function IntroOverlay({ onDismiss }: { onDismiss: () => void }) {
         onClick={() => setExpandedIndex(null)}
       >
         <div
-          className="relative w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-g3-normal"
+          className="relative w-full max-w-2xl overflow-hidden rounded-card bg-white shadow-2xl transition-all duration-g3-normal"
           style={{
             borderTop: expandedStage
               ? `4px solid ${expandedStage.borderColor}`

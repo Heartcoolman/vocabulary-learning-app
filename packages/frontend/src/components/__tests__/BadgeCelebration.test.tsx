@@ -333,14 +333,14 @@ describe('BadgeCelebration', () => {
     it('should have shadow on modal', () => {
       render(<BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={true} />);
 
-      const modal = screen.getByText('恭喜获得新徽章!').closest('.shadow-2xl');
+      const modal = document.body.querySelector('.shadow-elevated');
       expect(modal).toBeInTheDocument();
     });
 
     it('should have rounded corners on modal', () => {
       render(<BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={true} />);
 
-      const modal = screen.getByText('恭喜获得新徽章!').closest('.rounded-3xl');
+      const modal = document.body.querySelector('.rounded-card');
       expect(modal).toBeInTheDocument();
     });
   });

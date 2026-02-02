@@ -28,6 +28,7 @@ struct SuccessResponseWithPagination<T, P> {
 struct CreateSessionRequest {
     session_type: Option<String>,
     target_mastery_count: Option<i64>,
+    self_reported_energy: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -217,6 +218,19 @@ async fn create_session(
         }
     }
 
+    // Validate energy level
+    let energy_level = match payload.self_reported_energy.as_deref() {
+        Some("high") | Some("normal") | Some("low") => payload.self_reported_energy.as_deref(),
+        Some(invalid) => {
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "INVALID_ENERGY_LEVEL",
+                format!("无效的精力状态: '{}'. 必须是 'high', 'normal' 或 'low'", invalid),
+            ));
+        }
+        None => None,
+    };
+
     let session_id = uuid::Uuid::new_v4().to_string();
     insert_learning_session(
         proxy.as_ref(),
@@ -224,6 +238,7 @@ async fn create_session(
         &user.id,
         &session_type,
         payload.target_mastery_count,
+        energy_level,
     )
     .await?;
 
@@ -668,6 +683,7 @@ async fn insert_learning_session(
     user_id: &str,
     session_type: &str,
     target_mastery_count: Option<i64>,
+    self_reported_energy: Option<&str>,
 ) -> Result<(), AppError> {
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
@@ -675,8 +691,8 @@ async fn insert_learning_session(
     sqlx::query(
         r#"
         INSERT INTO "learning_sessions"
-          ("id","userId","startedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","contextShifts","createdAt","updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,$7::"SessionType",$8,$9,$10)
+          ("id","userId","startedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","contextShifts","selfReportedEnergy","createdAt","updatedAt")
+        VALUES ($1,$2,$3,$4,$5,$6,$7::"SessionType",$8,$9,$10,$11)
         "#,
     )
     .bind(session_id)
@@ -687,6 +703,7 @@ async fn insert_learning_session(
     .bind(target_mastery_count.map(|v| v as i32))
     .bind(session_type)
     .bind(0_i32)
+    .bind(self_reported_energy)
     .bind(now)
     .bind(now)
     .execute(pool)

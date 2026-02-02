@@ -12,7 +12,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { processLearningEvent } from '../mastery';
-import type { LearningEventInput, AmasProcessResult } from '../../types/amas';
+import type { LearningEventInput, AmasProcessResult, MicroInteractionData } from '../../types/amas';
 import { learningLogger } from '../../utils/logger';
 import { trackingService } from '../../services/TrackingService';
 import { getDeviceType } from '../../utils/device';
@@ -56,6 +56,10 @@ export interface SubmitAnswerParams {
   };
   /** VARK 交互数据 */
   varkInteraction?: VarkInteractionData;
+  /** 蒙题标记 */
+  isGuess?: boolean;
+  /** 微行为数据 */
+  microInteraction?: MicroInteractionData;
 }
 
 /**
@@ -220,6 +224,9 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
       definitionReadMs: params.varkInteraction?.definitionReadMs,
       exampleReadMs: params.varkInteraction?.exampleReadMs,
       noteWriteCount: params.varkInteraction?.noteWriteCount,
+      // Micro behavior data
+      isGuess: params.isGuess,
+      microInteraction: params.microInteraction,
     };
   }, []);
 

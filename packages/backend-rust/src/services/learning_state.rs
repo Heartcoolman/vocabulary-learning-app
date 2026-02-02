@@ -58,10 +58,16 @@ pub struct WordLearningState {
     pub reps: i32,
     pub scheduled_days: f64,
     pub elapsed_days: f64,
-    // UMM fields
-    pub umm_strength: Option<f64>,
-    pub umm_consolidation: Option<f64>,
-    pub umm_last_review_ts: Option<i64>,
+    // AMAS memory fields
+    #[serde(alias = "ummStrength")]
+    pub amas_strength: Option<f64>,
+    #[serde(alias = "ummConsolidation")]
+    pub amas_consolidation: Option<f64>,
+    #[serde(alias = "ummLastReviewTs")]
+    pub amas_last_review_ts: Option<i64>,
+    // AIR fields
+    pub air_alpha: Option<f64>,
+    pub air_beta: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,10 +164,16 @@ pub struct WordStateUpdateData {
     pub reps: Option<i32>,
     pub scheduled_days: Option<f64>,
     pub elapsed_days: Option<f64>,
-    // UMM fields
-    pub umm_strength: Option<f64>,
-    pub umm_consolidation: Option<f64>,
-    pub umm_last_review_ts: Option<i64>,
+    // AMAS memory fields
+    #[serde(alias = "ummStrength")]
+    pub amas_strength: Option<f64>,
+    #[serde(alias = "ummConsolidation")]
+    pub amas_consolidation: Option<f64>,
+    #[serde(alias = "ummLastReviewTs")]
+    pub amas_last_review_ts: Option<i64>,
+    // AIR fields
+    pub air_alpha: Option<f64>,
+    pub air_beta: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -184,7 +196,8 @@ pub async fn get_word_state(
         r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
            "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
            "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays",
-           "ummStrength", "ummConsolidation", "ummLastReviewTs"
+           "ummStrength", "ummConsolidation", "ummLastReviewTs",
+           "airAlpha", "airBeta"
            FROM "word_learning_states" WHERE "userId" = $1 AND "wordId" = $2"#,
     )
     .bind(user_id)
@@ -239,9 +252,11 @@ fn parse_word_learning_state(row: &sqlx::postgres::PgRow) -> Result<WordLearning
         reps: row.try_get("reps").unwrap_or(0),
         scheduled_days: row.try_get("scheduledDays").unwrap_or(0.0),
         elapsed_days: row.try_get("elapsedDays").unwrap_or(0.0),
-        umm_strength: row.try_get("ummStrength").ok(),
-        umm_consolidation: row.try_get("ummConsolidation").ok(),
-        umm_last_review_ts: row.try_get("ummLastReviewTs").ok(),
+        amas_strength: row.try_get("amasStrength").ok().or_else(|| row.try_get("ummStrength").ok()),
+        amas_consolidation: row.try_get("amasConsolidation").ok().or_else(|| row.try_get("ummConsolidation").ok()),
+        amas_last_review_ts: row.try_get("amasLastReviewTs").ok().or_else(|| row.try_get("ummLastReviewTs").ok()),
+        air_alpha: row.try_get("airAlpha").ok(),
+        air_beta: row.try_get("airBeta").ok(),
     })
 }
 
@@ -512,12 +527,14 @@ pub async fn upsert_word_state(
            "id","userId","wordId","state","masteryLevel","easeFactor",
            "reviewCount","lastReviewDate","nextReviewDate","createdAt","updatedAt",
            "stability","difficulty","desiredRetention","lapses","reps","scheduledDays","elapsedDays",
-           "ummStrength","ummConsolidation","ummLastReviewTs"
+           "amasStrength","amasConsolidation","amasLastReviewTs",
+           "airAlpha","airBeta"
          )
          VALUES ($1,$2,$3,COALESCE($4::"WordState",'NEW'::"WordState"),COALESCE($5,0),COALESCE($6,2.5),
                  COALESCE($7,0),$8,$9,$10,$11,
                  COALESCE($13,1.0),COALESCE($14,0.3),COALESCE($15,0.9),COALESCE($16,0),COALESCE($17,0),COALESCE($18,0.0),COALESCE($19,0.0),
-                 $20,$21,$22)
+                 $20,$21,$22,
+                 $23,$24)
          ON CONFLICT ("userId","wordId") DO UPDATE SET
            "state"=COALESCE($4::"WordState","word_learning_states"."state"),
            "masteryLevel"=COALESCE($5,"word_learning_states"."masteryLevel"),
@@ -533,9 +550,11 @@ pub async fn upsert_word_state(
            "reps"=CASE WHEN $12 THEN "word_learning_states"."reps"+1 ELSE COALESCE($17,"word_learning_states"."reps") END,
            "scheduledDays"=COALESCE($18,"word_learning_states"."scheduledDays"),
            "elapsedDays"=COALESCE($19,"word_learning_states"."elapsedDays"),
-           "ummStrength"=COALESCE($20,"word_learning_states"."ummStrength"),
-           "ummConsolidation"=COALESCE($21,"word_learning_states"."ummConsolidation"),
-           "ummLastReviewTs"=COALESCE($22,"word_learning_states"."ummLastReviewTs")"#,
+           "amasStrength"=COALESCE($20,"word_learning_states"."amasStrength"),
+           "amasConsolidation"=COALESCE($21,"word_learning_states"."amasConsolidation"),
+           "amasLastReviewTs"=COALESCE($22,"word_learning_states"."amasLastReviewTs"),
+           "airAlpha"=COALESCE($23,"word_learning_states"."airAlpha"),
+           "airBeta"=COALESCE($24,"word_learning_states"."airBeta")"#,
     )
     .bind(&id).bind(user_id).bind(word_id).bind(state_str)
     .bind(data.mastery_level).bind(data.ease_factor).bind(data.review_count)
@@ -543,7 +562,8 @@ pub async fn upsert_word_state(
     .bind(data.increment_review)
     .bind(data.stability).bind(data.difficulty).bind(data.desired_retention)
     .bind(data.lapses).bind(data.reps).bind(data.scheduled_days).bind(data.elapsed_days)
-    .bind(data.umm_strength).bind(data.umm_consolidation).bind(data.umm_last_review_ts)
+    .bind(data.amas_strength).bind(data.amas_consolidation).bind(data.amas_last_review_ts)
+    .bind(data.air_alpha).bind(data.air_beta)
     .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())

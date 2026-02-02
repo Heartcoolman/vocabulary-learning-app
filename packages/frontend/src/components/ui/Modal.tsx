@@ -10,7 +10,7 @@ interface ModalProps {
   children: ReactNode;
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | 'full';
 }
 
 const maxWidthClasses = {
@@ -18,6 +18,11 @@ const maxWidthClasses = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
+  '2xl': 'max-w-2xl',
+  '3xl': 'max-w-3xl',
+  '4xl': 'max-w-4xl',
+  '5xl': 'max-w-5xl',
+  full: 'max-w-full',
 };
 
 export function Modal({

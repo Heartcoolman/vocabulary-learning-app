@@ -85,6 +85,23 @@ class LearningService {
     return this.cachedCurrentWord;
   }
 
+  private latestStrategy: { batch_size: number } | null = null;
+
+  /**
+   * 从后端获取当前策略并更新缓存
+   */
+  async fetchCurrentStrategy(): Promise<void> {
+    try {
+      const strategy = await ApiClient.getAmasStrategy();
+      if (strategy) {
+        this.latestStrategy = strategy;
+      }
+    } catch (e) {
+      // 忽略错误，使用默认值
+      learningLogger.warn({ err: e }, '获取AMAS策略失败，将使用默认配置');
+    }
+  }
+
   /**
    * 提交答案（调用后端AMAS处理）
    */
@@ -112,6 +129,11 @@ class LearningService {
         dwellTime,
         sessionId: this.currentSession?.id,
       });
+
+      // 更新缓存的策略
+      if (result.strategy) {
+        this.latestStrategy = result.strategy;
+      }
 
       if (this.currentSession) {
         this.currentSession.wordsStudied++;
@@ -235,6 +257,9 @@ class LearningService {
    * 获取建议的单词数量（由后端AMAS控制）
    */
   getRecommendedWordCount(baseWordCount: number): number {
+    if (this.latestStrategy && this.latestStrategy.batch_size > 0) {
+      return this.latestStrategy.batch_size;
+    }
     return baseWordCount;
   }
 
@@ -253,109 +278,11 @@ class LearningService {
   }
 
   /**
-   * 生成测试选项（纯UI逻辑，保留在前端）
-   */
-  generateTestOptions(
-    correctWord: Word,
-    allWords: Word[],
-    optionCount: number = 4,
-  ): { options: string[]; correctAnswer: string } {
-    const requestedCount = Math.max(2, Math.min(4, optionCount));
-    const rawCorrectAnswer = correctWord.meanings[0];
-
-    if (!rawCorrectAnswer) {
-      throw new Error(`单词 ${correctWord.spelling} 缺少释义，无法生成测验选项`);
-    }
-    const correctAnswer = this.simplifyMeaning(rawCorrectAnswer);
-
-    const otherMeanings = Array.from(
-      new Set(
-        allWords
-          .filter((w) => w.id !== correctWord.id)
-          .flatMap((w) => w.meanings)
-          .map((m) => this.simplifyMeaning(m))
-          .filter((m: string) => m && m !== correctAnswer),
-      ),
-    );
-
-    const requiredDistractorCount = requestedCount - 1;
-    let distractors = this.shuffleArray(otherMeanings).slice(0, requiredDistractorCount);
-
-    if (distractors.length < requiredDistractorCount) {
-      const additionalMeanings = correctWord.meanings
-        .map((m) => this.simplifyMeaning(m))
-        .filter((m: string) => m && m !== correctAnswer && !distractors.includes(m))
-        .slice(0, requiredDistractorCount - distractors.length);
-      distractors = [...distractors, ...additionalMeanings];
-    }
-
-    distractors = Array.from(new Set(distractors));
-    if (distractors.length > requiredDistractorCount) {
-      distractors = distractors.slice(0, requiredDistractorCount);
-    }
-
-    let actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
-
-    if (actualDistractorCount < requiredDistractorCount) {
-      const fallbackDistractors = ['未知释义', '其他含义', '暂无解释', '无此选项'];
-      const availableFallbacks = fallbackDistractors.filter(
-        (f) => f !== correctAnswer && !distractors.includes(f),
-      );
-      const needed = requiredDistractorCount - actualDistractorCount;
-      distractors = [...distractors, ...this.shuffleArray(availableFallbacks).slice(0, needed)];
-      actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
-    }
-
-    const options = [correctAnswer, ...distractors.slice(0, actualDistractorCount)];
-    return {
-      options: this.shuffleArray(options),
-      correctAnswer,
-    };
-  }
-
-  /**
    * 检查答案是否正确（纯UI逻辑，保留在前端）
    */
   isAnswerCorrect(answer: string, word: Word): boolean {
     const normalizedAnswer = answer.trim();
     return word.meanings.some((meaning: string) => meaning.trim() === normalizedAnswer);
-  }
-
-  /**
-   * 生成反向测试选项（纯UI逻辑，保留在前端）
-   */
-  generateReverseTestOptions(
-    word: { id: string; spelling: string; meanings: string[] },
-    allWords: { id: string; spelling: string; meanings: string[] }[],
-    count: number = 4,
-  ): { options: string[]; correctAnswer: string } {
-    const correctAnswer = word.spelling;
-    const requiredDistractorCount = count - 1;
-
-    const otherWords = allWords.filter((w) => w.id !== word.id);
-    const shuffled = [...otherWords].sort(() => Math.random() - 0.5);
-    let distractors = shuffled.slice(0, requiredDistractorCount).map((w) => w.spelling);
-
-    if (distractors.length < requiredDistractorCount) {
-      const fallbackDistractors = ['unknown', 'other', 'none', 'N/A'];
-      const availableFallbacks = fallbackDistractors.filter(
-        (f) => f !== correctAnswer && !distractors.includes(f),
-      );
-      const needed = requiredDistractorCount - distractors.length;
-      distractors = [...distractors, ...this.shuffleArray(availableFallbacks).slice(0, needed)];
-    }
-
-    const options = [correctAnswer, ...distractors].sort(() => Math.random() - 0.5);
-    return { options, correctAnswer };
-  }
-
-  private shuffleArray<T>(array: T[]): T[] {
-    const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
   }
 
   // ==================== 手动调整功能（调用后端API）====================

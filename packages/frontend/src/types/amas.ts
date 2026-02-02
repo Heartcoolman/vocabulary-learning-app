@@ -32,6 +32,11 @@ import type {
   AmasProcessResult,
   AdjustReason,
   DifficultyLevel,
+  MicroInteractionData,
+  TrajectoryPoint,
+  HoverEvent,
+  KeystrokeEvent,
+  EnergyLevel,
 } from '@danci/shared';
 
 // 重新导出以保持向后兼容
@@ -46,6 +51,11 @@ export type {
   AmasProcessResult,
   AdjustReason,
   DifficultyLevel,
+  MicroInteractionData,
+  TrajectoryPoint,
+  HoverEvent,
+  KeystrokeEvent,
+  EnergyLevel,
 };
 
 /**

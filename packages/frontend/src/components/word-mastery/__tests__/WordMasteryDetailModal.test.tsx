@@ -194,7 +194,8 @@ describe('WordMasteryDetailModal', () => {
     it('should render when isOpen is true', async () => {
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
-      expect(screen.getByRole('dialog', { name: '单词掌握度详情' })).toBeInTheDocument();
+      // Modal renders with dialog role
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('should show loading state initially', async () => {

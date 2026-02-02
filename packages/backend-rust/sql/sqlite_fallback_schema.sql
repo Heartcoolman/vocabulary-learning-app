@@ -205,10 +205,10 @@ CREATE TABLE IF NOT EXISTS "word_learning_states" (
   "consecutiveWrong" INTEGER DEFAULT 0,
   "halfLife" REAL DEFAULT 1.0,
   "version" INTEGER DEFAULT 0,
-  -- UMM columns (Migration 039)
-  "ummStrength" REAL DEFAULT 1.0,
-  "ummConsolidation" REAL DEFAULT 0.1,
-  "ummLastReviewTs" INTEGER,
+  -- AMAS memory columns (Migration 039+047)
+  "amasStrength" REAL DEFAULT 1.0,
+  "amasConsolidation" REAL DEFAULT 0.1,
+  "amasLastReviewTs" INTEGER,
   "createdAt" TEXT NOT NULL DEFAULT (datetime('now')),
   "updatedAt" TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE("userId", "wordId")
@@ -1155,8 +1155,8 @@ CREATE TABLE IF NOT EXISTS "context_history" (
 CREATE INDEX IF NOT EXISTS "idx_context_history_user_word" ON "context_history" ("userId", "wordId");
 CREATE INDEX IF NOT EXISTS "idx_context_history_timestamp" ON "context_history" ("userId", "timestamp");
 
--- UMM shadow calculation results for A/B comparison with FSRS
-CREATE TABLE IF NOT EXISTS "umm_shadow_results" (
+-- AMAS shadow calculation results for A/B comparison with FSRS
+CREATE TABLE IF NOT EXISTS "amas_shadow_results" (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT,
   "userId" TEXT NOT NULL,
   "wordId" TEXT NOT NULL,
@@ -1176,9 +1176,9 @@ CREATE TABLE IF NOT EXISTS "umm_shadow_results" (
   "mtpBonus" REAL,
   "iadPenalty" REAL,
   "evmBonus" REAL,
-  -- Combined UMM retrievability
-  "ummRetrievability" REAL,
-  "ummInterval" REAL,
+  -- Combined AMAS retrievability
+  "amasRetrievability" REAL,
+  "amasInterval" REAL,
   -- Actual outcome (for accuracy calculation)
   "actualRecalled" INTEGER,
   "elapsedDays" REAL,
@@ -1186,5 +1186,5 @@ CREATE TABLE IF NOT EXISTS "umm_shadow_results" (
   "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
-CREATE INDEX IF NOT EXISTS "idx_umm_shadow_user_word" ON "umm_shadow_results" ("userId", "wordId");
-CREATE INDEX IF NOT EXISTS "idx_umm_shadow_created" ON "umm_shadow_results" ("createdAt");
+CREATE INDEX IF NOT EXISTS "idx_amas_shadow_user_word" ON "amas_shadow_results" ("userId", "wordId");
+CREATE INDEX IF NOT EXISTS "idx_amas_shadow_created" ON "amas_shadow_results" ("createdAt");

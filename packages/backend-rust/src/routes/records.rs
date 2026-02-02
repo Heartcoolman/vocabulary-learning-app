@@ -231,6 +231,10 @@ async fn create_record_inner(state: AppState, req: Request<Body>) -> Response {
         example_read_ms: payload.example_read_ms,
         note_write_count: payload.note_write_count,
         device_type: Some(device_type.to_string()),
+        is_guess: None,
+        indecision_index: None,
+        reaction_latency_ms: None,
+        keystroke_fluency: None,
     };
 
     match record::create_record(proxy.as_ref(), &auth_user.id, input).await {
@@ -375,6 +379,10 @@ async fn batch_create_records_inner(state: AppState, req: Request<Body>) -> Resp
             example_read_ms: record.example_read_ms,
             note_write_count: record.note_write_count,
             device_type: Some(device_type.to_string()),
+            is_guess: None,
+            indecision_index: None,
+            reaction_latency_ms: None,
+            keystroke_fluency: None,
         })
         .collect();
 

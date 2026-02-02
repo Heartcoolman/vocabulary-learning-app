@@ -11,7 +11,7 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::amas::types::{
-    ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
+    ColdStartPhase, MicroInteractions, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
 };
 use crate::db::operations::{
     insert_decision_insight, insert_decision_record, list_algorithm_metrics_daily, DecisionRecord,
@@ -23,7 +23,8 @@ use crate::services::learning_state::{upsert_word_state, WordState, WordStateUpd
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
 use crate::state::AppState;
-use crate::umm::{mdm::MdmState, UmmEngine};
+use crate::amas::memory::{MdmState, MemoryEngine};
+use crate::amas::vocabulary::{ConfusionPair, ContextEntry, MorphemeState};
 
 #[derive(Debug, Serialize)]
 struct SuccessResponse<T> {
@@ -78,6 +79,8 @@ struct ProcessEventRequest {
     is_correct: bool,
     response_time: i64,
     session_id: Option<String>,
+    #[serde(default)]
+    is_quit: bool,
     dwell_time: Option<i64>,
     pause_count: Option<i32>,
     switch_count: Option<i32>,
@@ -96,6 +99,10 @@ struct ProcessEventRequest {
     definition_read_ms: Option<i64>,
     example_read_ms: Option<i64>,
     note_write_count: Option<i32>,
+    // Micro behavior fields
+    #[serde(default)]
+    is_guess: Option<bool>,
+    micro_interaction: Option<MicroInteractions>,
 }
 
 #[derive(Debug, Serialize)]
@@ -346,9 +353,11 @@ async fn process_event(
             reps: ws.reps,
             lapses: ws.lapses,
             desired_retention: ws.desired_retention,
-            umm_strength: ws.umm_strength,
-            umm_consolidation: ws.umm_consolidation,
-            umm_last_review_ts: ws.umm_last_review_ts,
+            amas_strength: ws.amas_strength,
+            amas_consolidation: ws.amas_consolidation,
+            amas_last_review_ts: ws.amas_last_review_ts,
+            air_alpha: ws.air_alpha,
+            air_beta: ws.air_beta,
         }
     });
 
@@ -363,7 +372,7 @@ async fn process_event(
     // Calculate study duration from session start
     let study_duration_minutes = load_session_duration_minutes(proxy.pool(), &session_id).await;
 
-    // Load UMM vocabulary specialization data
+    // Load vocabulary specialization data
     let morpheme_states = load_morpheme_states_for_word(proxy.pool(), &user.id, &word_id).await;
     let confusion_pairs = load_confusion_pairs_for_word(proxy.pool(), &word_id).await;
     let recent_word_ids = load_recent_word_ids(proxy.pool(), &user.id, &session_id, 20).await;
@@ -381,6 +390,8 @@ async fn process_event(
         interaction_density: body.interaction_density,
         paused_time_ms: body.paused_time_ms,
         hint_used: body.hint_used.unwrap_or(false),
+        is_quit: body.is_quit,
+        is_guess: body.is_guess.unwrap_or(false),
         timestamp: chrono::Utc::now().timestamp_millis(),
         ..Default::default()
     };
@@ -494,6 +505,15 @@ async fn process_event(
         tracing::warn!(error = %e, "Failed to save state snapshot");
     }
 
+    // For quit events, skip word-scoped side effects (record, Elo, VARK, mastery updates)
+    // Only the AMAS engine state update (motivation via MDS) is needed
+    if body.is_quit {
+        return Ok(Json(SuccessResponse {
+            success: true,
+            data: build_process_event_response(session_id, &result),
+        }));
+    }
+
     // Update word_learning_states based on mastery decision with FSRS data
     if let Some(ref mastery) = result.word_mastery_decision {
         let now_ms = chrono::Utc::now().timestamp_millis();
@@ -526,9 +546,12 @@ async fn process_event(
             scheduled_days: Some(mastery.new_interval),
             elapsed_days: Some(0.0),
             // UMM fields
-            umm_strength: mastery.umm_strength,
-            umm_consolidation: mastery.umm_consolidation,
-            umm_last_review_ts: mastery.umm_last_review_ts,
+            amas_strength: mastery.amas_strength,
+            amas_consolidation: mastery.amas_consolidation,
+            amas_last_review_ts: mastery.amas_last_review_ts,
+            // AIR fields
+            air_alpha: mastery.air_alpha,
+            air_beta: mastery.air_beta,
         };
 
         if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
@@ -572,9 +595,107 @@ async fn process_event(
         example_read_ms: body.example_read_ms,
         note_write_count: body.note_write_count,
         device_type: Some(device_type.to_string()),
+        is_guess: body.is_guess,
+        indecision_index: body.micro_interaction.as_ref().and_then(|m| {
+            let tl = m.trajectory_length.unwrap_or(0.0);
+            let dd = m.direct_distance.unwrap_or(0.0);
+            if dd < 10.0 { return None; }
+            let ratio = tl / dd;
+            if ratio < 1.5 { return None; }
+            let sc = m.option_switch_count.unwrap_or(0) as f64;
+            Some(((ratio - 1.0) * (1.0 + 0.2 * sc)).clamp(0.0, 1.0))
+        }),
+        reaction_latency_ms: body.micro_interaction.as_ref().and_then(|m| m.reaction_latency_ms),
+        keystroke_fluency: body.micro_interaction.as_ref().and_then(|m| {
+            let reaction = m.reaction_latency_ms.unwrap_or(0) as f64;
+            let events = m.keystroke_events.as_ref()?;
+            if events.is_empty() { return None; }
+
+            // Calculate average hold time from keystroke events
+            let hold_times: Vec<f64> = events
+                .iter()
+                .filter_map(|e| {
+                    e.up_time.map(|up| (up - e.down_time) as f64)
+                })
+                .filter(|&t| t > 0.0 && t < 2000.0)
+                .collect();
+
+            if hold_times.is_empty() { return None; }
+            let avg_hold = hold_times.iter().sum::<f64>() / hold_times.len() as f64;
+
+            // Sigmoid mapping: fast reaction + short hold time = high fluency
+            // Normalize: reaction 500ms optimal, hold 100ms optimal
+            let reaction_score = 1.0 / (1.0 + (reaction / 500.0 - 1.0).exp());
+            let hold_score = 1.0 / (1.0 + (avg_hold / 100.0 - 1.0).exp());
+
+            Some((0.6 * reaction_score + 0.4 * hold_score).clamp(0.0, 1.0))
+        }),
     };
     match create_record(&proxy, &user.id, record_input).await {
         Ok(record) => {
+            // Store raw micro behavior events if present
+            if let Some(ref micro) = body.micro_interaction {
+                let record_id = record.id.clone();
+                let pool = proxy.pool();
+
+                // Store trajectory points
+                if let Some(ref points) = micro.trajectory_points {
+                    if !points.is_empty() {
+                        let id = uuid::Uuid::new_v4().to_string();
+                        let event_data = serde_json::json!(points);
+                        if let Err(e) = sqlx::query(
+                            r#"INSERT INTO "micro_behavior_events" ("id", "answerRecordId", "eventType", "eventData")
+                               VALUES ($1, $2, 'trajectory', $3)"#
+                        )
+                        .bind(&id)
+                        .bind(&record_id)
+                        .bind(&event_data)
+                        .execute(pool)
+                        .await {
+                            tracing::warn!(error = %e, "Failed to store trajectory events");
+                        }
+                    }
+                }
+
+                // Store hover events
+                if let Some(ref hovers) = micro.hover_events {
+                    if !hovers.is_empty() {
+                        let id = uuid::Uuid::new_v4().to_string();
+                        let event_data = serde_json::json!(hovers);
+                        if let Err(e) = sqlx::query(
+                            r#"INSERT INTO "micro_behavior_events" ("id", "answerRecordId", "eventType", "eventData")
+                               VALUES ($1, $2, 'hover', $3)"#
+                        )
+                        .bind(&id)
+                        .bind(&record_id)
+                        .bind(&event_data)
+                        .execute(pool)
+                        .await {
+                            tracing::warn!(error = %e, "Failed to store hover events");
+                        }
+                    }
+                }
+
+                // Store keystroke events
+                if let Some(ref keystrokes) = micro.keystroke_events {
+                    if !keystrokes.is_empty() {
+                        let id = uuid::Uuid::new_v4().to_string();
+                        let event_data = serde_json::json!(keystrokes);
+                        if let Err(e) = sqlx::query(
+                            r#"INSERT INTO "micro_behavior_events" ("id", "answerRecordId", "eventType", "eventData")
+                               VALUES ($1, $2, 'keystroke', $3)"#
+                        )
+                        .bind(&id)
+                        .bind(&record_id)
+                        .bind(&event_data)
+                        .execute(pool)
+                        .await {
+                            tracing::warn!(error = %e, "Failed to store keystroke events");
+                        }
+                    }
+                }
+            }
+
             // Update Elo ratings after each answer
             if let Err(e) = crate::services::elo::update_elo_ratings_db(
                 &proxy,
@@ -682,7 +803,7 @@ async fn process_event(
     if let Some(ref mastery) = result.word_mastery_decision {
         let shadow_result = {
             // Build MDM state from UMM fields if available
-            let mdm_state = match (mastery.umm_strength, mastery.umm_consolidation) {
+            let mdm_state = match (mastery.amas_strength, mastery.amas_consolidation) {
                 (Some(strength), Some(consolidation)) => Some(MdmState {
                     strength,
                     consolidation,
@@ -691,26 +812,26 @@ async fn process_event(
                 _ => None,
             };
 
-            // Convert types for UMM engine
-            let morpheme_states_umm: Vec<crate::umm::mtp::MorphemeState> = morpheme_states
+            // Convert types for memory engine
+            let morpheme_states_amas: Vec<MorphemeState> = morpheme_states
                 .iter()
-                .map(|m| crate::umm::mtp::MorphemeState {
+                .map(|m| MorphemeState {
                     morpheme_id: m.morpheme_id.clone(),
                     mastery_level: m.mastery_level,
                 })
                 .collect();
 
-            let confusion_pairs_umm: Vec<crate::umm::iad::ConfusionPair> = confusion_pairs
+            let confusion_pairs_amas: Vec<ConfusionPair> = confusion_pairs
                 .iter()
-                .map(|c| crate::umm::iad::ConfusionPair {
+                .map(|c| ConfusionPair {
                     confusing_word_id: c.confusing_word_id.clone(),
                     distance: c.distance,
                 })
                 .collect();
 
-            let context_history_umm: Vec<crate::umm::evm::ContextEntry> = context_history
+            let context_history_amas: Vec<ContextEntry> = context_history
                 .iter()
-                .map(|c| crate::umm::evm::ContextEntry {
+                .map(|c| ContextEntry {
                     hour_of_day: c.hour_of_day,
                     day_of_week: c.day_of_week,
                     question_type: c.question_type.clone(),
@@ -728,7 +849,7 @@ async fn process_event(
                 })
                 .unwrap_or(0.0);
 
-            UmmEngine::compute_shadow(
+            MemoryEngine::compute_shadow(
                 mastery.new_interval,
                 mastery.retrievability,
                 mastery.stability,
@@ -736,24 +857,24 @@ async fn process_event(
                 mdm_state.as_ref(),
                 elapsed_days,
                 0.9, // r_target (desired retention)
-                &morpheme_states_umm,
-                &confusion_pairs_umm,
+                &morpheme_states_amas,
+                &confusion_pairs_amas,
                 &recent_word_ids,
-                &context_history_umm,
+                &context_history_amas,
             )
         };
 
-        // Write to umm_shadow_results table
+        // Write to amas_shadow_results table
         let pool = proxy.pool();
         let now_ms = chrono::Utc::now().timestamp_millis();
         if let Err(e) = sqlx::query(
             r#"
-            INSERT INTO "umm_shadow_results"
+            INSERT INTO "amas_shadow_results"
                 ("userId", "wordId", "sessionId", "eventTs",
                  "fsrsInterval", "fsrsRetrievability", "fsrsStability", "fsrsDifficulty",
                  "mdmInterval", "mdmRetrievability", "mdmStrength", "mdmConsolidation",
                  "mtpBonus", "iadPenalty", "evmBonus",
-                 "ummRetrievability", "ummInterval",
+                 "amasRetrievability", "amasInterval",
                  "actualRecalled", "elapsedDays", "createdAt")
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
             "#,
@@ -773,8 +894,8 @@ async fn process_event(
         .bind(shadow_result.mtp_bonus)
         .bind(shadow_result.iad_penalty)
         .bind(shadow_result.evm_bonus)
-        .bind(shadow_result.umm_retrievability)
-        .bind(shadow_result.umm_interval)
+        .bind(shadow_result.amas_retrievability)
+        .bind(shadow_result.amas_interval)
         .bind(body.is_correct as i32)
         .bind(existing_word_state.as_ref().and_then(|ws| ws.last_review_date).map(|lr| {
             let now_ms = chrono::Utc::now().timestamp_millis();
@@ -849,91 +970,9 @@ async fn process_event(
         tracing::warn!(error = %e, "Failed to insert decision insight");
     }
 
-    let response = ProcessEventResponse {
-        session_id,
-        strategy: strategy_to_response(&result.strategy),
-        explanation: ExplanationResponse {
-            factors: result
-                .explanation
-                .factors
-                .iter()
-                .map(|f| FactorResponse {
-                    name: f.name.clone(),
-                    value: f.value,
-                    impact: f.impact.clone(),
-                    percentage: f.percentage,
-                })
-                .collect(),
-            changes: result.explanation.changes.clone(),
-            text: result.explanation.text.clone(),
-        },
-        state: state_to_response(&result.state),
-        word_mastery_decision: result.word_mastery_decision.map(|w| WordMasteryResponse {
-            word_id: w.word_id,
-            prev_mastery: w.prev_mastery,
-            new_mastery: w.new_mastery,
-            prev_interval: w.prev_interval,
-            new_interval: w.new_interval,
-            quality: w.quality,
-            stability: w.stability,
-            difficulty: w.difficulty,
-            retrievability: w.retrievability,
-            is_mastered: w.is_mastered,
-            lapses: w.lapses,
-            reps: w.reps,
-            confidence: w.confidence,
-        }),
-        reward: RewardResponse {
-            value: result.reward.value,
-            reason: result.reward.reason.clone(),
-        },
-        cold_start_phase: result.cold_start_phase.map(|p| match p {
-            ColdStartPhase::Classify => "classify".to_string(),
-            ColdStartPhase::Explore => "explore".to_string(),
-            ColdStartPhase::Normal => "normal".to_string(),
-        }),
-        should_break: if result.state.fatigue > 0.7 || result.state.attention < 0.3 {
-            Some(true)
-        } else {
-            None
-        },
-        suggestion: if result.state.fatigue > 0.7 {
-            Some("您已学习较长时间，建议休息一下".to_string())
-        } else if result.state.attention < 0.3 {
-            Some("注意力下降，建议稍作休息后继续".to_string())
-        } else if result.state.motivation < -0.3 {
-            Some("学习动力不足，可以尝试更简单的内容".to_string())
-        } else {
-            None
-        },
-        objective_evaluation: result
-            .objective_evaluation
-            .map(|oe| ObjectiveEvaluationResponse {
-                metrics: MultiObjectiveMetricsResponse {
-                    short_term_score: oe.metrics.short_term_score,
-                    long_term_score: oe.metrics.long_term_score,
-                    efficiency_score: oe.metrics.efficiency_score,
-                    aggregated_score: oe.metrics.aggregated_score,
-                    ts: oe.metrics.ts,
-                },
-                constraints_satisfied: oe.constraints_satisfied,
-                constraint_violations: oe
-                    .constraint_violations
-                    .into_iter()
-                    .map(|cv| ConstraintViolationResponse {
-                        constraint: cv.constraint,
-                        expected: cv.expected,
-                        actual: cv.actual,
-                    })
-                    .collect(),
-                suggested_adjustments: oe.suggested_adjustments.map(|s| strategy_to_response(&s)),
-            }),
-        multi_objective_adjusted: result.multi_objective_adjusted,
-    };
-
     Ok(Json(SuccessResponse {
         success: true,
-        data: response,
+        data: build_process_event_response(session_id, &result),
     }))
 }
 
@@ -1058,9 +1097,11 @@ async fn batch_process(
                         reps: Some(mastery.reps),
                         scheduled_days: Some(mastery.new_interval),
                         elapsed_days: Some(0.0),
-                        umm_strength: mastery.umm_strength,
-                        umm_consolidation: mastery.umm_consolidation,
-                        umm_last_review_ts: mastery.umm_last_review_ts,
+                        amas_strength: mastery.amas_strength,
+                        amas_consolidation: mastery.amas_consolidation,
+                        amas_last_review_ts: mastery.amas_last_review_ts,
+                        air_alpha: mastery.air_alpha,
+                        air_beta: mastery.air_beta,
                     };
 
                     if let Err(e) =
@@ -1100,6 +1141,10 @@ async fn batch_process(
                     example_read_ms: None,
                     note_write_count: None,
                     device_type: Some(device_type.to_string()),
+                    is_guess: None,
+                    indecision_index: None,
+                    reaction_latency_ms: None,
+                    keystroke_fluency: None,
                 };
                 match create_record(&proxy, &user.id, record_input).await {
                     Ok(record) => {
@@ -1509,6 +1554,100 @@ fn strategy_to_response(s: &AmasStrategyParams) -> StrategyResponse {
         difficulty: s.difficulty.as_str().to_string(),
         batch_size: s.batch_size,
         hint_level: s.hint_level,
+    }
+}
+
+fn build_process_event_response(
+    session_id: String,
+    result: &crate::amas::types::ProcessResult,
+) -> ProcessEventResponse {
+    ProcessEventResponse {
+        session_id,
+        strategy: strategy_to_response(&result.strategy),
+        explanation: ExplanationResponse {
+            factors: result
+                .explanation
+                .factors
+                .iter()
+                .map(|f| FactorResponse {
+                    name: f.name.clone(),
+                    value: f.value,
+                    impact: f.impact.clone(),
+                    percentage: f.percentage,
+                })
+                .collect(),
+            changes: result.explanation.changes.clone(),
+            text: result.explanation.text.clone(),
+        },
+        state: state_to_response(&result.state),
+        word_mastery_decision: result
+            .word_mastery_decision
+            .as_ref()
+            .map(|w| WordMasteryResponse {
+                word_id: w.word_id.clone(),
+                prev_mastery: w.prev_mastery,
+                new_mastery: w.new_mastery,
+                prev_interval: w.prev_interval,
+                new_interval: w.new_interval,
+                quality: w.quality,
+                stability: w.stability,
+                difficulty: w.difficulty,
+                retrievability: w.retrievability,
+                is_mastered: w.is_mastered,
+                lapses: w.lapses,
+                reps: w.reps,
+                confidence: w.confidence,
+            }),
+        reward: RewardResponse {
+            value: result.reward.value,
+            reason: result.reward.reason.clone(),
+        },
+        cold_start_phase: result.cold_start_phase.map(|p| match p {
+            ColdStartPhase::Classify => "classify".to_string(),
+            ColdStartPhase::Explore => "explore".to_string(),
+            ColdStartPhase::Normal => "normal".to_string(),
+        }),
+        should_break: if result.state.fatigue > 0.7 || result.state.attention < 0.3 {
+            Some(true)
+        } else {
+            None
+        },
+        suggestion: if result.state.fatigue > 0.7 {
+            Some("您已学习较长时间，建议休息一下".to_string())
+        } else if result.state.attention < 0.3 {
+            Some("注意力下降，建议稍作休息后继续".to_string())
+        } else if result.state.motivation < -0.3 {
+            Some("学习动力不足，可以尝试更简单的内容".to_string())
+        } else {
+            None
+        },
+        objective_evaluation: result
+            .objective_evaluation
+            .as_ref()
+            .map(|oe| ObjectiveEvaluationResponse {
+                metrics: MultiObjectiveMetricsResponse {
+                    short_term_score: oe.metrics.short_term_score,
+                    long_term_score: oe.metrics.long_term_score,
+                    efficiency_score: oe.metrics.efficiency_score,
+                    aggregated_score: oe.metrics.aggregated_score,
+                    ts: oe.metrics.ts,
+                },
+                constraints_satisfied: oe.constraints_satisfied,
+                constraint_violations: oe
+                    .constraint_violations
+                    .iter()
+                    .map(|cv| ConstraintViolationResponse {
+                        constraint: cv.constraint.clone(),
+                        expected: cv.expected,
+                        actual: cv.actual,
+                    })
+                    .collect(),
+                suggested_adjustments: oe
+                    .suggested_adjustments
+                    .as_ref()
+                    .map(|s| strategy_to_response(s)),
+            }),
+        multi_objective_adjusted: result.multi_objective_adjusted,
     }
 }
 

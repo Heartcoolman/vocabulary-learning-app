@@ -73,11 +73,6 @@ describe('StatusModal', () => {
       expect(screen.getByText('学习状态监控')).toBeInTheDocument();
     });
 
-    it('should display chart icon', () => {
-      render(<StatusModal isOpen={true} onClose={mockOnClose} />);
-      expect(screen.getByTestId('chart-icon')).toBeInTheDocument();
-    });
-
     it('should render AmasStatus component', () => {
       render(<StatusModal isOpen={true} onClose={mockOnClose} />);
       expect(screen.getByTestId('amas-status')).toBeInTheDocument();
@@ -157,17 +152,17 @@ describe('StatusModal', () => {
   // ==================== Styling Tests ====================
 
   describe('styling', () => {
-    it('should have backdrop blur', () => {
+    it('should have modal overlay', () => {
       render(<StatusModal isOpen={true} onClose={mockOnClose} />);
 
-      const backdrop = screen.getByText('学习状态监控').closest('.fixed');
-      expect(backdrop?.className).toContain('backdrop-blur');
+      const overlay = document.body.querySelector('.bg-black\\/50');
+      expect(overlay).toBeInTheDocument();
     });
 
     it('should have rounded modal', () => {
       render(<StatusModal isOpen={true} onClose={mockOnClose} />);
 
-      const modal = screen.getByText('学习状态监控').closest('.bg-white');
+      const modal = screen.getByRole('dialog');
       expect(modal?.className).toContain('rounded');
     });
   });

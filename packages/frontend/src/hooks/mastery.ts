@@ -76,6 +76,22 @@ export async function processLearningEvent(eventData: LearningEventInput) {
   return amasClient.processLearningEvent(eventData);
 }
 
+/**
+ * 发送会话中止（quit）事件
+ * 用于通知 AMAS 引擎用户主动退出会话，触发 MDS 动机动力学更新
+ */
+export async function sendQuitEvent(sessionId: string, lastWordId?: string) {
+  // Use nil UUID if no word ID available (user quit before answering)
+  const wordId = lastWordId || '00000000-0000-0000-0000-000000000000';
+  return amasClient.processLearningEvent({
+    wordId,
+    isCorrect: false,
+    responseTime: 0,
+    sessionId,
+    isQuit: true,
+  });
+}
+
 // ==================== Session Cache ====================
 
 interface SessionCacheData {
@@ -261,7 +277,6 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     masteryThreshold: 2,
     maxTotalQuestions: 100,
   });
-  const adaptiveManagerRef = useRef<AdaptiveQueueManager | null>(null);
 
   const initializeQueue = useCallback(
     (words: WordItem[], config?: Partial<WordQueueConfig & { targetMasteryCount?: number }>) => {
@@ -283,8 +298,6 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
         targetMasteryCount: effectiveTargetCount,
       });
 
-      adaptiveManagerRef.current = new AdaptiveQueueManager();
-
       setAllWords(words);
       setIsCompleted(false);
       setCompletionReason(undefined);
@@ -303,8 +316,6 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
         maxTotalQuestions: configRef.current.maxTotalQuestions,
         targetMasteryCount,
       });
-
-      adaptiveManagerRef.current = new AdaptiveQueueManager();
 
       setAllWords(words);
       setProgress(state.progress);
@@ -371,7 +382,6 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
 
   const resetQueue = useCallback(() => {
     queueManagerRef.current = null;
-    adaptiveManagerRef.current = null;
     setCurrentWord(null);
     setAllWords([]);
     setIsCompleted(false);
@@ -384,10 +394,6 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
       targetCount: targetMasteryCount,
     });
   }, [targetMasteryCount]);
-
-  const resetAdaptiveCounter = useCallback(() => {
-    adaptiveManagerRef.current?.resetCounter();
-  }, []);
 
   /**
    * 恢复会话进度（用于页面刷新/返回时恢复进度）
@@ -434,6 +440,31 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     setProgress(manager.getProgress());
   }, []);
 
+  /**
+   * 实时更新目标掌握数量
+   * @param newCount 新的目标数量
+   * @returns 是否因新目标导致会话完成
+   */
+  const updateTargetMasteryCount = useCallback((newCount: number) => {
+    const manager = queueManagerRef.current;
+    if (!manager) {
+      // 队列未初始化时，只更新 progress 状态
+      setProgress((prev) => ({ ...prev, targetCount: newCount }));
+      return false;
+    }
+
+    const shouldComplete = manager.updateTargetMasteryCount(newCount);
+    const prog = manager.getProgress();
+    setProgress(prog);
+
+    if (shouldComplete) {
+      setIsCompleted(true);
+      setCompletionReason('mastery_achieved');
+    }
+
+    return shouldComplete;
+  }, []);
+
   return {
     currentWord,
     allWords,
@@ -442,7 +473,6 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     progress,
     queueManagerRef,
     configRef,
-    adaptiveManagerRef,
     initializeQueue,
     restoreQueue,
     updateFromManager,
@@ -451,10 +481,10 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     addWords,
     skipWord,
     resetQueue,
-    resetAdaptiveCounter,
     restoreProgressSnapshot,
     applyStrategy,
     updateMasteryFromBackend,
+    updateTargetMasteryCount,
   };
 }
 
@@ -496,8 +526,12 @@ export function useMasterySync(options: UseMasterySyncOptions) {
       const manager = getQueueManager();
       if (!manager) return null;
 
-      // 乐观更新本地状态
-      const decision = manager.recordAnswer(params.wordId, params.isCorrect, params.responseTime);
+      // 乐观更新本地状态（AMAS 判定由后端确认，这里默认不掌握）
+      const decision = manager.recordAnswer(params.wordId, params.isCorrect, params.responseTime, {
+        isMastered: false,
+        confidence: 0,
+        suggestedRepeats: 1,
+      });
       return decision;
     },
     [getQueueManager],
@@ -583,9 +617,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
           examples: w.examples,
           audioUrl: w.audioUrl,
           isNew: w.isNew,
-          correctCount: 0,
-          incorrectCount: 0,
-          lastAnsweredAt: null,
+          distractors: w.distractors,
         }));
       } catch (e) {
         learningLogger.error({ err: e }, '[MasterySync] Failed to fetch more words');
@@ -644,81 +676,6 @@ export function useMasterySync(options: UseMasterySyncOptions) {
     resetSyncCounter,
     getSyncCounter: () => syncCounterRef.current,
   };
-}
-
-// ==================== Adaptive Queue Manager ====================
-
-interface AdaptivePerformance {
-  accuracy: number;
-  avgResponseTime: number;
-}
-
-/**
- * Adaptive Queue Manager
- * 根据用户表现动态调整队列
- */
-class AdaptiveQueueManager {
-  private recentAnswers: Array<{ isCorrect: boolean; responseTime: number }> = [];
-  private counter = 0;
-  private readonly windowSize = 10;
-  private readonly adjustmentInterval = 3;
-
-  onAnswerSubmitted(
-    isCorrect: boolean,
-    responseTime: number,
-    amasState?: { fatigue: number; attention: number; motivation: number },
-  ): { should: boolean; reason?: 'fatigue' | 'struggling' | 'excelling' | 'periodic' } {
-    this.recentAnswers.push({ isCorrect, responseTime });
-    if (this.recentAnswers.length > this.windowSize) {
-      this.recentAnswers.shift();
-    }
-
-    this.counter++;
-
-    if (this.counter % this.adjustmentInterval !== 0) {
-      return { should: false };
-    }
-
-    const performance = this.getRecentPerformance();
-
-    // 检查是否需要调整 - 使用后端 API 期望的 reason 值
-    if (performance.accuracy < 0.5) {
-      return { should: true, reason: 'struggling' };
-    }
-
-    // 疲劳检测：优先使用后端 AMAS 状态，否则使用本地启发式规则
-    if (amasState && amasState.fatigue > 0.7) {
-      return { should: true, reason: 'fatigue' };
-    }
-    // 备用疲劳检测：响应时间持续变慢（可能表示疲劳）
-    if (this.recentAnswers.length >= 5 && performance.avgResponseTime > 8000) {
-      return { should: true, reason: 'fatigue' };
-    }
-
-    if (performance.avgResponseTime > 10000) {
-      return { should: true, reason: 'periodic' };
-    }
-
-    return { should: false };
-  }
-
-  getRecentPerformance(): AdaptivePerformance {
-    if (this.recentAnswers.length === 0) {
-      return { accuracy: 1, avgResponseTime: 0 };
-    }
-
-    const correctCount = this.recentAnswers.filter((a) => a.isCorrect).length;
-    const totalTime = this.recentAnswers.reduce((sum, a) => sum + a.responseTime, 0);
-
-    return {
-      accuracy: correctCount / this.recentAnswers.length,
-      avgResponseTime: totalTime / this.recentAnswers.length,
-    };
-  }
-
-  resetCounter() {
-    this.counter = 0;
-  }
 }
 
 // ==================== Exports ====================

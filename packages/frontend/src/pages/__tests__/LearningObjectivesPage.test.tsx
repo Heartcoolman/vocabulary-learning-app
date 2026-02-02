@@ -112,7 +112,8 @@ describe('LearningObjectivesPage', () => {
 
       await waitFor(() => {
         const dailyButton = screen.getByRole('button', { name: /日常模式/ });
-        expect(dailyButton).toBeDisabled();
+        // Current mode is marked as pressed/selected, not disabled
+        expect(dailyButton).toHaveAttribute('aria-pressed', 'true');
       });
     });
   });
