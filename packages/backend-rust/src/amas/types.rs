@@ -21,6 +21,20 @@ impl DifficultyLevel {
         }
     }
 
+    pub fn harder(&self) -> Self {
+        match self {
+            Self::Easy => Self::Mid,
+            _ => Self::Hard,
+        }
+    }
+
+    pub fn easier(&self) -> Self {
+        match self {
+            Self::Hard => Self::Mid,
+            _ => Self::Easy,
+        }
+    }
+
     pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "easy" => Self::Easy,
@@ -189,6 +203,8 @@ pub struct UserState {
     pub visual_fatigue: Option<VisualFatigueState>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fused_fatigue: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reward_profile: Option<String>,
 }
 
 impl Default for UserState {
@@ -204,6 +220,7 @@ impl Default for UserState {
             ts: chrono::Utc::now().timestamp_millis(),
             visual_fatigue: None,
             fused_fatigue: None,
+            reward_profile: None,
         }
     }
 }
@@ -331,6 +348,7 @@ impl ContinuousUserProfile {
             difficulty,
             batch_size: batch_size.clamp(5, 16),
             hint_level,
+            swd_recommendation: None,
         }
     }
 }
@@ -351,12 +369,21 @@ impl Default for ColdStartState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SwdRecommendation {
+    pub recommended_count: i32,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyParams {
     pub interval_scale: f64,
     pub new_ratio: f64,
     pub difficulty: DifficultyLevel,
     pub batch_size: i32,
     pub hint_level: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub swd_recommendation: Option<SwdRecommendation>,
 }
 
 impl Default for StrategyParams {
@@ -367,6 +394,7 @@ impl Default for StrategyParams {
             difficulty: DifficultyLevel::Mid,
             batch_size: 8,
             hint_level: 1,
+            swd_recommendation: None,
         }
     }
 }
@@ -380,6 +408,7 @@ impl StrategyParams {
                 difficulty: DifficultyLevel::Hard,
                 batch_size: 12,
                 hint_level: 0,
+                swd_recommendation: None,
             },
             UserType::Stable => Self::default(),
             UserType::Cautious => Self {
@@ -388,6 +417,7 @@ impl StrategyParams {
                 difficulty: DifficultyLevel::Easy,
                 batch_size: 5,
                 hint_level: 2,
+                swd_recommendation: None,
             },
         }
     }
@@ -423,6 +453,7 @@ impl From<Action> for StrategyParams {
             difficulty: action.difficulty,
             batch_size: action.batch_size,
             hint_level: action.hint_level,
+            swd_recommendation: None,
         }
     }
 }

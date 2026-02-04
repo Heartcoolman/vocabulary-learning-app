@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import type { EnergyLevel } from '@danci/shared';
 
-const ENERGY_LEVELS: { level: EnergyLevel; label: string; emoji: string; desc: string }[] = [
-  { level: 'high', label: '精力充沛', emoji: '💪', desc: '今天状态很好，可以多学点' },
-  { level: 'normal', label: '平平淡淡', emoji: '😐', desc: '一般般，正常学习' },
-  { level: 'low', label: '精疲力尽', emoji: '😴', desc: '有点累，轻松学习' },
+import { Lightning, SmileyMeh, Bed, type IconProps } from '@phosphor-icons/react';
+
+const ENERGY_LEVELS: {
+  level: EnergyLevel;
+  label: string;
+  Icon: React.ComponentType<IconProps>;
+  desc: string;
+}[] = [
+  { level: 'high', label: '精力充沛', Icon: Lightning, desc: '今天状态很好，可以多学点' },
+  { level: 'normal', label: '平平淡淡', Icon: SmileyMeh, desc: '一般般，正常学习' },
+  { level: 'low', label: '精疲力尽', Icon: Bed, desc: '有点累，轻松学习' },
 ];
 
 const STORAGE_KEY = 'lastEnergyLevel';
@@ -35,7 +42,8 @@ function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
           if (timerRef.current) clearInterval(timerRef.current);
           const fallback = lastLevelRef.current ?? 'normal';
           localStorage.setItem(STORAGE_KEY, fallback);
-          onSelect(fallback);
+          // 确保在下一个事件循环tick中调用回调，避免在渲染过程中触发父组件更新
+          setTimeout(() => onSelect(fallback), 0);
           return 0;
         }
         return prev - 1;
@@ -76,7 +84,7 @@ function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
         </p>
 
         <div className="space-y-3">
-          {ENERGY_LEVELS.map(({ level, label, emoji, desc }) => (
+          {ENERGY_LEVELS.map(({ level, label, Icon, desc }) => (
             <button
               key={level}
               onClick={() => handleSelect(level)}
@@ -86,7 +94,9 @@ function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
                   : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-700 dark:hover:border-slate-500 dark:hover:bg-slate-600'
               }`}
             >
-              <span className="text-3xl">{emoji}</span>
+              <span className="text-3xl text-blue-500 dark:text-blue-400">
+                <Icon size={32} weight="fill" />
+              </span>
               <div className="text-left">
                 <div className="font-medium text-gray-900 dark:text-white">{label}</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">{desc}</div>

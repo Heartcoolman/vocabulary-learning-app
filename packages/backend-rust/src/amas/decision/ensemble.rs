@@ -257,6 +257,11 @@ impl EnsembleDecision {
         state: &UserState,
         session: Option<&SessionInfo>,
     ) -> StrategyParams {
+        // Apply reward profile adjustments first (before safety filters)
+        if let Some(ref profile) = state.reward_profile {
+            strategy = Self::apply_reward_profile(strategy, profile);
+        }
+
         let sf = &self.config.safety_filter;
         let fatigue = state.fused_fatigue.unwrap_or(state.fatigue);
 
@@ -302,6 +307,27 @@ impl EnsembleDecision {
         strategy.new_ratio = self.snap_new_ratio(strategy.new_ratio);
 
         strategy
+    }
+
+    fn apply_reward_profile(mut s: StrategyParams, profile: &str) -> StrategyParams {
+        match profile {
+            "cram" => {
+                s.interval_scale *= 0.7;
+                s.new_ratio = (s.new_ratio * 1.3).min(0.5);
+                s.batch_size = ((s.batch_size as f64 * 1.3) as i32).min(20);
+                s.difficulty = s.difficulty.harder();
+                s.hint_level = (s.hint_level - 1).max(0);
+            }
+            "relaxed" => {
+                s.interval_scale *= 1.4;
+                s.new_ratio = (s.new_ratio * 0.6).max(0.05);
+                s.batch_size = ((s.batch_size as f64 * 0.75) as i32).max(4);
+                s.difficulty = s.difficulty.easier();
+                s.hint_level = (s.hint_level + 1).min(2);
+            }
+            _ => {}
+        }
+        s
     }
 
     fn weighted_merge(&self, candidates: &[DecisionCandidate]) -> StrategyParams {
@@ -350,6 +376,7 @@ impl EnsembleDecision {
             difficulty,
             batch_size: self.snap_batch_size(batch_size),
             hint_level: hint_level.round() as i32,
+            swd_recommendation: None,
         }
     }
 
@@ -424,6 +451,7 @@ mod tests {
             batch_size: 8,
             interval_scale: 1.0,
             hint_level: 1,
+            swd_recommendation: None,
         }
     }
 
@@ -439,6 +467,7 @@ mod tests {
             ts: 0,
             visual_fatigue: None,
             fused_fatigue: None,
+            reward_profile: None,
         }
     }
 
@@ -581,6 +610,7 @@ mod tests {
                 batch_size: 15,
                 hint_level: 1,
                 difficulty: DifficultyLevel::Hard,
+                swd_recommendation: None,
             },
             confidence: 1.0,
             weight: 1.0,
@@ -873,5 +903,79 @@ mod tests {
         }];
         ensemble.update_performance(&candidates, &sample_strategy(), 1.0);
         assert!(ensemble.performance.algorithms.contains_key("test"));
+    }
+
+    #[test]
+    fn apply_reward_profile_cram_mode() {
+        let s = StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: DifficultyLevel::Mid,
+            batch_size: 8,
+            hint_level: 1,
+            swd_recommendation: None,
+        };
+        let adjusted = EnsembleDecision::apply_reward_profile(s, "cram");
+        assert!((adjusted.interval_scale - 0.7).abs() < 1e-6);
+        assert!((adjusted.new_ratio - 0.26).abs() < 1e-6);
+        assert_eq!(adjusted.batch_size, 10);
+        assert_eq!(adjusted.difficulty, DifficultyLevel::Hard);
+        assert_eq!(adjusted.hint_level, 0);
+    }
+
+    #[test]
+    fn apply_reward_profile_relaxed_mode() {
+        let s = StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: DifficultyLevel::Mid,
+            batch_size: 8,
+            hint_level: 1,
+            swd_recommendation: None,
+        };
+        let adjusted = EnsembleDecision::apply_reward_profile(s, "relaxed");
+        assert!((adjusted.interval_scale - 1.4).abs() < 1e-6);
+        assert!((adjusted.new_ratio - 0.12).abs() < 1e-6);
+        assert_eq!(adjusted.batch_size, 6);
+        assert_eq!(adjusted.difficulty, DifficultyLevel::Easy);
+        assert_eq!(adjusted.hint_level, 2);
+    }
+
+    #[test]
+    fn apply_reward_profile_standard_unchanged() {
+        let s = StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: DifficultyLevel::Mid,
+            batch_size: 8,
+            hint_level: 1,
+            swd_recommendation: None,
+        };
+        let adjusted = EnsembleDecision::apply_reward_profile(s.clone(), "standard");
+        assert!((adjusted.interval_scale - s.interval_scale).abs() < 1e-6);
+        assert!((adjusted.new_ratio - s.new_ratio).abs() < 1e-6);
+        assert_eq!(adjusted.batch_size, s.batch_size);
+        assert_eq!(adjusted.difficulty, s.difficulty);
+        assert_eq!(adjusted.hint_level, s.hint_level);
+    }
+
+    #[test]
+    fn post_filter_applies_cram_reward_profile() {
+        let ensemble = EnsembleDecision::default();
+        let mut state = sample_user_state();
+        state.reward_profile = Some("cram".to_string());
+        let strategy = sample_strategy();
+        let filtered = ensemble.post_filter(strategy, &state, None);
+        assert_eq!(filtered.difficulty, DifficultyLevel::Hard);
+    }
+
+    #[test]
+    fn post_filter_applies_relaxed_reward_profile() {
+        let ensemble = EnsembleDecision::default();
+        let mut state = sample_user_state();
+        state.reward_profile = Some("relaxed".to_string());
+        let strategy = sample_strategy();
+        let filtered = ensemble.post_filter(strategy, &state, None);
+        assert_eq!(filtered.difficulty, DifficultyLevel::Easy);
     }
 }

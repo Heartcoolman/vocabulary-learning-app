@@ -27,6 +27,7 @@ use crate::amas::memory::{
 };
 use crate::amas::memory::mdm::compute_quality as mdm_compute_quality;
 use crate::amas::vocabulary::{ConfusionPair, ContextEntry, MorphemeState};
+use crate::services::user_profile::get_reward_profile;
 
 struct UserModels {
     cold_start: Option<ColdStartManager>,
@@ -247,13 +248,13 @@ impl AMASEngine {
             });
 
             // UMM SWD for strategy decision
+            let swd_context_vec: Vec<f64> = vec![
+                new_user_state.attention,
+                new_user_state.fatigue,
+                new_user_state.motivation,
+                new_user_state.cognitive.mem,
+            ];
             let swd_action = {
-                let context_vec: Vec<f64> = vec![
-                    new_user_state.attention,
-                    new_user_state.fatigue,
-                    new_user_state.motivation,
-                    new_user_state.cognitive.mem,
-                ];
                 let strategy_keys: Vec<String> = strategy_candidates
                     .iter()
                     .map(|s| format!("{:?}:{}", s.difficulty, s.batch_size))
@@ -262,7 +263,7 @@ impl AMASEngine {
                     AlgorithmId::Swd,
                     models
                         .swd
-                        .select_action(&context_vec, &strategy_keys)
+                        .select_action(&swd_context_vec, &strategy_keys)
                         .and_then(|key| {
                             strategy_candidates
                                 .iter()
@@ -275,6 +276,7 @@ impl AMASEngine {
                 let key = format!("{:?}:{}", a.difficulty, a.batch_size);
                 models.swd.get_confidence(&key)
             });
+            let swd_recommendation = models.swd.recommend_additional_count(&swd_context_vec);
 
             let ensemble = self.ensemble.read().await;
             let (raw_strategy, candidates) = track_algorithm!(
@@ -297,8 +299,9 @@ impl AMASEngine {
                         total_sessions: total,
                         duration_minutes: options.study_duration_minutes.unwrap_or(0.0),
                     });
-            let filtered_strategy =
+            let mut filtered_strategy =
                 ensemble.post_filter(raw_strategy, &new_user_state, session_info.as_ref());
+            filtered_strategy.swd_recommendation = swd_recommendation;
 
             (filtered_strategy, candidates)
         };
@@ -834,6 +837,16 @@ impl AMASEngine {
             }
         }
 
+        // Load reward profile from database
+        let reward_profile = if let Some(ref proxy) = self.db_proxy {
+            get_reward_profile(proxy.pool(), user_id)
+                .await
+                .ok()
+                .filter(|p| p != "standard")
+        } else {
+            None
+        };
+
         if let Some(ref persistence) = self.persistence {
             if let Some(mut state) = persistence.load_state(user_id).await {
                 // 基于时间的疲劳衰减（会话级状态隔离）
@@ -851,15 +864,21 @@ impl AMASEngine {
                 }
                 // 5分钟内：保持原状态
 
+                // Apply reward profile
+                state.user_state.reward_profile = reward_profile;
+
                 let mut states = self.user_states.write().await;
                 states.insert(user_id.to_string(), state.clone());
                 return state;
             }
         }
 
+        let mut user_state = UserState::default();
+        user_state.reward_profile = reward_profile;
+
         let new_state = PersistedAMASState {
             user_id: user_id.to_string(),
-            user_state: UserState::default(),
+            user_state,
             bandit_model: None,
             current_strategy: StrategyParams::default(),
             cold_start_state: Some(ColdStartState::default()),
@@ -1150,6 +1169,7 @@ impl AMASEngine {
                     })
                     .or_else(|| prev_state.visual_fatigue.clone()),
                 fused_fatigue: Some(fused),
+                reward_profile: prev_state.reward_profile.clone(),
             },
             new_algo_states,
         )
@@ -1407,6 +1427,7 @@ impl AMASEngine {
                     batch_size: current.batch_size,
                     interval_scale: current.interval_scale,
                     hint_level: current.hint_level,
+                    swd_recommendation: None,
                 });
             }
         }

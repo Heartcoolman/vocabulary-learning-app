@@ -11,6 +11,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
+use crate::amas::types::SwdRecommendation;
+
 const GAMMA: f64 = 0.5;
 const K: f64 = 5.0;
 const MAX_HISTORY: usize = 200;
@@ -111,6 +113,45 @@ impl SwdModel {
             .count();
         let conf = 1.0 - (1.0 / (1.0 + count as f64 / K));
         conf.clamp(MIN_CONFIDENCE, MAX_CONFIDENCE)
+    }
+
+    pub fn recommend_additional_count(&self, context: &[f64]) -> Option<SwdRecommendation> {
+        if self.history.is_empty() || context.is_empty() {
+            return None;
+        }
+
+        let mut weighted_reward = 0.0;
+        let mut weight_total = 0.0;
+        let mut valid_entries = 0;
+
+        for (i, entry) in self.history.iter().rev().enumerate() {
+            if entry.context.len() != context.len() {
+                continue;
+            }
+            let sim = Self::cosine_similarity(context, &entry.context);
+            let recency = GAMMA.powi(i as i32);
+            let weight = (sim + 1.0) / 2.0 * recency;
+            weighted_reward += weight * entry.reward;
+            weight_total += weight;
+            valid_entries += 1;
+        }
+
+        if weight_total < EPSILON || valid_entries == 0 {
+            return None;
+        }
+
+        let avg_reward = weighted_reward / weight_total;
+        let confidence = self.get_confidence("_global");
+        let recommended_count = (avg_reward * 10.0).round() as i32;
+
+        if recommended_count > 0 {
+            Some(SwdRecommendation {
+                recommended_count,
+                confidence,
+            })
+        } else {
+            None
+        }
     }
 }
 

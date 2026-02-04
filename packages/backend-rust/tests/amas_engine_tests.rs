@@ -58,6 +58,7 @@ fn sample_event() -> RawEvent {
         timestamp: FIXED_TIMESTAMP,
         is_quit: false,
         device_type: Some("desktop".to_string()),
+        is_guess: false,
     }
 }
 

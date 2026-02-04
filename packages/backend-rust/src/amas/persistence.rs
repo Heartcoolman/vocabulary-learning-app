@@ -293,6 +293,7 @@ impl AMASPersistence {
                 .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis()),
             visual_fatigue,
             fused_fatigue: row.fused_fatigue,
+            reward_profile: None,
         }
     }
 

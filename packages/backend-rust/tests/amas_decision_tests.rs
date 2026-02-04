@@ -1,8 +1,9 @@
 use danci_backend_rust::amas::config::{ColdStartConfig, EnsembleConfig, FeatureFlags};
 use danci_backend_rust::amas::decision::{ColdStartManager, EnsembleDecision};
 use danci_backend_rust::amas::types::{
-    CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState,
+    CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, SwdRecommendation, UserState,
 };
+use danci_backend_rust::services::mastery_learning::{compute_dynamic_cap, compute_target_with_swd};
 
 fn sample_strategy() -> StrategyParams {
     StrategyParams {
@@ -11,6 +12,7 @@ fn sample_strategy() -> StrategyParams {
         batch_size: 8,
         interval_scale: 1.0,
         hint_level: 1,
+        swd_recommendation: None,
     }
 }
 
@@ -26,6 +28,7 @@ fn sample_user_state() -> UserState {
         ts: 0,
         visual_fatigue: None,
         fused_fatigue: None,
+        reward_profile: None,
     }
 }
 
@@ -242,4 +245,101 @@ fn integration_all_original_algorithms_shadow_mode() {
     // Post-filter should also work with these flags
     let filtered = ensemble.post_filter(final_strategy.clone(), &state, None);
     assert!(filtered.batch_size >= 5 && filtered.batch_size <= 16);
+}
+
+// ============================================
+// SWD Target Count Upgrade Tests
+// ============================================
+
+#[test]
+fn test_target_with_swd_basic() {
+    let rec = SwdRecommendation {
+        recommended_count: 5,
+        confidence: 0.8,
+    };
+    assert_eq!(compute_target_with_swd(15, Some(&rec), 30), 20);
+}
+
+#[test]
+fn test_target_with_swd_cap_applied() {
+    let rec = SwdRecommendation {
+        recommended_count: 10,
+        confidence: 0.8,
+    };
+    assert_eq!(compute_target_with_swd(15, Some(&rec), 20), 20);
+}
+
+#[test]
+fn test_target_user_exceeds_cap() {
+    let rec = SwdRecommendation {
+        recommended_count: 5,
+        confidence: 0.8,
+    };
+    assert_eq!(compute_target_with_swd(25, Some(&rec), 20), 25);
+}
+
+#[test]
+fn test_target_no_swd() {
+    assert_eq!(compute_target_with_swd(15, None, 30), 15);
+}
+
+#[test]
+fn test_target_low_confidence() {
+    let rec = SwdRecommendation {
+        recommended_count: 5,
+        confidence: 0.3,
+    };
+    assert_eq!(compute_target_with_swd(15, Some(&rec), 30), 15);
+}
+
+#[test]
+fn test_dynamic_cap_minimum() {
+    let tired_state = UserState {
+        fatigue: 1.0,
+        attention: 0.0,
+        motivation: -1.0,
+        cognitive: CognitiveProfile {
+            mem: 0.0,
+            speed: 0.0,
+            stability: 0.0,
+        },
+        fused_fatigue: Some(1.0),
+        ..Default::default()
+    };
+    assert_eq!(compute_dynamic_cap(&tired_state), 20);
+}
+
+#[test]
+fn test_dynamic_cap_optimal() {
+    let optimal_state = UserState {
+        fatigue: 0.0,
+        attention: 1.0,
+        motivation: 1.0,
+        cognitive: CognitiveProfile {
+            mem: 1.0,
+            speed: 1.0,
+            stability: 1.0,
+        },
+        fused_fatigue: Some(0.0),
+        ..Default::default()
+    };
+    assert_eq!(compute_dynamic_cap(&optimal_state), 100);
+}
+
+#[test]
+fn test_dynamic_cap_average() {
+    let avg_state = UserState {
+        fatigue: 0.0,
+        attention: 0.7,
+        motivation: 0.5,
+        cognitive: CognitiveProfile {
+            mem: 0.5,
+            speed: 0.5,
+            stability: 0.5,
+        },
+        fused_fatigue: None,
+        ..Default::default()
+    };
+    let cap = compute_dynamic_cap(&avg_state);
+    assert!(cap >= 70 && cap <= 75, "Expected ~72, got {}", cap);
 }
