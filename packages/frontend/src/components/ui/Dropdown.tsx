@@ -14,7 +14,7 @@ import React, {
   HTMLAttributes,
   KeyboardEvent,
 } from 'react';
-import { CaretDown } from '../Icon';
+import { CaretDown } from '@phosphor-icons/react';
 import { cn, generateId, Keys, Placement } from './utils';
 
 export interface DropdownItem {

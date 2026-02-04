@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useOnlineUsersWithDetails } from '../../hooks/queries';
+import { useOnlineUsersWithDetails } from '../../hooks/queries/useOnlineUsersWithDetails';
 import { AMASFlowVisualization } from '../../components/amas';
 import OnlineUserList from './components/OnlineUserList';
 import type { OnlineUserDetail } from '../../services/client';

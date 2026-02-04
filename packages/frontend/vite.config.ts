@@ -120,9 +120,16 @@ export default defineConfig(({ mode }) => {
 
     // 开发服务器配置
     server: {
-      // 启用强缓存，减少重复请求
+      // 预热关键文件，减少首次加载时间
       warmup: {
-        clientFiles: ['./src/main.tsx', './src/App.tsx'],
+        clientFiles: [
+          './src/main.tsx',
+          './src/App.tsx',
+          './src/routes/index.tsx',
+          './src/pages/LearningPage.tsx',
+          './src/components/ui/index.ts',
+          './src/services/LearningService.ts',
+        ],
       },
       // API 代理配置（保持与 VITE_API_URL 一致，避免硬编码 localhost）
       proxy: {

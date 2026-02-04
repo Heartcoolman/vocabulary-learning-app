@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { AmasProcessResult } from '../types/amas';
-import { Coffee, Lightbulb, PushPin, Warning, TrendUp, TrendDown } from './Icon';
+import { Coffee, Lightbulb, PushPin, Warning, TrendUp, TrendDown } from '@phosphor-icons/react';
 import { StateChangeReason } from './amas-settings';
 import type { DecisionFactor } from '../types/explainability';
 

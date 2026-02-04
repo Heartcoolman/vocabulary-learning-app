@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, SunHorizon, TrendUp, Sparkle } from './Icon';
+import { Sun, Moon, SunHorizon, TrendUp, Sparkle } from '@phosphor-icons/react';
 
 // 支持 'neutral' 作为 'intermediate' 的别名
 export type ChronotypeType = 'morning' | 'evening' | 'intermediate' | 'neutral';

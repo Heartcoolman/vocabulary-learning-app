@@ -13,7 +13,7 @@ import {
 import { Button } from './Button';
 import { Input } from './Input';
 import { Checkbox } from './Checkbox';
-import { Trash, Pencil } from '../Icon';
+import { Trash, Pencil } from '@phosphor-icons/react';
 
 /**
  * # Table 表格组件

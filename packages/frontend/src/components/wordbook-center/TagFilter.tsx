@@ -1,4 +1,4 @@
-import { Tag, X } from '../Icon';
+import { Tag, X } from '@phosphor-icons/react';
 
 interface TagFilterProps {
   allTags: string[];

@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '../../hooks/usePrefetch';
-import { useSystemVersion } from '../../hooks/queries';
+import { useSystemVersion } from '../../hooks/queries/useSystemVersion';
 import { useAdminAuthStore } from '../../stores/adminAuthStore';
 import { adminLogout } from '../../services/client/admin/AdminAuthClient';
 import {

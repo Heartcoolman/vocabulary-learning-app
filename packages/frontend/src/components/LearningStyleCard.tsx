@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card } from './ui/Card';
-import { Eye, Headphones, Hand, Brain, Sparkle, BookOpen } from './Icon';
+import { Eye, Headphones, Hand, Brain, Sparkle, BookOpen } from '@phosphor-icons/react';
 
 export type LearningStyle = 'visual' | 'auditory' | 'reading' | 'kinesthetic' | 'multimodal';
 

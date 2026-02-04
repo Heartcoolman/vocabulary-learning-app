@@ -1,5 +1,5 @@
 import React, { useState, useRef, DragEvent, ChangeEvent, KeyboardEvent } from 'react';
-import { UploadSimple, X, FileText, WarningCircle } from './Icon';
+import { UploadSimple, X, FileText, WarningCircle } from '@phosphor-icons/react';
 
 export interface FileUploadProps {
   onFileSelect: (file: File | null) => void;

@@ -1,4 +1,4 @@
-import { Calendar, Target, TrendUp, Confetti, Lightning } from '../Icon';
+import { Calendar, Target, TrendUp, Confetti, Lightning } from '@phosphor-icons/react';
 
 interface GoalTrackerProps {
   dailyGoal: number;

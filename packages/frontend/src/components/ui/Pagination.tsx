@@ -4,7 +4,7 @@
  * 分页导航
  */
 import React, { forwardRef, memo, HTMLAttributes, useMemo } from 'react';
-import { CaretLeft, CaretRight } from '../Icon';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { cn } from './utils';
 
 export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {

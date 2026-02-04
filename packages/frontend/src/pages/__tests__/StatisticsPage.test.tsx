@@ -51,18 +51,23 @@ const mockStatisticsData: FullStatisticsData = {
 };
 
 // Mock useStatistics hook and related semantic hooks used by ErrorAnalysisPanel
-const mockUseStatistics = vi.fn();
-const mockUseSemanticStats = vi.fn();
-const mockUseErrorAnalysis = vi.fn();
-vi.mock('../../hooks/queries', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../hooks/queries')>();
-  return {
-    ...actual,
-    useStatistics: () => mockUseStatistics(),
-    useSemanticStats: () => mockUseSemanticStats(),
-    useErrorAnalysis: (enabled?: boolean) => mockUseErrorAnalysis(enabled),
-  };
-});
+const { mockUseStatistics, mockUseSemanticStats, mockUseErrorAnalysis } = vi.hoisted(() => ({
+  mockUseStatistics: vi.fn(),
+  mockUseSemanticStats: vi.fn(),
+  mockUseErrorAnalysis: vi.fn(),
+}));
+
+vi.mock('../../hooks/queries/useStatistics', () => ({
+  useStatistics: () => mockUseStatistics(),
+}));
+
+vi.mock('../../hooks/queries/useSemanticStats', () => ({
+  useSemanticStats: () => mockUseSemanticStats(),
+}));
+
+vi.mock('../../hooks/queries/useErrorAnalysis', () => ({
+  useErrorAnalysis: (enabled?: boolean) => mockUseErrorAnalysis(enabled),
+}));
 
 // 创建测试用的 QueryClient
 function createTestQueryClient() {

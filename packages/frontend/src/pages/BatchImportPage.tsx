@@ -11,7 +11,7 @@ import {
   X,
 } from '../components/Icon';
 import { adminClient } from '../services/client';
-import { FileUpload } from '../components';
+import FileUpload from '../components/FileUpload';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
 import { useBatchImport, BatchOperationProgress } from '../hooks/mutations/useBatchOperations';
 import { useQuery } from '@tanstack/react-query';

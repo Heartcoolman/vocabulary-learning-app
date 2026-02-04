@@ -4,7 +4,7 @@
  * 头像展示，支持图片、文字和图标
  */
 import React, { forwardRef, memo, useState, HTMLAttributes, ReactNode } from 'react';
-import { User } from '../Icon';
+import { User } from '@phosphor-icons/react';
 import { cn, Size } from './utils';
 
 export interface AvatarProps extends HTMLAttributes<HTMLDivElement> {

@@ -43,12 +43,16 @@ vi.mock('../../services/client', () => ({
 const mockSetCurrentUser = vi.fn();
 const mockClearLocalData = vi.fn();
 const mockInit = vi.fn();
+const mockSaveUserInfo = vi.fn();
+const mockLoadUserInfo = vi.fn();
 
 vi.mock('../../services/StorageService', () => ({
   default: {
     setCurrentUser: (...args: unknown[]) => mockSetCurrentUser(...args),
     clearLocalData: (...args: unknown[]) => mockClearLocalData(...args),
     init: (...args: unknown[]) => mockInit(...args),
+    saveUserInfo: (...args: unknown[]) => mockSaveUserInfo(...args),
+    loadUserInfo: (...args: unknown[]) => mockLoadUserInfo(...args),
   },
 }));
 
@@ -129,6 +133,7 @@ describe('AuthContext', () => {
     mockGetRecords.mockResolvedValue({ records: [], total: 0 });
     mockSetCurrentUser.mockResolvedValue(undefined);
     mockClearLocalData.mockResolvedValue(undefined);
+    mockLoadUserInfo.mockReturnValue(null);
   });
 
   describe('useAuth', () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useCallback, ReactNode } from 'react';
-import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
-import { useToastStore } from '../../stores';
+import { CheckCircle, XCircle, Warning, Info, X } from '@phosphor-icons/react';
+import { useToastStore, useToastCleanup, Toast, ToastType } from '../../stores/toastStore';
 import { IconColor } from '../../utils/iconColors';
 
 interface CustomToastOptions {

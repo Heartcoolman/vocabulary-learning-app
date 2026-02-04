@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { SpeakerHigh, Check, X } from './Icon';
+import { SpeakerHigh, Check, X } from '@phosphor-icons/react';
 import { g3SpringSnappy, G3_DURATION } from '../utils/animations';
 import { Button, Card } from './ui';
 import { cn } from './ui/utils';

@@ -20,41 +20,55 @@ const createTestQueryClient = () =>
 
 const {
   mockUseAdminStatistics,
-  mockUseSystemHealth,
+  mockUseSystemStatus,
+  mockUsePerformanceMetrics,
+  mockUseCombinedHealth,
   mockUseVisualFatigueStats,
   mockUseSystemVersion,
 } = vi.hoisted(() => ({
   mockUseAdminStatistics: vi.fn(),
-  mockUseSystemHealth: vi.fn(),
+  mockUseSystemStatus: vi.fn(),
+  mockUsePerformanceMetrics: vi.fn(),
+  mockUseCombinedHealth: vi.fn(),
   mockUseVisualFatigueStats: vi.fn(),
   mockUseSystemVersion: vi.fn(),
 }));
 
-vi.mock('../../../hooks/queries', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../hooks/queries')>();
-  return {
-    ...actual,
-    useAdminStatistics: mockUseAdminStatistics,
-    useSystemHealth: mockUseSystemHealth,
-    useVisualFatigueStats: mockUseVisualFatigueStats,
-    useSystemVersion: mockUseSystemVersion,
-  };
-});
+vi.mock('../../../hooks/queries/useAdminStatistics', () => ({
+  useAdminStatistics: mockUseAdminStatistics,
+}));
+
+vi.mock('../../../hooks/queries/useSystemStatus', () => ({
+  useSystemStatus: mockUseSystemStatus,
+  usePerformanceMetrics: mockUsePerformanceMetrics,
+  useCombinedHealth: mockUseCombinedHealth,
+}));
+
+vi.mock('../../../hooks/queries/useVisualFatigueStats', () => ({
+  useVisualFatigueStats: mockUseVisualFatigueStats,
+}));
+
+vi.mock('../../../hooks/queries/useSystemVersion', () => ({
+  useSystemVersion: mockUseSystemVersion,
+}));
 
 vi.mock('../../../hooks/queries/useLLMAdvisor', () => ({
   useLLMPendingCount: () => ({ data: 0 }),
 }));
 
-const { mockAmasClient } = vi.hoisted(() => ({
-  mockAmasClient: {
-    getAmasStrategy: vi.fn(),
-    resetAmasState: vi.fn(),
+const { mockAdminClient } = vi.hoisted(() => ({
+  mockAdminClient: {
+    getAMASMonitoringOverview: vi.fn(),
   },
 }));
 
-vi.mock('../../../services/client', () => ({
-  amasClient: mockAmasClient,
-}));
+vi.mock('../../../services/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/client')>();
+  return {
+    ...actual,
+    adminClient: mockAdminClient,
+  };
+});
 
 vi.mock('../../../hooks/mutations', () => ({
   useOTAUpdate: () => ({
@@ -188,14 +202,10 @@ const renderWithRouter = () => {
 describe('AdminDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAmasClient.getAmasStrategy.mockResolvedValue({
-      interval_scale: 1.0,
-      new_ratio: 0.3,
-      difficulty: 'mid',
-      batch_size: 10,
-      hint_level: 1,
-    });
-    mockUseSystemHealth.mockReturnValue({ data: undefined });
+    mockAdminClient.getAMASMonitoringOverview.mockResolvedValue(null);
+    mockUseSystemStatus.mockReturnValue({ data: undefined, isLoading: false });
+    mockUsePerformanceMetrics.mockReturnValue({ data: undefined });
+    mockUseCombinedHealth.mockReturnValue({ data: undefined, isLoading: false });
     mockUseVisualFatigueStats.mockReturnValue({ data: undefined, isLoading: false, error: null });
     mockUseSystemVersion.mockReturnValue({ data: undefined });
   });
@@ -210,7 +220,6 @@ describe('AdminDashboard', () => {
       });
       renderWithRouter();
 
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
       expect(screen.getByText('正在加载...')).toBeInTheDocument();
     });
   });

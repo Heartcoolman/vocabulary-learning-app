@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, memo } from 'react';
 import { UserState, ColdStartPhaseInfo } from '../types/amas';
 import ApiClient from '../services/client';
-import { MagnifyingGlass, Compass, CheckCircle, Question, Warning } from './Icon';
+import { MagnifyingGlass, Compass, CheckCircle, Question, Warning } from '@phosphor-icons/react';
 import { ConfidenceBadge } from './amas-settings';
 import { amasLogger } from '../utils/logger';
 

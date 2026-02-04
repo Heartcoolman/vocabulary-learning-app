@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import StorageService, { SyncStatus } from '../services/StorageService';
-import { Check, X } from './Icon';
+import { Check, X } from '@phosphor-icons/react';
 import { storageLogger } from '../utils/logger';
 
 /**

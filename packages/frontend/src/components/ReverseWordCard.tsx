@@ -1,6 +1,6 @@
 import { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { SpeakerHigh } from './Icon';
+import { SpeakerHigh } from '@phosphor-icons/react';
 import { Button } from './ui';
 import { cn } from './ui/utils';
 import {

@@ -31,7 +31,7 @@ import {
   useInsights,
   useSegments,
   useGenerateInsight,
-} from '../../hooks/queries';
+} from '../../hooks/queries/useOpsEnhance';
 import type { WeeklyReportDetail, UserBehaviorInsight, UserSegment } from '../../services/client';
 
 /**

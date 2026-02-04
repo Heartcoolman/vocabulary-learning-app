@@ -39,9 +39,9 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
-// Mock Icon components - 使用相对路径 (LearningPage 使用 ../components/Icon)
-vi.mock('../../components/Icon', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../components/Icon')>();
+// Mock Icon components - LearningPage uses Phosphor icons directly
+vi.mock('@phosphor-icons/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@phosphor-icons/react')>();
   return {
     ...actual,
     Confetti: () => <span data-testid="confetti-icon">confetti</span>,

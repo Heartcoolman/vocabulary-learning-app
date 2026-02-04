@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardFooter, CardVariant } from './Card';
 import { Button } from './Button';
-import { DotsThreeVertical, Star, Check, User, Target } from '../Icon';
+import { DotsThreeVertical, Star, Check, User, Target } from '@phosphor-icons/react';
 
 /**
  * # Card 卡片组件

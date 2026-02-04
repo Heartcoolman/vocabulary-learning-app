@@ -181,6 +181,7 @@ export default function HistoryPage() {
         const res = await ApiClient.listSessions({
           limit: 10,
           offset: sessionsPagination.offset,
+          includeActive: true,
         });
         if (mounted) {
           setSessions(res.data);

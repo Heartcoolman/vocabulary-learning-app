@@ -13,7 +13,7 @@ import {
   Lightbulb,
   TrendUp,
   Target,
-} from '../Icon';
+} from '@phosphor-icons/react';
 import { MemoryTraceChart } from './MemoryTraceChart';
 import { RelatedWords } from '../semantic';
 import { useWordDetailData } from '../../hooks/useWordDetailData';

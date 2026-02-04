@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen } from '../Icon';
+import { BookOpen } from '@phosphor-icons/react';
 import type { ConfusionPair } from '../../services/client/semantic/SemanticClient';
 
 interface ConfusionPairCardProps {

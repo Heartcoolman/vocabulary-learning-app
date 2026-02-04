@@ -10,7 +10,7 @@ import {
 } from '../components/Icon';
 import { Spinner } from '../components/ui';
 import LineChart from '../components/LineChart';
-import { useStatistics } from '../hooks/queries';
+import { useStatistics } from '../hooks/queries/useStatistics';
 import { ErrorAnalysisPanel } from '../components/semantic/ErrorAnalysisPanel';
 
 /**

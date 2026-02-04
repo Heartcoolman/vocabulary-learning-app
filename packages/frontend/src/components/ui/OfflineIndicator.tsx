@@ -4,7 +4,7 @@
  * 网络离线友好提示组件，检测用户网络状态并在离线时显示提示
  */
 import React, { useState, useEffect, memo } from 'react';
-import { WifiSlash, ArrowsClockwise } from '../Icon';
+import { WifiSlash, ArrowsClockwise } from '@phosphor-icons/react';
 import { cn } from './utils';
 
 export interface OfflineIndicatorProps {

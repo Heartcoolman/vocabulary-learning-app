@@ -15,7 +15,7 @@ import {
 } from '../../components/Icon';
 import { useToast, Modal } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
-import { useAlgorithmConfig } from '../../hooks/queries';
+import { useAlgorithmConfig } from '../../hooks/queries/useAlgorithmConfig';
 import { useUpdateAlgorithmConfig, useResetAlgorithmConfig } from '../../hooks/mutations';
 
 // 导入拆分后的 Section 组件

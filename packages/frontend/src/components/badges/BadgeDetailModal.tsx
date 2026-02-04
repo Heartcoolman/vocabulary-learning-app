@@ -2,7 +2,17 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import { amasClient } from '../../services/client';
-import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
+import {
+  Trophy,
+  Star,
+  Fire,
+  Brain,
+  Target,
+  CheckCircle,
+  X,
+  Info,
+  CircleNotch,
+} from '@phosphor-icons/react';
 import { uiLogger } from '../../utils/logger';
 import { IconColor } from '../../utils/iconColors';
 

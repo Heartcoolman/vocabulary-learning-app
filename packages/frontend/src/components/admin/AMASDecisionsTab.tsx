@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CheckCircle, XCircle, Hourglass, Minus } from '../Icon';
+import { CheckCircle, XCircle, Hourglass, Minus } from '@phosphor-icons/react';
 import ApiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
 import { DifficultyLevel } from '@danci/shared';

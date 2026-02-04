@@ -14,7 +14,7 @@
 
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeSlash, Warning, CaretDown } from '../Icon';
+import { Eye, EyeSlash, Warning, CaretDown } from '@phosphor-icons/react';
 import { useVisualFatigueStore } from '../../stores/visualFatigueStore';
 import { useVisualFatigue } from '../../hooks/useVisualFatigue';
 import { videoElementManager } from '../../services/visual-fatigue';

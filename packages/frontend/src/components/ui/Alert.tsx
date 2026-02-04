@@ -4,7 +4,7 @@
  * 警告提示，用于重要信息展示
  */
 import React, { forwardRef, memo, useState, HTMLAttributes, ReactNode } from 'react';
-import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
+import { CheckCircle, XCircle, Warning, Info, X } from '@phosphor-icons/react';
 import { cn } from './utils';
 import { IconColor } from '../../utils/iconColors';
 

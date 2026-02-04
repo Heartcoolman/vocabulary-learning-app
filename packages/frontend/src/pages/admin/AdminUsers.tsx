@@ -7,8 +7,8 @@ import {
   useAdminUsers,
   useDeleteUser,
   useUpdateUserRole,
-  AdminUsersParams,
-} from '../../hooks/queries';
+  type AdminUsersParams,
+} from '../../hooks/queries/useAdminUsers';
 
 // 角色权限说明
 const ROLE_DESCRIPTIONS = {

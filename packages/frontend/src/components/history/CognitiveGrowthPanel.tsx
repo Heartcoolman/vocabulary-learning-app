@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, ArrowUp, ArrowDown } from '../Icon';
+import { Brain, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { CognitiveGrowthResult } from '../../types/amas-enhanced';
 
 interface CognitiveGrowthPanelProps {

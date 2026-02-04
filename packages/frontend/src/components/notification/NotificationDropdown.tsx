@@ -11,8 +11,12 @@ import { memo, useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
 import { NotificationItem } from './NotificationItem';
-import { useNotifications, useNotificationStats, useMarkAsRead } from '../../hooks/queries';
-import { CircleNotch } from '../Icon';
+import {
+  useNotifications,
+  useNotificationStats,
+  useMarkAsRead,
+} from '../../hooks/queries/useNotifications';
+import { CircleNotch } from '@phosphor-icons/react';
 import { Empty } from '../ui/Empty';
 import type { Notification } from '../../services/client';
 

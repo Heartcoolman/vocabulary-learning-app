@@ -6,7 +6,7 @@
  */
 import { memo } from 'react';
 import type { Notification } from '../../services/client';
-import { Clock, Check, Trash, Megaphone } from '../Icon';
+import { Clock, Check, Trash, Megaphone } from '@phosphor-icons/react';
 
 export interface NotificationItemProps {
   notification: Notification;

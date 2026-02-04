@@ -9,8 +9,10 @@ import {
   ConfigHistory,
   WordState,
 } from '../types/models';
+import type { User } from './client';
 import ApiClient from './client';
 import { storageLogger } from '../utils/logger';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export interface SyncStatus {
   isSyncing: boolean;
@@ -327,6 +329,7 @@ class StorageService {
   async clearLocalData(): Promise<void> {
     this.wordCache = [];
     this.cacheTimestamp = null;
+    localStorage.removeItem(STORAGE_KEYS.USER_INFO);
   }
 
   async deleteDatabase(): Promise<void> {
@@ -539,6 +542,33 @@ class StorageService {
     } catch (error) {
       storageLogger.error({ err: error }, '保存扩展答题记录失败');
       throw error;
+    }
+  }
+
+  // ==================== 用户信息缓存 ====================
+
+  /**
+   * 保存用户信息到本地缓存
+   */
+  saveUserInfo(user: User): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(user));
+    } catch (error) {
+      storageLogger.error({ err: error }, '保存用户信息失败');
+    }
+  }
+
+  /**
+   * 从本地缓存加载用户信息
+   */
+  loadUserInfo(): User | null {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.USER_INFO);
+      if (!stored) return null;
+      return JSON.parse(stored) as User;
+    } catch (error) {
+      storageLogger.error({ err: error }, '加载用户信息失败');
+      return null;
     }
   }
 }

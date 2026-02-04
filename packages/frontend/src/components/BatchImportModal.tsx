@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { X, Warning, CheckCircle, CircleNotch, FileText } from './Icon';
+import { X, Warning, CheckCircle, CircleNotch, FileText } from '@phosphor-icons/react';
 import { Modal } from './ui/Modal';
 import FileUpload from './FileUpload';
 import { parseImportFile, WordImportData } from '../utils/importParsers';

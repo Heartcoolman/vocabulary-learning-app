@@ -1,6 +1,6 @@
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { WarningCircle, Coffee, Bed } from '../Icon';
+import { WarningCircle, Coffee, Bed } from '@phosphor-icons/react';
 
 interface FatigueAlertModalProps {
   isOpen: boolean;

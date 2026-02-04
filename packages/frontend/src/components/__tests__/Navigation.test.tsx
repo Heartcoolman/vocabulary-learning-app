@@ -62,7 +62,7 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 // Mock notification hooks
-vi.mock('../../hooks/queries', () => ({
+vi.mock('../../hooks/queries/useNotifications', () => ({
   useNotifications: vi.fn(() => ({ data: [], isLoading: false })),
   useNotificationStats: vi.fn(() => ({ data: { unread: 0 } })),
   useMarkAsRead: vi.fn(() => ({ mutate: vi.fn() })),

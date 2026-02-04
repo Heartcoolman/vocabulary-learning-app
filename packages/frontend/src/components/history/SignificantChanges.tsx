@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendUp, TrendDown } from '../Icon';
+import { Target, TrendUp, TrendDown } from '@phosphor-icons/react';
 import { SignificantChange } from '../../types/amas-enhanced';
 import { formatShortDate } from '../../utils/historyUtils';
 

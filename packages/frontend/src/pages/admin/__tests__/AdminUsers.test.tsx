@@ -150,7 +150,7 @@ describe('AdminUsers', () => {
     it('should show loading indicator initially', () => {
       renderWithRouter();
 
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+      expect(screen.getByText('正在加载...')).toBeInTheDocument();
     });
   });
 

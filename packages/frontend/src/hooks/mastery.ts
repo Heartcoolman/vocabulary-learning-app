@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { learningClient, amasClient } from '../services/client';
+import { queryClient } from '../lib/queryClient';
 import {
   WordItem,
   QueueProgress,
@@ -19,10 +20,15 @@ import { learningLogger } from '../utils/logger';
 // ==================== API Functions ====================
 
 /**
- * 获取掌握模式的学习单词
+ * 获取掌握模式的学习单词（优先使用 React Query 缓存）
+ * 注意：queryKey 不包含 targetCount，因为后端会使用用户配置的默认值
  */
 export async function getMasteryStudyWords(targetCount?: number) {
-  return learningClient.getMasteryStudyWords(targetCount);
+  return queryClient.fetchQuery({
+    queryKey: ['masteryStudyWords'],
+    queryFn: () => learningClient.getMasteryStudyWords(targetCount),
+    staleTime: 60 * 1000,
+  });
 }
 
 /**
@@ -641,7 +647,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
         const currentWordIds = manager?.getCurrentWordIds() ?? [];
         const masteredWordIds = manager?.getMasteredWordIds() ?? [];
 
-        await adjustLearningWords({
+        const result = await adjustLearningWords({
           sessionId,
           currentWordIds,
           masteredWordIds,
@@ -653,6 +659,33 @@ export function useMasterySync(options: UseMasterySyncOptions) {
             consecutiveWrong: recentPerformance.consecutiveWrong ?? 0,
           },
         });
+
+        // 应用调整结果到本地队列
+        if (manager && result.adjustments) {
+          const addWords = result.adjustments.add.map((w) => ({
+            id: w.id,
+            spelling: w.spelling,
+            phonetic: w.phonetic,
+            meanings: w.meanings,
+            examples: w.examples,
+            audioUrl: w.audioUrl,
+            isNew: w.isNew,
+            difficulty: w.difficulty, // 保留 difficulty 用于排序
+          })) as WordItem[];
+          manager.applyAdjustments({
+            remove: result.adjustments.remove,
+            add: addWords,
+          });
+          learningLogger.info(
+            {
+              reason,
+              removed: result.adjustments.remove.length,
+              added: result.adjustments.add.length,
+              targetDifficulty: result.targetDifficulty,
+            },
+            '[MasterySync] Queue adjustment applied',
+          );
+        }
 
         onQueueAdjusted?.();
       } catch (e) {

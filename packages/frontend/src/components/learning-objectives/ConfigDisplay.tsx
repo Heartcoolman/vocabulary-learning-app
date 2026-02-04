@@ -1,6 +1,6 @@
 import React from 'react';
 import { LearningObjectives } from '../../types/learning-objectives';
-import { Gear } from '../Icon';
+import { Gear } from '@phosphor-icons/react';
 
 interface ConfigDisplayProps {
   objectives: LearningObjectives;

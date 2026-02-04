@@ -5,7 +5,7 @@
  */
 import React, { memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { WarningCircle, ArrowsClockwise, House, ArrowLeft } from '../Icon';
+import { WarningCircle, ArrowsClockwise, House, ArrowLeft } from '@phosphor-icons/react';
 import { cn } from '../ui/utils';
 
 export interface ErrorPageProps {

@@ -15,7 +15,7 @@ import React, {
   ReactNode,
   HTMLAttributes,
 } from 'react';
-import { CaretDown, Check, MagnifyingGlass, X } from '../Icon';
+import { CaretDown, Check, MagnifyingGlass, X } from '@phosphor-icons/react';
 import { cn, generateId, Keys } from './utils';
 
 export interface SelectOption {

@@ -17,12 +17,24 @@ import {
   createMasterySession,
   endHabitSession,
   sendQuitEvent,
+  syncMasteryProgress,
 } from './mastery';
 import { useSubmitAnswer, extractAmasState } from './mutations';
 import { learningLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const END_SESSION_ENDPOINT = '/api/habit-profile/end-session';
+
+// 队列调整触发条件
+const ADJUST_THRESHOLDS = {
+  CONSECUTIVE_WRONG: 3,
+  STRUGGLING_ACCURACY: 0.5,
+  EXCELLING_ACCURACY: 0.9,
+  EXCELLING_RESPONSE_TIME: 3000,
+  FATIGUE_THRESHOLD: 0.7,
+  MIN_ANSWERS_FOR_ADJUST: 5,
+  ADJUST_COOLDOWN_MS: 30000, // 30秒冷却时间
+} as const;
 
 import type { VarkInteractionData } from './mutations/useSubmitAnswer';
 import type { MicroInteractionData } from '../types/amas';
@@ -89,6 +101,15 @@ export function useMasteryLearning(
   const initCheckCounterRef = useRef(0); // 用于强制触发初始化后的单词补充检查
   const prevStrategyRef = useRef<LearningStrategy | null>(null); // 跟踪策略变化
 
+  // 实时表现追踪（用于触发队列调整）
+  const performanceRef = useRef({
+    consecutiveWrong: 0,
+    recentCorrect: 0,
+    recentTotal: 0,
+    recentResponseTimes: [] as number[],
+    lastAdjustTime: 0,
+  });
+
   // 子 hooks
   const wordQueue = useWordQueue({ targetMasteryCount: initialTargetCount });
 
@@ -140,19 +161,6 @@ export function useMasteryLearning(
           hintLevel: result.strategy.hint_level,
           intervalScale: result.strategy.interval_scale,
         });
-        // 策略变化时触发队列调整
-        const prev = prevStrategyRef.current;
-        if (
-          prev &&
-          (prev.difficulty !== result.strategy.difficulty ||
-            prev.batch_size !== result.strategy.batch_size)
-        ) {
-          syncRef.current?.triggerQueueAdjustment(
-            'periodic',
-            { accuracy: 0, avgResponseTime: 0, consecutiveWrong: 0 },
-            extractAmasState(result),
-          );
-        }
         prevStrategyRef.current = result.strategy;
       }
       // 同步后端掌握判定
@@ -174,8 +182,12 @@ export function useMasteryLearning(
     if (!sid || sessionStartTimeRef.current <= 0 || sessionEndedRef.current) return;
 
     const isNormalCompletion = wordQueueRef.current.isCompleted;
+    const progress = wordQueueRef.current.progress;
     sessionEndedRef.current = true;
     sessionStartTimeRef.current = 0;
+
+    // Clear session cache to ensure next session creates a new one
+    syncRef.current?.sessionCache.clearSessionCache();
 
     if (mode === 'beacon') {
       // Beacon mode: used for page unload (beforeunload/pagehide)
@@ -184,6 +196,17 @@ export function useMasteryLearning(
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
       const payload = JSON.stringify({ sessionId: sid, authToken: token });
       const url = `${import.meta.env.VITE_API_URL || ''}${END_SESSION_ENDPOINT}`;
+
+      // Sync progress via beacon
+      const progressUrl = `${import.meta.env.VITE_API_URL || ''}/api/learning-sessions/${sid}/progress`;
+      const progressPayload = JSON.stringify({
+        totalQuestions: progress.totalQuestions,
+        actualMasteryCount: progress.masteredCount,
+      });
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const progressBlob = new Blob([progressPayload], { type: 'application/json' });
+        navigator.sendBeacon(progressUrl, progressBlob);
+      }
 
       if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([payload], { type: 'application/json' });
@@ -202,6 +225,13 @@ export function useMasteryLearning(
         // Fall back to async call below
       }
     }
+
+    // Sync progress before ending session
+    syncMasteryProgress({
+      sessionId: sid,
+      totalQuestions: progress.totalQuestions,
+      actualMasteryCount: progress.masteredCount,
+    }).catch(() => {});
 
     // Send quit event only for abnormal session end (not normal completion)
     if (!isNormalCompletion) {
@@ -228,19 +258,6 @@ export function useMasteryLearning(
           hintLevel: result.strategy.hint_level,
           intervalScale: result.strategy.interval_scale,
         });
-        // 策略变化时触发队列调整
-        const prev = prevStrategyRef.current;
-        if (
-          prev &&
-          (prev.difficulty !== result.strategy.difficulty ||
-            prev.batch_size !== result.strategy.batch_size)
-        ) {
-          syncRef.current?.triggerQueueAdjustment(
-            'periodic',
-            { accuracy: 0, avgResponseTime: 0, consecutiveWrong: 0 },
-            extractAmasState(result),
-          );
-        }
         prevStrategyRef.current = result.strategy;
       }
       // 同步后端掌握判定
@@ -248,6 +265,58 @@ export function useMasteryLearning(
         wordQueueRef.current.updateMasteryFromBackend(
           result.wordMasteryDecision.wordId,
           result.wordMasteryDecision.isMastered,
+        );
+      }
+
+      // 实时调节：根据表现和用户状态触发队列调整
+      const perf = performanceRef.current;
+      const now = Date.now();
+      const userState = extractAmasState(result);
+
+      // 冷却时间检查
+      if (now - perf.lastAdjustTime < ADJUST_THRESHOLDS.ADJUST_COOLDOWN_MS) return;
+
+      // 样本量不足时不调整
+      if (perf.recentTotal < ADJUST_THRESHOLDS.MIN_ANSWERS_FOR_ADJUST) return;
+
+      const accuracy = perf.recentTotal > 0 ? perf.recentCorrect / perf.recentTotal : 1;
+      const avgResponseTime =
+        perf.recentResponseTimes.length > 0
+          ? perf.recentResponseTimes.reduce((a, b) => a + b, 0) / perf.recentResponseTimes.length
+          : 0;
+
+      let adjustReason: 'fatigue' | 'struggling' | 'excelling' | null = null;
+
+      // 疲劳检测
+      if (userState && userState.fatigue > ADJUST_THRESHOLDS.FATIGUE_THRESHOLD) {
+        adjustReason = 'fatigue';
+      }
+      // 连续错误或正确率过低
+      else if (
+        perf.consecutiveWrong >= ADJUST_THRESHOLDS.CONSECUTIVE_WRONG ||
+        accuracy < ADJUST_THRESHOLDS.STRUGGLING_ACCURACY
+      ) {
+        adjustReason = 'struggling';
+      }
+      // 表现优秀
+      else if (
+        accuracy > ADJUST_THRESHOLDS.EXCELLING_ACCURACY &&
+        avgResponseTime > 0 &&
+        avgResponseTime < ADJUST_THRESHOLDS.EXCELLING_RESPONSE_TIME
+      ) {
+        adjustReason = 'excelling';
+      }
+
+      if (adjustReason) {
+        learningLogger.info(
+          { adjustReason, accuracy, consecutiveWrong: perf.consecutiveWrong, avgResponseTime },
+          '[useMasteryLearning] Triggering real-time queue adjustment',
+        );
+        perf.lastAdjustTime = now;
+        syncRef.current?.triggerQueueAdjustment(
+          adjustReason,
+          { accuracy, avgResponseTime, consecutiveWrong: perf.consecutiveWrong },
+          userState,
         );
       }
     },
@@ -509,6 +578,21 @@ export function useMasteryLearning(
 
       setError(null);
 
+      // 更新实时表现追踪
+      const perf = performanceRef.current;
+      perf.recentTotal++;
+      if (isCorrect) {
+        perf.recentCorrect++;
+        perf.consecutiveWrong = 0;
+      } else {
+        perf.consecutiveWrong++;
+      }
+      perf.recentResponseTimes.push(responseTime);
+      // 只保留最近 10 次的响应时间
+      if (perf.recentResponseTimes.length > 10) {
+        perf.recentResponseTimes.shift();
+      }
+
       // 创建状态快照用于错误回滚
       wordQueue.queueManagerRef.current.snapshotState();
 
@@ -539,6 +623,16 @@ export function useMasteryLearning(
         isGuess,
         microInteraction,
       });
+
+      // Sync progress every 5 questions
+      const progress = wordQueue.getQueueState()?.progress;
+      if (progress && progress.totalQuestions > 0 && progress.totalQuestions % 5 === 0) {
+        syncMasteryProgress({
+          sessionId: currentSessionIdRef.current,
+          totalQuestions: progress.totalQuestions,
+          actualMasteryCount: progress.masteredCount,
+        }).catch(() => {});
+      }
     },
     [
       wordQueue,
@@ -575,6 +669,14 @@ export function useMasteryLearning(
     setLatestAmasResult(null);
     currentSessionIdRef.current = '';
     sessionStartTimeRef.current = 0;
+    // 重置表现追踪
+    performanceRef.current = {
+      consecutiveWrong: 0,
+      recentCorrect: 0,
+      recentTotal: 0,
+      recentResponseTimes: [],
+      lastAdjustTime: 0,
+    };
     await initSession(true);
   }, [sync, wordQueue, initSession, isSeedSession]);
 

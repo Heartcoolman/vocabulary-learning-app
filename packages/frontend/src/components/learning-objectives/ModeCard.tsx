@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '../ui/Card';
 import { LearningObjectiveMode } from '../../types/learning-objectives';
-import type { IconProps } from '../Icon';
+import type { IconProps } from '@phosphor-icons/react';
 
 interface ModeCardProps {
   mode: LearningObjectiveMode;

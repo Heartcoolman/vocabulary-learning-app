@@ -1,5 +1,5 @@
 import { Modal, Button } from '../ui';
-import { ArrowRight, CircleNotch } from '../Icon';
+import { ArrowRight, CircleNotch } from '@phosphor-icons/react';
 import type { UpdateInfo } from '../../services/client';
 
 interface UpdateConfirmModalProps {

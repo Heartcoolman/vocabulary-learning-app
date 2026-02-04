@@ -6,7 +6,7 @@
  */
 import { memo, useEffect, createContext, useContext, CSSProperties } from 'react';
 import { List, useListCallbackRef, RowComponentProps } from 'react-window';
-import { Star, Target, Clock, CheckCircle, Warning, ArrowClockwise } from './Icon';
+import { Star, Target, Clock, CheckCircle, Warning, ArrowClockwise } from '@phosphor-icons/react';
 import { IconColor } from '../utils/iconColors';
 import { highlightText } from '../utils/textHighlight';
 import {

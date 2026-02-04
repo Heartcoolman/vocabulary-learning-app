@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CaretDown, CaretRight, Warning, BookOpen, Tag } from '../components/Icon';
 import { Spinner, useToast } from '../components/ui';
 import {
-  useConfusionPairs,
   useConfusionByCluster,
   useConfusionCacheStatus,
-  useSemanticStats,
-  useWordBooks,
-} from '../hooks/queries';
+} from '../hooks/queries/useConfusionByCluster';
+import { useConfusionPairs } from '../hooks/queries/useConfusionPairs';
+import { useSemanticStats } from '../hooks/queries/useSemanticStats';
+import { useWordBooks } from '../hooks/queries/useWordBooks';
 import { ConfusionPairCard } from '../components/semantic/ConfusionPairCard';
 import { ThemeCardSkeleton } from '../components/skeletons/PageSkeleton';
 import type { ConfusionPair, ClusterConfusionCount } from '../services/client';

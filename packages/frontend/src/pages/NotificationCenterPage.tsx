@@ -16,7 +16,7 @@ import {
   useMarkAllAsRead,
   useDeleteNotification,
   useBatchDeleteNotifications,
-} from '../hooks/queries';
+} from '../hooks/queries/useNotifications';
 import { NotificationItem } from '../components/notification';
 import { Empty, ConfirmModal, Spinner } from '../components/ui';
 import {

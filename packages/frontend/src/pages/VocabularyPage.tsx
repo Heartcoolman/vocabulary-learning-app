@@ -18,7 +18,8 @@ import {
 } from '../hooks/mutations/useWordBookMutations';
 import { UpdateBadge, UpdateConfirmModal } from '../components/wordbook-center';
 import { ClusterCard } from '../components/semantic';
-import { useWordClusters, useSemanticStats } from '../hooks/queries';
+import { useWordClusters } from '../hooks/queries/useWordClusters';
+import { useSemanticStats } from '../hooks/queries/useSemanticStats';
 import { semanticClient, type UpdateInfo } from '../services/client';
 import { buildSeedWords } from '../utils/learningSeed';
 

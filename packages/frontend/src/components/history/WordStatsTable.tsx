@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Warning, MagnifyingGlass } from '../Icon';
+import { CheckCircle, Warning, MagnifyingGlass } from '@phosphor-icons/react';
 import { formatDate, getCorrectRateColor, getMasteryLabel } from '../../utils/historyUtils';
 
 interface WordStats {

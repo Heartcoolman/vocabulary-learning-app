@@ -5,6 +5,7 @@
 export const STORAGE_KEYS = {
   // 认证相关
   AUTH_TOKEN: 'auth_token',
+  USER_INFO: 'user_info',
 
   // 学习相关
   LEARNING_TYPE: 'learningType',
@@ -28,6 +29,10 @@ export const STORAGE_KEYS = {
   // 紧急状态
   EMERGENCY_STATE: 'danci_emergency_state',
   NOTIFICATIONS: 'danci_notifications',
+
+  // 状态打卡
+  STATE_CHECKIN_TIMESTAMP: 'state_checkin_timestamp',
+  STATE_CHECKIN_SNAPSHOT: 'state_checkin_snapshot',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

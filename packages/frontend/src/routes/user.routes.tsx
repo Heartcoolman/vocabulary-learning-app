@@ -3,9 +3,10 @@ import { Navigate } from 'react-router-dom';
 import type { AppRoute } from './types';
 import { PageLoader } from './components';
 import ProtectedRoute from '../components/ProtectedRoute';
+import { LearningPageSkeleton } from '../components/skeletons/LearningPageSkeleton';
 
-// 核心页面 - 同步导入（首屏必需）
-import LearningPage from '../pages/LearningPage';
+// 懒加载 - 核心学习页面
+const LearningPage = lazy(() => import('../pages/LearningPage'));
 
 // 懒加载 - 用户基础页面
 const VocabularyPage = lazy(() => import('../pages/VocabularyPage'));
@@ -45,9 +46,21 @@ const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 // eslint-disable-next-line react-refresh/only-export-components
+const LearningLazyWrapper = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<LearningPageSkeleton />}>{children}</Suspense>
+);
+
+// eslint-disable-next-line react-refresh/only-export-components
 const ProtectedLazy = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>
     <LazyWrapper>{children}</LazyWrapper>
+  </ProtectedRoute>
+);
+
+// eslint-disable-next-line react-refresh/only-export-components
+const ProtectedLearningLazy = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <LearningLazyWrapper>{children}</LearningLazyWrapper>
   </ProtectedRoute>
 );
 
@@ -60,9 +73,9 @@ export const userRoutes: AppRoute[] = [
   {
     path: '/learning',
     element: (
-      <ProtectedRoute>
+      <ProtectedLearningLazy>
         <LearningPage />
-      </ProtectedRoute>
+      </ProtectedLearningLazy>
     ),
     meta: { title: '学习', requireAuth: true },
   },

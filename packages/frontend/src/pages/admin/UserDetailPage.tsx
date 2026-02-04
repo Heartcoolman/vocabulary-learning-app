@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { exportUserWords } from '../../hooks/queries/useUserDetail';
+import { exportUserWords, useUserWords } from '../../hooks/queries/useUserDetail';
+import { useUserStatistics } from '../../hooks/queries/useUserStatistics';
 import {
   ChartBar,
   ArrowLeft,
@@ -14,7 +15,6 @@ import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 import { useLearningData } from '../../hooks/useLearningData';
-import { useUserStatistics, useUserWords } from '../../hooks/queries';
 
 // Import sub-components
 import {

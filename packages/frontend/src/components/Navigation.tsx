@@ -12,11 +12,12 @@ import {
   List,
   X,
   Shuffle,
-} from './Icon';
+} from '@phosphor-icons/react';
 import { ThemeToggle } from './ThemeToggle';
 import { NotificationDropdown } from './notification';
 import { prefetchAll } from '../routes/prefetch';
-import { Button, Dropdown, buttonVariants, DropdownItem } from './ui';
+import { Button, buttonVariants } from './ui/Button';
+import { Dropdown, DropdownItem } from './ui/Dropdown';
 import { cn } from './ui/utils';
 
 /**

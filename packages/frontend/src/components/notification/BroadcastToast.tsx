@@ -4,7 +4,7 @@
  * 在收到管理员广播时显示 toast 通知
  */
 import { memo } from 'react';
-import { Bell } from '../Icon';
+import { Bell } from '@phosphor-icons/react';
 
 interface BroadcastToastProps {
   title: string;

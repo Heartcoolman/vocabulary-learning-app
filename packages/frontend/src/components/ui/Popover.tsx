@@ -13,7 +13,7 @@ import React, {
   ReactNode,
   HTMLAttributes,
 } from 'react';
-import { X } from '../Icon';
+import { X } from '@phosphor-icons/react';
 import { cn, Placement, generateId, Keys } from './utils';
 
 export interface PopoverProps extends Omit<HTMLAttributes<HTMLDivElement>, 'content' | 'title'> {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CenterWordBookDetail as DetailType, wordBookCenterClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal, useToast } from '../ui';
-import { Books, Download, Tag, CircleNotch, Warning } from '../Icon';
+import { Books, Download, Tag, CircleNotch, Warning } from '@phosphor-icons/react';
 
 interface CenterWordBookDetailProps {
   detail: DetailType | null;

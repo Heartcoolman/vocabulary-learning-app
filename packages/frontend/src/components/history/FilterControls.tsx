@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Warning, Clock, TrendUp, Hash } from '../Icon';
+import { CheckCircle, Warning, Clock, TrendUp, Hash } from '@phosphor-icons/react';
 
 type SortType = 'time' | 'correctRate' | 'attempts';
 type FilterType = 'all' | 'mastered' | 'reviewing' | 'struggling';
