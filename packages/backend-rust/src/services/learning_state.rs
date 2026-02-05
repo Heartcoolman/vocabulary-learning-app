@@ -637,7 +637,7 @@ pub async fn record_review(
 
     if let Some(ref session_id) = event.session_id {
         sqlx::query(
-            r#"UPDATE "learning_sessions" SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1 WHERE "id" = $2"#,
+            r#"UPDATE "learning_sessions" SET "totalQuestions" = COALESCE("totalQuestions", 0) + 1, "updatedAt" = $1 WHERE "id" = $2"#,
         )
         .bind(now.naive_utc())
         .bind(session_id)

@@ -433,6 +433,7 @@ pub async fn sync_session_progress(
     user_id: &str,
     actual_mastery_count: i64,
     total_questions: i64,
+    context_shifts: Option<i64>,
 ) -> Result<(), SessionError> {
     let exists = select_learning_session(proxy, session_id, user_id).await?;
     if exists.is_none() {
@@ -445,12 +446,14 @@ pub async fn sync_session_progress(
         UPDATE "learning_sessions"
         SET "actualMasteryCount" = GREATEST(COALESCE("actualMasteryCount", 0), $1),
             "totalQuestions" = GREATEST(COALESCE("totalQuestions", 0), $2),
-            "updatedAt" = $3
-        WHERE "id" = $4 AND "userId" = $5
+            "contextShifts" = GREATEST(COALESCE("contextShifts", 0), $3),
+            "updatedAt" = $4
+        WHERE "id" = $5 AND "userId" = $6
         "#,
     )
     .bind(actual_mastery_count as i32)
     .bind(total_questions as i32)
+    .bind(context_shifts.unwrap_or(0).max(0) as i32)
     .bind(Utc::now().naive_utc())
     .bind(session_id)
     .bind(user_id)
@@ -479,12 +482,16 @@ pub async fn ensure_learning_session(
                 return Err(SessionError::Forbidden);
             }
             update_target_mastery(proxy, &session_id, user_id, target_mastery_count).await?;
+            // Keep at most one active session per user to avoid "a bunch of in-progress sessions"
+            // caused by previous client bugs / crashes.
+            close_other_active_sessions(proxy, user_id, &session_id).await?;
             return Ok(session_id);
         }
     }
 
     let new_id = uuid::Uuid::new_v4().to_string();
     create_learning_session(proxy, &new_id, user_id, target_mastery_count).await?;
+    close_other_active_sessions(proxy, user_id, &new_id).await?;
     Ok(new_id)
 }
 
@@ -1875,6 +1882,32 @@ async fn create_learning_session(
     .bind(0_i32)
     .bind(now)
     .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn close_other_active_sessions(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    keep_session_id: &str,
+) -> Result<(), sqlx::Error> {
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        UPDATE "learning_sessions"
+        SET "endedAt" = COALESCE("endedAt", $1),
+            "updatedAt" = $2
+        WHERE "userId" = $3
+          AND "endedAt" IS NULL
+          AND "id" <> $4
+        "#,
+    )
+    .bind(now)
+    .bind(now)
+    .bind(user_id)
+    .bind(keep_session_id)
     .execute(pool)
     .await?;
     Ok(())

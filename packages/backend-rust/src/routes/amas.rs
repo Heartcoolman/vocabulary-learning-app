@@ -324,13 +324,16 @@ async fn process_event(
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, user) = require_user(&state, &headers).await?;
 
+    // Use provided session_id or empty string (don't auto-generate)
+    // Auto-generating a UUID causes answer_records to be orphaned from the user's actual session
     let session_id = body
         .session_id
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
+        .unwrap_or_default();
 
     let word_id = body.word_id.clone();
     let response_time = body.response_time.max(0);
+    let switch_count = body.switch_count.unwrap_or(0).max(0);
 
     // Load existing word state for FSRS calculation
     let existing_word_state =
@@ -403,7 +406,11 @@ async fn process_event(
         visual_fatigue_score: visual_fatigue.as_ref().map(|v| v.score),
         visual_fatigue_confidence: visual_fatigue.as_ref().map(|v| v.confidence),
         study_duration_minutes: Some(study_duration_minutes),
-        session_id: Some(session_id.clone()),
+        session_id: if session_id.is_empty() {
+            None
+        } else {
+            Some(session_id.clone())
+        },
         // UMM vocabulary specialization inputs
         morpheme_states: if morpheme_states.is_empty() {
             None
@@ -486,7 +493,11 @@ async fn process_event(
     });
     send_event(
         user.id.clone(),
-        Some(session_id.clone()),
+        if session_id.is_empty() {
+            None
+        } else {
+            Some(session_id.clone())
+        },
         "amas-flow",
         amas_flow_payload,
     );
@@ -579,7 +590,7 @@ async fn process_event(
         timestamp_ms: Some(chrono::Utc::now().timestamp_millis()),
         response_time: Some(body.response_time),
         dwell_time: body.dwell_time,
-        session_id: Some(session_id.clone()),
+        session_id: if session_id.is_empty() { None } else { Some(session_id.clone()) },
         mastery_level_before: None,
         mastery_level_after: result
             .word_mastery_decision
@@ -740,7 +751,11 @@ async fn process_event(
                 EnqueueRewardInput {
                     user_id: user.id.clone(),
                     answer_record_id: Some(record.id.clone()),
-                    session_id: Some(session_id.clone()),
+                    session_id: if session_id.is_empty() {
+                        None
+                    } else {
+                        Some(session_id.clone())
+                    },
                     reward: result.reward.value,
                     due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
                     idempotency_key: format!("reward:{}:{}", user.id, record.id),
@@ -757,9 +772,23 @@ async fn process_event(
 
                     sqlx::query(
                         r#"UPDATE "learning_sessions"
-                           SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1
+                           SET "totalQuestions" = COALESCE("totalQuestions", 0) + 1, "updatedAt" = $1
                            WHERE "id" = $2 AND "userId" = $3"#,
                     )
+                    .bind(now)
+                    .bind(&session_id)
+                    .bind(&user.id)
+                    .execute(&mut *tx)
+                    .await?;
+
+                    // Persist the latest (cumulative) context switch count from frontend tracking.
+                    sqlx::query(
+                        r#"UPDATE "learning_sessions"
+                           SET "contextShifts" = GREATEST(COALESCE("contextShifts", 0), $1),
+                               "updatedAt" = $2
+                           WHERE "id" = $3 AND "userId" = $4"#,
+                    )
+                    .bind(switch_count)
                     .bind(now)
                     .bind(&session_id)
                     .bind(&user.id)
@@ -773,7 +802,7 @@ async fn process_event(
                         {
                             sqlx::query(
                                 r#"UPDATE "learning_sessions"
-                                   SET "actualMasteryCount" = "actualMasteryCount" + 1, "updatedAt" = $1
+                                   SET "actualMasteryCount" = COALESCE("actualMasteryCount", 0) + 1, "updatedAt" = $1
                                    WHERE "id" = $2 AND "userId" = $3"#,
                             )
                             .bind(now)
@@ -914,7 +943,11 @@ async fn process_event(
         id: Uuid::new_v4().to_string(),
         decision_id: Uuid::new_v4().to_string(),
         answer_record_id: None,
-        session_id: Some(session_id.clone()),
+        session_id: if session_id.is_empty() {
+            None
+        } else {
+            Some(session_id.clone())
+        },
         decision_source: "AMAS".to_string(),
         coldstart_phase: None,
         weights_snapshot: None,
@@ -2167,7 +2200,7 @@ async fn load_recent_answers(pool: &PgPool, user_id: &str, limit: i32) -> Vec<Re
         SELECT "responseTime", "isCorrect"
         FROM "answer_records"
         WHERE "userId" = $1 AND "responseTime" IS NOT NULL
-        ORDER BY "createdAt" DESC
+        ORDER BY "timestamp" DESC
         LIMIT $2
         "#,
     )
@@ -2473,7 +2506,7 @@ async fn load_recent_word_ids(
         SELECT "wordId"
         FROM "answer_records"
         WHERE "userId" = $1 AND "sessionId" = $2
-        ORDER BY "createdAt" DESC
+        ORDER BY "timestamp" DESC
         LIMIT $3
         "#,
     )
@@ -2502,13 +2535,13 @@ async fn load_context_history(
     let result = sqlx::query(
         r#"
         SELECT
-            EXTRACT(HOUR FROM "createdAt")::int as hour_of_day,
-            EXTRACT(DOW FROM "createdAt")::int as day_of_week,
+            EXTRACT(HOUR FROM "timestamp")::int as hour_of_day,
+            EXTRACT(DOW FROM "timestamp")::int as day_of_week,
             COALESCE("questionType", 'unknown') as question_type,
             COALESCE("deviceType", 'unknown') as device_type
         FROM "answer_records"
         WHERE "userId" = $1 AND "wordId" = $2
-        ORDER BY "createdAt" DESC
+        ORDER BY "timestamp" DESC
         LIMIT $3
         "#,
     )
