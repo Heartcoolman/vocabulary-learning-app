@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS umm_shadow_results (
     "fsrsInterval" DOUBLE PRECISION NOT NULL,
     "fsrsRetrievability" DOUBLE PRECISION NOT NULL,
     "fsrsStability" DOUBLE PRECISION NOT NULL,
-    "frssDifficulty" DOUBLE PRECISION NOT NULL,
+    "fsrsDifficulty" DOUBLE PRECISION NOT NULL,
     -- MDM values (shadow)
     "mdmInterval" DOUBLE PRECISION,
     "mdmRetrievability" DOUBLE PRECISION,
