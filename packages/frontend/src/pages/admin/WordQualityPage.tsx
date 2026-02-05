@@ -154,7 +154,7 @@ export default function WordQualityPage() {
 
         <div className="flex items-center gap-2 rounded-button border border-gray-200 bg-white p-1.5 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="px-2 text-gray-400 dark:text-gray-500">
-            <Books className="h-5 w-5" />
+            <Books size={20} />
           </div>
           <select
             value={selectedWordbook}
@@ -201,7 +201,7 @@ export default function WordQualityPage() {
         </>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500">
-          <Books className="mb-4 h-16 w-16 opacity-20" />
+          <Books size={64} className="mb-4 opacity-20" />
           <p>请选择一个词书开始管理</p>
         </div>
       )}

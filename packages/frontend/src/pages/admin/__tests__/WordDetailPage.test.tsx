@@ -123,12 +123,9 @@ vi.mock('@/components/Icon', async () => {
     XCircle: () => <span data-testid="icon-x">✗</span>,
     Warning: () => <span data-testid="icon-warning">⚠️</span>,
     WarningCircle: () => <span data-testid="icon-warning-circle">⚠️</span>,
+    Flag: () => <span data-testid="icon-flag">🚩</span>,
   };
 });
-
-vi.mock('@phosphor-icons/react', () => ({
-  Flag: () => <span data-testid="icon-flag">🚩</span>,
-}));
 
 const renderWithRouter = () => {
   return render(

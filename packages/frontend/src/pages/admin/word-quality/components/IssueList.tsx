@@ -223,7 +223,7 @@ export const IssueListTable: React.FC<Props> = ({
                           onClick={() => onFix(issue.id)}
                           title="应用修复"
                         >
-                          <Wrench className="h-4 w-4" />
+                          <Wrench size={16} />
                         </Button>
                         <Button
                           size="sm"
@@ -232,7 +232,7 @@ export const IssueListTable: React.FC<Props> = ({
                           onClick={() => onIgnore(issue.id)}
                           title="忽略"
                         >
-                          <X className="h-4 w-4" />
+                          <X size={16} />
                         </Button>
                       </div>
                     </td>

@@ -14,6 +14,7 @@ import StorageService from '../services/StorageService';
 import { authLogger } from '../utils/logger';
 import { queryKeys } from '../lib/queryKeys';
 import { DATA_CACHE_CONFIG } from '../lib/cacheConfig';
+import { isTauriEnvironment, getDesktopLocalUser } from '../utils/tauri-bridge';
 
 /**
  * 认证上下文类型
@@ -123,6 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUser = useCallback(
     async (isMounted: () => boolean) => {
       try {
+        // 桌面模式：自动使用本地用户，无需网络认证
+        if (isTauriEnvironment()) {
+          authLogger.info('桌面模式：自动登录本地用户');
+          const desktopUser = getDesktopLocalUser() as User;
+          if (isMounted()) {
+            setUser(desktopUser);
+            setLoading(false);
+          }
+          void StorageService.setCurrentUser(desktopUser.id);
+          schedulePrefetchUserData();
+          return;
+        }
+
         const token = authClient.getToken();
         if (!token) {
           if (isMounted()) setLoading(false);

@@ -111,7 +111,7 @@ const SystemSettingsPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <CircleNotch className="h-8 w-8 animate-spin text-blue-500" />
+        <CircleNotch size={32} className="animate-spin text-blue-500" />
       </div>
     );
   }
@@ -120,7 +120,7 @@ const SystemSettingsPage: React.FC = () => {
     return (
       <div className="rounded-button border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
         <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-          <Warning className="h-5 w-5" />
+          <Warning size={20} />
           <span>加载设置失败</span>
         </div>
       </div>
@@ -131,7 +131,7 @@ const SystemSettingsPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Gear className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+          <Gear size={24} className="text-gray-600 dark:text-gray-400" />
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">系统设置</h1>
         </div>
         <button
@@ -139,7 +139,7 @@ const SystemSettingsPage: React.FC = () => {
           onClick={() => refetch()}
           className="flex items-center gap-2 rounded-button border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700"
         >
-          <ArrowClockwise className="h-4 w-4" />
+          <ArrowClockwise size={16} />
           刷新
         </button>
       </div>
@@ -147,11 +147,11 @@ const SystemSettingsPage: React.FC = () => {
       {/* Embedding 配置卡片 */}
       <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-6 flex items-center gap-3">
-          <Lightning className="h-5 w-5 text-purple-500" />
+          <Lightning size={20} className="text-purple-500" />
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">向量搜索配置</h2>
           {stats?.available && (
             <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              <CheckCircle className="h-3 w-3" />
+              <CheckCircle size={12} />
               已启用
             </span>
           )}
@@ -161,20 +161,20 @@ const SystemSettingsPage: React.FC = () => {
         <div className="flex items-center gap-4 rounded-button bg-gray-50 px-4 py-3 dark:bg-slate-900">
           <span className="text-sm text-gray-500 dark:text-gray-400">服务状态</span>
           {isHealthFetching ? (
-            <CircleNotch className="h-4 w-4 animate-spin text-gray-400" />
+            <CircleNotch size={16} className="animate-spin text-gray-400" />
           ) : isHealthError ? (
             <span
               className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"
               title="网络请求失败"
             >
-              <Warning className="h-4 w-4" />
+              <Warning size={16} />
               获取失败
             </span>
           ) : !healthData ? (
             <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
           ) : healthData.healthy ? (
             <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle size={16} />
               健康
             </span>
           ) : typeof healthData.error === 'string' && healthData.error.includes('未配置') ? (
@@ -186,7 +186,7 @@ const SystemSettingsPage: React.FC = () => {
               className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"
               title={typeof healthData.error === 'string' ? healthData.error : '服务异常'}
             >
-              <Warning className="h-4 w-4" />
+              <Warning size={16} />
               异常
             </span>
           )}
@@ -213,7 +213,7 @@ const SystemSettingsPage: React.FC = () => {
             className="ml-auto text-gray-400 hover:text-gray-600 disabled:opacity-50 dark:hover:text-gray-300"
             title="刷新健康状态"
           >
-            <ArrowClockwise className={`h-4 w-4 ${isHealthFetching ? 'animate-spin' : ''}`} />
+            <ArrowClockwise size={16} className={isHealthFetching ? 'animate-spin' : undefined} />
           </button>
         </div>
 
@@ -236,7 +236,7 @@ const SystemSettingsPage: React.FC = () => {
                 onClick={() => setShowApiKey(!showApiKey)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
-                {showApiKey ? <EyeSlash className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showApiKey ? <EyeSlash size={20} /> : <Eye size={20} />}
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -311,21 +311,21 @@ const SystemSettingsPage: React.FC = () => {
               className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saveMutation.isPending ? (
-                <CircleNotch className="h-4 w-4 animate-spin" />
+                <CircleNotch size={16} className="animate-spin" />
               ) : (
-                <FloppyDisk className="h-4 w-4" />
+                <FloppyDisk size={16} />
               )}
               保存配置
             </button>
             {saveSuccess && (
               <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-                <CheckCircle className="h-4 w-4" />
+                <CheckCircle size={16} />
                 保存成功
               </span>
             )}
             {saveMutation.isError && (
               <span className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
-                <Warning className="h-4 w-4" />
+                <Warning size={16} />
                 保存失败
               </span>
             )}
@@ -383,9 +383,9 @@ const SystemSettingsPage: React.FC = () => {
                 className="flex items-center gap-2 rounded-button border border-purple-300 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition-colors hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30"
               >
                 {batchEmbedMutation.isPending ? (
-                  <CircleNotch className="h-4 w-4 animate-spin" />
+                  <CircleNotch size={16} className="animate-spin" />
                 ) : (
-                  <Lightning className="h-4 w-4" />
+                  <Lightning size={16} />
                 )}
                 批量生成向量
               </button>

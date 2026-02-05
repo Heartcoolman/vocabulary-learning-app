@@ -79,7 +79,7 @@ function ReportCard({ report, onClick }: { report: WeeklyReportDetail; onClick: 
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-blue-500" />
+          <FileText size={20} className="text-blue-500" />
           <span className="text-sm text-gray-500 dark:text-slate-400">
             {formatDate(report.weekStart)} - {formatDate(report.weekEnd)}
           </span>
@@ -94,13 +94,13 @@ function ReportCard({ report, onClick }: { report: WeeklyReportDetail; onClick: 
       <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
         {report.highlights && (
           <span className="flex items-center gap-1">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle size={16} className="text-green-500" />
             {report.highlights.length} 亮点
           </span>
         )}
         {report.concerns && (
           <span className="flex items-center gap-1">
-            <Warning className="h-4 w-4 text-yellow-500" />
+            <Warning size={16} className="text-yellow-500" />
             {report.concerns.length} 关注点
           </span>
         )}
@@ -192,7 +192,7 @@ function ReportDetailModal({
               {report.highlights && report.highlights.length > 0 && (
                 <div>
                   <h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <CheckCircle size={20} className="text-green-500" />
                     亮点
                   </h3>
                   <div className="space-y-3">
@@ -210,9 +210,9 @@ function ReportDetailModal({
                         {item.change !== undefined && (
                           <div className="mt-2 flex items-center gap-1 text-sm">
                             {item.change >= 0 ? (
-                              <TrendUp className="h-4 w-4 text-green-600" />
+                              <TrendUp size={16} className="text-green-600" />
                             ) : (
-                              <TrendDown className="h-4 w-4 text-red-600" />
+                              <TrendDown size={16} className="text-red-600" />
                             )}
                             <span className={item.change >= 0 ? 'text-green-600' : 'text-red-600'}>
                               {item.change >= 0 ? '+' : ''}
@@ -230,7 +230,7 @@ function ReportDetailModal({
               {report.concerns && report.concerns.length > 0 && (
                 <div>
                   <h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
-                    <Warning className="h-5 w-5 text-yellow-500" />
+                    <Warning size={20} className="text-yellow-500" />
                     关注点
                   </h3>
                   <div className="space-y-3">
@@ -397,7 +397,7 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
     <div className="rounded-button border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Brain className="h-5 w-5 text-purple-500" />
+          <Brain size={20} className="text-purple-500" />
           <div>
             <span className="font-medium text-gray-900 dark:text-white">
               {segmentNames[insight.userSegment] || insight.userSegment}
@@ -411,7 +411,7 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
           onClick={() => setExpanded(!expanded)}
           className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200"
         >
-          {expanded ? <CaretUp className="h-5 w-5" /> : <CaretDown className="h-5 w-5" />}
+          {expanded ? <CaretUp size={20} /> : <CaretDown size={20} />}
         </button>
       </div>
 
@@ -555,9 +555,9 @@ export default function WeeklyReportPage() {
             className="flex items-center gap-2"
           >
             {generateReportMutation.isPending ? (
-              <CircleNotch className="h-4 w-4 animate-spin" />
+              <CircleNotch size={16} className="animate-spin" />
             ) : (
-              <ArrowsClockwise className="h-4 w-4" />
+              <ArrowsClockwise size={16} />
             )}
             生成周报
           </Button>
@@ -568,14 +568,14 @@ export default function WeeklyReportPage() {
       <div className="rounded-card bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
         {loadingLatest ? (
           <div className="flex items-center gap-2">
-            <CircleNotch className="h-5 w-5 animate-spin" />
+            <CircleNotch size={20} className="animate-spin" />
             <span>加载最新周报...</span>
           </div>
         ) : latestReport ? (
           <div>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FileText className="h-6 w-6" />
+                <FileText size={24} />
                 <span className="text-lg font-medium">最新周报</span>
               </div>
               <div className="text-3xl font-bold">{latestReport.healthScore.toFixed(0)}</div>
@@ -585,7 +585,7 @@ export default function WeeklyReportPage() {
               onClick={() => setSelectedReport(latestReport)}
               className="flex items-center gap-1 text-sm text-white/80 hover:text-white"
             >
-              <Eye className="h-4 w-4" />
+              <Eye size={16} />
               查看详情
             </button>
           </div>
@@ -600,13 +600,13 @@ export default function WeeklyReportPage() {
       {/* 健康度趋势 */}
       <div className="rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center gap-2">
-          <ChartLine className="h-5 w-5 text-blue-500" />
+          <ChartLine size={20} className="text-blue-500" />
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">健康度趋势</h2>
         </div>
 
         {loadingTrend ? (
           <div className="flex h-32 items-center justify-center">
-            <CircleNotch className="h-6 w-6 animate-spin text-blue-500" />
+            <CircleNotch size={24} className="animate-spin text-blue-500" />
           </div>
         ) : healthTrend && healthTrend.length > 0 ? (
           <div className="flex h-32 items-end gap-2">
@@ -642,7 +642,7 @@ export default function WeeklyReportPage() {
       {/* 周报历史 */}
       <div className="rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-blue-500" />
+          <Calendar size={20} className="text-blue-500" />
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">历史周报</h2>
           {reportsData && (
             <span className="text-sm text-gray-500 dark:text-slate-400">
@@ -676,7 +676,7 @@ export default function WeeklyReportPage() {
       <div className="rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-purple-500" />
+            <Users size={20} className="text-purple-500" />
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">用户行为洞察</h2>
           </div>
           <div className="flex items-center gap-3">
@@ -699,9 +699,9 @@ export default function WeeklyReportPage() {
               disabled={generateInsightMutation.isPending}
             >
               {generateInsightMutation.isPending ? (
-                <CircleNotch className="h-4 w-4 animate-spin" />
+                <CircleNotch size={16} className="animate-spin" />
               ) : (
-                <Brain className="h-4 w-4" />
+                <Brain size={16} />
               )}
               生成洞察
             </Button>

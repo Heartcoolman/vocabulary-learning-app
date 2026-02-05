@@ -47,7 +47,9 @@ parking_lot = "0.12"
 dotenvy = "0.15.7"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 urlencoding = "2"
+dirs = "5"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 proptest = "1.4"
+tempfile = "3"

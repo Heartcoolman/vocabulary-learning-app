@@ -1,6 +1,8 @@
 pub mod config;
 pub mod migrate;
 pub mod operations;
+pub mod sqlite_primary;
+pub mod sqlite_schema;
 pub mod state_machine;
 
 mod health_monitor;
@@ -82,12 +84,10 @@ impl DatabaseProxy {
         Arc::clone(&self.state_machine)
     }
 
-    #[deprecated(note = "SQLite fallback removed - always returns None")]
     pub async fn fallback_pool(&self) -> Option<sqlx::SqlitePool> {
         None
     }
 
-    #[deprecated(note = "SQLite fallback removed - always returns false")]
     pub fn sqlite_enabled(&self) -> bool {
         false
     }
