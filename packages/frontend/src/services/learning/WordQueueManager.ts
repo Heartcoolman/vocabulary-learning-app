@@ -127,9 +127,6 @@ export class WordQueueManager {
     // 3. 优先从活跃队列中选择(需要继续练习的词)
     const activeCandidate = this.selectFromActiveWords(!consume);
     if (activeCandidate) {
-      if (consume) {
-        this.totalQuestions++;
-      }
       return { word: this.getWordItem(activeCandidate), isCompleted: false };
     }
 
@@ -152,7 +149,6 @@ export class WordQueueManager {
         attempts: 0,
         lastAttemptTime: 0,
       });
-      this.totalQuestions++;
       this.updateRecentlyShown(newWord.id);
 
       learningLogger.info(
@@ -202,7 +198,6 @@ export class WordQueueManager {
       const forcePick = candidates[0][0];
 
       if (consume) {
-        this.totalQuestions++;
         this.updateRecentlyShown(forcePick);
       }
 
@@ -352,6 +347,9 @@ export class WordQueueManager {
       }
     }
 
+    // totalQuestions should reflect answered questions (i.e., answer_records count),
+    // not merely "question shown". This aligns session stats with backend aggregation.
+    this.totalQuestions++;
     progress.attempts++;
     progress.lastAttemptTime = Date.now();
 

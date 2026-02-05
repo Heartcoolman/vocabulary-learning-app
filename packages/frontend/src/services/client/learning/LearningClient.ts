@@ -433,10 +433,16 @@ export class LearningClient extends BaseClient {
   /**
    * 创建掌握学习会话
    */
-  async createMasterySession(targetMasteryCount: number): Promise<{ sessionId: string }> {
+  async createMasterySession(
+    targetMasteryCount: number,
+    sessionId?: string,
+  ): Promise<{ sessionId: string }> {
     return this.request('/api/learning/session', {
       method: 'POST',
-      body: JSON.stringify({ targetMasteryCount }),
+      body: JSON.stringify({
+        targetMasteryCount,
+        ...(sessionId ? { sessionId } : {}),
+      }),
     });
   }
 
@@ -447,6 +453,7 @@ export class LearningClient extends BaseClient {
     sessionId: string;
     actualMasteryCount: number;
     totalQuestions: number;
+    contextShifts?: number;
   }): Promise<void> {
     return this.request('/api/learning/sync-progress', {
       method: 'POST',
@@ -529,9 +536,17 @@ export class LearningClient extends BaseClient {
     const params = new URLSearchParams();
     if (options?.limit) params.set('limit', String(options.limit));
     if (options?.offset) params.set('offset', String(options.offset));
-    if (options?.includeActive) params.set('include_active', 'true');
+    // Backend uses camelCase query parsing (includeActive). Keep snake_case compatibility server-side.
+    if (options?.includeActive) params.set('includeActive', 'true');
     const query = params.toString();
     return this.requestFull(`/api/learning-sessions${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * 获取当前未结束的会话（如果存在）
+   */
+  async getActiveSession(): Promise<SessionStats | null> {
+    return this.request('/api/learning-sessions/user/active');
   }
 
   /**
@@ -559,6 +574,7 @@ export interface SessionStats {
   avgCognitiveLoad?: number;
   contextShifts: number;
   answerRecordCount: number;
+  lastActivityAt?: string;
 }
 
 export interface SessionAnswerRecord {

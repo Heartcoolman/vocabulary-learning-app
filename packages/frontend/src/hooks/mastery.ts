@@ -13,6 +13,7 @@ import {
   WordQueueManager,
   CompletionReason,
   NextWordResult,
+  type QueueState as WordQueueState,
 } from '../services/learning/WordQueueManager';
 import { AmasProcessResult, LearningEventInput, AdjustWordsParams } from '../types/amas';
 import { learningLogger } from '../utils/logger';
@@ -21,11 +22,12 @@ import { learningLogger } from '../utils/logger';
 
 /**
  * 获取掌握模式的学习单词（优先使用 React Query 缓存）
- * 注意：queryKey 不包含 targetCount，因为后端会使用用户配置的默认值
+ * 注意：即使后端可能会用用户配置的默认值，queryKey 仍需要区分 targetCount，
+ * 避免不同参数之间错误复用缓存。
  */
 export async function getMasteryStudyWords(targetCount?: number) {
   return queryClient.fetchQuery({
-    queryKey: ['masteryStudyWords'],
+    queryKey: ['masteryStudyWords', targetCount ?? 'default'],
     queryFn: () => learningClient.getMasteryStudyWords(targetCount),
     staleTime: 60 * 1000,
   });
@@ -34,8 +36,8 @@ export async function getMasteryStudyWords(targetCount?: number) {
 /**
  * 创建掌握学习会话
  */
-export async function createMasterySession(targetMasteryCount: number) {
-  return learningClient.createMasterySession(targetMasteryCount);
+export async function createMasterySession(targetMasteryCount: number, sessionId?: string) {
+  return learningClient.createMasterySession(targetMasteryCount, sessionId);
 }
 
 /**
@@ -52,6 +54,7 @@ export async function syncMasteryProgress(data: {
   sessionId: string;
   actualMasteryCount: number;
   totalQuestions: number;
+  contextShifts?: number;
 }) {
   return learningClient.syncMasteryProgress(data);
 }
@@ -109,9 +112,14 @@ interface SessionCacheData {
     words: WordItem[];
     currentIndex: number;
     progress: QueueProgress;
+    // Current word shown in the UI when the cache was saved.
+    // This is separate from WordQueueManager internal state and improves resume fidelity.
+    uiCurrentWordId?: string | null;
     // 用于会话恢复的额外信息
     masteredWordIds?: string[];
     totalQuestions?: number;
+    // Full WordQueueManager state (for precise resume). Optional for backward compatibility.
+    fullState?: WordQueueState;
   };
   timestamp: number;
   userId: string | null;
@@ -364,11 +372,60 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
       words: allWords,
       currentIndex: 0,
       progress: manager.getProgress(),
-      // 额外的恢复信息
+      uiCurrentWordId: currentWord?.id ?? null,
+      // 额外的恢复信息（旧逻辑仍依赖它们）
       masteredWordIds: fullState.masteredWordIds,
       totalQuestions: fullState.totalQuestions,
+      // 新逻辑：存 fullState 才能精确恢复 active/pending/recentlyShown 等
+      fullState,
     };
-  }, [allWords]);
+  }, [allWords, currentWord?.id]);
+
+  /**
+   * 从完整队列状态恢复（用于“切页面再回来继续做题”的场景）
+   */
+  const restoreFromFullState = useCallback(
+    (
+      state: WordQueueState,
+      uiCurrentWordId: string | null | undefined,
+      config?: Partial<WordQueueConfig & { targetMasteryCount?: number }>,
+    ) => {
+      if (config) {
+        const { targetMasteryCount: configTargetCount, ...restConfig } = config;
+        configRef.current = { ...configRef.current, ...restConfig };
+        if (configTargetCount !== undefined) {
+          setProgress((prev) => ({ ...prev, targetCount: configTargetCount }));
+        }
+      }
+
+      const effectiveTargetCount = config?.targetMasteryCount ?? targetMasteryCount;
+
+      // Recreate manager with the full word list, then restore state.
+      queueManagerRef.current = new WordQueueManager(state.words, {
+        masteryThreshold: configRef.current.masteryThreshold,
+        maxTotalQuestions: configRef.current.maxTotalQuestions,
+        targetMasteryCount: effectiveTargetCount,
+      });
+      queueManagerRef.current.restoreState(state);
+
+      setAllWords(state.words);
+
+      // Recompute UI state from restored manager without consuming a question.
+      const peek = queueManagerRef.current.peekNextWordWithReason();
+      if (peek.isCompleted) {
+        setCurrentWord(null);
+      } else if (uiCurrentWordId) {
+        const restoreWord = state.words.find((w) => w.id === uiCurrentWordId) ?? null;
+        setCurrentWord(restoreWord ?? peek.word);
+      } else {
+        setCurrentWord(peek.word);
+      }
+      setProgress(queueManagerRef.current.getProgress());
+      setIsCompleted(peek.isCompleted);
+      setCompletionReason(peek.completionReason);
+    },
+    [targetMasteryCount],
+  );
 
   const addWords = useCallback((words: WordItem[]) => {
     const manager = queueManagerRef.current;
@@ -481,6 +538,7 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     configRef,
     initializeQueue,
     restoreQueue,
+    restoreFromFullState,
     updateFromManager,
     getCurrentWord,
     getQueueState,

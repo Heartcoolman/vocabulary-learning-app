@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import type { EnergyLevel } from '@danci/shared';
 
-import { Lightning, SmileyMeh, Bed, type IconProps } from '@phosphor-icons/react';
+import { Lightning, SmileyMeh, Bed, X, type IconProps } from '@phosphor-icons/react';
+import { STORAGE_KEYS } from '../constants/storageKeys';
+import type { StateChangeTrigger } from '../hooks/useStateCheckInTrigger';
 
 const ENERGY_LEVELS: {
   level: EnergyLevel;
@@ -16,15 +18,25 @@ const ENERGY_LEVELS: {
 
 const STORAGE_KEY = 'lastEnergyLevel';
 const AUTO_SKIP_DELAY_MS = 3000;
+const INLINE_AUTO_DISMISS_MS = 5000;
+
+const TRIGGER_TITLES: Record<StateChangeTrigger, string> = {
+  time: '今天状态如何？',
+  fatigue: '感觉有点累了？',
+  struggling: '学习遇到挑战？',
+};
 
 interface StateCheckInProps {
   onSelect: (level: EnergyLevel) => void;
   onSkip: () => void;
+  trigger?: StateChangeTrigger | null;
+  inline?: boolean;
 }
 
-function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
+function StateCheckIn({ onSelect, onSkip, trigger, inline }: StateCheckInProps) {
   const [selected, setSelected] = useState<EnergyLevel | null>(null);
-  const [countdown, setCountdown] = useState(AUTO_SKIP_DELAY_MS / 1000);
+  const autoDelayMs = inline ? INLINE_AUTO_DISMISS_MS : AUTO_SKIP_DELAY_MS;
+  const [countdown, setCountdown] = useState(autoDelayMs / 1000);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastLevelRef = useRef<EnergyLevel | null>(null);
 
@@ -42,6 +54,7 @@ function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
           if (timerRef.current) clearInterval(timerRef.current);
           const fallback = lastLevelRef.current ?? 'normal';
           localStorage.setItem(STORAGE_KEY, fallback);
+          localStorage.setItem(STORAGE_KEYS.STATE_CHECKIN_TIMESTAMP, Date.now().toString());
           // 确保在下一个事件循环tick中调用回调，避免在渲染过程中触发父组件更新
           setTimeout(() => onSelect(fallback), 0);
           return 0;
@@ -60,6 +73,7 @@ function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
       if (timerRef.current) clearInterval(timerRef.current);
       setSelected(level);
       localStorage.setItem(STORAGE_KEY, level);
+      localStorage.setItem(STORAGE_KEYS.STATE_CHECKIN_TIMESTAMP, Date.now().toString());
       setTimeout(() => onSelect(level), 200);
     },
     [onSelect],
@@ -70,11 +84,51 @@ function StateCheckIn({ onSelect, onSkip }: StateCheckInProps) {
     onSkip();
   }, [onSkip]);
 
+  // 小窗模式 UI（学习中触发）
+  if (inline) {
+    return (
+      <div className="animate-in slide-in-from-right fixed bottom-4 right-4 z-50 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-elevated dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            {TRIGGER_TITLES[trigger ?? 'time']}
+          </h3>
+          <button
+            onClick={handleSkip}
+            className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-700 dark:hover:text-gray-300"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex justify-center gap-3">
+          {ENERGY_LEVELS.map(({ level, label, Icon }) => (
+            <button
+              key={level}
+              onClick={() => handleSelect(level)}
+              className={`flex flex-col items-center gap-1 rounded-lg p-2 transition-all ${
+                selected === level
+                  ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
+                  : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700'
+              }`}
+              title={label}
+            >
+              <Icon size={24} weight={selected === level ? 'fill' : 'regular'} />
+              <span className="text-xs">{label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
+          {countdown}秒后自动消失
+        </div>
+      </div>
+    );
+  }
+
+  // 全屏模式 UI（首次/时间触发）
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-800">
         <h2 className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
-          今天状态如何？
+          {TRIGGER_TITLES[trigger ?? 'time']}
         </h2>
         <p className="mb-6 text-center text-sm text-gray-500 dark:text-gray-400">
           帮助我们为你调整学习强度

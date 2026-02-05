@@ -26,6 +26,7 @@ import {
 import { FloatingEyeIndicator, FatigueAlertModal } from '../components/visual-fatigue';
 import { useVisualFatigueStore } from '../stores/visualFatigueStore';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
+import { useStateCheckInTrigger } from '../hooks/useStateCheckInTrigger';
 import { useInteractionTracker } from '../hooks/useInteractionTracker';
 import { useConfusionBatchLearning } from '../hooks/useConfusionBatchLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
@@ -58,7 +59,7 @@ export default function LearningPage() {
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
   const [isFatigueAlertOpen, setIsFatigueAlertOpen] = useState(false);
   const fatigueAlertShownRef = useRef(false);
-  const [showStateCheckIn, setShowStateCheckIn] = useState(true);
+  const stateCheckIn = useStateCheckInTrigger();
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel | null>(null);
   const [learningType, setLearningType] = useState<'word-to-meaning' | 'meaning-to-word'>(() => {
     return (
@@ -66,6 +67,16 @@ export default function LearningPage() {
       'word-to-meaning'
     );
   });
+
+  const handleLearningTypeChange = useCallback(
+    (nextType: 'word-to-meaning' | 'meaning-to-word') => {
+      if (nextType !== learningType) {
+        trackingService.trackTaskSwitch(learningType, nextType);
+      }
+      setLearningType(nextType);
+    },
+    [learningType],
+  );
 
   // 使用对话框暂停追踪 Hook（替代原来的手动追踪逻辑）
   const { getPausedTime: getDialogPausedTime, resetPausedTime: resetDialogPausedTime } =
@@ -193,6 +204,7 @@ export default function LearningPage() {
     // 阈值 0.6，且本次会话未弹出过
     if (fatigueScore > 0.6 && !fatigueAlertShownRef.current) {
       fatigueAlertShownRef.current = true;
+      trackingService.trackTaskSwitch('learning', 'fatigue_alert');
       setIsFatigueAlertOpen(true);
     }
     // 疲劳恢复到 0.3 以下时重置，允许再次提醒
@@ -220,6 +232,11 @@ export default function LearningPage() {
     getDialogPausedTime,
     resetDialogPausedTime,
     seedWords,
+    onStateChange: (state) => {
+      if (state === 'fatigue' || state === 'struggling') {
+        stateCheckIn.triggerFromLearningState(state);
+      }
+    },
   });
 
   // 使用自动朗读 Hook
@@ -329,7 +346,7 @@ export default function LearningPage() {
   const handleEnergySelect = useCallback(
     (level: EnergyLevel) => {
       setEnergyLevel(level);
-      setShowStateCheckIn(false);
+      stateCheckIn.dismiss();
       // TODO: Send energy level to backend for TFM calibration
       if (level === 'low') {
         toast.info('已开启轻松模式，减少学习强度', 2000);
@@ -337,16 +354,27 @@ export default function LearningPage() {
         toast.success('状态不错，祝学习愉快！', 2000);
       }
     },
-    [toast],
+    [toast, stateCheckIn],
   );
 
   const handleEnergySkip = useCallback(() => {
-    setShowStateCheckIn(false);
-  }, []);
+    stateCheckIn.dismiss();
+  }, [stateCheckIn]);
 
-  // 显示状态打卡浮层（仅首次加载时）
-  if (showStateCheckIn && !isLoading && allWords.length > 0) {
-    return <StateCheckIn onSelect={handleEnergySelect} onSkip={handleEnergySkip} />;
+  // 全屏状态打卡（首次/时间触发）阻断学习流程
+  if (
+    stateCheckIn.shouldShow &&
+    stateCheckIn.trigger === 'time' &&
+    !isLoading &&
+    allWords.length > 0
+  ) {
+    return (
+      <StateCheckIn
+        onSelect={handleEnergySelect}
+        onSkip={handleEnergySkip}
+        trigger={stateCheckIn.trigger}
+      />
+    );
   }
 
   if (isLoading) {
@@ -601,17 +629,23 @@ export default function LearningPage() {
                 <LearningModeSelector
                   minimal
                   learningType={learningType}
-                  onLearningTypeChange={setLearningType}
+                  onLearningTypeChange={handleLearningTypeChange}
                 />
                 <button
-                  onClick={() => setIsStatusOpen(true)}
+                  onClick={() => {
+                    trackingService.trackTaskSwitch('learning', 'status_modal');
+                    setIsStatusOpen(true);
+                  }}
                   className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900/30"
                   title="状态监控"
                 >
                   <ChartPie size={20} />
                 </button>
                 <button
-                  onClick={() => setIsSuggestionOpen(true)}
+                  onClick={() => {
+                    trackingService.trackTaskSwitch('learning', 'suggestion_modal');
+                    setIsSuggestionOpen(true);
+                  }}
                   disabled={!latestAmasResult}
                   className="rounded-button p-2 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-500 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-amber-900/30"
                   title={!latestAmasResult ? '暂无建议' : 'AI 建议'}
@@ -619,7 +653,10 @@ export default function LearningPage() {
                   <Lightbulb size={20} weight={latestAmasResult ? 'fill' : 'regular'} />
                 </button>
                 <button
-                  onClick={() => setIsExplainabilityOpen(true)}
+                  onClick={() => {
+                    trackingService.trackTaskSwitch('learning', 'explainability_modal');
+                    setIsExplainabilityOpen(true);
+                  }}
                   disabled={!latestAmasResult}
                   className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-blue-900/30"
                   title="决策透视"
@@ -691,29 +728,54 @@ export default function LearningPage() {
 
       <StatusModal
         isOpen={isStatusOpen}
-        onClose={() => setIsStatusOpen(false)}
+        onClose={() => {
+          trackingService.trackTaskSwitch('status_modal', 'learning');
+          setIsStatusOpen(false);
+        }}
         refreshTrigger={progress.totalQuestions}
       />
 
       <SuggestionModal
         isOpen={isSuggestionOpen}
-        onClose={() => setIsSuggestionOpen(false)}
+        onClose={() => {
+          trackingService.trackTaskSwitch('suggestion_modal', 'learning');
+          setIsSuggestionOpen(false);
+        }}
         result={latestAmasResult}
-        onBreak={() => setIsSuggestionOpen(false)}
+        onBreak={() => {
+          trackingService.trackTaskSwitch('suggestion_modal', 'learning');
+          setIsSuggestionOpen(false);
+        }}
       />
 
       <ExplainabilityModal
         isOpen={isExplainabilityOpen}
-        onClose={() => setIsExplainabilityOpen(false)}
+        onClose={() => {
+          trackingService.trackTaskSwitch('explainability_modal', 'learning');
+          setIsExplainabilityOpen(false);
+        }}
         latestDecision={latestAmasResult}
       />
 
       <FatigueAlertModal
         isOpen={isFatigueAlertOpen}
-        onClose={() => setIsFatigueAlertOpen(false)}
+        onClose={() => {
+          trackingService.trackTaskSwitch('fatigue_alert', 'learning');
+          setIsFatigueAlertOpen(false);
+        }}
         fatigueLevel={Math.round(fatigueMetrics.visualFatigueScore * 100)}
         recommendations={['远眺放松眼睛', '站起来活动一下', '喝杯水休息片刻']}
       />
+
+      {/* 学习中状态询问小窗（fatigue/struggling 触发） */}
+      {stateCheckIn.shouldShow && stateCheckIn.trigger !== 'time' && (
+        <StateCheckIn
+          onSelect={handleEnergySelect}
+          onSkip={handleEnergySkip}
+          trigger={stateCheckIn.trigger}
+          inline
+        />
+      )}
     </div>
   );
 }

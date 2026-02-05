@@ -22,6 +22,7 @@ import {
 import { useSubmitAnswer, extractAmasState } from './mutations';
 import { learningLogger } from '../utils/logger';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { trackingService } from '../services/TrackingService';
 
 const END_SESSION_ENDPOINT = '/api/habit-profile/end-session';
 
@@ -45,6 +46,7 @@ export interface UseMasteryLearningOptions {
   seedWords?: WordItem[];
   getDialogPausedTime?: () => number;
   resetDialogPausedTime?: () => void;
+  onStateChange?: (state: 'fatigue' | 'struggling' | 'excelling') => void;
 }
 
 export interface UseMasteryLearningReturn {
@@ -80,6 +82,7 @@ export function useMasteryLearning(
     seedWords,
     getDialogPausedTime,
     resetDialogPausedTime,
+    onStateChange,
   } = options;
   const { user } = useAuth();
   const location = useLocation();
@@ -227,10 +230,13 @@ export function useMasteryLearning(
     }
 
     // Sync progress before ending session
+    const tracking = trackingService.getStats();
+    const contextShifts = tracking.pageSwitchCount + tracking.taskSwitchCount;
     syncMasteryProgress({
       sessionId: sid,
       totalQuestions: progress.totalQuestions,
       actualMasteryCount: progress.masteredCount,
+      contextShifts,
     }).catch(() => {});
 
     // Send quit event only for abnormal session end (not normal completion)
@@ -313,6 +319,7 @@ export function useMasteryLearning(
           '[useMasteryLearning] Triggering real-time queue adjustment',
         );
         perf.lastAdjustTime = now;
+        onStateChange?.(adjustReason);
         syncRef.current?.triggerQueueAdjustment(
           adjustReason,
           { accuracy, avgResponseTime, consecutiveWrong: perf.consecutiveWrong },
@@ -357,8 +364,35 @@ export function useMasteryLearning(
 
         if (!isReset && syncRef.current && !isSeedSession) {
           const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
+
+          // New restore path: if we have a full queue state, resume precisely where the user left off.
+          // This prevents "switch page -> come back -> restart from beginning".
+          if (cache?.sessionId && cache.queueState?.fullState) {
+            currentSessionIdRef.current = cache.sessionId;
+            sessionStartTimeRef.current = Date.now();
+            sessionEndedRef.current = false;
+
+            wordQueueRef.current.restoreFromFullState(
+              cache.queueState.fullState,
+              cache.queueState.uiCurrentWordId,
+              {
+                masteryThreshold: cache.masteryThreshold,
+                maxTotalQuestions: cache.maxTotalQuestions,
+                targetMasteryCount: cache.targetMasteryCount,
+              },
+            );
+
+            // Apply cached strategy (we intentionally don't overwrite it with a network fetch here).
+            if (cache.amasStrategy) {
+              wordQueueRef.current.applyStrategy(cache.amasStrategy);
+            }
+
+            setHasRestoredSession(true);
+            return;
+          }
+
+          // Backward-compatible restore path: only restore progress snapshot (mastered/totalQuestions).
           if (cache?.queueState?.masteredWordIds?.length || cache?.queueState?.totalQuestions) {
-            // 只提取进度信息，不使用缓存的单词列表
             cachedProgress = {
               masteredWordIds: cache.queueState.masteredWordIds || [],
               totalQuestions: cache.queueState.totalQuestions || 0,
@@ -406,7 +440,9 @@ export function useMasteryLearning(
           return;
         }
 
-        // 创建或恢复会话
+        // Create or restore *client state*.
+        // Important: we DO NOT create a backend learning session here anymore.
+        // A backend session is created/ensured on the first answer submission.
         if (cachedProgress) {
           currentSessionIdRef.current = cachedProgress.sessionId;
           sessionStartTimeRef.current = Date.now();
@@ -438,10 +474,9 @@ export function useMasteryLearning(
           }
           setHasRestoredSession(true);
         } else {
-          const session = await createMasterySession(words.meta.targetCount);
-          if (!isMountedRef.current) return;
-          currentSessionIdRef.current = session?.sessionId ?? '';
-          sessionStartTimeRef.current = Date.now();
+          // No cache: start in "pending session" mode (session will be created on first answer).
+          currentSessionIdRef.current = (sessionId ?? '').trim();
+          sessionStartTimeRef.current = 0;
           sessionEndedRef.current = false;
           wordQueueRef.current.initializeQueue(words.words, {
             masteryThreshold: words.meta.masteryThreshold,
@@ -560,7 +595,22 @@ export function useMasteryLearning(
 
   useEffect(() => {
     return () => {
-      endSessionRef.current('async');
+      // Treat route change/unmount as *pause* (not end).
+      // Ending here causes "switch page -> session ended/completed" and forces a restart.
+      saveCacheRef.current();
+
+      const sid = currentSessionIdRef.current;
+      if (!sid || sessionEndedRef.current || sessionStartTimeRef.current <= 0) return;
+
+      const progress = wordQueueRef.current.progress;
+      const tracking = trackingService.getStats();
+      const contextShifts = tracking.pageSwitchCount + tracking.taskSwitchCount;
+      syncMasteryProgress({
+        sessionId: sid,
+        totalQuestions: progress.totalQuestions,
+        actualMasteryCount: progress.masteredCount,
+        contextShifts,
+      }).catch(() => {});
     };
   }, []);
 
@@ -575,6 +625,35 @@ export function useMasteryLearning(
     ) => {
       const word = wordQueue.currentWord;
       if (!wordQueue.queueManagerRef.current || !word) return;
+
+      // Ensure backend session exists only when the user actually answers the first question.
+      // This avoids creating "empty sessions" just by opening the learning page.
+      let sessionIdForSubmit = currentSessionIdRef.current;
+      if (!sessionIdForSubmit || sessionStartTimeRef.current <= 0) {
+        try {
+          const targetCount = wordQueueRef.current.progress.targetCount || initialTargetCount;
+          const ensured = await createMasterySession(targetCount, sessionIdForSubmit || undefined);
+          sessionIdForSubmit = ensured?.sessionId ?? '';
+          currentSessionIdRef.current = sessionIdForSubmit;
+          sessionStartTimeRef.current = Date.now();
+          sessionEndedRef.current = false;
+          saveCacheRef.current();
+        } catch {
+          learningLogger.warn(
+            '[useMasteryLearning] submitAnswer blocked: failed to create session',
+          );
+          setError('创建学习会话失败，请稍后重试或刷新页面');
+          return;
+        }
+      }
+
+      if (!sessionIdForSubmit) {
+        learningLogger.warn(
+          '[useMasteryLearning] submitAnswer blocked: empty sessionId after ensure',
+        );
+        setError('学习会话未就绪，请稍后重试或刷新页面');
+        return;
+      }
 
       setError(null);
 
@@ -616,7 +695,7 @@ export function useMasteryLearning(
         wordId: word.id,
         isCorrect,
         responseTime,
-        sessionId: currentSessionIdRef.current,
+        sessionId: sessionIdForSubmit,
         pausedTimeMs,
         latestAmasState: amasState,
         varkInteraction,
@@ -627,10 +706,13 @@ export function useMasteryLearning(
       // Sync progress every 5 questions
       const progress = wordQueue.getQueueState()?.progress;
       if (progress && progress.totalQuestions > 0 && progress.totalQuestions % 5 === 0) {
+        const tracking = trackingService.getStats();
+        const contextShifts = tracking.pageSwitchCount + tracking.taskSwitchCount;
         syncMasteryProgress({
-          sessionId: currentSessionIdRef.current,
+          sessionId: sessionIdForSubmit,
           totalQuestions: progress.totalQuestions,
           actualMasteryCount: progress.masteredCount,
+          contextShifts,
         }).catch(() => {});
       }
     },
@@ -659,6 +741,9 @@ export function useMasteryLearning(
   }, [wordQueue, saveCache]);
 
   const resetSession = useCallback(async () => {
+    // If a session has started, explicitly end it before resetting to avoid leaving a dangling active session.
+    endSessionRef.current('async');
+
     if (!isSeedSession) {
       sync.sessionCache.clearSessionCache();
     }

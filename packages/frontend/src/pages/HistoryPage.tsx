@@ -75,6 +75,8 @@ export default function HistoryPage() {
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [sessionsPagination, setSessionsPagination] = useState({ total: 0, limit: 10, offset: 0 });
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<SessionStats | null>(null);
+  const [isLoadingActiveSession, setIsLoadingActiveSession] = useState(false);
 
   // 状态历史相关状态
   const [dateRange, setDateRange] = useState<DateRangeOption>(30);
@@ -181,7 +183,6 @@ export default function HistoryPage() {
         const res = await ApiClient.listSessions({
           limit: 10,
           offset: sessionsPagination.offset,
-          includeActive: true,
         });
         if (mounted) {
           setSessions(res.data);
@@ -194,7 +195,20 @@ export default function HistoryPage() {
       }
     };
 
+    const loadActiveSession = async () => {
+      try {
+        if (mounted) setIsLoadingActiveSession(true);
+        const active = await ApiClient.getActiveSession();
+        if (mounted) setActiveSession(active);
+      } catch (err) {
+        learningLogger.error({ err }, '加载当前会话失败');
+      } finally {
+        if (mounted) setIsLoadingActiveSession(false);
+      }
+    };
+
     loadSessions();
+    loadActiveSession();
 
     return () => {
       mounted = false;
@@ -528,7 +542,7 @@ export default function HistoryPage() {
                 <Spinner className="mx-auto mb-4" size="xl" color="primary" />
                 <p className="text-gray-600 dark:text-gray-400">正在加载会话列表...</p>
               </div>
-            ) : sessions.length === 0 ? (
+            ) : sessions.length === 0 && !activeSession && !isLoadingActiveSession ? (
               <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/30">
                 <Play size={64} color={IconColor.primary} className="mx-auto mb-4" />
                 <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
@@ -546,51 +560,36 @@ export default function HistoryPage() {
               </div>
             ) : (
               <>
-                <div className="space-y-4">
-                  {sessions.map((session) => {
-                    const startDate = new Date(session.startedAt);
-                    const isExpanded = expandedSessionId === session.id;
-                    const completionRate = session.targetMasteryCount
-                      ? Math.min(
-                          100,
-                          (session.actualMasteryCount / session.targetMasteryCount) * 100,
-                        )
-                      : null;
+                {!isLoadingActiveSession &&
+                  activeSession &&
+                  (() => {
+                    const lastActivityMs = activeSession.lastActivityAt
+                      ? new Date(activeSession.lastActivityAt).getTime()
+                      : NaN;
+                    const isActivelyLearning =
+                      Number.isFinite(lastActivityMs) &&
+                      Date.now() - lastActivityMs < 2 * 60 * 1000;
+                    if (!isActivelyLearning) return null;
 
                     return (
-                      <div
-                        key={session.id}
-                        className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
-                      >
-                        <div className="flex items-start justify-between">
+                      <div className="rounded-card border border-amber-200 bg-amber-50/70 p-6 shadow-soft backdrop-blur-sm dark:border-amber-800 dark:bg-amber-900/20">
+                        <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="mb-2 flex items-center gap-3">
-                              <span
-                                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                  session.endedAt
-                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
-                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
-                                }`}
-                              >
-                                {session.endedAt ? '已完成' : '进行中'}
+                              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                                学习中
                               </span>
                               <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                {session.sessionType}
+                                {activeSession.sessionType}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {startDate.toLocaleDateString('zh-CN')}{' '}
-                              {startDate.toLocaleTimeString('zh-CN', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">当前学习会话</p>
                           </div>
                           <button
-                            onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
-                            className="rounded-button border border-gray-200 px-3 py-1 text-sm text-gray-600 transition-all hover:bg-gray-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
+                            onClick={() => navigate('/learning')}
+                            className="rounded-button bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-amber-600 active:scale-95"
                           >
-                            {isExpanded ? '收起' : '详情'}
+                            去学习
                           </button>
                         </div>
 
@@ -601,7 +600,7 @@ export default function HistoryPage() {
                               <span className="text-xs">题目数</span>
                             </div>
                             <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              {session.totalQuestions}
+                              {activeSession.totalQuestions}
                             </p>
                           </div>
                           <div className="text-center">
@@ -610,7 +609,7 @@ export default function HistoryPage() {
                               <span className="text-xs">掌握数</span>
                             </div>
                             <p className="text-lg font-bold text-green-600">
-                              {session.actualMasteryCount}
+                              {activeSession.actualMasteryCount}
                             </p>
                           </div>
                           <div className="text-center">
@@ -619,56 +618,167 @@ export default function HistoryPage() {
                               <span className="text-xs">时长</span>
                             </div>
                             <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              {Math.floor(session.duration / 60)}分{session.duration % 60}秒
+                              {Math.floor(activeSession.duration / 60)}分
+                              {activeSession.duration % 60}秒
                             </p>
                           </div>
-                          {session.flowPeakScore !== undefined &&
-                            session.flowPeakScore !== null && (
-                              <div className="text-center">
-                                <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
-                                  <Brain size={14} />
-                                  <span className="text-xs">心流峰值</span>
-                                </div>
-                                <p className="text-lg font-bold text-purple-600">
-                                  {(session.flowPeakScore * 100).toFixed(0)}%
-                                </p>
-                              </div>
-                            )}
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
+                              <Target size={14} />
+                              <span className="text-xs">目标完成度</span>
+                            </div>
+                            <p className="text-lg font-bold text-blue-600">
+                              {activeSession.targetMasteryCount
+                                ? `${Math.min(
+                                    100,
+                                    (activeSession.actualMasteryCount /
+                                      activeSession.targetMasteryCount) *
+                                      100,
+                                  ).toFixed(0)}%`
+                                : '--'}
+                            </p>
+                          </div>
                         </div>
-
-                        {completionRate !== null && (
-                          <div className="mt-4">
-                            <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                              <span>目标完成度</span>
-                              <span>{completionRate.toFixed(0)}%</span>
-                            </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all"
-                                style={{ width: `${completionRate}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {isExpanded && (
-                          <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              会话ID:{' '}
-                              <code className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-slate-700">
-                                {session.id}
-                              </code>
-                            </p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                              答题记录数: {session.answerRecordCount} | 上下文切换:{' '}
-                              {session.contextShifts}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     );
-                  })}
-                </div>
+                  })()}
+
+                {sessions.length === 0 ? (
+                  <div className="rounded-card border border-gray-200 bg-white/80 p-6 text-center shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">暂无历史会话</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {sessions.map((session) => {
+                      const startDate = new Date(session.startedAt);
+                      const isExpanded = expandedSessionId === session.id;
+                      const completionRate = session.targetMasteryCount
+                        ? Math.min(
+                            100,
+                            (session.actualMasteryCount / session.targetMasteryCount) * 100,
+                          )
+                        : null;
+                      const statusLabel = session.endedAt
+                        ? completionRate !== null && completionRate >= 100
+                          ? '已达成'
+                          : '已结束'
+                        : '未结束';
+
+                      return (
+                        <div
+                          key={session.id}
+                          className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="mb-2 flex items-center gap-3">
+                                <span
+                                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                    statusLabel === '已达成'
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                                      : statusLabel === '已结束'
+                                        ? 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-200'
+                                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                                  }`}
+                                >
+                                  {statusLabel}
+                                </span>
+                                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                  {session.sessionType}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {startDate.toLocaleDateString('zh-CN')}{' '}
+                                {startDate.toLocaleTimeString('zh-CN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                              className="rounded-button border border-gray-200 px-3 py-1 text-sm text-gray-600 transition-all hover:bg-gray-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
+                            >
+                              {isExpanded ? '收起' : '详情'}
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
+                                <Hash size={14} />
+                                <span className="text-xs">题目数</span>
+                              </div>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                {session.totalQuestions}
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
+                                <CheckCircle size={14} />
+                                <span className="text-xs">掌握数</span>
+                              </div>
+                              <p className="text-lg font-bold text-green-600">
+                                {session.actualMasteryCount}
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
+                                <Timer size={14} />
+                                <span className="text-xs">时长</span>
+                              </div>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                {Math.floor(session.duration / 60)}分{session.duration % 60}秒
+                              </p>
+                            </div>
+                            {session.flowPeakScore !== undefined &&
+                              session.flowPeakScore !== null && (
+                                <div className="text-center">
+                                  <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
+                                    <Brain size={14} />
+                                    <span className="text-xs">心流峰值</span>
+                                  </div>
+                                  <p className="text-lg font-bold text-purple-600">
+                                    {(session.flowPeakScore * 100).toFixed(0)}%
+                                  </p>
+                                </div>
+                              )}
+                          </div>
+
+                          {completionRate !== null && (
+                            <div className="mt-4">
+                              <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span>目标完成度</span>
+                                <span>{completionRate.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all"
+                                  style={{ width: `${completionRate}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {isExpanded && (
+                            <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                会话ID:{' '}
+                                <code className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-slate-700">
+                                  {session.id}
+                                </code>
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                答题记录数: {session.answerRecordCount} | 上下文切换:{' '}
+                                {session.contextShifts}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {sessionsPagination.total > sessionsPagination.limit && (
                   <div className="mt-8 flex items-center justify-center gap-2">
