@@ -98,6 +98,16 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      // Tauri 构建：剥离外部 Google Fonts 请求（离线环境无需外部字体）
+      isTauri && {
+        name: 'strip-external-fonts',
+        transformIndexHtml(html: string) {
+          return html
+            .replace(/\s*<!--[^>]*字体预加载[^>]*-->\n?/, '')
+            .replace(/\s*<link[^>]*fonts\.googleapis\.com[^>]*>\n?/g, '')
+            .replace(/\s*<noscript><link[^>]*fonts\.googleapis\.com[^>]*><\/noscript>\n?/g, '');
+        },
+      },
       // 开发环境：admin 路由重写
       {
         name: 'rewrite-admin-entry',
