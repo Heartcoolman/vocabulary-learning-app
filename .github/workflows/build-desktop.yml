@@ -15,6 +15,9 @@ on:
       - '.github/workflows/build-desktop.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -56,14 +59,36 @@ jobs:
         with:
           projectPath: packages/tauri-app
           tauriScript: pnpm tauri
-          args: --target x86_64-pc-windows-msvc
+          args: --target x86_64-pc-windows-msvc --bundles nsis
+
+      - name: Prepare installer artifact
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "packages/tauri-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $installer) {
+            throw "NSIS installer not found"
+          }
+
+          $outDir = Join-Path $env:RUNNER_TEMP "windows-client-ready"
+          New-Item -Path $outDir -ItemType Directory -Force | Out-Null
+
+          $targetFile = Join-Path $outDir "Danci-windows-x64-setup.exe"
+          Copy-Item $installer.FullName $targetFile -Force
+
+          $hash = (Get-FileHash -Algorithm SHA256 $targetFile).Hash.ToLower()
+          "$hash  Danci-windows-x64-setup.exe" |
+            Set-Content (Join-Path $outDir "Danci-windows-x64-setup.exe.sha256")
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
+          name: windows-client-ready
           path: |
-            packages/tauri-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            ${{ runner.temp }}/windows-client-ready/Danci-windows-x64-setup.exe
+            ${{ runner.temp }}/windows-client-ready/Danci-windows-x64-setup.exe.sha256
 
   release:
     needs: build-windows
@@ -74,14 +99,17 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-installer
+          name: windows-client-ready
           path: dist
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.exe
+          files: |
+            dist/Danci-windows-x64-setup.exe
+            dist/Danci-windows-x64-setup.exe.sha256
           draft: false
           prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

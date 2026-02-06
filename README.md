@@ -48,11 +48,18 @@ curl -fsSL https://raw.githubusercontent.com/heartcoolman/vocabulary-learning-ap
 
 无需服务器，一键安装，开箱即用！
 
-### 下载安装
+### 下载安装（稳定版）
 
-前往 [Releases](https://github.com/heartcoolman/vocabulary-learning-app/releases) 页面下载最新版本的安装包：
+前往 [Releases](https://github.com/heartcoolman/vocabulary-learning-app/releases) 页面下载：
 
-- **Danci_x.x.x_x64-setup.exe** - Windows 64 位安装包
+- **Danci-windows-x64-setup.exe** - Windows 64 位安装包（下载后直接双击安装）
+- **Danci-windows-x64-setup.exe.sha256** - 安装包校验文件
+
+### 下载安装（CI 最新构建）
+
+若想提前体验最新构建，可在 [Actions / Build Desktop](https://github.com/heartcoolman/vocabulary-learning-app/actions/workflows/build-desktop.yml) 下载 artifact：
+
+- **windows-client-ready**（包含 `Danci-windows-x64-setup.exe` 与 `.sha256`）
 
 ### 系统要求
 
