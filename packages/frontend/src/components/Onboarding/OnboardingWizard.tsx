@@ -4,6 +4,7 @@ import { WordbookStep } from './steps/WordbookStep';
 import { FeaturesStep } from './steps/FeaturesStep';
 import { OfflineStep } from './steps/OfflineStep';
 import { isTauriEnvironment } from '../../utils/tauri-bridge';
+import { uiLogger } from '../../utils/logger';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -23,7 +24,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         try {
           localStorage.setItem('danci.desktop.onboarding_completed', 'true');
         } catch (error) {
-          console.error('Failed to save onboarding status:', error);
+          uiLogger.error({ err: error }, 'Failed to save onboarding status');
         }
       }
       onComplete();

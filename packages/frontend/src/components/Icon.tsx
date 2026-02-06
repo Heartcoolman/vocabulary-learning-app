@@ -41,6 +41,7 @@ export {
   ArrowRight,
   ArrowClockwise,
   ArrowCounterClockwise,
+  ArrowSquareOut,
   ListNumbers,
   Confetti,
   UsersThree,
@@ -122,6 +123,7 @@ export {
   // SSE 连接状态图标
   WifiHigh,
   WifiSlash,
+  CloudArrowDown,
   // 视觉疲劳检测图标
   EyeSlash,
   Camera,
@@ -166,6 +168,7 @@ export {
   ListDashes,
   Stack,
   Megaphone,
+  Rocket,
 } from '@phosphor-icons/react';
 
 // Re-export types for components that need them

@@ -44,14 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPrefetchedLearningPageRef = useRef(false);
   const hasAttemptedOptimisticLoadRef = useRef(false);
   const hasScheduledPrefetchUserDataRef = useRef(false);
-  // 注意：useToast 必须在 ToastProvider 内部使用。
-  // 但 AuthProvider 通常包裹在 ToastProvider 外部？
-  // 检查 App.tsx，AuthProvider 在 ToastProvider 外部！
-  // 所以这里不能用 useToast。我们将改用 console.log 和 window.alert (临时) 或不做 UI 提示只做 console?
-  // 既然用户是本地部署，让他看 console 也是一种办法。
-  // 但用户可能不懂。
-  // 让我们暂时移除 toast 依赖，仅用 console，并尝试一种无需 hook 的通知方式（如 alert）来确认。
-  // 为了不破坏 UX，我们只用 console.group 详细打印时间线。
 
   /**
    * 预加载用户数据
@@ -153,8 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const cachedUser = StorageService.loadUserInfo();
           if (cachedUser) {
             authLogger.info('命中本地用户缓存，执行乐观加载');
-            console.timeEnd('AuthLoading');
-            console.log('🚀 [Auth] Cache HIT! Instant load.');
+            authLogger.debug('Auth cache hit, optimistic user restored');
 
             if (isMounted()) {
               setUser(cachedUser);
@@ -164,20 +155,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             void StorageService.setCurrentUser(cachedUser.id);
             schedulePrefetchUserData();
           } else {
-            console.log('⏳ [Auth] Cache MISS. Loading from network...');
+            authLogger.debug('Auth cache miss, loading user from network');
           }
         }
 
-        console.time('NetworkAuth');
+        const networkAuthStart = performance.now();
         // 2. 后台验证：始终发起网络请求获取最新状态
         const userData = await authClient.getCurrentUser();
-        console.timeEnd('NetworkAuth');
+        authLogger.debug({ durationMs: performance.now() - networkAuthStart }, 'Network auth done');
         if (!isMounted()) return;
 
         // 更新状态和缓存
         setUser(userData);
         StorageService.saveUserInfo(userData);
-        console.log('💾 [Auth] User info saved to cache.');
+        authLogger.debug('User info saved to local cache');
 
         void StorageService.setCurrentUser(userData.id);
         schedulePrefetchUserData();

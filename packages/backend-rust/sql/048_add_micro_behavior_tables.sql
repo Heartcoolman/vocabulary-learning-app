@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS "micro_behavior_events" (
     "answerRecordId" TEXT NOT NULL,
     "eventType" VARCHAR(32) NOT NULL,
     "eventData" JSONB NOT NULL,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    "createdAt" TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS "idx_mbe_answer_record" ON "micro_behavior_events"("answerRecordId");

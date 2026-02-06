@@ -4,7 +4,7 @@
  * 显示参数变更前后对比
  */
 import { memo } from 'react';
-import { ArrowRight } from '@phosphor-icons/react';
+import { ArrowRight } from '../Icon';
 
 export interface ConfigPreviewItem {
   label: string;
