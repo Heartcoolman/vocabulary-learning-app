@@ -35,6 +35,27 @@ export async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>
   return window.__TAURI__!.core.invoke<T>(cmd, args);
 }
 
+export interface TauriAppSettings {
+  daily_goal: number;
+  reminder_enabled: boolean;
+  reminder_time: string | null;
+  theme: string;
+  telemetry_enabled: boolean;
+  onboarding_completed: boolean;
+}
+
+export async function getTauriAppSettings(): Promise<TauriAppSettings> {
+  return tauriInvoke<TauriAppSettings>('get_settings');
+}
+
+export async function updateTauriAppSettings(settings: TauriAppSettings): Promise<void> {
+  await tauriInvoke('update_settings', { settings });
+}
+
+export async function resetTauriWindowLayout(): Promise<void> {
+  await tauriInvoke('reset_window_layout');
+}
+
 /**
  * 桌面模式下的固定本地用户 ID
  */

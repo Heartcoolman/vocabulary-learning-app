@@ -1,5 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { isTauriEnvironment } from '../utils/tauri-bridge';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  isTauriEnvironment,
+  getTauriAppSettings,
+  updateTauriAppSettings,
+  resetTauriWindowLayout,
+  type TauriAppSettings,
+} from '../utils/tauri-bridge';
 import { initSentry, setSentryEnabled } from '../services/sentry';
 
 interface WindowState {
@@ -72,56 +78,108 @@ function removeLocalStorageItem(key: string): void {
   }
 }
 
+function mapTauriSettings(settings: TauriAppSettings): DesktopSettings {
+  return {
+    onboardingCompleted: settings.onboarding_completed,
+    windowState: readJsonFromLocalStorage<WindowState>(DESKTOP_STORAGE_KEYS.windowState),
+    telemetryEnabled: settings.telemetry_enabled,
+  };
+}
+
 export function useDesktopSettings() {
   const [settings, setSettings] = useState<DesktopSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const isDesktop = isTauriEnvironment();
+  const tauriSettingsRef = useRef<TauriAppSettings | null>(null);
 
   useEffect(() => {
-    if (!isDesktop) {
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
 
-    const onboardingCompleted = readBooleanFromLocalStorage(
-      DESKTOP_STORAGE_KEYS.onboardingCompleted,
-      false,
-    );
-    const windowState = readJsonFromLocalStorage<WindowState>(DESKTOP_STORAGE_KEYS.windowState);
-    const telemetryEnabled = readBooleanFromLocalStorage(
-      DESKTOP_STORAGE_KEYS.telemetryEnabled,
-      false,
-    );
+    const loadSettings = async () => {
+      if (!isDesktop) {
+        setLoading(false);
+        return;
+      }
 
-    setSettings({
-      onboardingCompleted,
-      windowState,
-      telemetryEnabled,
-    });
+      try {
+        const tauriSettings = await getTauriAppSettings();
+        if (cancelled) return;
 
-    if (telemetryEnabled) {
-      initSentry();
-    }
+        tauriSettingsRef.current = tauriSettings;
+        const mapped = mapTauriSettings(tauriSettings);
+        setSettings(mapped);
 
-    setLoading(false);
+        if (mapped.telemetryEnabled) {
+          initSentry();
+        }
+      } catch {
+        if (cancelled) return;
+
+        const onboardingCompleted = readBooleanFromLocalStorage(
+          DESKTOP_STORAGE_KEYS.onboardingCompleted,
+          false,
+        );
+        const windowState = readJsonFromLocalStorage<WindowState>(DESKTOP_STORAGE_KEYS.windowState);
+        const telemetryEnabled = readBooleanFromLocalStorage(
+          DESKTOP_STORAGE_KEYS.telemetryEnabled,
+          false,
+        );
+
+        setSettings({
+          onboardingCompleted,
+          windowState,
+          telemetryEnabled,
+        });
+
+        if (telemetryEnabled) {
+          initSentry();
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isDesktop]);
 
   const updateSetting = useCallback(
     async <K extends keyof DesktopSettings>(key: K, value: DesktopSettings[K]) => {
       if (!isDesktop) return;
 
-      if (key === 'onboardingCompleted') {
-        writeBooleanToLocalStorage(DESKTOP_STORAGE_KEYS.onboardingCompleted, Boolean(value));
-      } else if (key === 'windowState') {
+      if (key === 'windowState') {
         if (value === null) {
           removeLocalStorageItem(DESKTOP_STORAGE_KEYS.windowState);
         } else {
           writeJsonToLocalStorage(DESKTOP_STORAGE_KEYS.windowState, value);
         }
+        setSettings((prev) => ({ ...prev, windowState: value as WindowState | null }));
+        return;
+      }
+
+      const currentTauriSettings = tauriSettingsRef.current;
+      if (currentTauriSettings) {
+        const nextTauriSettings: TauriAppSettings = {
+          ...currentTauriSettings,
+          onboarding_completed:
+            key === 'onboardingCompleted'
+              ? Boolean(value)
+              : currentTauriSettings.onboarding_completed,
+          telemetry_enabled:
+            key === 'telemetryEnabled' ? Boolean(value) : currentTauriSettings.telemetry_enabled,
+        };
+
+        await updateTauriAppSettings(nextTauriSettings);
+        tauriSettingsRef.current = nextTauriSettings;
+      } else if (key === 'onboardingCompleted') {
+        writeBooleanToLocalStorage(DESKTOP_STORAGE_KEYS.onboardingCompleted, Boolean(value));
       } else if (key === 'telemetryEnabled') {
         writeBooleanToLocalStorage(DESKTOP_STORAGE_KEYS.telemetryEnabled, Boolean(value));
-      } else {
-        // exhaustive guard for future keys
       }
 
       setSettings((prev) => ({ ...prev, [key]: value }));
@@ -140,8 +198,12 @@ export function useDesktopSettings() {
   const resetWindowLayout = useCallback(async () => {
     if (!isDesktop) return;
 
-    removeLocalStorageItem(DESKTOP_STORAGE_KEYS.windowState);
-    setSettings((prev) => ({ ...prev, windowState: null }));
+    try {
+      await resetTauriWindowLayout();
+    } finally {
+      removeLocalStorageItem(DESKTOP_STORAGE_KEYS.windowState);
+      setSettings((prev) => ({ ...prev, windowState: null }));
+    }
   }, [isDesktop]);
 
   return {

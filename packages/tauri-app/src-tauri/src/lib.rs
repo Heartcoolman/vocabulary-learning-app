@@ -16,7 +16,9 @@ pub fn run() {
         }))
         .setup(|app| {
             // 确保窗口在启动后显示（window-state 插件的备用方案）
-            let window = app.get_webview_window("main").expect("main window not found");
+            let window = app
+                .get_webview_window("main")
+                .expect("main window not found");
             let win = window.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(500));

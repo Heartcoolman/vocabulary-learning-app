@@ -16,6 +16,9 @@ import {
   getApiMode,
   apiCall,
   getDesktopLocalUser,
+  getTauriAppSettings,
+  updateTauriAppSettings,
+  resetTauriWindowLayout,
   DESKTOP_LOCAL_USER_ID,
   DESKTOP_LOCAL_USERNAME,
 } from '../tauri-bridge';
@@ -104,6 +107,71 @@ describe('Tauri Bridge', () => {
       };
 
       await expect(tauriInvoke('failing_command')).rejects.toThrow('Tauri error');
+    });
+  });
+
+  describe('desktop settings commands', () => {
+    it('should invoke get_settings command', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue({
+        daily_goal: 20,
+        reminder_enabled: false,
+        reminder_time: null,
+        theme: 'system',
+        telemetry_enabled: false,
+        onboarding_completed: true,
+      });
+      (window as unknown as Record<string, unknown>).__TAURI__ = {
+        core: {
+          invoke: mockInvoke,
+        },
+      };
+
+      const settings = await getTauriAppSettings();
+
+      expect(mockInvoke).toHaveBeenCalledWith('get_settings', undefined);
+      expect(settings.onboarding_completed).toBe(true);
+    });
+
+    it('should invoke update_settings with settings payload', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue(undefined);
+      (window as unknown as Record<string, unknown>).__TAURI__ = {
+        core: {
+          invoke: mockInvoke,
+        },
+      };
+
+      await updateTauriAppSettings({
+        daily_goal: 10,
+        reminder_enabled: false,
+        reminder_time: null,
+        theme: 'system',
+        telemetry_enabled: true,
+        onboarding_completed: true,
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('update_settings', {
+        settings: {
+          daily_goal: 10,
+          reminder_enabled: false,
+          reminder_time: null,
+          theme: 'system',
+          telemetry_enabled: true,
+          onboarding_completed: true,
+        },
+      });
+    });
+
+    it('should invoke reset_window_layout command', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue(undefined);
+      (window as unknown as Record<string, unknown>).__TAURI__ = {
+        core: {
+          invoke: mockInvoke,
+        },
+      };
+
+      await resetTauriWindowLayout();
+
+      expect(mockInvoke).toHaveBeenCalledWith('reset_window_layout', undefined);
     });
   });
 

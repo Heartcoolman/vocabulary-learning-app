@@ -3,7 +3,11 @@ import { WelcomeStep } from './steps/WelcomeStep';
 import { WordbookStep } from './steps/WordbookStep';
 import { FeaturesStep } from './steps/FeaturesStep';
 import { OfflineStep } from './steps/OfflineStep';
-import { isTauriEnvironment } from '../../utils/tauri-bridge';
+import {
+  isTauriEnvironment,
+  getTauriAppSettings,
+  updateTauriAppSettings,
+} from '../../utils/tauri-bridge';
 import { uiLogger } from '../../utils/logger';
 
 interface OnboardingWizardProps {
@@ -22,9 +26,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     } else {
       if (isTauriEnvironment()) {
         try {
-          localStorage.setItem('danci.desktop.onboarding_completed', 'true');
+          const currentSettings = await getTauriAppSettings();
+          await updateTauriAppSettings({
+            ...currentSettings,
+            onboarding_completed: true,
+          });
         } catch (error) {
-          uiLogger.error({ err: error }, 'Failed to save onboarding status');
+          uiLogger.error({ err: error }, 'Failed to persist onboarding status');
         }
       }
       onComplete();
