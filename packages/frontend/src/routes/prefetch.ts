@@ -29,6 +29,9 @@ import { PAGINATION_CONFIG } from '../constants/pagination';
  * 用于预加载页面组件代码
  */
 export const routePrefetchers: Record<string, () => Promise<unknown>> = {
+  // 核心学习页面
+  '/learning': () => import('../pages/LearningPage'),
+
   // 用户基础页面
   '/vocabulary': () => import('../pages/VocabularyPage'),
   '/flashcard': () => import('../pages/FlashcardPage'),
@@ -95,6 +98,14 @@ export const prefetchRoute = (path: string): void => {
  * 用于预加载页面所需的 API 数据
  */
 export const routeDataPrefetchers: Record<string, () => void> = {
+  '/learning': () => {
+    queryClient.prefetchQuery({
+      queryKey: ['masteryStudyWords'],
+      queryFn: () => learningClient.getMasteryStudyWords(),
+      staleTime: 60 * 1000,
+    });
+  },
+
   '/vocabulary': () => {
     queryClient.prefetchQuery({
       queryKey: queryKeys.wordbooks.all,
@@ -244,6 +255,7 @@ export const prefetchAll = (path: string): void => {
  * 优先预加载的路由列表（按使用频率排序）
  */
 export const PRIORITY_ROUTES = [
+  '/learning',
   '/vocabulary',
   '/statistics',
   '/flashcard',
@@ -256,10 +268,15 @@ export const PRIORITY_ROUTES = [
  * 使用 requestIdleCallback 确保不影响用户交互
  */
 export const prefetchPriorityRoutes = (): void => {
+  // 核心学习页面：尽早预加载，避免首跳卡在骨架屏（其余页面仍在空闲时加载）
+  prefetchRoute('/learning');
+
+  const remainingRoutes = PRIORITY_ROUTES.filter((route) => route !== '/learning');
+
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(
       () => {
-        PRIORITY_ROUTES.forEach((route, index) => {
+        remainingRoutes.forEach((route, index) => {
           // 错开预加载时间，避免同时发起多个请求
           setTimeout(() => {
             prefetchRoute(route);
@@ -271,7 +288,7 @@ export const prefetchPriorityRoutes = (): void => {
   } else {
     // 降级方案：使用 setTimeout
     setTimeout(() => {
-      PRIORITY_ROUTES.forEach((route, index) => {
+      remainingRoutes.forEach((route, index) => {
         setTimeout(() => {
           prefetchRoute(route);
         }, index * 100);
@@ -288,7 +305,7 @@ export const prefetchPriorityData = (): void => {
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(
       () => {
-        // 只预取最重要的数据
+        prefetchRouteData('/learning');
         prefetchRouteData('/vocabulary');
         prefetchRouteData('/statistics');
       },

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ConfigHistory } from '../../types/models';
 import { Clock, MagnifyingGlass, ArrowCounterClockwise } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
-import { useConfigHistory } from '../../hooks/queries';
+import { useConfigHistory } from '../../hooks/queries/useConfigHistory';
 
 /**
  * 配置历史页面

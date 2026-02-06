@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::amas::decision::ensemble::PerformanceTracker;
+use crate::amas::memory::MasteryHistory;
 use crate::amas::types::{
     HabitProfile, HabitSamples, PersistedAMASState, RhythmPreference, UserState,
 };
@@ -9,7 +10,6 @@ use crate::db::operations::{
     upsert_amas_user_state_tx, AmasUserModel, AmasUserState,
 };
 use crate::db::DatabaseProxy;
-use crate::umm::MasteryHistory;
 
 pub struct AMASPersistence {
     db_proxy: Arc<DatabaseProxy>,
@@ -84,6 +84,8 @@ impl AMASPersistence {
             .as_ref()
             .and_then(|v| serde_json::from_value(v.clone()).ok());
 
+        let algorithm_states: Option<serde_json::Value> = user_state_row.algorithm_states.clone();
+
         Some(PersistedAMASState {
             user_id: user_id.to_string(),
             user_state,
@@ -92,9 +94,9 @@ impl AMASPersistence {
             cold_start_state,
             interaction_count,
             last_updated,
-            user_fsrs_params: None,
             mastery_history,
             ensemble_performance,
+            algorithm_states,
         })
     }
 
@@ -157,6 +159,7 @@ impl AMASPersistence {
             .ensemble_performance
             .as_ref()
             .and_then(|p| serde_json::to_value(p).ok());
+        amas_state.algorithm_states = state.algorithm_states.clone();
 
         upsert_amas_user_state_tx(&mut tx, &amas_state)
             .await
@@ -288,6 +291,7 @@ impl AMASPersistence {
                 .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis()),
             visual_fatigue,
             fused_fatigue: row.fused_fatigue,
+            reward_profile: None,
         }
     }
 
@@ -309,12 +313,13 @@ impl AMASPersistence {
             confidence: state.conf,
             visual_fatigue: state.visual_fatigue.as_ref().map(|v| v.score),
             fused_fatigue: state.fused_fatigue,
-            mastery_history: None, // Set by save_state after this call
+            mastery_history: None,
             habit_samples: state
                 .habit
                 .as_ref()
                 .map(|h| serde_json::to_value(&h.samples).unwrap_or_default()),
-            ensemble_performance: None, // Set by save_state after this call
+            ensemble_performance: None,
+            algorithm_states: None,
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: chrono::Utc::now().to_rfc3339(),
         }

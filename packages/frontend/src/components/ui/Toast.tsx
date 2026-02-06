@@ -1,6 +1,6 @@
-import { useEffect, ReactNode } from 'react';
-import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
-import { useToastStore } from '../../stores';
+import { useEffect, useMemo, useCallback, ReactNode } from 'react';
+import { CheckCircle, XCircle, Warning, Info, X } from '@phosphor-icons/react';
+import { useToastStore, useToastCleanup, Toast, ToastType } from '../../stores/toastStore';
 import { IconColor } from '../../utils/iconColors';
 
 interface CustomToastOptions {
@@ -16,14 +16,15 @@ export function useToast() {
   const warning = useToastStore((state) => state.warning);
   const info = useToastStore((state) => state.info);
 
-  return {
-    showToast,
-    custom: (content: ReactNode, options?: CustomToastOptions) => showCustom(content, options),
-    success,
-    error,
-    warning,
-    info,
-  };
+  const custom = useCallback(
+    (content: ReactNode, options?: CustomToastOptions) => showCustom(content, options),
+    [showCustom],
+  );
+
+  return useMemo(
+    () => ({ showToast, custom, success, error, warning, info }),
+    [showToast, custom, success, error, warning, info],
+  );
 }
 
 const toastIcons = {

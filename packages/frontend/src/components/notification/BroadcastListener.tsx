@@ -5,7 +5,7 @@
  */
 import { useCallback } from 'react';
 import { useBroadcastSSE, type BroadcastEvent } from '../../hooks/useBroadcastSSE';
-import { useToast } from '../ui';
+import { useToast } from '../ui/Toast';
 import { BroadcastToast } from './BroadcastToast';
 
 export function BroadcastListener() {

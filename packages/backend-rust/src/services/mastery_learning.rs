@@ -5,13 +5,16 @@ use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Row};
 
 use crate::amas::types::StrategyParams as AmasStrategyParams;
+use crate::amas::types::{SwdRecommendation, UserState as AmasUserState};
 use crate::amas::AMASEngine;
+use crate::db::operations::confusion_cache::find_confusable_words_batch;
+use crate::db::operations::content::get_words_by_ids;
 use crate::db::operations::get_amas_user_model;
 use crate::db::DatabaseProxy;
 use crate::services::amas::{
     compute_new_word_difficulty, map_difficulty_level, DifficultyRange, StrategyParams,
 };
-use crate::services::study_config::get_or_create_user_study_config;
+use crate::services::study_config::{get_or_create_user_study_config, UserStudyConfig};
 
 fn convert_amas_strategy(s: AmasStrategyParams) -> StrategyParams {
     StrategyParams {
@@ -20,6 +23,46 @@ fn convert_amas_strategy(s: AmasStrategyParams) -> StrategyParams {
         difficulty: s.difficulty.as_str().to_string(),
         batch_size: s.batch_size,
         hint_level: s.hint_level,
+    }
+}
+
+const MIN_CAP: i32 = 20;
+const MAX_ADDITIONAL: f64 = 80.0;
+const SWD_CONFIDENCE_THRESHOLD: f64 = 0.5;
+
+pub fn compute_dynamic_cap(user_state: &AmasUserState) -> i32 {
+    let effective_fatigue = user_state
+        .fused_fatigue
+        .unwrap_or(user_state.fatigue)
+        .clamp(0.0, 1.0);
+    let normalized_motivation = (user_state.motivation.clamp(-1.0, 1.0) + 1.0) / 2.0;
+
+    let base_capacity = user_state.attention.clamp(0.0, 1.0) * 0.35
+        + normalized_motivation * 0.30
+        + user_state.cognitive.stability.clamp(0.0, 1.0) * 0.20
+        + user_state.cognitive.speed.clamp(0.0, 1.0) * 0.15;
+
+    let fatigue_penalty = effective_fatigue * 0.5;
+    let net_capacity = (base_capacity - fatigue_penalty).max(0.0);
+    let cap = MIN_CAP as f64 + net_capacity * MAX_ADDITIONAL;
+
+    (cap.round() as i32).clamp(MIN_CAP, MIN_CAP + MAX_ADDITIONAL as i32)
+}
+
+pub fn compute_target_with_swd(
+    user_target: i64,
+    swd_recommendation: Option<&SwdRecommendation>,
+    dynamic_cap: i32,
+) -> i64 {
+    match swd_recommendation {
+        Some(rec) if rec.confidence >= SWD_CONFIDENCE_THRESHOLD && rec.recommended_count > 0 => {
+            if user_target > dynamic_cap as i64 {
+                return user_target;
+            }
+            let combined = user_target + rec.recommended_count as i64;
+            combined.min(dynamic_cap as i64)
+        }
+        _ => user_target,
     }
 }
 
@@ -36,6 +79,15 @@ fn effective_batch_size(requested: Option<i64>, strategy: &StrategyParams) -> us
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Distractors {
+    /// 看词选义：含正确答案的4个释义
+    pub meaning_options: Vec<String>,
+    /// 看义选词：含正确答案的4个拼写
+    pub spelling_options: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LearningWord {
     pub id: String,
     pub spelling: String,
@@ -46,6 +98,8 @@ pub struct LearningWord {
     pub audio_url: Option<String>,
     pub is_new: bool,
     pub difficulty: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distractors: Option<Distractors>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -171,36 +225,58 @@ pub async fn get_words_for_mastery_mode(
     target_count: Option<i64>,
     amas_engine: Option<&AMASEngine>,
 ) -> Result<MasteryStudyWordsResponse, sqlx::Error> {
+    let start = std::time::Instant::now();
+
     let config = get_or_create_user_study_config(proxy, user_id).await?;
     tracing::info!(
         user_id = %user_id,
-        selected_word_book_ids = ?config.selected_word_book_ids,
-        daily_word_count = config.daily_word_count,
+        elapsed_ms = start.elapsed().as_millis(),
         "get_words_for_mastery_mode: loaded config"
     );
 
-    let target = target_count
+    let user_target = target_count
         .or(Some(config.daily_mastery_target))
         .or(Some(config.daily_word_count))
         .unwrap_or(20);
 
-    let strategy = match amas_engine {
-        Some(engine) => convert_amas_strategy(engine.get_current_strategy(user_id).await),
-        None => load_user_strategy(proxy, user_id).await,
+    let (amas_strategy, user_state) = match amas_engine {
+        Some(engine) => (
+            Some(engine.get_current_strategy(user_id).await),
+            engine.get_user_state(user_id).await,
+        ),
+        None => (None, None),
     };
+
+    let strategy = amas_strategy
+        .as_ref()
+        .map(|s| convert_amas_strategy(s.clone()))
+        .unwrap_or_else(|| futures::executor::block_on(load_user_strategy(proxy, user_id)));
+
+    let target = match (&user_state, &amas_strategy) {
+        (Some(state), Some(amas_s)) => {
+            let dynamic_cap = compute_dynamic_cap(state);
+            compute_target_with_swd(user_target, amas_s.swd_recommendation.as_ref(), dynamic_cap)
+        }
+        _ => user_target,
+    };
+
     tracing::info!(
         user_id = %user_id,
-        strategy = ?strategy,
-        "get_words_for_mastery_mode: using AMAS strategy"
+        user_target = user_target,
+        final_target = target,
+        elapsed_ms = start.elapsed().as_millis(),
+        "get_words_for_mastery_mode: loaded strategy"
     );
     let fetch_count =
         effective_batch_size(None, &strategy).min(usize::try_from(target.max(1)).unwrap_or(20));
-    let words = fetch_words_with_strategy(proxy, user_id, fetch_count, &strategy, &[]).await?;
+    let words =
+        fetch_words_with_strategy(proxy, user_id, fetch_count, &strategy, &[], &config).await?;
 
     tracing::info!(
         user_id = %user_id,
         word_count = words.len(),
-        "get_words_for_mastery_mode: fetched words"
+        elapsed_ms = start.elapsed().as_millis(),
+        "get_words_for_mastery_mode: completed"
     );
 
     Ok(MasteryStudyWordsResponse {
@@ -222,6 +298,7 @@ pub async fn get_next_words(
     input: GetNextWordsInput,
     amas_engine: Option<&AMASEngine>,
 ) -> Result<NextWordsResponse, sqlx::Error> {
+    let config = get_or_create_user_study_config(proxy, user_id).await?;
     let strategy = match amas_engine {
         Some(engine) => convert_amas_strategy(engine.get_current_strategy(user_id).await),
         None => load_user_strategy(proxy, user_id).await,
@@ -245,7 +322,8 @@ pub async fn get_next_words(
     let exclude_ids: Vec<String> = exclude.into_iter().collect();
 
     let words =
-        fetch_words_with_strategy(proxy, user_id, batch_size, &strategy, &exclude_ids).await?;
+        fetch_words_with_strategy(proxy, user_id, batch_size, &strategy, &exclude_ids, &config)
+            .await?;
     let reason = explain_word_selection(&strategy, &words);
 
     Ok(NextWordsResponse {
@@ -260,6 +338,7 @@ pub async fn adjust_words_for_user(
     input: AdjustWordsInput,
 ) -> Result<AdjustWordsResponse, sqlx::Error> {
     let user_id = input.user_id.as_str();
+    let config = get_or_create_user_study_config(proxy, user_id).await?;
 
     let target = compute_target_difficulty(
         &input.user_state,
@@ -304,7 +383,8 @@ pub async fn adjust_words_for_user(
     let exclude_ids: Vec<String> = exclude.into_iter().collect();
 
     let mut candidates =
-        fetch_words_in_difficulty_range(proxy, user_id, target, &exclude_ids, desired_add).await?;
+        fetch_words_in_difficulty_range(proxy, user_id, target, &exclude_ids, desired_add, &config)
+            .await?;
 
     if candidates.len() < desired_add {
         candidates = fetch_words_in_difficulty_range(
@@ -313,6 +393,7 @@ pub async fn adjust_words_for_user(
             DifficultyRange { min: 0.0, max: 1.0 },
             &exclude_ids,
             desired_add,
+            &config,
         )
         .await?;
     }
@@ -352,6 +433,7 @@ pub async fn sync_session_progress(
     user_id: &str,
     actual_mastery_count: i64,
     total_questions: i64,
+    context_shifts: Option<i64>,
 ) -> Result<(), SessionError> {
     let exists = select_learning_session(proxy, session_id, user_id).await?;
     if exists.is_none() {
@@ -364,12 +446,14 @@ pub async fn sync_session_progress(
         UPDATE "learning_sessions"
         SET "actualMasteryCount" = GREATEST(COALESCE("actualMasteryCount", 0), $1),
             "totalQuestions" = GREATEST(COALESCE("totalQuestions", 0), $2),
-            "updatedAt" = $3
-        WHERE "id" = $4 AND "userId" = $5
+            "contextShifts" = GREATEST(COALESCE("contextShifts", 0), $3),
+            "updatedAt" = $4
+        WHERE "id" = $5 AND "userId" = $6
         "#,
     )
     .bind(actual_mastery_count as i32)
     .bind(total_questions as i32)
+    .bind(context_shifts.unwrap_or(0).max(0) as i32)
     .bind(Utc::now().naive_utc())
     .bind(session_id)
     .bind(user_id)
@@ -398,12 +482,16 @@ pub async fn ensure_learning_session(
                 return Err(SessionError::Forbidden);
             }
             update_target_mastery(proxy, &session_id, user_id, target_mastery_count).await?;
+            // Keep at most one active session per user to avoid "a bunch of in-progress sessions"
+            // caused by previous client bugs / crashes.
+            close_other_active_sessions(proxy, user_id, &session_id).await?;
             return Ok(session_id);
         }
     }
 
     let new_id = uuid::Uuid::new_v4().to_string();
     create_learning_session(proxy, &new_id, user_id, target_mastery_count).await?;
+    close_other_active_sessions(proxy, user_id, &new_id).await?;
     Ok(new_id)
 }
 
@@ -492,12 +580,16 @@ async fn fetch_words_with_strategy(
     count: usize,
     strategy: &StrategyParams,
     exclude_ids: &[String],
+    config: &UserStudyConfig,
 ) -> Result<Vec<LearningWord>, sqlx::Error> {
+    let start = std::time::Instant::now();
+
     let mut due_words = get_due_words_with_priority(proxy, user_id, exclude_ids).await?;
     tracing::info!(
         user_id = %user_id,
         due_words_count = due_words.len(),
-        "fetch_words_with_strategy: due words for review"
+        elapsed_ms = start.elapsed().as_millis(),
+        "fetch_words_with_strategy: due words loaded"
     );
 
     let difficulty_range = map_difficulty_level(&strategy.difficulty);
@@ -542,16 +634,43 @@ async fn fetch_words_with_strategy(
         actual_new,
         difficulty_range,
         &combined_exclude,
+        config,
     )
     .await?;
 
+    tracing::info!(
+        user_id = %user_id,
+        new_words_count = new_words.len(),
+        elapsed_ms = start.elapsed().as_millis(),
+        "fetch_words_with_strategy: new words loaded"
+    );
+
     let mut out: Vec<LearningWord> = Vec::new();
     for w in review_words {
-        out.push(word_to_learning_word(w.word, false, w.difficulty));
+        out.push(word_to_learning_word(w.word, false, w.difficulty, None));
     }
     for w in new_words {
         out.push(w);
     }
+
+    // Fetch distractor pools in parallel
+    let out_ids: Vec<String> = out.iter().map(|w| w.id.clone()).collect();
+    let mut all_exclude: Vec<String> = exclude_ids.to_vec();
+    all_exclude.extend(out_ids);
+
+    let distractor_fut = fetch_distractor_pool_words(proxy, user_id, &all_exclude, 20);
+    let semantic_fut = fetch_semantic_distractor_pool(proxy, &out);
+    let (distractor_pool, semantic_result) = tokio::join!(distractor_fut, semantic_fut);
+    let distractor_pool = distractor_pool?;
+    let semantic_pool = semantic_result.unwrap_or_default();
+
+    tracing::info!(
+        user_id = %user_id,
+        elapsed_ms = start.elapsed().as_millis(),
+        "fetch_words_with_strategy: distractors loaded"
+    );
+
+    populate_distractors(&mut out, &distractor_pool, &semantic_pool);
     Ok(out)
 }
 
@@ -642,13 +761,13 @@ async fn fetch_new_words_in_range(
     count: usize,
     difficulty_range: DifficultyRange,
     exclude_ids: &[String],
+    config: &UserStudyConfig,
 ) -> Result<Vec<LearningWord>, sqlx::Error> {
     if count == 0 {
         tracing::debug!(user_id = %user_id, "fetch_new_words_in_range: count is 0, returning empty");
         return Ok(Vec::new());
     }
 
-    let config = get_or_create_user_study_config(proxy, user_id).await?;
     if config.selected_word_book_ids.is_empty() {
         tracing::warn!(user_id = %user_id, "fetch_new_words_in_range: no word books selected, returning empty");
         return Ok(Vec::new());
@@ -702,6 +821,7 @@ async fn fetch_new_words_in_range(
                 audio_url: w.audio_url,
                 is_new: true,
                 difficulty,
+                distractors: None,
             }
         })
         .collect();
@@ -738,8 +858,8 @@ async fn fetch_words_in_difficulty_range(
     range: DifficultyRange,
     exclude_ids: &[String],
     count: usize,
+    config: &UserStudyConfig,
 ) -> Result<Vec<LearningWord>, sqlx::Error> {
-    let config = get_or_create_user_study_config(proxy, user_id).await?;
     if config.selected_word_book_ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -762,7 +882,7 @@ async fn fetch_words_in_difficulty_range(
     let learned_set = select_learned_word_set(proxy, user_id, &candidate_ids).await?;
     let difficulty_map = batch_compute_difficulty(proxy, user_id, &candidate_ids).await?;
 
-    Ok(candidates
+    let mut result: Vec<LearningWord> = candidates
         .into_iter()
         .map(|w| {
             let id = w.id;
@@ -778,11 +898,24 @@ async fn fetch_words_in_difficulty_range(
                 audio_url: w.audio_url,
                 is_new,
                 difficulty,
+                distractors: None,
             }
         })
         .filter(|w| w.difficulty >= range.min && w.difficulty <= range.max)
         .take(count)
-        .collect())
+        .collect();
+
+    // Fetch distractor pool and populate distractors
+    let result_ids: Vec<String> = result.iter().map(|w| w.id.clone()).collect();
+    let mut all_exclude: Vec<String> = exclude_ids.to_vec();
+    all_exclude.extend(result_ids);
+    let distractor_pool = fetch_distractor_pool_words(proxy, user_id, &all_exclude, 20).await?;
+    let semantic_pool = fetch_semantic_distractor_pool(proxy, &result)
+        .await
+        .unwrap_or_default();
+    populate_distractors(&mut result, &distractor_pool, &semantic_pool);
+
+    Ok(result)
 }
 
 async fn batch_compute_difficulty(
@@ -947,7 +1080,176 @@ fn compute_difficulty_from_score(score: Option<&WordScoreRow>, error_rate: f64) 
     (error_rate * 0.6 + score_factor * 0.4).clamp(0.0, 1.0)
 }
 
-fn word_to_learning_word(word: WordBase, is_new: bool, difficulty: f64) -> LearningWord {
+/// Simplifies a meaning by taking only the first part (before ；/;/、)
+fn simplify_meaning(meaning: &str) -> String {
+    let trimmed = meaning.trim();
+    if trimmed.is_empty() {
+        return trimmed.to_string();
+    }
+    // Split by Chinese/English semicolons and enumeration comma
+    for c in ['；', ';', '、'] {
+        if let Some(pos) = trimmed.find(c) {
+            let first_part = trimmed[..pos].trim();
+            if !first_part.is_empty() {
+                return first_part.to_string();
+            }
+        }
+    }
+    trimmed.to_string()
+}
+
+/// Fisher-Yates shuffle with internal RNG
+fn shuffle_vec<T>(items: &mut [T]) {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+
+    let state = RandomState::new();
+    let mut hasher = state.build_hasher();
+    hasher.write_usize(items.len());
+    let mut seed = hasher.finish();
+
+    for i in (1..items.len()).rev() {
+        // Simple LCG
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let j = (seed as usize) % (i + 1);
+        items.swap(i, j);
+    }
+}
+
+/// Generates distractors for a word given the pool of other words.
+/// Pool order is preserved (semantic distractors first), only final options are shuffled.
+fn generate_distractors_for_word(word: &LearningWord, pool: &[LearningWord]) -> Distractors {
+    const NUM_OPTIONS: usize = 4;
+    const FALLBACK_MEANINGS: &[&str] = &["未知释义", "其他含义", "暂无解释", "无此选项"];
+    const FALLBACK_SPELLINGS: &[&str] = &["unknown", "other", "none", "N/A"];
+
+    // --- Meaning options (word-to-meaning) ---
+    let correct_meaning = word
+        .meanings
+        .first()
+        .map(|m| simplify_meaning(m))
+        .unwrap_or_default();
+
+    // Preserve pool order, deduplicate via seen set
+    let mut seen_meanings: HashSet<String> = HashSet::new();
+    seen_meanings.insert(correct_meaning.clone());
+    let meaning_candidates: Vec<String> = pool
+        .iter()
+        .filter(|w| w.id != word.id)
+        .flat_map(|w| w.meanings.iter())
+        .map(|m| simplify_meaning(m))
+        .filter(|m| !m.is_empty() && seen_meanings.insert(m.clone()))
+        .collect();
+
+    let needed = NUM_OPTIONS.saturating_sub(1);
+    let mut distractors_m: Vec<String> = meaning_candidates.into_iter().take(needed).collect();
+
+    // Fill with fallbacks if not enough
+    if distractors_m.len() < needed {
+        for fb in FALLBACK_MEANINGS {
+            if distractors_m.len() >= needed {
+                break;
+            }
+            let s = (*fb).to_string();
+            if s != correct_meaning && !distractors_m.contains(&s) {
+                distractors_m.push(s);
+            }
+        }
+    }
+
+    let mut meaning_options: Vec<String> = std::iter::once(correct_meaning)
+        .chain(distractors_m)
+        .collect();
+    shuffle_vec(&mut meaning_options);
+
+    // --- Spelling options (meaning-to-word) ---
+    let correct_spelling = word.spelling.clone();
+
+    // Preserve pool order, deduplicate via seen set
+    let mut seen_spellings: HashSet<String> = HashSet::new();
+    seen_spellings.insert(correct_spelling.clone());
+    let spelling_candidates: Vec<String> = pool
+        .iter()
+        .filter(|w| w.id != word.id)
+        .map(|w| w.spelling.clone())
+        .filter(|s| !s.is_empty() && seen_spellings.insert(s.clone()))
+        .collect();
+
+    let mut distractors_s: Vec<String> = spelling_candidates.into_iter().take(needed).collect();
+
+    if distractors_s.len() < needed {
+        for fb in FALLBACK_SPELLINGS {
+            if distractors_s.len() >= needed {
+                break;
+            }
+            let s = (*fb).to_string();
+            if s != correct_spelling && !distractors_s.contains(&s) {
+                distractors_s.push(s);
+            }
+        }
+    }
+
+    let mut spelling_options: Vec<String> = std::iter::once(correct_spelling)
+        .chain(distractors_s)
+        .collect();
+    shuffle_vec(&mut spelling_options);
+
+    Distractors {
+        meaning_options,
+        spelling_options,
+    }
+}
+
+/// Populates distractors for all words using provided pools.
+/// For each word, builds a per-word pool: semantic distractors first (if available),
+/// then random pool, then other words as fallback.
+fn populate_distractors(
+    words: &mut [LearningWord],
+    random_pool: &[LearningWord],
+    semantic_pool: &HashMap<String, Vec<LearningWord>>,
+) {
+    // Clone words once upfront for fallback usage
+    let words_clone: Vec<LearningWord> = words.to_vec();
+
+    for word in words.iter_mut() {
+        // Build per-word pool: semantic first, then random, then other words
+        let mut pool: Vec<LearningWord> = Vec::new();
+        let mut pool_ids: HashSet<String> = HashSet::new();
+        pool_ids.insert(word.id.clone()); // Exclude self
+
+        // 1. Add semantic distractors first (already sorted by distance)
+        if let Some(semantic_words) = semantic_pool.get(&word.id) {
+            for w in semantic_words {
+                if pool_ids.insert(w.id.clone()) {
+                    pool.push(w.clone());
+                }
+            }
+        }
+
+        // 2. Add random pool (excluding duplicates)
+        for w in random_pool {
+            if pool_ids.insert(w.id.clone()) {
+                pool.push(w.clone());
+            }
+        }
+
+        // 3. Add other target words as fallback (excluding duplicates)
+        for w in &words_clone {
+            if pool_ids.insert(w.id.clone()) {
+                pool.push(w.clone());
+            }
+        }
+
+        word.distractors = Some(generate_distractors_for_word(word, &pool));
+    }
+}
+
+fn word_to_learning_word(
+    word: WordBase,
+    is_new: bool,
+    difficulty: f64,
+    distractors: Option<Distractors>,
+) -> LearningWord {
     LearningWord {
         id: word.id,
         spelling: word.spelling,
@@ -957,6 +1259,7 @@ fn word_to_learning_word(word: WordBase, is_new: bool, difficulty: f64) -> Learn
         audio_url: word.audio_url,
         is_new,
         difficulty,
+        distractors,
     }
 }
 
@@ -1334,6 +1637,159 @@ async fn select_candidate_words_from_word_books(
     Ok(rows.into_iter().map(map_postgres_word_row).collect())
 }
 
+/// Fetch random words for distractor pool (not for learning, just for generating options)
+async fn fetch_distractor_pool_words(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    exclude_ids: &[String],
+    count: usize,
+) -> Result<Vec<LearningWord>, sqlx::Error> {
+    const DISTRACTOR_POOL_SIZE: usize = 20;
+    let take = count.max(DISTRACTOR_POOL_SIZE);
+
+    let config = get_or_create_user_study_config(proxy, user_id).await?;
+
+    let candidates = if config.selected_word_book_ids.is_empty() {
+        // Fallback: fetch from all user-accessible word books
+        select_random_words_for_distractors(proxy, user_id, exclude_ids, take).await?
+    } else {
+        select_candidate_words_from_word_books(
+            proxy,
+            &config.selected_word_book_ids,
+            exclude_ids,
+            "random",
+            take,
+        )
+        .await?
+    };
+
+    Ok(candidates
+        .into_iter()
+        .map(|w| LearningWord {
+            id: w.id,
+            spelling: w.spelling,
+            phonetic: w.phonetic,
+            meanings: w.meanings,
+            examples: w.examples,
+            audio_url: w.audio_url,
+            is_new: false,
+            difficulty: 0.5,
+            distractors: None,
+        })
+        .collect())
+}
+
+/// Fallback: fetch random words from all word books for distractors
+async fn select_random_words_for_distractors(
+    proxy: &DatabaseProxy,
+    _user_id: &str,
+    exclude_ids: &[String],
+    take: usize,
+) -> Result<Vec<WordBase>, sqlx::Error> {
+    if take == 0 {
+        return Ok(Vec::new());
+    }
+
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"SELECT "id","spelling","phonetic","meanings","examples","audioUrl" FROM "words" WHERE 1=1"#,
+    );
+
+    if !exclude_ids.is_empty() {
+        qb.push(" AND \"id\" NOT IN (");
+        let mut sep = qb.separated(", ");
+        for id in exclude_ids {
+            sep.push_bind(id);
+        }
+        sep.push_unseparated(")");
+    }
+
+    qb.push(" ORDER BY RANDOM() LIMIT ");
+    qb.push_bind(take as i64);
+
+    let rows = qb.build().fetch_all(pool).await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| WordBase {
+            id: row.try_get("id").unwrap_or_default(),
+            spelling: row.try_get("spelling").unwrap_or_default(),
+            phonetic: row.try_get("phonetic").ok().flatten().unwrap_or_default(),
+            meanings: row
+                .try_get::<Vec<String>, _>("meanings")
+                .unwrap_or_default(),
+            examples: row
+                .try_get::<Vec<String>, _>("examples")
+                .unwrap_or_default(),
+            audio_url: row.try_get("audioUrl").ok().flatten(),
+        })
+        .collect())
+}
+
+/// Fetch semantic distractor pool from confusion_pairs_cache.
+/// Returns a map of target_word_id -> Vec<LearningWord> (confusable words sorted by distance).
+async fn fetch_semantic_distractor_pool(
+    proxy: &DatabaseProxy,
+    target_words: &[LearningWord],
+) -> Result<HashMap<String, Vec<LearningWord>>, sqlx::Error> {
+    const SEMANTIC_THRESHOLD: f64 = 0.5;
+    const PER_WORD_LIMIT: usize = 10;
+
+    if target_words.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let word_ids: Vec<String> = target_words.iter().map(|w| w.id.clone()).collect();
+    let confusable_map =
+        find_confusable_words_batch(proxy, &word_ids, SEMANTIC_THRESHOLD, PER_WORD_LIMIT).await?;
+
+    if confusable_map.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Collect all unique confusable word IDs
+    let all_confusable_ids: Vec<String> = confusable_map
+        .values()
+        .flat_map(|pairs| pairs.iter().map(|(id, _)| id.clone()))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    if all_confusable_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Batch fetch word data
+    let words = get_words_by_ids(proxy, &all_confusable_ids).await?;
+    let word_map: HashMap<&str, &crate::db::operations::content::Word> =
+        words.iter().map(|w| (w.id.as_str(), w)).collect();
+
+    // Build result map preserving distance order
+    let mut result: HashMap<String, Vec<LearningWord>> = HashMap::new();
+    for (target_id, pairs) in confusable_map {
+        let mut semantic_words: Vec<LearningWord> = Vec::new();
+        for (confusable_id, _distance) in pairs {
+            if let Some(w) = word_map.get(confusable_id.as_str()) {
+                semantic_words.push(LearningWord {
+                    id: w.id.clone(),
+                    spelling: w.spelling.clone(),
+                    phonetic: w.phonetic.clone(),
+                    meanings: w.meanings.clone(),
+                    examples: w.examples.clone(),
+                    audio_url: w.audio_url.clone(),
+                    is_new: false,
+                    difficulty: w.difficulty.unwrap_or(0.5),
+                    distractors: None,
+                });
+            }
+        }
+        if !semantic_words.is_empty() {
+            result.insert(target_id, semantic_words);
+        }
+    }
+
+    Ok(result)
+}
+
 async fn select_learning_session(
     proxy: &DatabaseProxy,
     session_id: &str,
@@ -1427,6 +1883,32 @@ async fn create_learning_session(
     .bind(0_i32)
     .bind(now)
     .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn close_other_active_sessions(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    keep_session_id: &str,
+) -> Result<(), sqlx::Error> {
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        UPDATE "learning_sessions"
+        SET "endedAt" = COALESCE("endedAt", $1),
+            "updatedAt" = $2
+        WHERE "userId" = $3
+          AND "endedAt" IS NULL
+          AND "id" <> $4
+        "#,
+    )
+    .bind(now)
+    .bind(now)
+    .bind(user_id)
+    .bind(keep_session_id)
     .execute(pool)
     .await?;
     Ok(())

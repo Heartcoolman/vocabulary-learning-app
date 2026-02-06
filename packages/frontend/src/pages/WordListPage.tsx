@@ -8,7 +8,7 @@ import { useToast, Spinner } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 import VirtualWordList from '../components/VirtualWordList';
 import { type WordWithState } from '../components/virtualWordList.types';
-import { useSemanticSearch } from '../hooks/queries';
+import { useSemanticSearch } from '../hooks/queries/useSemanticSearch';
 
 type SortField = 'score' | 'accuracy' | 'studyCount' | 'masteryLevel';
 type SortOrder = 'asc' | 'desc';

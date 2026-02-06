@@ -5,7 +5,7 @@ import { WordBook } from '../types/models';
 import { Eye, EyeSlash, Camera, Warning, ArrowCounterClockwise, Brain } from '../components/Icon';
 import { useToast, Spinner, ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
-import { useStudyConfig } from '../hooks/queries';
+import { useStudyConfig } from '../hooks/queries/useStudyConfig';
 import { useUpdateStudyConfig } from '../hooks/mutations';
 import { useVisualFatigueStore } from '../stores/visualFatigueStore';
 import {

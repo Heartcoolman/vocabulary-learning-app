@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { vi } from 'vitest';
 import { Button, ButtonVariant } from './Button';
-import { Plus, ArrowRight, Trash, Check, Star } from '../Icon';
+import { Plus, ArrowRight, Trash, Check, Star } from '@phosphor-icons/react';
 
 /**
  * # Button 按钮组件

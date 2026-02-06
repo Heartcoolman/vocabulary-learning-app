@@ -364,17 +364,27 @@ fn default_feature_flags() -> Map<String, Value> {
         ("enableTrendAnalyzer", true),
         ("enableHabitRecognizer", true),
         ("enableHeuristicBaseline", true),
-        ("enableThompsonSampling", true),
-        ("enableACTRMemory", true),
         ("enableColdStartManager", true),
         ("enableEnsemble", true),
         ("enableUserParamsManager", true),
         ("enableDelayedRewardAggregator", true),
-        ("enableCausalInference", true),
-        ("enableBayesianOptimizer", true),
-        ("enableNativeLinUCB", true),
-        ("enableNativeThompson", true),
-        ("enableNativeACTR", true),
+        ("enableCausalInference", false),
+        ("enableBayesianOptimizer", false),
+        ("enablePlf", false),
+        ("enableAir", false),
+        ("enableTfm", false),
+        ("enableMds", false),
+        ("enableAdf", false),
+        ("enableBcp", false),
+        ("enableMtd", false),
+        ("enableAuc", false),
+        ("enableUmmMdm", true),
+        ("enableUmmIge", true),
+        ("enableUmmSwd", true),
+        ("enableUmmMsmt", true),
+        ("enableUmmMtp", true),
+        ("enableUmmIad", true),
+        ("enableUmmEvm", true),
     ];
 
     let mut map = Map::new();
@@ -383,17 +393,27 @@ fn default_feature_flags() -> Map<String, Value> {
             "enableTrendAnalyzer" => "AMAS_FEATURE_TREND_ANALYZER",
             "enableHabitRecognizer" => "AMAS_FEATURE_HABIT_RECOGNIZER",
             "enableHeuristicBaseline" => "AMAS_FEATURE_HEURISTIC_BASELINE",
-            "enableThompsonSampling" => "AMAS_FEATURE_THOMPSON_SAMPLING",
-            "enableACTRMemory" => "AMAS_FEATURE_ACTR_MEMORY",
             "enableColdStartManager" => "AMAS_FEATURE_COLD_START_MANAGER",
             "enableEnsemble" => "AMAS_FEATURE_ENSEMBLE",
             "enableUserParamsManager" => "AMAS_FEATURE_USER_PARAMS_MANAGER",
             "enableDelayedRewardAggregator" => "AMAS_FEATURE_DELAYED_REWARD_AGGREGATOR",
             "enableCausalInference" => "AMAS_FEATURE_CAUSAL_INFERENCE",
             "enableBayesianOptimizer" => "AMAS_FEATURE_BAYESIAN_OPTIMIZER",
-            "enableNativeLinUCB" => "AMAS_FEATURE_NATIVE_LINUCB",
-            "enableNativeThompson" => "AMAS_FEATURE_NATIVE_THOMPSON",
-            "enableNativeACTR" => "AMAS_FEATURE_NATIVE_ACTR",
+            "enablePlf" => "AMAS_FEATURE_PLF",
+            "enableAir" => "AMAS_FEATURE_AIR",
+            "enableTfm" => "AMAS_FEATURE_TFM",
+            "enableMds" => "AMAS_FEATURE_MDS",
+            "enableAdf" => "AMAS_FEATURE_ADF",
+            "enableBcp" => "AMAS_FEATURE_BCP",
+            "enableMtd" => "AMAS_FEATURE_MTD",
+            "enableAuc" => "AMAS_FEATURE_AUC",
+            "enableUmmMdm" => "AMAS_FEATURE_UMM_MDM",
+            "enableUmmIge" => "AMAS_FEATURE_UMM_IGE",
+            "enableUmmSwd" => "AMAS_FEATURE_UMM_SWD",
+            "enableUmmMsmt" => "AMAS_FEATURE_UMM_MSMT",
+            "enableUmmMtp" => "AMAS_FEATURE_UMM_MTP",
+            "enableUmmIad" => "AMAS_FEATURE_UMM_IAD",
+            "enableUmmEvm" => "AMAS_FEATURE_UMM_EVM",
             _ => "",
         };
         let value = env_bool(env_key).unwrap_or(default_value);
@@ -409,22 +429,28 @@ fn debug_flag_bool(flags: &Map<String, Value>, key: &str, default: bool) -> bool
 fn debug_flags_to_feature_flags(flags: &Map<String, Value>) -> FeatureFlags {
     FeatureFlags {
         ensemble_enabled: debug_flag_bool(flags, "enableEnsemble", true),
-        thompson_enabled: debug_flag_bool(flags, "enableThompsonSampling", true),
-        linucb_enabled: debug_flag_bool(flags, "enableNativeLinUCB", true),
         heuristic_enabled: debug_flag_bool(flags, "enableHeuristicBaseline", true),
         causal_inference_enabled: debug_flag_bool(flags, "enableCausalInference", false),
         bayesian_optimizer_enabled: debug_flag_bool(flags, "enableBayesianOptimizer", false),
-        actr_memory_enabled: debug_flag_bool(flags, "enableACTRMemory", true),
-        umm_mdm_enabled: debug_flag_bool(flags, "enableUmmMdm", false),
-        umm_ige_enabled: debug_flag_bool(flags, "enableUmmIge", false),
-        umm_swd_enabled: debug_flag_bool(flags, "enableUmmSwd", false),
-        umm_msmt_enabled: debug_flag_bool(flags, "enableUmmMsmt", false),
-        umm_mtp_enabled: debug_flag_bool(flags, "enableUmmMtp", false),
-        umm_iad_enabled: debug_flag_bool(flags, "enableUmmIad", false),
-        umm_evm_enabled: debug_flag_bool(flags, "enableUmmEvm", false),
-        umm_ab_test_enabled: debug_flag_bool(flags, "enableUmmAbTest", false),
-        umm_ab_test_percentage: flags
-            .get("ummAbTestPercentage")
+        amas_mdm_enabled: debug_flag_bool(flags, "enableAmasMdm", true)
+            || debug_flag_bool(flags, "enableUmmMdm", true),
+        amas_ige_enabled: debug_flag_bool(flags, "enableAmasIge", true)
+            || debug_flag_bool(flags, "enableUmmIge", true),
+        amas_swd_enabled: debug_flag_bool(flags, "enableAmasSwd", true)
+            || debug_flag_bool(flags, "enableUmmSwd", true),
+        amas_msmt_enabled: debug_flag_bool(flags, "enableAmasMsmt", true)
+            || debug_flag_bool(flags, "enableUmmMsmt", true),
+        amas_mtp_enabled: debug_flag_bool(flags, "enableAmasMtp", true)
+            || debug_flag_bool(flags, "enableUmmMtp", true),
+        amas_iad_enabled: debug_flag_bool(flags, "enableAmasIad", true)
+            || debug_flag_bool(flags, "enableUmmIad", true),
+        amas_evm_enabled: debug_flag_bool(flags, "enableAmasEvm", true)
+            || debug_flag_bool(flags, "enableUmmEvm", true),
+        amas_ab_test_enabled: debug_flag_bool(flags, "enableAmasAbTest", false)
+            || debug_flag_bool(flags, "enableUmmAbTest", false),
+        amas_ab_test_percentage: flags
+            .get("amasAbTestPercentage")
+            .or_else(|| flags.get("ummAbTestPercentage"))
             .and_then(|v| v.as_u64())
             .map(|v| v as u8)
             .unwrap_or(10),

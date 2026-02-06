@@ -7,25 +7,33 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import WordCard from '../WordCard';
 
-type MotionDivProps = ComponentPropsWithoutRef<'div'>;
-type MotionButtonProps = ComponentPropsWithoutRef<'button'>;
-type MotionHeadingProps = ComponentPropsWithoutRef<'h2'>;
-type MotionSpanProps = ComponentPropsWithoutRef<'span'>;
-type MotionParagraphProps = ComponentPropsWithoutRef<'p'>;
 type MotionPresenceProps = { children?: ReactNode };
 type IconStarProps = { weight?: string; color?: string };
 
 // Mock framer-motion to avoid animation issues in tests
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: MotionDivProps) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: MotionButtonProps) => <button {...props}>{children}</button>,
-    h2: ({ children, ...props }: MotionHeadingProps) => <h2 {...props}>{children}</h2>,
-    span: ({ children, ...props }: MotionSpanProps) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: MotionParagraphProps) => <p {...props}>{children}</p>,
-  },
-  AnimatePresence: ({ children }: MotionPresenceProps) => <>{children}</>,
-}));
+vi.mock('framer-motion', async () => {
+  const React = await import('react');
+  const h = React.createElement;
+
+  const passthrough = (tag: string) => (props: Record<string, unknown>) => h(tag, props);
+
+  const motionFn =
+    (Component: React.ComponentType<Record<string, unknown>>) => (props: Record<string, unknown>) =>
+      h(Component, props);
+
+  Object.assign(motionFn, {
+    div: passthrough('div'),
+    button: passthrough('button'),
+    h2: passthrough('h2'),
+    span: passthrough('span'),
+    p: passthrough('p'),
+  });
+
+  return {
+    motion: motionFn,
+    AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
+  };
+});
 
 // Mock Icon components
 vi.mock('../Icon', async (importOriginal) => {

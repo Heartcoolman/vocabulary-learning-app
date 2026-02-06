@@ -29,6 +29,8 @@
     "lighthouse:collect": "lhci collect",
     "lighthouse:assert": "lhci assert",
     "preview": "pnpm --filter @danci/frontend preview",
+    "build:desktop": "pnpm --filter @danci/frontend build && cd packages/tauri-app && pnpm tauri build",
+    "dev:desktop": "cd packages/tauri-app && pnpm tauri dev",
     "prepare": "husky"
   },
   "pnpm": {

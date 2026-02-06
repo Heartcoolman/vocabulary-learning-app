@@ -257,21 +257,6 @@ impl Default for BanditConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThompsonContextConfig {
-    pub bins: usize,
-    pub weight: f64,
-}
-
-impl Default for ThompsonContextConfig {
-    fn default() -> Self {
-        Self {
-            bins: 3,
-            weight: 0.7,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RewardConfig {
     pub accuracy_weight: f64,
     pub speed_weight: f64,
@@ -291,62 +276,34 @@ impl Default for RewardConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FsrsPersonalizationConfig {
-    pub min_retention: f64,
-    pub max_retention: f64,
-    pub accuracy_weight: f64,
-    pub cognitive_weight: f64,
-    pub fatigue_weight: f64,
-    pub motivation_weight: f64,
-}
-
-impl Default for FsrsPersonalizationConfig {
-    fn default() -> Self {
-        Self {
-            min_retention: 0.75,
-            max_retention: 0.97,
-            accuracy_weight: 0.05,
-            cognitive_weight: 0.05,
-            fatigue_weight: 0.05,
-            motivation_weight: 0.03,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureFlags {
     pub ensemble_enabled: bool,
     pub heuristic_enabled: bool,
-    // Legacy flags (kept for backwards compatibility, but unused)
-    #[serde(default)]
-    pub thompson_enabled: bool,
-    #[serde(default)]
-    pub linucb_enabled: bool,
     #[serde(default)]
     pub causal_inference_enabled: bool,
     #[serde(default)]
     pub bayesian_optimizer_enabled: bool,
-    #[serde(default)]
-    pub actr_memory_enabled: bool,
-    // UMM flags (kept for backwards compatibility, but always enabled)
-    #[serde(default = "default_true")]
-    pub umm_mdm_enabled: bool,
-    #[serde(default = "default_true")]
-    pub umm_ige_enabled: bool,
-    #[serde(default = "default_true")]
-    pub umm_swd_enabled: bool,
-    #[serde(default = "default_true")]
-    pub umm_msmt_enabled: bool,
-    #[serde(default = "default_true")]
-    pub umm_mtp_enabled: bool,
-    #[serde(default = "default_true")]
-    pub umm_iad_enabled: bool,
-    #[serde(default = "default_true")]
-    pub umm_evm_enabled: bool,
-    #[serde(default)]
-    pub umm_ab_test_enabled: bool,
-    #[serde(default = "default_ab_test_percentage")]
-    pub umm_ab_test_percentage: u8,
+    #[serde(default = "default_true", alias = "umm_mdm_enabled")]
+    pub amas_mdm_enabled: bool,
+    #[serde(default = "default_true", alias = "umm_ige_enabled")]
+    pub amas_ige_enabled: bool,
+    #[serde(default = "default_true", alias = "umm_swd_enabled")]
+    pub amas_swd_enabled: bool,
+    #[serde(default = "default_true", alias = "umm_msmt_enabled")]
+    pub amas_msmt_enabled: bool,
+    #[serde(default = "default_true", alias = "umm_mtp_enabled")]
+    pub amas_mtp_enabled: bool,
+    #[serde(default = "default_true", alias = "umm_iad_enabled")]
+    pub amas_iad_enabled: bool,
+    #[serde(default = "default_true", alias = "umm_evm_enabled")]
+    pub amas_evm_enabled: bool,
+    #[serde(default, alias = "umm_ab_test_enabled")]
+    pub amas_ab_test_enabled: bool,
+    #[serde(
+        default = "default_ab_test_percentage",
+        alias = "umm_ab_test_percentage"
+    )]
+    pub amas_ab_test_percentage: u8,
 }
 
 fn default_true() -> bool {
@@ -362,20 +319,17 @@ impl Default for FeatureFlags {
         Self {
             ensemble_enabled: true,
             heuristic_enabled: true,
-            thompson_enabled: false,
-            linucb_enabled: false,
             causal_inference_enabled: false,
             bayesian_optimizer_enabled: false,
-            actr_memory_enabled: false,
-            umm_mdm_enabled: true,
-            umm_ige_enabled: true,
-            umm_swd_enabled: true,
-            umm_msmt_enabled: true,
-            umm_mtp_enabled: true,
-            umm_iad_enabled: true,
-            umm_evm_enabled: true,
-            umm_ab_test_enabled: false,
-            umm_ab_test_percentage: 10,
+            amas_mdm_enabled: true,
+            amas_ige_enabled: true,
+            amas_swd_enabled: true,
+            amas_msmt_enabled: true,
+            amas_mtp_enabled: true,
+            amas_iad_enabled: true,
+            amas_evm_enabled: true,
+            amas_ab_test_enabled: false,
+            amas_ab_test_percentage: 10,
         }
     }
 }
@@ -384,8 +338,6 @@ impl Default for FeatureFlags {
 pub struct ConfidenceMapConfig {
     pub min_confidence: f64,
     pub max_confidence: f64,
-    pub thompson_ess_k: f64,
-    pub linucb_exploration_scale: f64,
 }
 
 impl Default for ConfidenceMapConfig {
@@ -393,8 +345,6 @@ impl Default for ConfidenceMapConfig {
         Self {
             min_confidence: 0.4,
             max_confidence: 1.0,
-            thompson_ess_k: 20.0,
-            linucb_exploration_scale: 0.3,
         }
     }
 }
@@ -474,8 +424,6 @@ impl Default for StrategySimilarityWeights {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnsembleConfig {
-    pub thompson_base_weight: f64,
-    pub linucb_base_weight: f64,
     pub heuristic_base_weight: f64,
     pub confidence_map: ConfidenceMapConfig,
     pub performance_tracker: PerformanceTrackerConfig,
@@ -486,9 +434,7 @@ pub struct EnsembleConfig {
 impl Default for EnsembleConfig {
     fn default() -> Self {
         Self {
-            thompson_base_weight: 0.4,
-            linucb_base_weight: 0.4,
-            heuristic_base_weight: 0.2,
+            heuristic_base_weight: 1.0,
             confidence_map: ConfidenceMapConfig::default(),
             performance_tracker: PerformanceTrackerConfig::default(),
             safety_filter: SafetyFilterConfig::default(),
@@ -507,9 +453,7 @@ pub struct AMASConfig {
     pub trend: TrendParams,
     pub cold_start: ColdStartConfig,
     pub bandit: BanditConfig,
-    pub thompson_context: ThompsonContextConfig,
     pub reward: RewardConfig,
-    pub fsrs_personalization: FsrsPersonalizationConfig,
     pub feature_flags: FeatureFlags,
     pub ensemble: EnsembleConfig,
     pub attention_smoothing: f64,
@@ -528,9 +472,7 @@ impl Default for AMASConfig {
             trend: TrendParams::default(),
             cold_start: ColdStartConfig::default(),
             bandit: BanditConfig::default(),
-            thompson_context: ThompsonContextConfig::default(),
             reward: RewardConfig::default(),
-            fsrs_personalization: FsrsPersonalizationConfig::default(),
             feature_flags: FeatureFlags::default(),
             ensemble: EnsembleConfig::default(),
             attention_smoothing: 0.3,
@@ -559,12 +501,17 @@ mod tests {
     #[test]
     fn test_default_feature_flags() {
         let flags = FeatureFlags::default();
-        assert!(flags.umm_mdm_enabled);
-        assert!(flags.umm_ige_enabled);
-        assert!(flags.umm_swd_enabled);
-        assert!(flags.umm_msmt_enabled);
-        assert!(!flags.thompson_enabled);
-        assert!(!flags.linucb_enabled);
-        assert!(!flags.actr_memory_enabled);
+        assert!(flags.amas_mdm_enabled);
+        assert!(flags.amas_ige_enabled);
+        assert!(flags.amas_swd_enabled);
+        assert!(flags.amas_msmt_enabled);
+    }
+
+    #[test]
+    fn test_old_keys_accepted() {
+        let old_json =
+            r#"{"ensemble_enabled": true, "heuristic_enabled": true, "umm_mdm_enabled": false}"#;
+        let flags: FeatureFlags = serde_json::from_str(old_json).unwrap();
+        assert!(!flags.amas_mdm_enabled);
     }
 }

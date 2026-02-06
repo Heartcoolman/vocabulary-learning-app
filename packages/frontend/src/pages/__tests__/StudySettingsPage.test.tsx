@@ -91,7 +91,7 @@ const mockUseStudyConfig = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockUseUpdateStudyConfig = vi.fn();
 
-vi.mock('../../hooks/queries', () => ({
+vi.mock('../../hooks/queries/useStudyConfig', () => ({
   useStudyConfig: () => mockUseStudyConfig(),
 }));
 

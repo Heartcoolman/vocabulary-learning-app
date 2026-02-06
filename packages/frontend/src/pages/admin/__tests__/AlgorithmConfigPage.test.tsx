@@ -60,7 +60,7 @@ vi.mock('@/services/algorithms/AlgorithmConfigService', () => {
 const mockMutateAsync = vi.fn().mockResolvedValue(mockConfig);
 let mockIsLoading = false;
 
-vi.mock('@/hooks/queries', () => ({
+vi.mock('@/hooks/queries/useAlgorithmConfig', () => ({
   useAlgorithmConfig: () => ({
     data: mockIsLoading ? undefined : mockConfig,
     isLoading: mockIsLoading,

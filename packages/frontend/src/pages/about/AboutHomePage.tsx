@@ -82,7 +82,7 @@ function StageCard({
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/40 bg-white/60 p-8 shadow-floating shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
+      className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-8 shadow-floating shadow-slate-200/50 backdrop-blur-xl transition-all hover:bg-white/80 hover:shadow-2xl motion-reduce:transition-none motion-reduce:hover:transform-none dark:border-slate-700/40 dark:bg-slate-800/60 dark:shadow-none dark:hover:bg-slate-800/80"
     >
       <div
         aria-hidden="true"

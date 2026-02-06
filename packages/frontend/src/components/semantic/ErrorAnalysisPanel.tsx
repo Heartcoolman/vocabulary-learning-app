@@ -1,6 +1,7 @@
 import React from 'react';
-import { useErrorAnalysis, useSemanticStats } from '../../hooks/queries';
-import { CircleNotch, CheckCircle, Warning } from '../Icon';
+import { useErrorAnalysis } from '../../hooks/queries/useErrorAnalysis';
+import { useSemanticStats } from '../../hooks/queries/useSemanticStats';
+import { CircleNotch, CheckCircle, Warning } from '@phosphor-icons/react';
 
 export const ErrorAnalysisPanel: React.FC = () => {
   const { stats } = useSemanticStats();

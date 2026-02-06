@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { CenterWordBook } from '../../services/client';
-import { Books, Download, User, CaretRight } from '../Icon';
+import { Books, Download, User, CaretRight } from '@phosphor-icons/react';
 
 interface CenterWordBookCardProps {
   wordbook: CenterWordBook;

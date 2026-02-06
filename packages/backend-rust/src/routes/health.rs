@@ -425,17 +425,31 @@ fn check_memory_health(threshold: f64) -> bool {
 }
 
 fn read_memory_usage() -> MemoryUsage {
-    let rss_bytes = read_proc_self_status_kb("VmRSS").unwrap_or(0) * 1024;
+    #[cfg(target_os = "linux")]
+    {
+        let rss_bytes = read_proc_self_status_kb("VmRSS").unwrap_or(0) * 1024;
+        MemoryUsage {
+            rss: rss_bytes,
+            heap_total: 0,
+            heap_used: rss_bytes,
+            external: 0,
+            array_buffers: 0,
+        }
+    }
 
-    MemoryUsage {
-        rss: rss_bytes,
-        heap_total: 0,
-        heap_used: rss_bytes,
-        external: 0,
-        array_buffers: 0,
+    #[cfg(not(target_os = "linux"))]
+    {
+        MemoryUsage {
+            rss: 0,
+            heap_total: 0,
+            heap_used: 0,
+            external: 0,
+            array_buffers: 0,
+        }
     }
 }
 
+#[cfg(target_os = "linux")]
 fn read_proc_self_status_kb(prefix: &str) -> Option<u64> {
     let status = std::fs::read_to_string("/proc/self/status").ok()?;
     for line in status.lines() {
@@ -454,54 +468,71 @@ fn read_proc_self_status_kb(prefix: &str) -> Option<u64> {
 }
 
 fn read_hostname() -> String {
-    if let Ok(raw) = std::fs::read_to_string("/proc/sys/kernel/hostname") {
-        let value = raw.trim().to_string();
-        if !value.is_empty() {
-            return value;
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(raw) = std::fs::read_to_string("/proc/sys/kernel/hostname") {
+            let value = raw.trim().to_string();
+            if !value.is_empty() {
+                return value;
+            }
         }
     }
 
     std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("COMPUTERNAME"))
         .ok()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| "unknown".to_string())
 }
 
 fn read_os_uptime_seconds() -> u64 {
-    let Ok(raw) = std::fs::read_to_string("/proc/uptime") else {
-        return 0;
-    };
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(raw) = std::fs::read_to_string("/proc/uptime") else {
+            return 0;
+        };
+        let Some(first) = raw.split_whitespace().next() else {
+            return 0;
+        };
+        first
+            .parse::<f64>()
+            .ok()
+            .map(|v| v.floor().max(0.0) as u64)
+            .unwrap_or(0)
+    }
 
-    let Some(first) = raw.split_whitespace().next() else {
-        return 0;
-    };
-
-    first
-        .parse::<f64>()
-        .ok()
-        .map(|v| v.floor().max(0.0) as u64)
-        .unwrap_or(0)
+    #[cfg(not(target_os = "linux"))]
+    {
+        0
+    }
 }
 
 fn read_load_average() -> [f64; 3] {
-    let Ok(raw) = std::fs::read_to_string("/proc/loadavg") else {
-        return [0.0, 0.0, 0.0];
-    };
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(raw) = std::fs::read_to_string("/proc/loadavg") else {
+            return [0.0, 0.0, 0.0];
+        };
+        let mut iter = raw.split_whitespace();
+        let one = iter
+            .next()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(0.0);
+        let five = iter
+            .next()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(0.0);
+        let fifteen = iter
+            .next()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(0.0);
+        [one, five, fifteen]
+    }
 
-    let mut iter = raw.split_whitespace();
-    let one = iter
-        .next()
-        .and_then(|v| v.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    let five = iter
-        .next()
-        .and_then(|v| v.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    let fifteen = iter
-        .next()
-        .and_then(|v| v.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    [one, five, fifteen]
+    #[cfg(not(target_os = "linux"))]
+    {
+        [0.0, 0.0, 0.0]
+    }
 }
 
 fn normalize_arch(value: &str) -> &str {

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MagnifyingGlass } from '../components/Icon';
 import { Spinner } from '../components/ui';
-import { useSemanticSearch, useSemanticStats, useWordBooks } from '../hooks/queries';
+import { useSemanticSearch } from '../hooks/queries/useSemanticSearch';
+import { useSemanticStats } from '../hooks/queries/useSemanticStats';
+import { useWordBooks } from '../hooks/queries/useWordBooks';
 
 export default function SemanticSearchPage() {
   const navigate = useNavigate();

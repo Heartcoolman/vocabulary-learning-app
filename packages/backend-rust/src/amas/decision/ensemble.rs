@@ -179,35 +179,6 @@ impl EnsembleDecision {
         state: &UserState,
         _feature_vector: &FeatureVector,
         current: &StrategyParams,
-        thompson_action: Option<&StrategyParams>,
-        thompson_confidence: Option<f64>,
-        linucb_action: Option<&StrategyParams>,
-        linucb_confidence: Option<f64>,
-    ) -> (StrategyParams, Vec<DecisionCandidate>) {
-        self.decide_extended(
-            state,
-            _feature_vector,
-            current,
-            thompson_action,
-            thompson_confidence,
-            linucb_action,
-            linucb_confidence,
-            None,
-            None,
-            None,
-            None,
-        )
-    }
-
-    pub fn decide_extended(
-        &self,
-        state: &UserState,
-        _feature_vector: &FeatureVector,
-        current: &StrategyParams,
-        thompson_action: Option<&StrategyParams>,
-        thompson_confidence: Option<f64>,
-        linucb_action: Option<&StrategyParams>,
-        linucb_confidence: Option<f64>,
         ige_action: Option<&StrategyParams>,
         ige_confidence: Option<f64>,
         swd_action: Option<&StrategyParams>,
@@ -216,11 +187,9 @@ impl EnsembleDecision {
         let mut candidates: Vec<DecisionCandidate> = Vec::new();
 
         let dynamic_weights = self.performance.get_weights(&[
-            ("thompson", self.config.thompson_base_weight),
-            ("linucb", self.config.linucb_base_weight),
             ("heuristic", self.config.heuristic_base_weight),
-            ("ige", self.config.thompson_base_weight),
-            ("swd", self.config.linucb_base_weight),
+            ("ige", 0.4),
+            ("swd", 0.4),
         ]);
 
         if self.feature_flags.heuristic_enabled {
@@ -236,56 +205,26 @@ impl EnsembleDecision {
             });
         }
 
-        if self.feature_flags.thompson_enabled {
-            if let Some(action) = thompson_action {
-                candidates.push(DecisionCandidate {
-                    source: "thompson".to_string(),
-                    strategy: action.clone(),
-                    confidence: thompson_confidence.unwrap_or(0.7),
-                    weight: *dynamic_weights
-                        .get("thompson")
-                        .unwrap_or(&self.config.thompson_base_weight),
-                });
-            }
-        }
-
-        if self.feature_flags.linucb_enabled {
-            if let Some(action) = linucb_action {
-                candidates.push(DecisionCandidate {
-                    source: "linucb".to_string(),
-                    strategy: action.clone(),
-                    confidence: linucb_confidence.unwrap_or(state.conf),
-                    weight: *dynamic_weights
-                        .get("linucb")
-                        .unwrap_or(&self.config.linucb_base_weight),
-                });
-            }
-        }
-
-        // UMM IGE (replaces Thompson Sampling)
-        if self.feature_flags.umm_ige_enabled {
+        // UMM IGE
+        if self.feature_flags.amas_ige_enabled {
             if let Some(action) = ige_action {
                 candidates.push(DecisionCandidate {
                     source: "ige".to_string(),
                     strategy: action.clone(),
                     confidence: ige_confidence.unwrap_or(0.7),
-                    weight: *dynamic_weights
-                        .get("ige")
-                        .unwrap_or(&self.config.thompson_base_weight),
+                    weight: *dynamic_weights.get("ige").unwrap_or(&0.4),
                 });
             }
         }
 
-        // UMM SWD (replaces LinUCB)
-        if self.feature_flags.umm_swd_enabled {
+        // UMM SWD
+        if self.feature_flags.amas_swd_enabled {
             if let Some(action) = swd_action {
                 candidates.push(DecisionCandidate {
                     source: "swd".to_string(),
                     strategy: action.clone(),
                     confidence: swd_confidence.unwrap_or(state.conf),
-                    weight: *dynamic_weights
-                        .get("swd")
-                        .unwrap_or(&self.config.linucb_base_weight),
+                    weight: *dynamic_weights.get("swd").unwrap_or(&0.4),
                 });
             }
         }
@@ -318,6 +257,11 @@ impl EnsembleDecision {
         state: &UserState,
         session: Option<&SessionInfo>,
     ) -> StrategyParams {
+        // Apply reward profile adjustments first (before safety filters)
+        if let Some(ref profile) = state.reward_profile {
+            strategy = Self::apply_reward_profile(strategy, profile);
+        }
+
         let sf = &self.config.safety_filter;
         let fatigue = state.fused_fatigue.unwrap_or(state.fatigue);
 
@@ -363,6 +307,27 @@ impl EnsembleDecision {
         strategy.new_ratio = self.snap_new_ratio(strategy.new_ratio);
 
         strategy
+    }
+
+    fn apply_reward_profile(mut s: StrategyParams, profile: &str) -> StrategyParams {
+        match profile {
+            "cram" => {
+                s.interval_scale *= 0.7;
+                s.new_ratio = (s.new_ratio * 1.3).min(0.5);
+                s.batch_size = ((s.batch_size as f64 * 1.3) as i32).min(20);
+                s.difficulty = s.difficulty.harder();
+                s.hint_level = (s.hint_level - 1).max(0);
+            }
+            "relaxed" => {
+                s.interval_scale *= 1.4;
+                s.new_ratio = (s.new_ratio * 0.6).max(0.05);
+                s.batch_size = ((s.batch_size as f64 * 0.75) as i32).max(4);
+                s.difficulty = s.difficulty.easier();
+                s.hint_level = (s.hint_level + 1).min(2);
+            }
+            _ => {}
+        }
+        s
     }
 
     fn weighted_merge(&self, candidates: &[DecisionCandidate]) -> StrategyParams {
@@ -411,6 +376,7 @@ impl EnsembleDecision {
             difficulty,
             batch_size: self.snap_batch_size(batch_size),
             hint_level: hint_level.round() as i32,
+            swd_recommendation: None,
         }
     }
 
@@ -489,6 +455,7 @@ mod tests {
             batch_size: 8,
             interval_scale: 1.0,
             hint_level: 1,
+            swd_recommendation: None,
         }
     }
 
@@ -504,6 +471,7 @@ mod tests {
             ts: 0,
             visual_fatigue: None,
             fused_fatigue: None,
+            reward_profile: None,
         }
     }
 
@@ -514,22 +482,19 @@ mod tests {
     #[test]
     fn new_creates_with_feature_flags() {
         let flags = FeatureFlags {
-            thompson_enabled: true,
-            linucb_enabled: false,
             heuristic_enabled: true,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags.clone());
-        assert_eq!(ensemble.feature_flags.thompson_enabled, true);
-        assert_eq!(ensemble.feature_flags.linucb_enabled, false);
+        assert!(ensemble.feature_flags.heuristic_enabled);
     }
 
     #[test]
     fn decide_returns_current_when_no_candidates() {
         let flags = FeatureFlags {
-            thompson_enabled: false,
-            linucb_enabled: false,
             heuristic_enabled: false,
+            amas_ige_enabled: false,
+            amas_swd_enabled: false,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
@@ -545,9 +510,9 @@ mod tests {
     #[test]
     fn decide_includes_heuristic_when_enabled() {
         let flags = FeatureFlags {
-            thompson_enabled: false,
-            linucb_enabled: false,
             heuristic_enabled: true,
+            amas_ige_enabled: false,
+            amas_swd_enabled: false,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
@@ -560,18 +525,18 @@ mod tests {
     }
 
     #[test]
-    fn decide_includes_thompson_when_provided() {
+    fn decide_includes_ige_when_provided() {
         let flags = FeatureFlags {
-            thompson_enabled: true,
-            linucb_enabled: false,
             heuristic_enabled: false,
+            amas_ige_enabled: true,
+            amas_swd_enabled: false,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
         let state = sample_user_state();
         let feature = sample_feature_vector();
         let current = sample_strategy();
-        let thompson_action = StrategyParams {
+        let ige_action = StrategyParams {
             difficulty: DifficultyLevel::Hard,
             ..sample_strategy()
         };
@@ -579,27 +544,27 @@ mod tests {
             &state,
             &feature,
             &current,
-            Some(&thompson_action),
+            Some(&ige_action),
             Some(0.8),
             None,
             None,
         );
-        assert!(candidates.iter().any(|c| c.source == "thompson"));
+        assert!(candidates.iter().any(|c| c.source == "ige"));
     }
 
     #[test]
-    fn decide_includes_linucb_when_provided() {
+    fn decide_includes_swd_when_provided() {
         let flags = FeatureFlags {
-            thompson_enabled: false,
-            linucb_enabled: true,
             heuristic_enabled: false,
+            amas_ige_enabled: false,
+            amas_swd_enabled: true,
             ..Default::default()
         };
         let ensemble = EnsembleDecision::new(flags);
         let state = sample_user_state();
         let feature = sample_feature_vector();
         let current = sample_strategy();
-        let linucb_action = StrategyParams {
+        let swd_action = StrategyParams {
             difficulty: DifficultyLevel::Easy,
             ..sample_strategy()
         };
@@ -609,10 +574,10 @@ mod tests {
             &current,
             None,
             None,
-            Some(&linucb_action),
+            Some(&swd_action),
             Some(0.7),
         );
-        assert!(candidates.iter().any(|c| c.source == "linucb"));
+        assert!(candidates.iter().any(|c| c.source == "swd"));
     }
 
     #[test]
@@ -649,6 +614,7 @@ mod tests {
                 batch_size: 15,
                 hint_level: 1,
                 difficulty: DifficultyLevel::Hard,
+                swd_recommendation: None,
             },
             confidence: 1.0,
             weight: 1.0,
@@ -866,8 +832,7 @@ mod tests {
             ..Default::default()
         };
         let tracker = PerformanceTracker::new(config);
-        let weights =
-            tracker.get_weights(&[("thompson", 0.4), ("linucb", 0.4), ("heuristic", 0.2)]);
+        let weights = tracker.get_weights(&[("ige", 0.4), ("swd", 0.4), ("heuristic", 0.2)]);
         let total: f64 = weights.values().sum();
         assert!((total - 1.0).abs() < 1e-6);
     }
@@ -913,22 +878,22 @@ mod tests {
     fn set_feature_flags_updates_flags() {
         let mut ensemble = EnsembleDecision::default();
         let new_flags = FeatureFlags {
-            thompson_enabled: false,
+            amas_ige_enabled: false,
             ..Default::default()
         };
         ensemble.set_feature_flags(new_flags);
-        assert_eq!(ensemble.feature_flags.thompson_enabled, false);
+        assert!(!ensemble.feature_flags.amas_ige_enabled);
     }
 
     #[test]
     fn set_config_resets_performance_tracker() {
         let mut ensemble = EnsembleDecision::default();
         let new_config = EnsembleConfig {
-            thompson_base_weight: 0.5,
+            heuristic_base_weight: 0.5,
             ..Default::default()
         };
         ensemble.set_config(new_config);
-        assert!((ensemble.config.thompson_base_weight - 0.5).abs() < 1e-6);
+        assert!((ensemble.config.heuristic_base_weight - 0.5).abs() < 1e-6);
     }
 
     #[test]
@@ -942,5 +907,79 @@ mod tests {
         }];
         ensemble.update_performance(&candidates, &sample_strategy(), 1.0);
         assert!(ensemble.performance.algorithms.contains_key("test"));
+    }
+
+    #[test]
+    fn apply_reward_profile_cram_mode() {
+        let s = StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: DifficultyLevel::Mid,
+            batch_size: 8,
+            hint_level: 1,
+            swd_recommendation: None,
+        };
+        let adjusted = EnsembleDecision::apply_reward_profile(s, "cram");
+        assert!((adjusted.interval_scale - 0.7).abs() < 1e-6);
+        assert!((adjusted.new_ratio - 0.26).abs() < 1e-6);
+        assert_eq!(adjusted.batch_size, 10);
+        assert_eq!(adjusted.difficulty, DifficultyLevel::Hard);
+        assert_eq!(adjusted.hint_level, 0);
+    }
+
+    #[test]
+    fn apply_reward_profile_relaxed_mode() {
+        let s = StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: DifficultyLevel::Mid,
+            batch_size: 8,
+            hint_level: 1,
+            swd_recommendation: None,
+        };
+        let adjusted = EnsembleDecision::apply_reward_profile(s, "relaxed");
+        assert!((adjusted.interval_scale - 1.4).abs() < 1e-6);
+        assert!((adjusted.new_ratio - 0.12).abs() < 1e-6);
+        assert_eq!(adjusted.batch_size, 6);
+        assert_eq!(adjusted.difficulty, DifficultyLevel::Easy);
+        assert_eq!(adjusted.hint_level, 2);
+    }
+
+    #[test]
+    fn apply_reward_profile_standard_unchanged() {
+        let s = StrategyParams {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: DifficultyLevel::Mid,
+            batch_size: 8,
+            hint_level: 1,
+            swd_recommendation: None,
+        };
+        let adjusted = EnsembleDecision::apply_reward_profile(s.clone(), "standard");
+        assert!((adjusted.interval_scale - s.interval_scale).abs() < 1e-6);
+        assert!((adjusted.new_ratio - s.new_ratio).abs() < 1e-6);
+        assert_eq!(adjusted.batch_size, s.batch_size);
+        assert_eq!(adjusted.difficulty, s.difficulty);
+        assert_eq!(adjusted.hint_level, s.hint_level);
+    }
+
+    #[test]
+    fn post_filter_applies_cram_reward_profile() {
+        let ensemble = EnsembleDecision::default();
+        let mut state = sample_user_state();
+        state.reward_profile = Some("cram".to_string());
+        let strategy = sample_strategy();
+        let filtered = ensemble.post_filter(strategy, &state, None);
+        assert_eq!(filtered.difficulty, DifficultyLevel::Hard);
+    }
+
+    #[test]
+    fn post_filter_applies_relaxed_reward_profile() {
+        let ensemble = EnsembleDecision::default();
+        let mut state = sample_user_state();
+        state.reward_profile = Some("relaxed".to_string());
+        let strategy = sample_strategy();
+        let filtered = ensemble.post_filter(strategy, &state, None);
+        assert_eq!(filtered.difficulty, DifficultyLevel::Easy);
     }
 }

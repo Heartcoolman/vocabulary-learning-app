@@ -638,7 +638,7 @@ describe('BatchImportModal', () => {
         />,
       );
 
-      expect(screen.getByLabelText('Close modal')).toBeInTheDocument();
+      expect(screen.getByLabelText('关闭')).toBeInTheDocument();
     });
   });
 });

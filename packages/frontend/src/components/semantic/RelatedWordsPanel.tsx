@@ -1,5 +1,6 @@
 import React from 'react';
-import { useSimilarWords, useSemanticStats } from '../../hooks/queries';
+import { useSimilarWords } from '../../hooks/queries/useSimilarWords';
+import { useSemanticStats } from '../../hooks/queries/useSemanticStats';
 
 interface RelatedWordsPanelProps {
   wordId: string;

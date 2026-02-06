@@ -4,7 +4,7 @@
  * 加载指示器
  */
 import React, { forwardRef, memo, HTMLAttributes } from 'react';
-import { CircleNotch } from '../Icon';
+import { CircleNotch } from '@phosphor-icons/react';
 import { cn, Size } from './utils';
 
 export interface SpinnerProps extends HTMLAttributes<HTMLDivElement> {

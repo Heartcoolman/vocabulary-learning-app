@@ -75,17 +75,6 @@ vi.mock('../../services/learning/WordQueueManager', () => {
   return { WordQueueManager: MockWordQueueManager };
 });
 
-vi.mock('../../services/learning/AdaptiveQueueManager', () => {
-  const MockAdaptiveQueueManager = vi.fn().mockImplementation(() => ({
-    adjustDifficulty: vi.fn(),
-    getRecommendation: vi.fn(),
-    onAnswerSubmitted: vi.fn().mockReturnValue({ should: false, reason: null }),
-    getRecentPerformance: vi.fn().mockReturnValue([]),
-    resetCounter: vi.fn(),
-  }));
-  return { AdaptiveQueueManager: MockAdaptiveQueueManager };
-});
-
 import { useMasteryLearning } from '../useMasteryLearning';
 
 const createWrapper = () => {

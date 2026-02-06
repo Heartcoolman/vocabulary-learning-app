@@ -14,7 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import NotificationCenterPage from '../NotificationCenterPage';
 
 // Mock hooks
-vi.mock('../../hooks/queries', () => ({
+vi.mock('../../hooks/queries/useNotifications', () => ({
   useNotifications: vi.fn(() => ({
     data: [],
     isLoading: false,
@@ -59,7 +59,7 @@ import {
   useMarkAllAsRead,
   useBatchMarkAsRead,
   useBatchDeleteNotifications,
-} from '../../hooks/queries';
+} from '../../hooks/queries/useNotifications';
 
 const mockUseNotifications = useNotifications as ReturnType<typeof vi.fn>;
 const mockUseNotificationStats = useNotificationStats as ReturnType<typeof vi.fn>;

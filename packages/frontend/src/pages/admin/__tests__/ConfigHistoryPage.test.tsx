@@ -30,13 +30,9 @@ const mockHistory = [
 
 const mockUseConfigHistory = vi.fn();
 
-vi.mock('../../../hooks/queries', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../hooks/queries')>();
-  return {
-    ...actual,
-    useConfigHistory: (...args: unknown[]) => mockUseConfigHistory(...args),
-  };
-});
+vi.mock('../../../hooks/queries/useConfigHistory', () => ({
+  useConfigHistory: (...args: unknown[]) => mockUseConfigHistory(...args),
+}));
 
 vi.mock('@/components/Icon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/Icon')>();

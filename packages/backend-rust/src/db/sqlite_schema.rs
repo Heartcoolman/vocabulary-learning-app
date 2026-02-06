@@ -38,4 +38,3 @@ pub fn split_sql_statements(sql: &str) -> Vec<String> {
 
     statements
 }
-

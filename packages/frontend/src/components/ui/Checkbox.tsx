@@ -4,7 +4,7 @@
  * 复选框
  */
 import React, { forwardRef, memo, InputHTMLAttributes, useState, ReactNode } from 'react';
-import { Check, Minus } from '../Icon';
+import { Check, Minus } from '@phosphor-icons/react';
 import { cn, generateId } from './utils';
 
 export interface CheckboxProps extends Omit<

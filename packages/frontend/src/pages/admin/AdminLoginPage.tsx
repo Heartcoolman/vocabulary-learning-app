@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <CircleNotch className="h-12 w-12 animate-spin text-blue-500" />
+        <CircleNotch size={48} className="animate-spin text-blue-500" />
       </div>
     );
   }
@@ -123,7 +123,7 @@ export default function AdminLoginPage() {
           >
             {isLoading ? (
               <>
-                <CircleNotch className="h-5 w-5 animate-spin" />
+                <CircleNotch size={20} className="animate-spin" />
                 登录中...
               </>
             ) : (

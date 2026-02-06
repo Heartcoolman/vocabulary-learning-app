@@ -14,12 +14,13 @@
 
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeSlash, Warning, CaretDown } from '../Icon';
+import { Eye, EyeSlash, Warning, CaretDown } from '@phosphor-icons/react';
 import { useVisualFatigueStore } from '../../stores/visualFatigueStore';
 import { useVisualFatigue } from '../../hooks/useVisualFatigue';
 import { videoElementManager } from '../../services/visual-fatigue';
 import { g3SpringStandard, g3SpringSnappy } from '../../utils/animations';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Button } from '../ui/Button';
 
 interface FloatingEyeIndicatorProps {
   /** 自定义类名 */
@@ -28,6 +29,8 @@ interface FloatingEyeIndicatorProps {
   embedded?: boolean;
   /** 尺寸：sm=36px, md=44px, lg=56px */
   size?: 'sm' | 'md' | 'lg';
+  /** 获取当前学习会话ID，用于关联视觉疲劳数据 */
+  getSessionId?: () => string | undefined;
 }
 
 /* ========================================
@@ -148,6 +151,7 @@ function FloatingEyeIndicatorComponent({
   className = '',
   embedded = false,
   size = 'lg',
+  getSessionId,
 }: FloatingEyeIndicatorProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -169,7 +173,7 @@ function FloatingEyeIndicatorComponent({
     error: detectorError,
     start,
     stop,
-  } = useVisualFatigue();
+  } = useVisualFatigue({ getSessionId });
 
   // 使用 VideoElementManager 单例获取共享 video 元素
   useEffect(() => {
@@ -551,18 +555,23 @@ function FloatingEyeIndicatorComponent({
 
               {/* ========== 第三层：详细指标（可折叠） ========== */}
               <div className="mt-3">
-                <button
+                <Button
                   onClick={() => setShowDetails(!showDetails)}
-                  className="flex w-full items-center justify-center gap-1 rounded-button py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-slate-700 dark:hover:text-gray-300"
+                  variant="ghost"
+                  size="sm"
+                  fullWidth
+                  className="gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  iconOnly={false}
                 >
                   {showDetails ? '收起详情' : '展开详情'}
                   <motion.span
                     animate={{ rotate: showDetails ? 180 : 0 }}
                     transition={g3SpringSnappy}
+                    className="ml-1 inline-block"
                   >
                     <CaretDown size={14} />
                   </motion.span>
-                </button>
+                </Button>
 
                 <AnimatePresence>
                   {showDetails && (

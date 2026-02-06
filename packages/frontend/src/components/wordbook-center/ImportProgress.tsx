@@ -1,4 +1,4 @@
-import { CircleNotch, Check, Warning } from '../Icon';
+import { CircleNotch, Check, Warning } from '@phosphor-icons/react';
 
 interface ImportProgressProps {
   status: 'idle' | 'importing' | 'success' | 'error';

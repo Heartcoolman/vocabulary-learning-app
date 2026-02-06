@@ -24,7 +24,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../../../hooks/queries', () => ({
+vi.mock('../../../hooks/queries/useNotifications', () => ({
   useNotifications: vi.fn(() => ({
     data: [],
     isLoading: false,
@@ -37,19 +37,32 @@ vi.mock('../../../hooks/queries', () => ({
   })),
 }));
 
-vi.mock('../../Icon', () => ({
-  Bell: () => <span data-testid="bell-icon">Bell</span>,
-  CircleNotch: () => <span data-testid="loading-icon">Loading</span>,
-  Clock: () => <span data-testid="clock-icon">Clock</span>,
-  Check: () => <span data-testid="check-icon">Check</span>,
-  Trash: () => <span data-testid="trash-icon">Trash</span>,
-}));
+vi.mock('@phosphor-icons/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@phosphor-icons/react')>();
+  return {
+    ...actual,
+    Bell: ({ className }: { className?: string }) => (
+      <span data-testid="bell-icon" className={className}>
+        Bell
+      </span>
+    ),
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-icon" className={className}>
+        Loading
+      </span>
+    ),
+  };
+});
 
 vi.mock('../../ui/Empty', () => ({
   Empty: ({ type }: { type: string }) => <div data-testid="empty">{type}</div>,
 }));
 
-import { useNotifications, useNotificationStats, useMarkAsRead } from '../../../hooks/queries';
+import {
+  useNotifications,
+  useNotificationStats,
+  useMarkAsRead,
+} from '../../../hooks/queries/useNotifications';
 
 const mockUseNotifications = useNotifications as ReturnType<typeof vi.fn>;
 const mockUseNotificationStats = useNotificationStats as ReturnType<typeof vi.fn>;

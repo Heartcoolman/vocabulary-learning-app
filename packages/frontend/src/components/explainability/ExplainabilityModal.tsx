@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, ChartPie, Sliders, TrendUp, Flask } from '@/components/Icon';
-import { createPortal } from 'react-dom';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 import DecisionFactors from './DecisionFactors';
 import WeightRadarChart from './WeightRadarChart';
 import LearningCurveChart from './LearningCurveChart';
@@ -163,26 +164,23 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
 
     if (!isOpen) return null;
 
-    return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        <div
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-          onClick={onClose}
-        />
-
-        <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-card bg-white shadow-2xl dark:bg-slate-900">
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="" maxWidth="2xl" showCloseButton={false}>
+        <div className="relative flex max-h-[85vh] flex-col overflow-hidden bg-white dark:bg-slate-900">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-slate-800">
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">AMAS 决策透视</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">为什么选择这个词？</p>
             </div>
-            <button
+            <Button
               onClick={onClose}
-              className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <X className="h-6 w-6" />
-            </button>
+              variant="ghost"
+              iconOnly
+              leftIcon={<X className="h-6 w-6" />}
+              className="p-2"
+              aria-label="关闭"
+            />
           </div>
 
           {/* Tabs */}
@@ -248,8 +246,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
             Powered by AMAS Adaptive Learning Engine v2.5
           </div>
         </div>
-      </div>,
-      document.body,
+      </Modal>
     );
   },
 );

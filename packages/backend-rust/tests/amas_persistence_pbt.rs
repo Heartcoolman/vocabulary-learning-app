@@ -10,10 +10,14 @@ use proptest::prelude::*;
 use std::collections::VecDeque;
 
 use danci_backend_rust::amas::decision::ensemble::PerformanceTracker;
+use danci_backend_rust::amas::memory::{MasteryAttempt, MasteryHistory};
 use danci_backend_rust::amas::types::{
-    CognitiveProfile, DifficultyLevel, PersistedAMASState, StrategyParams, UserState,
+    CognitiveProfile, DifficultyLevel, PersistedAMASState, StrategyParams, SwdRecommendation,
+    UserState,
 };
-use danci_backend_rust::umm::adaptive_mastery::{MasteryAttempt, MasteryHistory};
+use danci_backend_rust::services::mastery_learning::{
+    compute_dynamic_cap, compute_target_with_swd,
+};
 
 // ============================================================================
 // Arbitrary Generators
@@ -55,6 +59,7 @@ fn arb_user_state() -> impl Strategy<Value = UserState> {
                 ts,
                 visual_fatigue: None,
                 fused_fatigue,
+                reward_profile: None,
             },
         )
 }
@@ -82,6 +87,7 @@ fn arb_strategy_params() -> impl Strategy<Value = StrategyParams> {
                 difficulty,
                 batch_size,
                 hint_level,
+                swd_recommendation: None,
             },
         )
 }
@@ -150,9 +156,9 @@ fn arb_persisted_amas_state() -> impl Strategy<Value = PersistedAMASState> {
                     cold_start_state: None,
                     interaction_count,
                     last_updated,
-                    user_fsrs_params: None,
                     mastery_history,
                     ensemble_performance,
+                    algorithm_states: None,
                 }
             },
         )
@@ -262,15 +268,16 @@ proptest! {
                 ts: 0,
                 visual_fatigue: None,
                 fused_fatigue,
+                reward_profile: None,
             },
             bandit_model: None,
             current_strategy: StrategyParams::default(),
             cold_start_state: None,
             interaction_count: 0,
             last_updated: 0,
-            user_fsrs_params: None,
             mastery_history,
             ensemble_performance,
+            algorithm_states: None,
         };
 
         let json = serde_json::to_value(&state).unwrap();
@@ -372,9 +379,9 @@ fn persisted_state_with_all_none_fields() {
         cold_start_state: None,
         interaction_count: 0,
         last_updated: 0,
-        user_fsrs_params: None,
         mastery_history: None,
         ensemble_performance: None,
+        algorithm_states: None,
     };
 
     let json = serde_json::to_value(&state).unwrap();
@@ -383,4 +390,129 @@ fn persisted_state_with_all_none_fields() {
     assert_eq!(state.user_id, restored.user_id);
     assert!(restored.mastery_history.is_none());
     assert!(restored.ensemble_performance.is_none());
+}
+
+// ============================================================================
+// SWD Target Count Upgrade PBT Tests
+// ============================================================================
+
+fn arb_user_state_for_cap() -> impl Strategy<Value = UserState> {
+    (
+        arb_f64_0_1(),                       // attention
+        arb_f64_0_1(),                       // fatigue
+        (-1.0f64..=1.0f64),                  // motivation
+        arb_f64_0_1(),                       // stability
+        arb_f64_0_1(),                       // speed
+        proptest::option::of(arb_f64_0_1()), // fused_fatigue
+    )
+        .prop_map(
+            |(attention, fatigue, motivation, stability, speed, fused_fatigue)| UserState {
+                attention,
+                fatigue,
+                motivation,
+                cognitive: CognitiveProfile {
+                    mem: 0.5,
+                    speed,
+                    stability,
+                },
+                fused_fatigue,
+                ..Default::default()
+            },
+        )
+}
+
+proptest! {
+    /// PBT-SWD-1: Dynamic cap minimum bound invariant
+    #[test]
+    fn pbt_dynamic_cap_minimum_bound(state in arb_user_state_for_cap()) {
+        let cap = compute_dynamic_cap(&state);
+        prop_assert!(cap >= 20, "Cap {} violated minimum bound 20", cap);
+    }
+
+    /// PBT-SWD-2: Fatigue monotonicity
+    #[test]
+    fn pbt_fatigue_monotonicity(
+        base_state in arb_user_state_for_cap(),
+        f1 in 0.0f64..=0.5,
+        f2 in 0.5f64..=1.0,
+    ) {
+        let mut state1 = base_state.clone();
+        let mut state2 = base_state;
+        state1.fused_fatigue = Some(f1);
+        state2.fused_fatigue = Some(f2);
+
+        let cap1 = compute_dynamic_cap(&state1);
+        let cap2 = compute_dynamic_cap(&state2);
+        prop_assert!(cap1 >= cap2, "Fatigue monotonicity violated: cap({})={} < cap({})={}", f1, cap1, f2, cap2);
+    }
+
+    /// PBT-SWD-3: Attention monotonicity
+    #[test]
+    fn pbt_attention_monotonicity(
+        base_state in arb_user_state_for_cap(),
+        a1 in 0.0f64..=0.5,
+        a2 in 0.5f64..=1.0,
+    ) {
+        let mut state1 = base_state.clone();
+        let mut state2 = base_state;
+        state1.attention = a1;
+        state2.attention = a2;
+
+        let cap1 = compute_dynamic_cap(&state1);
+        let cap2 = compute_dynamic_cap(&state2);
+        prop_assert!(cap1 <= cap2, "Attention monotonicity violated: cap({})={} > cap({})={}", a1, cap1, a2, cap2);
+    }
+
+    /// PBT-SWD-4: Target computation idempotent
+    #[test]
+    fn pbt_target_idempotent(
+        user_target in 10i64..=100,
+        rec_count in 0i32..=10,
+        confidence in 0.0f64..=1.0,
+        cap in 20i32..=100,
+    ) {
+        let rec = SwdRecommendation { recommended_count: rec_count, confidence };
+        let result1 = compute_target_with_swd(user_target, Some(&rec), cap);
+        let result2 = compute_target_with_swd(user_target, Some(&rec), cap);
+        prop_assert_eq!(result1, result2);
+    }
+
+    /// PBT-SWD-5: User priority invariant
+    #[test]
+    fn pbt_user_priority_invariant(
+        cap in 20i32..=50,
+        excess in 1i64..=50,
+        rec_count in 1i32..=10,
+    ) {
+        let user_target = cap as i64 + excess;
+        let rec = SwdRecommendation { recommended_count: rec_count, confidence: 0.9 };
+        let result = compute_target_with_swd(user_target, Some(&rec), cap);
+        prop_assert_eq!(result, user_target, "User priority violated: expected {}, got {}", user_target, result);
+    }
+
+    /// PBT-SWD-6: Cap constraint invariant
+    #[test]
+    fn pbt_cap_constraint_invariant(
+        user_target in 10i64..=50,
+        rec_count in 0i32..=10,
+        confidence in 0.5f64..=1.0,
+        cap in 50i32..=100,
+    ) {
+        let rec = SwdRecommendation { recommended_count: rec_count, confidence };
+        let result = compute_target_with_swd(user_target, Some(&rec), cap);
+        prop_assert!(result <= cap as i64, "Cap constraint violated: {} > {}", result, cap);
+    }
+
+    /// PBT-SWD-7: Confidence threshold invariant
+    #[test]
+    fn pbt_confidence_threshold_invariant(
+        user_target in 10i64..=100,
+        rec_count in 1i32..=10,
+        confidence in 0.0f64..0.5,
+        cap in 50i32..=100,
+    ) {
+        let rec = SwdRecommendation { recommended_count: rec_count, confidence };
+        let result = compute_target_with_swd(user_target, Some(&rec), cap);
+        prop_assert_eq!(result, user_target, "Low confidence should be ignored: expected {}, got {}", user_target, result);
+    }
 }

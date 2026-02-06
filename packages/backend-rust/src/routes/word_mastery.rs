@@ -277,16 +277,15 @@ async fn get_interval(
     let target_recall = query.target_recall.unwrap_or(0.9).clamp(0.01, 1.0);
     let trace =
         select_review_trace_raw(proxy.as_ref(), &user.id, word_id.trim(), MAX_TRACE_LIMIT).await?;
-    let actr_trace = to_actr_trace(&trace)?;
 
-    let model = danci_algo::ACTRMemoryNative::new(None, None, None);
-    let prediction = model.predict_optimal_interval(actr_trace, Some(target_recall));
+    let (optimal_seconds, min_seconds, max_seconds) =
+        compute_optimal_interval_from_trace(&trace, target_recall);
 
     let interval = IntervalPredictionDto {
-        optimal_seconds: prediction.optimal_seconds,
-        min_seconds: prediction.min_seconds,
-        max_seconds: prediction.max_seconds,
-        target_recall: prediction.target_recall,
+        optimal_seconds,
+        min_seconds,
+        max_seconds,
+        target_recall,
     };
 
     Ok(Json(SuccessResponse {
@@ -459,10 +458,7 @@ async fn evaluate_single_word(
     let learning_state = select_learning_state(proxy, user_id, word_id).await?;
     let word_score = select_word_score(proxy, user_id, word_id).await?;
     let trace_rows = select_review_trace_raw(proxy, user_id, word_id, DEFAULT_TRACE_LIMIT).await?;
-    let actr_trace = to_actr_trace(&trace_rows)?;
-
-    let model = danci_algo::ACTRMemoryNative::new(None, None, None);
-    let recall = model.predict_recall(actr_trace).recall_probability;
+    let recall = compute_recall_from_trace(&trace_rows);
 
     Ok(compute_evaluation(
         word_id,
@@ -487,14 +483,12 @@ async fn evaluate_words_batch(
     let word_scores = select_word_scores_batch(proxy, user_id, word_ids).await?;
     let traces = select_review_traces_batch(proxy, user_id, word_ids, DEFAULT_TRACE_LIMIT).await?;
 
-    let model = danci_algo::ACTRMemoryNative::new(None, None, None);
     let mut evaluations: Vec<MasteryEvaluationDto> = Vec::with_capacity(word_ids.len());
     for word_id in word_ids {
         let state_row = learning_states.get(word_id);
         let score_row = word_scores.get(word_id);
         let trace = traces.get(word_id).cloned().unwrap_or_default();
-        let actr_trace = to_actr_trace(&trace)?;
-        let recall = model.predict_recall(actr_trace).recall_probability;
+        let recall = compute_recall_from_trace(&trace);
         evaluations.push(compute_evaluation(
             word_id,
             state_row,
@@ -817,17 +811,53 @@ async fn select_review_traces_batch(
     Ok(map)
 }
 
-fn to_actr_trace(trace: &[TraceRow]) -> Result<Vec<danci_algo::MemoryTrace>, AppError> {
-    let now_ms = Utc::now().timestamp_millis();
-    let mut actr: Vec<danci_algo::MemoryTrace> = Vec::with_capacity(trace.len());
-    for row in trace {
-        let delta_ms = (now_ms - row.timestamp_ms).max(0);
-        actr.push(danci_algo::MemoryTrace {
-            timestamp: (delta_ms as f64) / 1000.0,
-            is_correct: row.is_correct,
-        });
+fn compute_recall_from_trace(trace: &[TraceRow]) -> f64 {
+    use crate::amas::memory::mdm::MdmState;
+
+    if trace.is_empty() {
+        return 0.5;
     }
-    Ok(actr)
+
+    let mut mdm = MdmState::new();
+    let now_ms = Utc::now().timestamp_millis();
+
+    // Process trace in chronological order
+    let mut sorted_trace: Vec<_> = trace.to_vec();
+    sorted_trace.sort_by_key(|r| r.timestamp_ms);
+
+    for row in &sorted_trace {
+        let quality = if row.is_correct { 0.8 } else { 0.1 };
+        mdm.update(quality, row.timestamp_ms);
+    }
+
+    // Calculate elapsed days
+    let last_review = sorted_trace.last().map(|r| r.timestamp_ms).unwrap_or(0);
+    let elapsed_ms = (now_ms - last_review).max(0);
+    let elapsed_days = elapsed_ms as f64 / (1000.0 * 60.0 * 60.0 * 24.0);
+
+    mdm.retrievability(elapsed_days)
+}
+
+fn compute_optimal_interval_from_trace(trace: &[TraceRow], target_recall: f64) -> (f64, f64, f64) {
+    use crate::amas::memory::mdm::MdmState;
+
+    let mut mdm = MdmState::new();
+
+    // Process trace in chronological order
+    let mut sorted_trace: Vec<_> = trace.to_vec();
+    sorted_trace.sort_by_key(|r| r.timestamp_ms);
+
+    for row in &sorted_trace {
+        let quality = if row.is_correct { 0.8 } else { 0.1 };
+        mdm.update(quality, row.timestamp_ms);
+    }
+
+    let optimal_days = mdm.interval_for_target(target_recall);
+    let optimal_seconds = optimal_days * 24.0 * 60.0 * 60.0;
+    let min_seconds = optimal_seconds * 0.8;
+    let max_seconds = optimal_seconds * 1.3;
+
+    (optimal_seconds, min_seconds, max_seconds)
 }
 
 fn clamp01(value: f64) -> f64 {

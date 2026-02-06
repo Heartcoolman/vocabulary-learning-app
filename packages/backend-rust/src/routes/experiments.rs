@@ -423,15 +423,15 @@ async fn start_experiment(
         let percentage = (treatment_weight * 100.0).round() as u8;
 
         let mut config = state.amas_engine().get_config().await;
-        config.feature_flags.umm_ab_test_enabled = true;
-        config.feature_flags.umm_ab_test_percentage = percentage;
+        config.feature_flags.amas_ab_test_enabled = true;
+        config.feature_flags.amas_ab_test_percentage = percentage;
         state
             .amas_engine()
             .set_feature_flags(config.feature_flags.clone())
             .await;
         state.runtime().set_amas_flags(config.feature_flags).await;
         tracing::info!(
-            "UMM A/B test enabled: experiment={}, treatment_percentage={}%",
+            "AMAS A/B test enabled: experiment={}, treatment_percentage={}%",
             exp_name,
             percentage
         );
@@ -474,16 +474,17 @@ async fn stop_experiment(
     stop_experiment_pg(&pool, experiment_id).await?;
 
     // If this is the UMM vs FSRS experiment, disable the feature flag
+    // (Experiment name preserved for historical compatibility)
     if exp_name == "umm-vs-fsrs" {
         let mut config = state.amas_engine().get_config().await;
-        config.feature_flags.umm_ab_test_enabled = false;
+        config.feature_flags.amas_ab_test_enabled = false;
         state
             .amas_engine()
             .set_feature_flags(config.feature_flags.clone())
             .await;
         state.runtime().set_amas_flags(config.feature_flags).await;
         tracing::info!(
-            "UMM A/B test disabled automatically for experiment: {}",
+            "AMAS A/B test disabled automatically for experiment: {}",
             exp_name
         );
     }

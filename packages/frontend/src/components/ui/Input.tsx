@@ -6,7 +6,7 @@
  * 支持错误状态和帮助文本
  */
 import React, { forwardRef, memo, InputHTMLAttributes, ReactNode, useState } from 'react';
-import { Eye, MagnifyingGlass } from '../Icon';
+import { Eye, MagnifyingGlass } from '@phosphor-icons/react';
 import { cn, Size, generateId } from './utils';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> {

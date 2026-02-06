@@ -133,6 +133,7 @@ mod tests {
             batch_size: 8,
             interval_scale: 1.0,
             hint_level: 1,
+            swd_recommendation: None,
         }
     }
 
@@ -148,6 +149,7 @@ mod tests {
             ts: 0,
             visual_fatigue: None,
             fused_fatigue: None,
+            reward_profile: None,
         }
     }
 

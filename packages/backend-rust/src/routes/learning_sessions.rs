@@ -28,6 +28,7 @@ struct SuccessResponseWithPagination<T, P> {
 struct CreateSessionRequest {
     session_type: Option<String>,
     target_mastery_count: Option<i64>,
+    self_reported_energy: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +68,7 @@ struct EmotionRequest {
 struct ListSessionsQuery {
     limit: Option<i64>,
     offset: Option<i64>,
+    #[serde(alias = "include_active")]
     include_active: Option<bool>,
 }
 
@@ -94,6 +96,7 @@ struct SessionStats {
     avg_cognitive_load: Option<f64>,
     context_shifts: i64,
     answer_record_count: i64,
+    last_activity_at: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -217,6 +220,22 @@ async fn create_session(
         }
     }
 
+    // Validate energy level
+    let energy_level = match payload.self_reported_energy.as_deref() {
+        Some("high") | Some("normal") | Some("low") => payload.self_reported_energy.as_deref(),
+        Some(invalid) => {
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "INVALID_ENERGY_LEVEL",
+                format!(
+                    "无效的精力状态: '{}'. 必须是 'high', 'normal' 或 'low'",
+                    invalid
+                ),
+            ));
+        }
+        None => None,
+    };
+
     let session_id = uuid::Uuid::new_v4().to_string();
     insert_learning_session(
         proxy.as_ref(),
@@ -224,6 +243,7 @@ async fn create_session(
         &user.id,
         &session_type,
         payload.target_mastery_count,
+        energy_level,
     )
     .await?;
 
@@ -401,7 +421,15 @@ async fn get_active_session(
     let (proxy, user) = require_user(&state, &headers).await?;
     let session_id = select_active_session_id(proxy.as_ref(), &user.id).await?;
     let data = match session_id {
-        Some(id) => Some(get_session_stats_internal(proxy.as_ref(), &id).await?),
+        Some(id) => {
+            let stats = get_session_stats_internal(proxy.as_ref(), &id).await?;
+            // Defensive: if a dangling empty session slips through, don't surface it as "active".
+            if stats.answer_record_count <= 0 && stats.total_questions <= 0 {
+                None
+            } else {
+                Some(stats)
+            }
+        }
         None => None,
     };
 
@@ -581,6 +609,7 @@ struct LearningSessionRow {
     avg_cognitive_load: Option<f64>,
     context_shifts: i64,
     answer_record_count: i64,
+    last_activity_at: Option<String>,
 }
 
 async fn select_session_answer_records(
@@ -651,7 +680,8 @@ fn row_to_stats(row: &LearningSessionRow) -> SessionStats {
         started_at: started_at_norm,
         ended_at: ended_at_norm,
         duration,
-        total_questions: row.total_questions,
+        // totalQuestions may lag behind answer_records (sync happens periodically / on pause).
+        total_questions: row.total_questions.max(row.answer_record_count),
         actual_mastery_count: row.actual_mastery_count,
         target_mastery_count: row.target_mastery_count,
         session_type: row.session_type.clone(),
@@ -659,6 +689,7 @@ fn row_to_stats(row: &LearningSessionRow) -> SessionStats {
         avg_cognitive_load: row.avg_cognitive_load,
         context_shifts: row.context_shifts,
         answer_record_count: row.answer_record_count,
+        last_activity_at: row.last_activity_at.clone(),
     }
 }
 
@@ -668,6 +699,7 @@ async fn insert_learning_session(
     user_id: &str,
     session_type: &str,
     target_mastery_count: Option<i64>,
+    self_reported_energy: Option<&str>,
 ) -> Result<(), AppError> {
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
@@ -675,8 +707,8 @@ async fn insert_learning_session(
     sqlx::query(
         r#"
         INSERT INTO "learning_sessions"
-          ("id","userId","startedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","contextShifts","createdAt","updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,$7::"SessionType",$8,$9,$10)
+          ("id","userId","startedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","contextShifts","selfReportedEnergy","createdAt","updatedAt")
+        VALUES ($1,$2,$3,$4,$5,$6,$7::"SessionType",$8,$9,$10,$11)
         "#,
     )
     .bind(session_id)
@@ -687,6 +719,7 @@ async fn insert_learning_session(
     .bind(target_mastery_count.map(|v| v as i32))
     .bind(session_type)
     .bind(0_i32)
+    .bind(self_reported_energy)
     .bind(now)
     .bind(now)
     .execute(pool)
@@ -893,7 +926,8 @@ async fn count_user_sessions(
     let sql = if include_active {
         r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1"#
     } else {
-        r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NOT NULL"#
+        // Hide empty sessions (no answered questions) to avoid polluting history with accidental opens.
+        r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NOT NULL AND COALESCE("totalQuestions", 0) > 0"#
     };
 
     let count: i64 = sqlx::query_scalar(sql)
@@ -918,7 +952,7 @@ async fn select_user_sessions(
            FROM "learning_sessions" WHERE "userId" = $1 ORDER BY "startedAt" DESC LIMIT $2 OFFSET $3"#
     } else {
         r#"SELECT "id","userId","startedAt","endedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","flowPeakScore","avgCognitiveLoad","contextShifts"
-           FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NOT NULL ORDER BY "startedAt" DESC LIMIT $2 OFFSET $3"#
+           FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NOT NULL AND COALESCE("totalQuestions", 0) > 0 ORDER BY "startedAt" DESC LIMIT $2 OFFSET $3"#
     };
 
     let rows = sqlx::query(base)
@@ -932,33 +966,40 @@ async fn select_user_sessions(
     let mut sessions = Vec::with_capacity(rows.len());
     for row in rows {
         let session_id: String = row.try_get("id").unwrap_or_default();
-        let answer_record_count = count_answer_records(pool, &session_id).await?;
+        let (answer_record_count, last_answer_at) =
+            select_answer_record_meta(pool, &session_id).await?;
+        let started_at_dt: NaiveDateTime = row
+            .try_get("startedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let session_row = LearningSessionRow {
             id: session_id,
             user_id: row.try_get("userId").unwrap_or_default(),
-            started_at: format_naive_datetime(
-                row.try_get("startedAt")
-                    .unwrap_or_else(|_| Utc::now().naive_utc()),
-            ),
+            started_at: format_naive_datetime(started_at_dt),
             ended_at: row
                 .try_get::<Option<NaiveDateTime>, _>("endedAt")
                 .ok()
                 .flatten()
                 .map(format_naive_datetime),
             total_questions: row
-                .try_get::<Option<i64>, _>("totalQuestions")
+                // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+                .try_get::<Option<i32>, _>("totalQuestions")
                 .ok()
                 .flatten()
+                .map(|v| v as i64)
                 .unwrap_or(0),
             actual_mastery_count: row
-                .try_get::<Option<i64>, _>("actualMasteryCount")
+                // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+                .try_get::<Option<i32>, _>("actualMasteryCount")
                 .ok()
                 .flatten()
+                .map(|v| v as i64)
                 .unwrap_or(0),
             target_mastery_count: row
-                .try_get::<Option<i64>, _>("targetMasteryCount")
+                // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to None.
+                .try_get::<Option<i32>, _>("targetMasteryCount")
                 .ok()
-                .flatten(),
+                .flatten()
+                .map(|v| v as i64),
             session_type: row
                 .try_get("sessionType")
                 .unwrap_or_else(|_| "NORMAL".to_string()),
@@ -971,11 +1012,17 @@ async fn select_user_sessions(
                 .ok()
                 .flatten(),
             context_shifts: row
-                .try_get::<Option<i64>, _>("contextShifts")
+                // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+                .try_get::<Option<i32>, _>("contextShifts")
                 .ok()
                 .flatten()
+                .map(|v| v as i64)
                 .unwrap_or(0),
             answer_record_count,
+            // Fall back to startedAt if there are no answers yet.
+            last_activity_at: Some(format_naive_datetime(
+                last_answer_at.unwrap_or(started_at_dt),
+            )),
         };
         sessions.push(row_to_stats(&session_row));
     }
@@ -988,7 +1035,19 @@ async fn select_active_session_id(
 ) -> Result<Option<String>, AppError> {
     let pool = proxy.pool();
     let row = sqlx::query_scalar::<_, String>(
-        r#"SELECT "id" FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NULL ORDER BY "startedAt" DESC LIMIT 1"#,
+        // Only consider sessions with at least one answer as "active" to avoid dangling empty sessions.
+        r#"
+        SELECT ls."id"
+        FROM "learning_sessions" ls
+        WHERE ls."userId" = $1
+          AND ls."endedAt" IS NULL
+          AND (
+            COALESCE(ls."totalQuestions", 0) > 0
+            OR EXISTS (SELECT 1 FROM "answer_records" ar WHERE ar."sessionId" = ls."id")
+          )
+        ORDER BY ls."startedAt" DESC
+        LIMIT 1
+        "#,
     )
     .bind(user_id)
     .fetch_optional(pool)
@@ -1018,34 +1077,40 @@ async fn select_learning_session(
 
     let Some(row) = row else { return Ok(None) };
 
-    let answer_record_count = count_answer_records(pool, session_id).await?;
+    let (answer_record_count, last_answer_at) = select_answer_record_meta(pool, session_id).await?;
+    let started_at_dt: NaiveDateTime = row
+        .try_get("startedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     Ok(Some(LearningSessionRow {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
-        started_at: format_naive_datetime(
-            row.try_get("startedAt")
-                .unwrap_or_else(|_| Utc::now().naive_utc()),
-        ),
+        started_at: format_naive_datetime(started_at_dt),
         ended_at: row
             .try_get::<Option<NaiveDateTime>, _>("endedAt")
             .ok()
             .flatten()
             .map(format_naive_datetime),
         total_questions: row
-            .try_get::<Option<i64>, _>("totalQuestions")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+            .try_get::<Option<i32>, _>("totalQuestions")
             .ok()
             .flatten()
+            .map(|v| v as i64)
             .unwrap_or(0),
         actual_mastery_count: row
-            .try_get::<Option<i64>, _>("actualMasteryCount")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+            .try_get::<Option<i32>, _>("actualMasteryCount")
             .ok()
             .flatten()
+            .map(|v| v as i64)
             .unwrap_or(0),
         target_mastery_count: row
-            .try_get::<Option<i64>, _>("targetMasteryCount")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to None.
+            .try_get::<Option<i32>, _>("targetMasteryCount")
             .ok()
-            .flatten(),
+            .flatten()
+            .map(|v| v as i64),
         session_type: row
             .try_get("sessionType")
             .unwrap_or_else(|_| "NORMAL".to_string()),
@@ -1058,18 +1123,39 @@ async fn select_learning_session(
             .ok()
             .flatten(),
         context_shifts: row
-            .try_get::<Option<i64>, _>("contextShifts")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+            .try_get::<Option<i32>, _>("contextShifts")
             .ok()
             .flatten()
+            .map(|v| v as i64)
             .unwrap_or(0),
         answer_record_count,
+        last_activity_at: Some(format_naive_datetime(
+            last_answer_at.unwrap_or(started_at_dt),
+        )),
     }))
 }
 
-async fn count_answer_records(pool: &PgPool, session_id: &str) -> Result<i64, AppError> {
-    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "sessionId" = $1"#)
-        .bind(session_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))
+async fn select_answer_record_meta(
+    pool: &PgPool,
+    session_id: &str,
+) -> Result<(i64, Option<NaiveDateTime>), AppError> {
+    let row = sqlx::query(
+        r#"
+        SELECT COUNT(*)::bigint AS cnt, MAX("timestamp") AS last_at
+        FROM "answer_records"
+        WHERE "sessionId" = $1
+        "#,
+    )
+    .bind(session_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+
+    let count = row.try_get::<i64, _>("cnt").unwrap_or(0);
+    let last_at = row
+        .try_get::<Option<NaiveDateTime>, _>("last_at")
+        .ok()
+        .flatten();
+    Ok((count, last_at))
 }

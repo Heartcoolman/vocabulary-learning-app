@@ -41,6 +41,7 @@ function resolveApiConnectionTargets(
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
+  const isTauri = !!process.env.TAURI_ENV_PLATFORM;
   const appVersion = getGitVersion();
 
   // Vite 配置文件运行在 Node 侧，需显式加载 packages/frontend/.env* 供此处使用
@@ -58,9 +59,13 @@ export default defineConfig(({ mode }) => {
   const preconnectTargets = apiUrlRaw ? resolveApiConnectionTargets(apiUrlRaw, isProduction) : null;
 
   return {
+    // Tauri 构建使用相对路径，Web 使用绝对路径
+    base: isTauri ? './' : '/',
+
     // 定义环境变量（构建时注入）
     define: {
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+      'import.meta.env.VITE_TAURI_BUILD': JSON.stringify(isTauri),
     },
 
     plugins: [
@@ -120,9 +125,16 @@ export default defineConfig(({ mode }) => {
 
     // 开发服务器配置
     server: {
-      // 启用强缓存，减少重复请求
+      // 预热关键文件，减少首次加载时间
       warmup: {
-        clientFiles: ['./src/main.tsx', './src/App.tsx'],
+        clientFiles: [
+          './src/main.tsx',
+          './src/App.tsx',
+          './src/routes/index.tsx',
+          './src/pages/LearningPage.tsx',
+          './src/components/ui/index.ts',
+          './src/services/LearningService.ts',
+        ],
       },
       // API 代理配置（保持与 VITE_API_URL 一致，避免硬编码 localhost）
       proxy: {

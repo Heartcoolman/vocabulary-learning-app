@@ -209,6 +209,8 @@ pub struct ProcessEventInput {
     pub is_correct: bool,
     pub response_time: i64,
     pub session_id: Option<String>,
+    #[serde(default)]
+    pub is_quit: bool,
     pub dwell_time: Option<i64>,
     pub pause_count: Option<i32>,
     pub switch_count: Option<i32>,
@@ -284,6 +286,7 @@ pub async fn process_event(
         interaction_density: input.interaction_density,
         paused_time_ms: input.paused_time_ms,
         hint_used: input.hint_used.unwrap_or(false),
+        is_quit: input.is_quit,
         timestamp: Utc::now().timestamp_millis(),
         ..Default::default()
     };
@@ -725,6 +728,7 @@ pub async fn reset_user(proxy: &DatabaseProxy, user_id: &str) -> Result<(), Stri
         mastery_history: None,
         habit_samples: None,
         ensemble_performance: None,
+        algorithm_states: None,
         created_at: now.to_rfc3339(),
         updated_at: now.to_rfc3339(),
     };

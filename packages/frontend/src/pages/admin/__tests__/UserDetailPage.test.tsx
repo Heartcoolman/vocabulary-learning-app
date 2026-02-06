@@ -133,18 +133,22 @@ vi.mock('@/components/Icon', async () => {
   };
 });
 
-vi.mock('@phosphor-icons/react', () => ({
-  Flame: () => <span data-testid="icon-flame">🔥</span>,
-  CaretDown: () => <span data-testid="icon-caret-down">▼</span>,
-  ArrowUp: () => <span data-testid="icon-arrow-up">↑</span>,
-  ArrowDown: () => <span data-testid="icon-arrow-down">↓</span>,
-  ListDashes: () => <span data-testid="icon-list">☰</span>,
-  Brain: () => <span data-testid="icon-brain">🧠</span>,
-  ChartLine: () => <span data-testid="icon-chartline">📈</span>,
-  Download: () => <span data-testid="icon-download">📥</span>,
-  CalendarBlank: () => <span data-testid="icon-calendar">📅</span>,
-  Lightning: () => <span data-testid="icon-lightning">⚡</span>,
-}));
+vi.mock('@phosphor-icons/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@phosphor-icons/react')>();
+  return {
+    ...actual,
+    Flame: () => <span data-testid="icon-flame">🔥</span>,
+    CaretDown: () => <span data-testid="icon-caret-down">▼</span>,
+    ArrowUp: () => <span data-testid="icon-arrow-up">↑</span>,
+    ArrowDown: () => <span data-testid="icon-arrow-down">↓</span>,
+    ListDashes: () => <span data-testid="icon-list">☰</span>,
+    Brain: () => <span data-testid="icon-brain">🧠</span>,
+    ChartLine: () => <span data-testid="icon-chartline">📈</span>,
+    Download: () => <span data-testid="icon-download">📥</span>,
+    CalendarBlank: () => <span data-testid="icon-calendar">📅</span>,
+    Lightning: () => <span data-testid="icon-lightning">⚡</span>,
+  };
+});
 
 vi.mock('@/components/admin/LearningRecordsTab', () => ({
   default: () => <div data-testid="learning-records-tab">Learning Records Tab</div>,

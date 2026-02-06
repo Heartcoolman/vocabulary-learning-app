@@ -280,6 +280,7 @@ export const apiClient = {
   resetWordProgress: learningClient.resetWordProgress.bind(learningClient),
   batchUpdateWordStates: learningClient.batchUpdateWordStates.bind(learningClient),
   listSessions: learningClient.listSessions.bind(learningClient),
+  getActiveSession: learningClient.getActiveSession.bind(learningClient),
   getSessionDetail: learningClient.getSessionDetail.bind(learningClient),
 
   // ==================== AMAS 相关 ====================

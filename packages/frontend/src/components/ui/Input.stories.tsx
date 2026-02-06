@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { vi } from 'vitest';
 import React, { useState } from 'react';
 import { Input } from './Input';
-import { User, Lock, Check, X, Envelope } from '../Icon';
+import { User, Lock, Check, X, Envelope } from '@phosphor-icons/react';
 
 /**
  * # Input 输入框组件

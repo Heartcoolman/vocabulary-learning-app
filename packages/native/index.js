@@ -752,14 +752,5 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding;
-module.exports.ActrMemoryNative = nativeBinding.ActrMemoryNative;
-module.exports.ACTRMemoryNative = nativeBinding.ACTRMemoryNative;
 module.exports.CausalInferenceNative = nativeBinding.CausalInferenceNative;
-module.exports.LinUcbNative = nativeBinding.LinUcbNative;
-module.exports.LinUCBNative = nativeBinding.LinUCBNative;
-module.exports.ThompsonSamplingNative = nativeBinding.ThompsonSamplingNative;
-module.exports.computeActivation = nativeBinding.computeActivation;
-module.exports.computeOptimalInterval = nativeBinding.computeOptimalInterval;
-module.exports.computeRecallProbability = nativeBinding.computeRecallProbability;
 module.exports.Difficulty = nativeBinding.Difficulty;
-module.exports.getColdStartAlpha = nativeBinding.getColdStartAlpha;

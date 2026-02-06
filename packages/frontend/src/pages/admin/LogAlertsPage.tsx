@@ -580,7 +580,7 @@ function RuleFormModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-3xl bg-white shadow-floating dark:bg-slate-800">
+      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-card bg-white shadow-floating dark:bg-slate-800">
         {/* 固定头部 */}
         <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6 dark:border-slate-700">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h3>

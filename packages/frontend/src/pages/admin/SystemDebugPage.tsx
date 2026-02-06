@@ -188,9 +188,9 @@ function StatusBadge({
   return (
     <div className="flex items-center gap-2">
       {healthy ? (
-        <CheckCircle className="h-4 w-4 text-green-500" weight="fill" />
+        <CheckCircle size={16} className="text-green-500" weight="fill" />
       ) : (
-        <XCircle className="h-4 w-4 text-red-500" weight="fill" />
+        <XCircle size={16} className="text-red-500" weight="fill" />
       )}
       <span
         className={
@@ -212,7 +212,7 @@ function HealthPanel({ health }: { health?: HealthCheckResult }) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-blue-600" />
+          <ShieldCheck size={20} className="text-blue-600" />
           <h3 className="font-semibold">服务健康状态</h3>
         </div>
       </CardHeader>
@@ -250,7 +250,7 @@ function InfrastructurePanel({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-purple-600" />
+          <Database size={20} className="text-purple-600" />
           <h3 className="font-semibold">基础设施控制</h3>
         </div>
       </CardHeader>
@@ -320,11 +320,11 @@ function AmasControlPanel({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Gear className="h-5 w-5 text-orange-600" />
+            <Gear size={20} className="text-orange-600" />
             <h3 className="font-semibold">AMAS 功能开关</h3>
           </div>
           <Button size="sm" variant="ghost" onClick={onResetFlags}>
-            <ArrowCounterClockwise className="h-4 w-4" />
+            <ArrowCounterClockwise size={16} />
           </Button>
         </div>
       </CardHeader>
@@ -353,7 +353,7 @@ function AmasControlPanel({
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="danger" onClick={onForceCircuitOpen} disabled={isOpen}>
-              <Lightning className="mr-1 h-4 w-4" />
+              <Lightning size={16} className="mr-1" />
               触发熔断
             </Button>
             <Button size="sm" variant="secondary" onClick={onResetCircuit}>
@@ -384,7 +384,7 @@ function ServicesPanel({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Cpu className="h-5 w-5 text-blue-600" />
+          <Cpu size={20} className="text-blue-600" />
           <h3 className="font-semibold">核心服务控制</h3>
         </div>
       </CardHeader>
@@ -459,7 +459,7 @@ function FallbackTestPanel() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Play className="h-5 w-5 text-green-600" />
+          <Play size={20} className="text-green-600" />
           <h3 className="font-semibold">降级策略测试</h3>
         </div>
       </CardHeader>
@@ -508,7 +508,7 @@ function FallbackTestPanel() {
         {result && (
           <div className="rounded-button border bg-gray-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-700">
             <div className="mb-2 flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <CheckCircle size={16} className="text-green-500" />
               <span className="font-medium">测试结果</span>
             </div>
             <div className="mb-2 text-gray-600 dark:text-gray-400">{result.explanation || ''}</div>
@@ -534,9 +534,9 @@ function FallbackTestPanel() {
                   className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
                 >
                   {h.success ? (
-                    <CheckCircle className="h-3 w-3 text-green-500" />
+                    <CheckCircle size={12} className="text-green-500" />
                   ) : (
-                    <XCircle className="h-3 w-3 text-red-500" />
+                    <XCircle size={12} className="text-red-500" />
                   )}
                   <span>{h.time}</span>
                   <span className={scenarios[h.reason]?.color}>{scenarios[h.reason]?.label}</span>
@@ -556,7 +556,7 @@ function AuditLogPanel({ logs }: { logs?: AuditLogEntry[] }) {
     <Card className="lg:col-span-2">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Clock className="h-5 w-5 text-gray-600" />
+          <Clock size={20} className="text-gray-600" />
           <h3 className="font-semibold">操作日志</h3>
         </div>
       </CardHeader>
@@ -628,7 +628,7 @@ export default function SystemDebugPage() {
     return (
       <div className="p-6">
         <Alert variant="error">
-          <Warning className="h-5 w-5" />
+          <Warning size={20} />
           <span>调试模式不可用，仅在开发/测试环境可用</span>
         </Alert>
       </div>
@@ -644,7 +644,7 @@ export default function SystemDebugPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Bug className="h-8 w-8 text-red-600" />
+          <Bug size={32} className="text-red-600" />
           <div>
             <h1 className="text-2xl font-bold dark:text-white">系统调试控制面板</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">仅开发/测试环境可用</p>
@@ -660,11 +660,11 @@ export default function SystemDebugPage() {
             variant="secondary"
             onClick={() => handle(debugApi.stopSimulations, '模拟已停止')}
           >
-            <Pause className="mr-1 h-4 w-4" />
+            <Pause size={16} className="mr-1" />
             停止模拟
           </Button>
           <Button variant="danger" onClick={() => handle(debugApi.resetAll, '已重置')}>
-            <ArrowCounterClockwise className="mr-1 h-4 w-4" />
+            <ArrowCounterClockwise size={16} className="mr-1" />
             重置全部
           </Button>
         </div>

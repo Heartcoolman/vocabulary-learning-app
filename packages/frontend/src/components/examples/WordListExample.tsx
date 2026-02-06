@@ -1,6 +1,6 @@
 import { useWords, useCreateWord, useDeleteWord } from '../../hooks/queries/useWords';
 import { uiLogger } from '../../utils/logger';
-import { CheckCircle } from '../Icon';
+import { CheckCircle } from '@phosphor-icons/react';
 
 /**
  * React Query 使用示例组件

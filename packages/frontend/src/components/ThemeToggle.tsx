@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sun, Moon } from './Icon';
+import { Sun, Moon } from '@phosphor-icons/react';
 import { useTheme } from '../contexts/ThemeContext';
 import { cn } from './ui/utils';
 import { G3_DURATION, G3_EASING } from '../utils/animations';

@@ -62,7 +62,7 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 // Mock notification hooks
-vi.mock('../../hooks/queries', () => ({
+vi.mock('../../hooks/queries/useNotifications', () => ({
   useNotifications: vi.fn(() => ({ data: [], isLoading: false })),
   useNotificationStats: vi.fn(() => ({ data: { unread: 0 } })),
   useMarkAsRead: vi.fn(() => ({ mutate: vi.fn() })),
@@ -155,7 +155,8 @@ describe('Navigation', () => {
       renderWithRouter('/vocabulary');
 
       const vocabularyLink = screen.getByText('词库管理').closest('a');
-      expect(vocabularyLink?.className).toContain('bg-blue-500');
+      // Primary variant uses gradient with from-blue-500
+      expect(vocabularyLink?.className).toContain('from-blue-500');
     });
 
     it('should have aria-current on active page', () => {
@@ -233,7 +234,7 @@ describe('Navigation', () => {
       renderWithRouter();
 
       const button = screen.getByText('学习洞察').closest('button');
-      expect(button).toHaveAttribute('aria-haspopup', 'true');
+      expect(button).toHaveAttribute('aria-haspopup', 'menu');
     });
   });
 

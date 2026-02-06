@@ -1,7 +1,7 @@
 import React from 'react';
-import { useSimilarWords } from '../../hooks/queries';
+import { useSimilarWords } from '../../hooks/queries/useSimilarWords';
 import { SemanticWord } from '../../services/client';
-import { ShareNetwork } from '../Icon';
+import { ShareNetwork } from '@phosphor-icons/react';
 
 interface RelatedWordsProps {
   wordId: string;

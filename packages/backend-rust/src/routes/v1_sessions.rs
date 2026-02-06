@@ -42,6 +42,8 @@ struct CreateSessionResponse {
 pub(super) struct SyncProgressRequest {
     actual_mastery_count: i64,
     total_questions: i64,
+    #[serde(default)]
+    context_shifts: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -196,6 +198,13 @@ pub(super) async fn sync_progress(
             "进度数据必须是有效的非负数",
         ));
     }
+    if payload.context_shifts.is_some_and(|v| v < 0) {
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "INVALID_PROGRESS_VALUE",
+            "contextShifts 必须是非负整数",
+        ));
+    }
 
     mastery_learning::sync_session_progress(
         proxy.as_ref(),
@@ -203,6 +212,7 @@ pub(super) async fn sync_progress(
         &user.id,
         payload.actual_mastery_count,
         payload.total_questions,
+        payload.context_shifts,
     )
     .await
     .map_err(|err| match err {
@@ -380,7 +390,10 @@ async fn count_user_sessions(
     proxy: &crate::db::DatabaseProxy,
     user_id: &str,
 ) -> Result<i64, AppError> {
-    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1"#)
+    // Hide empty sessions (no answered questions) to avoid polluting history with accidental opens.
+    sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NOT NULL AND COALESCE("totalQuestions", 0) > 0"#,
+    )
         .bind(user_id)
         .fetch_one(proxy.pool())
         .await
@@ -421,7 +434,7 @@ async fn select_user_sessions_pg(
                ls."targetMasteryCount", ls."sessionType", ls."flowPeakScore", ls."avgCognitiveLoad", ls."contextShifts",
                (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
         FROM "learning_sessions" ls
-        WHERE ls."userId" = $1
+        WHERE ls."userId" = $1 AND ls."endedAt" IS NOT NULL AND COALESCE(ls."totalQuestions", 0) > 0
         ORDER BY ls."startedAt" DESC
         LIMIT $2 OFFSET $3
         "#,
@@ -444,26 +457,36 @@ fn map_session_row_pg(row: sqlx::postgres::PgRow) -> SessionStats {
     let ended_at_iso = ended_at.map(format_naive_datetime);
     let duration = duration_seconds(&started_at_iso, ended_at_iso.as_deref());
 
+    let total_questions_raw = row
+        // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+        .try_get::<Option<i32>, _>("totalQuestions")
+        .ok()
+        .flatten()
+        .map(|v| v as i64)
+        .unwrap_or(0);
+    let answer_record_count = row.try_get::<i64, _>("answerRecordCount").unwrap_or(0);
+
     SessionStats {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
         started_at: started_at_iso,
         ended_at: ended_at_iso,
         duration,
-        total_questions: row
-            .try_get::<Option<i64>, _>("totalQuestions")
-            .ok()
-            .flatten()
-            .unwrap_or(0),
+        // totalQuestions may lag behind answer_records (sync happens periodically / on pause).
+        total_questions: total_questions_raw.max(answer_record_count),
         actual_mastery_count: row
-            .try_get::<Option<i64>, _>("actualMasteryCount")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+            .try_get::<Option<i32>, _>("actualMasteryCount")
             .ok()
             .flatten()
+            .map(|v| v as i64)
             .unwrap_or(0),
         target_mastery_count: row
-            .try_get::<Option<i64>, _>("targetMasteryCount")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to None.
+            .try_get::<Option<i32>, _>("targetMasteryCount")
             .ok()
-            .flatten(),
+            .flatten()
+            .map(|v| v as i64),
         session_type: row
             .try_get("sessionType")
             .unwrap_or_else(|_| "NORMAL".to_string()),
@@ -476,10 +499,12 @@ fn map_session_row_pg(row: sqlx::postgres::PgRow) -> SessionStats {
             .ok()
             .flatten(),
         context_shifts: row
-            .try_get::<Option<i64>, _>("contextShifts")
+            // Postgres INTEGER -> i32; decoding as i64 fails and would be swallowed to 0.
+            .try_get::<Option<i32>, _>("contextShifts")
             .ok()
             .flatten()
+            .map(|v| v as i64)
             .unwrap_or(0),
-        answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0),
+        answer_record_count,
     }
 }

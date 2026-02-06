@@ -158,7 +158,7 @@ export default function AdminWordBooks() {
         </div>
       ) : wordBooks.length === 0 ? (
         <div className="py-16 text-center">
-          <Books size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
+          <Books size={48} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
           <p className="mb-4 text-gray-500 dark:text-gray-400">还没有创建系统词库</p>
           <button
             onClick={() => setShowCreateDialog(true)}

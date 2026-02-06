@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { Modal } from '../ui/Modal';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import { amasClient } from '../../services/client';
 import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
@@ -111,13 +111,10 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
   const categoryColor = getCategoryColor(badge.category);
   const isUnlocked = !!badge.unlockedAt;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
+  return (
+    <Modal isOpen={true} onClose={onClose} title="" maxWidth="md" showCloseButton={false}>
       <div
-        className="relative mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800"
+        className="relative w-full bg-white p-8 dark:bg-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 关闭按钮 */}
@@ -242,8 +239,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
           关闭
         </button>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 };
 

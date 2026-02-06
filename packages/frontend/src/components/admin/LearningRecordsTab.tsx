@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Clock, Hash, BookOpen, ArrowClockwise } from '../Icon';
+import { CheckCircle, XCircle, Clock, Hash, BookOpen, ArrowClockwise } from '@phosphor-icons/react';
 import { useLearningData } from '../../hooks/useLearningData';
 import { DISPLAY_CONFIG } from '../../constants/systemHealth';
 

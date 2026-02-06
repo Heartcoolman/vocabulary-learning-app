@@ -281,70 +281,6 @@ describe('LearningService', () => {
     });
   });
 
-  describe('测试选项生成', () => {
-    it('should generate test options with correct answer', () => {
-      const correctWord = mockWords[0];
-
-      const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
-
-      expect(result.options).toContain(result.correctAnswer);
-      expect(result.correctAnswer).toBe('你好');
-      expect(result.options.length).toBeLessThanOrEqual(4);
-    });
-
-    it('should generate options with minimum 2 options', () => {
-      const correctWord = mockWords[0];
-
-      const result = LearningService.generateTestOptions(correctWord, mockWords, 2);
-
-      expect(result.options.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('should shuffle options', () => {
-      const correctWord = mockWords[0];
-      const results: string[][] = [];
-
-      for (let i = 0; i < 10; i++) {
-        const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
-        results.push(result.options);
-      }
-
-      results.forEach((options) => {
-        expect(options).toContain('你好');
-      });
-    });
-
-    it('should throw error when word has no meanings', () => {
-      const wordWithoutMeaning: Word = {
-        ...mockWords[0],
-        meanings: [],
-      };
-
-      expect(() => LearningService.generateTestOptions(wordWithoutMeaning, mockWords, 4)).toThrow(
-        '缺少释义，无法生成测验选项',
-      );
-    });
-
-    it('should handle option count limits', () => {
-      const correctWord = mockWords[0];
-
-      const result1 = LearningService.generateTestOptions(correctWord, mockWords, 1);
-      expect(result1.options.length).toBeGreaterThanOrEqual(1);
-
-      const result2 = LearningService.generateTestOptions(correctWord, mockWords, 10);
-      expect(result2.options.length).toBeLessThanOrEqual(4);
-    });
-
-    it('should not include duplicate meanings', () => {
-      const correctWord = mockWords[0];
-
-      const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
-
-      const uniqueOptions = new Set(result.options);
-      expect(uniqueOptions.size).toBe(result.options.length);
-    });
-  });
-
   describe('答案检查', () => {
     it('should return true for correct answer', () => {
       const word = mockWords[0];
@@ -495,26 +431,6 @@ describe('LearningService', () => {
       const result = await LearningService.getTrendAnalysis();
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe('反向测试选项生成', () => {
-    it('should generate reverse test options with correct answer', () => {
-      const word = mockWords[0];
-
-      const result = LearningService.generateReverseTestOptions(word, mockWords, 4);
-
-      expect(result.options).toContain(result.correctAnswer);
-      expect(result.correctAnswer).toBe('hello');
-      expect(result.options.length).toBeLessThanOrEqual(4);
-    });
-
-    it('should shuffle reverse options', () => {
-      const word = mockWords[0];
-
-      const result = LearningService.generateReverseTestOptions(word, mockWords, 4);
-
-      expect(result.options).toContain('hello');
     });
   });
 

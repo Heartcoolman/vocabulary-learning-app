@@ -107,6 +107,18 @@ export function initSentry(): boolean {
 }
 
 /**
+ * 动态启用/禁用 Sentry（桌面模式遥测开关）
+ */
+export function setSentryEnabled(enabled: boolean): void {
+  const client = Sentry.getClient();
+  if (client) {
+    client.getOptions().enabled = enabled;
+  } else if (enabled) {
+    initSentry();
+  }
+}
+
+/**
  * 设置用户上下文
  */
 export function setUser(user: { id: string; email?: string; username?: string } | null): void {

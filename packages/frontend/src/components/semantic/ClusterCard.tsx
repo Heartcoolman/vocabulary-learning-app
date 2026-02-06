@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { CaretDown, CaretUp, BookOpen } from '../Icon';
+import { CaretDown, CaretUp, BookOpen } from '@phosphor-icons/react';
 import { Spinner } from '../ui';
-import { useClusterDetail } from '../../hooks/queries';
+import { useClusterDetail } from '../../hooks/queries/useWordClusters';
 import type { WordCluster, SemanticWord } from '../../services/client';
 
 interface ClusterCardProps {

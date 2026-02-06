@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Modal, ConfirmModal, AlertModal } from './Modal';
 import { Button } from './Button';
 import { Input } from './Input';
-import { Check, Trash } from '../Icon';
+import { Check, Trash } from '@phosphor-icons/react';
 
 /**
  * # Modal 模态框组件

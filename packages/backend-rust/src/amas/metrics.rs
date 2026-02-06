@@ -13,43 +13,42 @@ pub fn registry() -> &'static Arc<AlgorithmRegistry> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AlgorithmId {
     // Decision Layer
-    Thompson,
-    LinUCB,
     Heuristic,
-    // Modeling Layer
-    AttentionMonitor,
-    FatigueEstimator,
-    CognitiveProfiler,
-    MotivationTracker,
-    TrendAnalyzer,
-    // Memory Layer
-    ActrMemory,
-    Fsrs,
+    // AMAS Modeling Algorithms
+    Plf,
+    Air,
+    Tfm,
+    Mds,
+    Adf,
+    Bcp,
+    Mtd,
+    Auc,
     // Management
     ColdStartManager,
-    // UMM (Unified Memory Model) - Original Algorithms
-    Mdm,  // Memory Dynamics Model
-    Ige,  // Information Gain Exploration
-    Swd,  // Similarity-Weighted Decision
-    Msmt, // Multi-Scale Memory Trace
-    Mtp,  // Morphological Transfer Propagation
-    Iad,  // Interference Attenuation by Distance
-    Evm,  // Encoding Variability Metric
+    // Memory Layer (formerly UMM)
+    Mdm,
+    Msmt,
+    // Decision Layer Extensions (formerly UMM)
+    Ige,
+    Swd,
+    // Vocabulary Layer (formerly UMM)
+    Mtp,
+    Iad,
+    Evm,
 }
 
 impl AlgorithmId {
     pub fn all() -> &'static [AlgorithmId] {
         &[
-            AlgorithmId::Thompson,
-            AlgorithmId::LinUCB,
             AlgorithmId::Heuristic,
-            AlgorithmId::AttentionMonitor,
-            AlgorithmId::FatigueEstimator,
-            AlgorithmId::CognitiveProfiler,
-            AlgorithmId::MotivationTracker,
-            AlgorithmId::TrendAnalyzer,
-            AlgorithmId::ActrMemory,
-            AlgorithmId::Fsrs,
+            AlgorithmId::Plf,
+            AlgorithmId::Air,
+            AlgorithmId::Tfm,
+            AlgorithmId::Mds,
+            AlgorithmId::Adf,
+            AlgorithmId::Bcp,
+            AlgorithmId::Mtd,
+            AlgorithmId::Auc,
             AlgorithmId::ColdStartManager,
             AlgorithmId::Mdm,
             AlgorithmId::Ige,
@@ -63,70 +62,67 @@ impl AlgorithmId {
 
     pub fn id(&self) -> &'static str {
         match self {
-            AlgorithmId::Thompson => "thompson",
-            AlgorithmId::LinUCB => "linucb",
             AlgorithmId::Heuristic => "heuristic",
-            AlgorithmId::AttentionMonitor => "attention_monitor",
-            AlgorithmId::FatigueEstimator => "fatigue_estimator",
-            AlgorithmId::CognitiveProfiler => "cognitive_profiler",
-            AlgorithmId::MotivationTracker => "motivation_tracker",
-            AlgorithmId::TrendAnalyzer => "trend_analyzer",
-            AlgorithmId::ActrMemory => "actr_memory",
-            AlgorithmId::Fsrs => "fsrs",
+            AlgorithmId::Plf => "modeling_plf",
+            AlgorithmId::Air => "modeling_air",
+            AlgorithmId::Tfm => "modeling_tfm",
+            AlgorithmId::Mds => "modeling_mds",
+            AlgorithmId::Adf => "modeling_adf",
+            AlgorithmId::Bcp => "modeling_bcp",
+            AlgorithmId::Mtd => "modeling_mtd",
+            AlgorithmId::Auc => "modeling_auc",
             AlgorithmId::ColdStartManager => "coldstart_manager",
-            AlgorithmId::Mdm => "umm_mdm",
-            AlgorithmId::Ige => "umm_ige",
-            AlgorithmId::Swd => "umm_swd",
-            AlgorithmId::Msmt => "umm_msmt",
-            AlgorithmId::Mtp => "umm_mtp",
-            AlgorithmId::Iad => "umm_iad",
-            AlgorithmId::Evm => "umm_evm",
+            AlgorithmId::Mdm => "memory_mdm",
+            AlgorithmId::Msmt => "memory_msmt",
+            AlgorithmId::Ige => "decision_ige",
+            AlgorithmId::Swd => "decision_swd",
+            AlgorithmId::Mtp => "vocabulary_mtp",
+            AlgorithmId::Iad => "vocabulary_iad",
+            AlgorithmId::Evm => "vocabulary_evm",
         }
     }
 
     pub fn name(&self) -> &'static str {
         match self {
-            AlgorithmId::Thompson => "Thompson Sampling",
-            AlgorithmId::LinUCB => "LinUCB",
             AlgorithmId::Heuristic => "Heuristic Rules",
-            AlgorithmId::AttentionMonitor => "Attention Monitor",
-            AlgorithmId::FatigueEstimator => "Fatigue Estimator",
-            AlgorithmId::CognitiveProfiler => "Cognitive Profiler",
-            AlgorithmId::MotivationTracker => "Motivation Tracker",
-            AlgorithmId::TrendAnalyzer => "Trend Analyzer",
-            AlgorithmId::ActrMemory => "ACT-R Memory",
-            AlgorithmId::Fsrs => "FSRS",
+            AlgorithmId::Plf => "Power-Law Forgetting",
+            AlgorithmId::Air => "Adaptive Item Response",
+            AlgorithmId::Tfm => "Tri-pool Fatigue Model",
+            AlgorithmId::Mds => "Motivation Dynamics System",
+            AlgorithmId::Adf => "Attention Dynamics Filter",
+            AlgorithmId::Bcp => "Bayesian Cognitive Profiling",
+            AlgorithmId::Mtd => "Multi-scale Trend Detector",
+            AlgorithmId::Auc => "Active User Classification",
             AlgorithmId::ColdStartManager => "ColdStart Manager",
-            AlgorithmId::Mdm => "UMM Memory Dynamics",
-            AlgorithmId::Ige => "UMM Information Gain Exploration",
-            AlgorithmId::Swd => "UMM Similarity-Weighted Decision",
-            AlgorithmId::Msmt => "UMM Multi-Scale Memory Trace",
-            AlgorithmId::Mtp => "UMM Morphological Transfer",
-            AlgorithmId::Iad => "UMM Interference Attenuation",
-            AlgorithmId::Evm => "UMM Encoding Variability",
+            AlgorithmId::Mdm => "Memory Dynamics Model",
+            AlgorithmId::Msmt => "Multi-Scale Memory Trace",
+            AlgorithmId::Ige => "Information Gain Exploration",
+            AlgorithmId::Swd => "Similarity-Weighted Decision",
+            AlgorithmId::Mtp => "Morphological Transfer Propagation",
+            AlgorithmId::Iad => "Interference Attenuation by Distance",
+            AlgorithmId::Evm => "Encoding Variability Metric",
         }
     }
 
     pub fn layer(&self) -> &'static str {
         match self {
-            AlgorithmId::Thompson | AlgorithmId::LinUCB | AlgorithmId::Heuristic => "decision",
-            AlgorithmId::AttentionMonitor
-            | AlgorithmId::FatigueEstimator
-            | AlgorithmId::CognitiveProfiler
-            | AlgorithmId::MotivationTracker
-            | AlgorithmId::TrendAnalyzer => "modeling",
-            AlgorithmId::ActrMemory | AlgorithmId::Fsrs => "memory",
-            AlgorithmId::ColdStartManager => "management",
-            AlgorithmId::Ige | AlgorithmId::Swd => "umm_decision",
-            AlgorithmId::Mdm | AlgorithmId::Msmt => "umm_memory",
-            AlgorithmId::Mtp | AlgorithmId::Iad | AlgorithmId::Evm => "umm_vocabulary",
+            AlgorithmId::Heuristic | AlgorithmId::Ige | AlgorithmId::Swd => "amas_decision",
+            AlgorithmId::Plf
+            | AlgorithmId::Air
+            | AlgorithmId::Tfm
+            | AlgorithmId::Mds
+            | AlgorithmId::Adf
+            | AlgorithmId::Bcp
+            | AlgorithmId::Mtd
+            | AlgorithmId::Auc => "amas_modeling",
+            AlgorithmId::ColdStartManager => "amas_management",
+            AlgorithmId::Mdm | AlgorithmId::Msmt => "amas_memory",
+            AlgorithmId::Mtp | AlgorithmId::Iad | AlgorithmId::Evm => "amas_vocabulary",
         }
     }
 
     pub fn default_weight(&self) -> f64 {
         match self {
-            AlgorithmId::Thompson => 0.4,
-            AlgorithmId::LinUCB => 0.4,
             AlgorithmId::Heuristic => 0.2,
             _ => 0.0,
         }
@@ -134,8 +130,6 @@ impl AlgorithmId {
 
     pub fn default_exploration_rate(&self) -> f64 {
         match self {
-            AlgorithmId::Thompson => 0.15,
-            AlgorithmId::LinUCB => 0.1,
             AlgorithmId::Heuristic => 0.05,
             _ => 0.0,
         }
@@ -147,24 +141,27 @@ impl FromStr for AlgorithmId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "thompson" => Ok(AlgorithmId::Thompson),
-            "linucb" => Ok(AlgorithmId::LinUCB),
+            // New format (layer_name)
             "heuristic" => Ok(AlgorithmId::Heuristic),
-            "attention_monitor" => Ok(AlgorithmId::AttentionMonitor),
-            "fatigue_estimator" => Ok(AlgorithmId::FatigueEstimator),
-            "cognitive_profiler" => Ok(AlgorithmId::CognitiveProfiler),
-            "motivation_tracker" => Ok(AlgorithmId::MotivationTracker),
-            "trend_analyzer" => Ok(AlgorithmId::TrendAnalyzer),
-            "actr_memory" => Ok(AlgorithmId::ActrMemory),
-            "fsrs" => Ok(AlgorithmId::Fsrs),
+            "modeling_plf" | "plf" => Ok(AlgorithmId::Plf),
+            "modeling_air" | "air" => Ok(AlgorithmId::Air),
+            "modeling_tfm" | "tfm" => Ok(AlgorithmId::Tfm),
+            "modeling_mds" | "mds" => Ok(AlgorithmId::Mds),
+            "modeling_adf" | "adf" => Ok(AlgorithmId::Adf),
+            "modeling_bcp" | "bcp" => Ok(AlgorithmId::Bcp),
+            "modeling_mtd" | "mtd" => Ok(AlgorithmId::Mtd),
+            "modeling_auc" | "auc" => Ok(AlgorithmId::Auc),
             "coldstart_manager" => Ok(AlgorithmId::ColdStartManager),
-            "umm_mdm" => Ok(AlgorithmId::Mdm),
-            "umm_ige" => Ok(AlgorithmId::Ige),
-            "umm_swd" => Ok(AlgorithmId::Swd),
-            "umm_msmt" => Ok(AlgorithmId::Msmt),
-            "umm_mtp" => Ok(AlgorithmId::Mtp),
-            "umm_iad" => Ok(AlgorithmId::Iad),
-            "umm_evm" => Ok(AlgorithmId::Evm),
+            // Memory layer (new + old umm_ format)
+            "memory_mdm" | "umm_mdm" => Ok(AlgorithmId::Mdm),
+            "memory_msmt" | "umm_msmt" => Ok(AlgorithmId::Msmt),
+            // Decision layer (new + old umm_ format)
+            "decision_ige" | "umm_ige" => Ok(AlgorithmId::Ige),
+            "decision_swd" | "umm_swd" => Ok(AlgorithmId::Swd),
+            // Vocabulary layer (new + old umm_ format)
+            "vocabulary_mtp" | "umm_mtp" => Ok(AlgorithmId::Mtp),
+            "vocabulary_iad" | "umm_iad" => Ok(AlgorithmId::Iad),
+            "vocabulary_evm" | "umm_evm" => Ok(AlgorithmId::Evm),
             _ => Err(()),
         }
     }

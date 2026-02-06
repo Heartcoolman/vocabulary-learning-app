@@ -77,7 +77,7 @@ export const TaskRunner: React.FC<Props> = ({
                 disabled={loading}
                 className="flex items-center gap-2 rounded-button bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? <Spinner size="sm" color="white" /> : <Play className="h-5 w-5" />}
+                {loading ? <Spinner size="sm" color="white" /> : <Play size={20} />}
                 启动检查
               </button>
             </>

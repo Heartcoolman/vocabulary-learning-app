@@ -29,7 +29,7 @@ export const TrendStateSchema = z.enum(['up', 'flat', 'stuck', 'down']);
  * 学习事件输入Schema
  */
 export const LearningEventInputSchema = z.object({
-  wordId: z.string().uuid(),
+  wordId: z.string().min(1),
   isCorrect: z.boolean(),
   responseTime: z.number().nonnegative(),
   sessionId: z.string().uuid().optional(),
@@ -41,6 +41,7 @@ export const LearningEventInputSchema = z.object({
   interactionDensity: z.number().nonnegative().optional(),
   timestamp: z.number().optional(),
   pausedTimeMs: z.number().nonnegative().optional(),
+  isQuit: z.boolean().optional(),
 });
 
 /**

@@ -15,7 +15,7 @@ import {
 } from '../../components/Icon';
 import { useToast, Modal } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
-import { useAlgorithmConfig } from '../../hooks/queries';
+import { useAlgorithmConfig } from '../../hooks/queries/useAlgorithmConfig';
 import { useUpdateAlgorithmConfig, useResetAlgorithmConfig } from '../../hooks/mutations';
 
 // 导入拆分后的 Section 组件
@@ -435,7 +435,7 @@ export default function AlgorithmConfigPage() {
       {/* 重置确认对话框 */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-          <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800">
+          <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating dark:bg-slate-800">
             <div className="mb-6 text-center">
               <Warning size={64} className="mx-auto mb-4 text-yellow-500" />
               <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">确认重置</h3>

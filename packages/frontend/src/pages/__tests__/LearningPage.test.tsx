@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 const mockNavigate = vi.fn();
 const mockSubmitAnswer = vi.fn();
@@ -39,9 +39,9 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
-// Mock Icon components - 使用相对路径 (LearningPage 使用 ../components/Icon)
-vi.mock('../../components/Icon', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../components/Icon')>();
+// Mock Icon components - LearningPage uses Phosphor icons directly
+vi.mock('@phosphor-icons/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@phosphor-icons/react')>();
   return {
     ...actual,
     Confetti: () => <span data-testid="confetti-icon">confetti</span>,
@@ -78,6 +78,14 @@ vi.mock('../../services/LearningService', () => ({
       correctIndex: 0,
     }),
     simplifyMeaning: vi.fn().mockImplementation((meaning: string) => meaning),
+    fetchCurrentStrategy: vi.fn().mockResolvedValue({
+      new_ratio: 0.3,
+      difficulty: 'mid',
+      batch_size: 10,
+      session_length: 20,
+      review_ratio: 0.3,
+    }),
+    getRecommendedWordCount: vi.fn().mockImplementation((base: number) => base),
   },
 }));
 
@@ -182,6 +190,16 @@ vi.mock('../../components/explainability/ExplainabilityModal', () => ({
 
 vi.mock('../../components/semantic/RelatedWordsPanel', () => ({
   RelatedWordsPanel: () => null,
+}));
+
+// Mock StateCheckIn - immediately trigger onSkip to bypass the check-in dialog
+vi.mock('../../components/StateCheckIn', () => ({
+  default: function MockStateCheckIn({ onSkip }: { onSkip: () => void }) {
+    useEffect(() => {
+      onSkip();
+    }, [onSkip]);
+    return null;
+  },
 }));
 
 // Mock logger

@@ -21,6 +21,20 @@ impl DifficultyLevel {
         }
     }
 
+    pub fn harder(&self) -> Self {
+        match self {
+            Self::Easy => Self::Mid,
+            _ => Self::Hard,
+        }
+    }
+
+    pub fn easier(&self) -> Self {
+        match self {
+            Self::Hard => Self::Mid,
+            _ => Self::Easy,
+        }
+    }
+
     pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "easy" => Self::Easy,
@@ -152,6 +166,21 @@ pub struct VisualFatigueState {
     pub last_updated: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct VisualFatigueRawMetrics {
+    pub perclos: f64,
+    pub blink_rate: f64,
+    pub eye_aspect_ratio: f64,
+    pub squint_intensity: f64,
+    pub gaze_off_screen_ratio: f64,
+    pub avg_blink_duration: f64,
+    pub head_stability: f64,
+    pub yawn_count: i32,
+    pub confidence: f64,
+    pub timestamp_ms: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserState {
     #[serde(rename = "A")]
@@ -174,6 +203,8 @@ pub struct UserState {
     pub visual_fatigue: Option<VisualFatigueState>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fused_fatigue: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reward_profile: Option<String>,
 }
 
 impl Default for UserState {
@@ -189,6 +220,7 @@ impl Default for UserState {
             ts: chrono::Utc::now().timestamp_millis(),
             visual_fatigue: None,
             fused_fatigue: None,
+            reward_profile: None,
         }
     }
 }
@@ -316,6 +348,7 @@ impl ContinuousUserProfile {
             difficulty,
             batch_size: batch_size.clamp(5, 16),
             hint_level,
+            swd_recommendation: None,
         }
     }
 }
@@ -336,12 +369,21 @@ impl Default for ColdStartState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SwdRecommendation {
+    pub recommended_count: i32,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StrategyParams {
     pub interval_scale: f64,
     pub new_ratio: f64,
     pub difficulty: DifficultyLevel,
     pub batch_size: i32,
     pub hint_level: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub swd_recommendation: Option<SwdRecommendation>,
 }
 
 impl Default for StrategyParams {
@@ -352,6 +394,7 @@ impl Default for StrategyParams {
             difficulty: DifficultyLevel::Mid,
             batch_size: 8,
             hint_level: 1,
+            swd_recommendation: None,
         }
     }
 }
@@ -365,6 +408,7 @@ impl StrategyParams {
                 difficulty: DifficultyLevel::Hard,
                 batch_size: 12,
                 hint_level: 0,
+                swd_recommendation: None,
             },
             UserType::Stable => Self::default(),
             UserType::Cautious => Self {
@@ -373,6 +417,7 @@ impl StrategyParams {
                 difficulty: DifficultyLevel::Easy,
                 batch_size: 5,
                 hint_level: 2,
+                swd_recommendation: None,
             },
         }
     }
@@ -408,6 +453,7 @@ impl From<Action> for StrategyParams {
             difficulty: action.difficulty,
             batch_size: action.batch_size,
             hint_level: action.hint_level,
+            swd_recommendation: None,
         }
     }
 }
@@ -451,9 +497,12 @@ pub struct RawEvent {
     pub focus_loss_duration: Option<i64>,
     pub interaction_density: Option<f64>,
     pub timestamp: i64,
-    // EVM context tracking
+    #[serde(default)]
+    pub is_quit: bool,
     #[serde(default)]
     pub device_type: Option<String>,
+    #[serde(default)]
+    pub is_guess: bool,
 }
 
 impl Default for RawEvent {
@@ -473,7 +522,107 @@ impl Default for RawEvent {
             focus_loss_duration: None,
             interaction_density: None,
             timestamp: chrono::Utc::now().timestamp_millis(),
+            is_quit: false,
             device_type: None,
+            is_guess: false,
+        }
+    }
+}
+
+// ============================================
+// 微观行为数据类型
+// ============================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrajectoryPoint {
+    pub x: f64,
+    pub y: f64,
+    pub t: i64,
+    pub epoch_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HoverEvent {
+    pub option_id: String,
+    pub enter_time: i64,
+    pub leave_time: i64,
+    pub enter_epoch_ms: i64,
+    pub leave_epoch_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeystrokeEvent {
+    pub key: String,
+    pub down_time: i64,
+    pub up_time: Option<i64>,
+    pub down_epoch_ms: i64,
+    pub up_epoch_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MicroInteractions {
+    pub pointer_type: Option<String>,
+    pub trajectory_points: Option<Vec<TrajectoryPoint>>,
+    pub hover_events: Option<Vec<HoverEvent>>,
+    pub tentative_selections: Option<Vec<String>>,
+    pub keystroke_events: Option<Vec<KeystrokeEvent>>,
+    pub reaction_latency_ms: Option<i64>,
+    pub trajectory_length: Option<f64>,
+    pub direct_distance: Option<f64>,
+    pub option_switch_count: Option<i32>,
+    pub question_render_epoch_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EnergyLevel {
+    High,
+    Normal,
+    Low,
+}
+
+impl EnergyLevel {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "high" => Some(Self::High),
+            "normal" => Some(Self::Normal),
+            "low" => Some(Self::Low),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::High => "high",
+            Self::Normal => "normal",
+            Self::Low => "low",
+        }
+    }
+
+    pub fn fatigue_calibration_factor(&self) -> f64 {
+        match self {
+            Self::High => 0.6,
+            Self::Normal => 1.0,
+            Self::Low => 1.4,
+        }
+    }
+
+    pub fn difficulty_ceiling(&self) -> Option<DifficultyLevel> {
+        match self {
+            Self::High | Self::Normal => None,
+            Self::Low => Some(DifficultyLevel::Easy),
+        }
+    }
+
+    pub fn new_ratio_ceiling(&self) -> f64 {
+        match self {
+            Self::High => 0.4,
+            Self::Normal => 0.3,
+            Self::Low => 0.0,
         }
     }
 }
@@ -531,18 +680,29 @@ pub struct WordMasteryDecision {
     pub lapses: i32,
     pub reps: i32,
     pub confidence: f64,
-    // UMM MDM fields (optional, populated when umm_mdm_enabled)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub umm_strength: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub umm_consolidation: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub umm_last_review_ts: Option<i64>,
+    // MDM memory fields (optional, populated when amas_mdm_enabled)
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ummStrength")]
+    pub amas_strength: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ummConsolidation")]
+    pub amas_consolidation: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ummLastReviewTs")]
+    pub amas_last_review_ts: Option<i64>,
     // Adaptive mastery fields for history tracking
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mastery_score: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mastery_threshold: Option<f64>,
+    // AIR IRT fields (optional, populated when use_air enabled)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub air_theta: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub air_alpha: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub air_beta: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub air_probability: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub air_confidence: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -550,15 +710,9 @@ pub struct WordMasteryDecision {
 pub struct AlgorithmWeights {
     pub ige: f64,
     pub swd: f64,
+    pub mdm: f64,
     pub heuristic: f64,
     pub coldstart: f64,
-    // Legacy fields for backwards compatibility
-    #[serde(default)]
-    pub thompson: f64,
-    #[serde(default)]
-    pub linucb: f64,
-    #[serde(default)]
-    pub actr: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -629,13 +783,18 @@ pub struct FSRSWordState {
     pub reps: i32,
     pub lapses: i32,
     pub desired_retention: f64,
-    // UMM MDM fields (optional)
+    // MDM memory fields (optional)
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ummStrength")]
+    pub amas_strength: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ummConsolidation")]
+    pub amas_consolidation: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ummLastReviewTs")]
+    pub amas_last_review_ts: Option<i64>,
+    // AIR IRT fields (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub umm_strength: Option<f64>,
+    pub air_alpha: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub umm_consolidation: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub umm_last_review_ts: Option<i64>,
+    pub air_beta: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -674,6 +833,7 @@ pub struct ProcessOptions {
     pub word_review_history: Option<Vec<WordReviewHistory>>,
     pub visual_fatigue_score: Option<f64>,
     pub visual_fatigue_confidence: Option<f64>,
+    pub visual_fatigue_raw: Option<VisualFatigueRawMetrics>,
     pub study_duration_minutes: Option<f64>,
     pub word_state: Option<FSRSWordState>,
     pub rt_cv: Option<f64>,
@@ -739,9 +899,9 @@ pub struct PersistedAMASState {
     pub interaction_count: i32,
     pub last_updated: i64,
     #[serde(default)]
-    pub user_fsrs_params: Option<crate::services::fsrs::UserFSRSParams>,
-    #[serde(default)]
-    pub mastery_history: Option<crate::umm::MasteryHistory>,
+    pub mastery_history: Option<crate::amas::memory::MasteryHistory>,
     #[serde(default)]
     pub ensemble_performance: Option<crate::amas::decision::ensemble::PerformanceTracker>,
+    #[serde(default)]
+    pub algorithm_states: Option<serde_json::Value>,
 }

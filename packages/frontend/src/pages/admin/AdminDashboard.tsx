@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAdminStatistics } from '../../hooks/queries/useAdminStatistics';
 import {
-  useAdminStatistics,
   useSystemStatus,
   usePerformanceMetrics,
-  useVisualFatigueStats,
-  useSystemVersion,
   useCombinedHealth,
-} from '../../hooks/queries';
+} from '../../hooks/queries/useSystemStatus';
+import { useSystemVersion } from '../../hooks/queries/useSystemVersion';
+import { useVisualFatigueStats } from '../../hooks/queries/useVisualFatigueStats';
 import { useLLMPendingCount } from '../../hooks/queries/useLLMAdvisor';
 import { adminClient } from '../../services/client';
 import type { AMASMonitoringOverview } from '../../services/client';

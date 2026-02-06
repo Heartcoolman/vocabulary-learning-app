@@ -33,11 +33,7 @@ vi.mock('@/components/Icon', async () => {
   };
 });
 
-// Mock notification hooks
-vi.mock('@/hooks/queries', () => ({
-  useNotifications: vi.fn(() => ({ data: [], isLoading: false })),
-  useNotificationStats: vi.fn(() => ({ data: { unread: 0 } })),
-  useMarkAsRead: vi.fn(() => ({ mutate: vi.fn() })),
+vi.mock('@/hooks/queries/useSystemVersion', () => ({
   useSystemVersion: vi.fn(() => ({
     data: {
       currentVersion: '0.1.0',

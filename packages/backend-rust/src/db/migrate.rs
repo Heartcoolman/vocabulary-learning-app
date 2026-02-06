@@ -194,6 +194,46 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), MigrationError> {
             "043_add_amas_runtime_states",
             include_str!("../../sql/043_add_amas_runtime_states.sql"),
         ),
+        (
+            "044_add_algorithm_states",
+            include_str!("../../sql/044_add_algorithm_states.sql"),
+        ),
+        (
+            "045_visual_fatigue_extended_columns",
+            include_str!("../../sql/045_visual_fatigue_extended_columns.sql"),
+        ),
+        (
+            "046_add_air_columns",
+            include_str!("../../sql/046_add_air_columns.sql"),
+        ),
+        (
+            "047_rename_umm_to_amas",
+            include_str!("../../sql/047_rename_umm_to_amas.sql"),
+        ),
+        (
+            "048_add_micro_behavior_tables",
+            include_str!("../../sql/048_add_micro_behavior_tables.sql"),
+        ),
+        (
+            "048_add_micro_behavior_columns",
+            include_str!("../../sql/048_add_micro_behavior_columns.sql"),
+        ),
+        (
+            "049_fix_session_null_stats",
+            include_str!("../../sql/049_fix_session_null_stats.sql"),
+        ),
+        (
+            "050_fix_shadow_results_fsrs_difficulty",
+            include_str!("../../sql/050_fix_shadow_results_fsrs_difficulty.sql"),
+        ),
+        (
+            "051_ensure_morpheme_tables",
+            include_str!("../../sql/051_ensure_morpheme_tables.sql"),
+        ),
+        (
+            "052_close_duplicate_active_sessions",
+            include_str!("../../sql/052_close_duplicate_active_sessions.sql"),
+        ),
     ];
 
     let mut applied_count = 0;

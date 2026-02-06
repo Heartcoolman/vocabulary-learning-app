@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChartLine } from '../Icon';
+import { ChartLine } from '@phosphor-icons/react';
 import { StateHistoryPoint } from '../../types/amas-enhanced';
 import { formatShortDate } from '../../utils/historyUtils';
 

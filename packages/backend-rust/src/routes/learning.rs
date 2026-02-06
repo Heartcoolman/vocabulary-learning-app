@@ -54,6 +54,8 @@ struct SyncProgressRequest {
     session_id: String,
     actual_mastery_count: i64,
     total_questions: i64,
+    #[serde(default)]
+    context_shifts: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -525,6 +527,14 @@ pub async fn sync_progress(State(state): State<AppState>, req: Request<Body>) ->
         )
         .into_response();
     }
+    if payload.context_shifts.is_some_and(|v| v < 0) {
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "contextShifts 必须是非负整数",
+        )
+        .into_response();
+    }
 
     let Some(proxy) = state.db_proxy() else {
         return json_error(
@@ -553,6 +563,7 @@ pub async fn sync_progress(State(state): State<AppState>, req: Request<Body>) ->
         &auth_user.id,
         payload.actual_mastery_count,
         payload.total_questions,
+        payload.context_shifts,
     )
     .await
     {

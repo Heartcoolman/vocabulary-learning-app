@@ -155,7 +155,7 @@ describe('mastery', () => {
 
         const result = await createMasterySession(20);
 
-        expect(mockLearningClient.createMasterySession).toHaveBeenCalledWith(20);
+        expect(mockLearningClient.createMasterySession).toHaveBeenCalledWith(20, undefined);
         expect(result).toEqual(mockResponse);
       });
     });

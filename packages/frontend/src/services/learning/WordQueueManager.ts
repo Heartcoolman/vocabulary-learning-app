@@ -5,6 +5,11 @@
 
 import { learningLogger } from '../../utils/logger';
 
+export interface Distractors {
+  meaningOptions: string[];
+  spellingOptions: string[];
+}
+
 export interface WordItem {
   id: string;
   spelling: string;
@@ -13,6 +18,7 @@ export interface WordItem {
   examples: string[];
   audioUrl?: string;
   isNew: boolean; // 是否新词
+  distractors?: Distractors;
 }
 
 export interface WordProgress {
@@ -121,9 +127,6 @@ export class WordQueueManager {
     // 3. 优先从活跃队列中选择(需要继续练习的词)
     const activeCandidate = this.selectFromActiveWords(!consume);
     if (activeCandidate) {
-      if (consume) {
-        this.totalQuestions++;
-      }
       return { word: this.getWordItem(activeCandidate), isCompleted: false };
     }
 
@@ -146,7 +149,6 @@ export class WordQueueManager {
         attempts: 0,
         lastAttemptTime: 0,
       });
-      this.totalQuestions++;
       this.updateRecentlyShown(newWord.id);
 
       learningLogger.info(
@@ -196,7 +198,6 @@ export class WordQueueManager {
       const forcePick = candidates[0][0];
 
       if (consume) {
-        this.totalQuestions++;
         this.updateRecentlyShown(forcePick);
       }
 
@@ -289,17 +290,18 @@ export class WordQueueManager {
 
   /**
    * 记录答题结果
+   * AMAS 为权威来源，直接使用后端掌握判定
    * @param wordId 单词ID
    * @param isCorrect 是否正确
-   * @param responseTime 响应时间(ms)
-   * @param amasDecision AMAS掌握判定(可选)
+   * @param _responseTime 响应时间(ms) - 保留参数以兼容调用方
+   * @param amasDecision AMAS掌握判定（必填）
    * @returns 是否已掌握和进度
    */
   recordAnswer(
     wordId: string,
     isCorrect: boolean,
-    responseTime: number,
-    amasDecision?: MasteryDecision,
+    _responseTime: number,
+    amasDecision: MasteryDecision,
   ): {
     mastered: boolean;
     progress: WordProgress;
@@ -345,6 +347,9 @@ export class WordQueueManager {
       }
     }
 
+    // totalQuestions should reflect answered questions (i.e., answer_records count),
+    // not merely "question shown". This aligns session stats with backend aggregation.
+    this.totalQuestions++;
     progress.attempts++;
     progress.lastAttemptTime = Date.now();
 
@@ -352,15 +357,16 @@ export class WordQueueManager {
       progress.correctCount++;
       progress.consecutiveCorrect++;
 
-      // 检查是否达到掌握标准
-      if (this.checkMastery(progress, responseTime, amasDecision)) {
+      // 使用 AMAS 判定作为权威来源
+      if (amasDecision.isMastered) {
         this.activeWords.delete(wordId);
         this.masteredWords.add(wordId);
 
         learningLogger.info(
           `[WordQueue] 单词已掌握: ${this.getWordItem(wordId)?.spelling}, ` +
             `correct=${progress.correctCount}, attempts=${progress.attempts}, ` +
-            `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}`,
+            `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}, ` +
+            `confidence=${amasDecision.confidence.toFixed(2)}`,
         );
 
         return { mastered: true, progress };
@@ -376,38 +382,6 @@ export class WordQueueManager {
     }
 
     return { mastered: false, progress };
-  }
-
-  /**
-   * 检查是否达到掌握标准
-   * 后端AMAS为权威来源，本地规则仅作离线降级
-   */
-  private checkMastery(
-    progress: WordProgress,
-    responseTime: number,
-    amasDecision?: MasteryDecision,
-  ): boolean {
-    // 后端 AMAS 为权威来源
-    if (amasDecision) {
-      learningLogger.info(
-        `[WordQueue] 使用AMAS判定: isMastered=${amasDecision.isMastered}, ` +
-          `confidence=${amasDecision.confidence.toFixed(2)}`,
-      );
-      return amasDecision.isMastered;
-    }
-
-    // 离线降级规则（仅在无法连接后端时使用）
-    if (progress.consecutiveCorrect >= this.config.masteryThreshold) {
-      return true;
-    }
-    if (progress.attempts === 1 && progress.correctCount === 1 && responseTime < 3000) {
-      return true;
-    }
-    if (progress.correctCount >= 3 && progress.wrongCount <= 1) {
-      return true;
-    }
-
-    return false;
   }
 
   /**
@@ -666,6 +640,24 @@ export class WordQueueManager {
    */
   getConfig(): Readonly<QueueConfig> {
     return { ...this.config };
+  }
+
+  /**
+   * 更新目标掌握数量（实时生效）
+   * @param newCount 新的目标数量
+   * @returns 是否已因新目标完成会话
+   */
+  updateTargetMasteryCount(newCount: number): boolean {
+    const oldCount = this.config.targetMasteryCount;
+    this.config.targetMasteryCount = newCount;
+
+    learningLogger.info(
+      `[WordQueue] 目标数量已更新: ${oldCount} → ${newCount}, ` +
+        `当前已掌握: ${this.masteredWords.size}`,
+    );
+
+    // 如果已掌握数量 >= 新目标，返回 true 表示会话可以完成
+    return this.masteredWords.size >= newCount;
   }
 
   /**

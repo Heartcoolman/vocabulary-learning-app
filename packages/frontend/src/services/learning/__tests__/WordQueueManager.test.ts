@@ -27,6 +27,9 @@ function createTestWords(count: number): WordItem[] {
   }));
 }
 
+const NOT_MASTERED: MasteryDecision = { isMastered: false, confidence: 0, suggestedRepeats: 1 };
+const MASTERED: MasteryDecision = { isMastered: true, confidence: 0.9, suggestedRepeats: 0 };
+
 describe('WordQueueManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -112,10 +115,10 @@ describe('WordQueueManager', () => {
 
       // 获取并掌握2个单词
       const word1 = manager.getNextWordWithReason().word!;
-      manager.recordAnswer(word1.id, true, 1000);
+      manager.recordAnswer(word1.id, true, 1000, MASTERED);
 
       const word2 = manager.getNextWordWithReason().word!;
-      manager.recordAnswer(word2.id, true, 1000);
+      manager.recordAnswer(word2.id, true, 1000, MASTERED);
 
       // 下一次应该返回完成
       const result = manager.getNextWordWithReason();
@@ -133,10 +136,12 @@ describe('WordQueueManager', () => {
       };
       const manager = new WordQueueManager(words, config);
 
-      // 消耗3个问题
-      manager.getNextWordWithReason();
-      manager.getNextWordWithReason();
-      manager.getNextWordWithReason();
+      // 通过答题消耗3个问题（totalQuestions 在 recordAnswer 时增加）
+      for (let i = 0; i < 3; i++) {
+        const next = manager.getNextWordWithReason();
+        expect(next.word).not.toBeNull();
+        manager.recordAnswer(next.word!.id, false, 1000, NOT_MASTERED);
+      }
 
       // 下一次应该返回完成
       const result = manager.getNextWordWithReason();
@@ -165,36 +170,28 @@ describe('WordQueueManager', () => {
       expect(result2.word!.id).not.toBe(firstWordId);
 
       // 验证 minRepeatInterval 生效：最近2个词不应该重复出现
-      // 由于实现使用 isRecentlyShown 检查，连续获取应该返回不同的词
       const shownIds: string[] = [firstWordId, result2.word!.id];
       const result3 = manager.getNextWordWithReason();
       if (result3.word) {
-        // 第三个词应该与最近2个不同（或者是新词）
         expect(shownIds.slice(-2)).not.toContain(result3.word.id);
       }
     });
 
     it('should handle small active queue without infinite loop', () => {
-      // 模拟只有2个活跃词且pendingWords为空的场景
       const words = createTestWords(2);
       const config: Partial<QueueConfig> = {
-        maxActiveWords: 8, // 高于实际词数
+        maxActiveWords: 8,
         minRepeatInterval: 2,
         targetMasteryCount: 20,
-        masteryThreshold: 10, // 高阈值防止意外掌握
+        masteryThreshold: 10,
         maxTotalQuestions: 100,
       };
       const manager = new WordQueueManager(words, config);
 
-      // 获取所有词到活跃队列
       const word1 = manager.getNextWordWithReason().word!;
       const word2 = manager.getNextWordWithReason().word!;
-
-      // 确认两个不同的词
       expect(word1.id).not.toBe(word2.id);
 
-      // 现在 pendingWords 为空，activeWords 只有2个
-      // 连续获取多次，应该能正常选择而不是卡住
       const shownSequence: string[] = [word1.id, word2.id];
 
       for (let i = 0; i < 6; i++) {
@@ -204,23 +201,19 @@ describe('WordQueueManager', () => {
         shownSequence.push(result.word!.id);
       }
 
-      // 验证能正常循环选择（即使只有2个词也不会卡住）
       expect(shownSequence.length).toBe(8);
-
-      // 验证两个词都有被选择（而不是只选一个）
       const wordCounts = new Map<string, number>();
       shownSequence.forEach((id) => {
         wordCounts.set(id, (wordCounts.get(id) || 0) + 1);
       });
       expect(wordCounts.size).toBe(2);
-      // 两个词的出现次数应该相对均衡
       const counts = Array.from(wordCounts.values());
       expect(Math.abs(counts[0] - counts[1])).toBeLessThanOrEqual(2);
     });
   });
 
   describe('markCompleted', () => {
-    it('should mark word as completed', () => {
+    it('should mark word as completed via AMAS decision', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 2,
@@ -230,9 +223,8 @@ describe('WordQueueManager', () => {
 
       const word = manager.getNextWordWithReason().word!;
 
-      // 连续答对2次达到掌握（使用较长响应时间避免首次秒答规则）
-      manager.recordAnswer(word.id, true, 5000);
-      const result = manager.recordAnswer(word.id, true, 5000);
+      // AMAS 判定掌握
+      const result = manager.recordAnswer(word.id, true, 5000, MASTERED);
 
       expect(result.mastered).toBe(true);
       expect(manager.getWordStatus(word.id)).toBe('mastered');
@@ -249,7 +241,7 @@ describe('WordQueueManager', () => {
       const word = manager.getNextWordWithReason().word!;
       const initialProgress = manager.getProgress();
 
-      manager.recordAnswer(word.id, true, 1000);
+      manager.recordAnswer(word.id, true, 1000, MASTERED);
 
       const finalProgress = manager.getProgress();
 
@@ -262,7 +254,7 @@ describe('WordQueueManager', () => {
       const manager = new WordQueueManager(words, { maxActiveWords: 3 });
 
       const word = manager.getNextWordWithReason().word!;
-      const result = manager.recordAnswer(word.id, false, 1000);
+      const result = manager.recordAnswer(word.id, false, 1000, NOT_MASTERED);
 
       expect(result.mastered).toBe(false);
       expect(result.progress.wrongCount).toBe(1);
@@ -272,20 +264,18 @@ describe('WordQueueManager', () => {
     it('should reset consecutive correct on wrong answer', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
-        masteryThreshold: 5, // 设高一点防止意外掌握
+        masteryThreshold: 5,
         maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
       const word = manager.getNextWordWithReason().word!;
 
-      // 连续答对1次（使用较长响应时间避免首次秒答规则）
-      manager.recordAnswer(word.id, true, 5000);
+      manager.recordAnswer(word.id, true, 5000, NOT_MASTERED);
       let progress = manager.getWordProgress(word.id);
       expect(progress?.consecutiveCorrect).toBe(1);
 
-      // 答错，重置连续正确计数
-      manager.recordAnswer(word.id, false, 5000);
+      manager.recordAnswer(word.id, false, 5000, NOT_MASTERED);
       progress = manager.getWordProgress(word.id);
       expect(progress?.consecutiveCorrect).toBe(0);
     });
@@ -301,11 +291,8 @@ describe('WordQueueManager', () => {
       const manager = new WordQueueManager(words, config);
 
       const word = manager.getNextWordWithReason().word!;
+      manager.recordAnswer(word.id, false, 1000, NOT_MASTERED);
 
-      // 答错
-      manager.recordAnswer(word.id, false, 1000);
-
-      // 单词应该仍在活跃队列中
       expect(manager.getWordStatus(word.id)).toBe('learning');
       const activeProgresses = manager.getActiveWordProgresses();
       const wordInActive = activeProgresses.find(([id]) => id === word.id);
@@ -317,61 +304,44 @@ describe('WordQueueManager', () => {
       const config: Partial<QueueConfig> = {
         maxActiveWords: 5,
         minRepeatInterval: 0,
-        masteryThreshold: 10, // 设高一点防止意外掌握
+        masteryThreshold: 10,
       };
       const manager = new WordQueueManager(words, config);
 
-      // 获取多个单词并让它们进入活跃队列
       const word1 = manager.getNextWordWithReason().word!;
       const word2 = manager.getNextWordWithReason().word!;
 
-      // word1 答错
-      manager.recordAnswer(word1.id, false, 5000);
-      // word2 答对但不掌握（使用较长响应时间）
-      manager.recordAnswer(word2.id, true, 5000);
+      manager.recordAnswer(word1.id, false, 5000, NOT_MASTERED);
+      manager.recordAnswer(word2.id, true, 5000, NOT_MASTERED);
 
-      // 错误更多的词应该有更高优先级
       const progress1 = manager.getWordProgress(word1.id);
-      // word2可能已经被掌握（由于首次秒答规则），所以需要使用长响应时间
       const progress2 = manager.getWordProgress(word2.id);
 
       expect(progress1?.wrongCount).toBe(1);
-      // 如果word2还在活跃队列，验证其wrongCount为0
       if (progress2) {
         expect(progress2.wrongCount).toBe(0);
       }
     });
 
     it('should auto-master word after max attempts', () => {
-      // 测试当单词达到最大尝试次数时，会在selectFromActiveWords中被自动标记为掌握
-      // 注意：这个逻辑在 selectFromActiveWords 的 filter 中实现，
-      // 只有当该词被选中（不在 recentlyShown 中）时才会触发
-
       const words = createTestWords(10);
       const config: Partial<QueueConfig> = {
         maxActiveWords: 10,
         maxAttemptsPerWord: 3,
-        masteryThreshold: 10, // 设高一点，确保不会正常掌握
-        minRepeatInterval: 1, // 设置为1，这样下一次就能选中
+        masteryThreshold: 10,
+        minRepeatInterval: 1,
       };
       const manager = new WordQueueManager(words, config);
 
-      // 获取第一个词
       const word = manager.getNextWordWithReason().word!;
 
-      // 答错3次达到最大尝试次数
-      manager.recordAnswer(word.id, false, 5000);
-      manager.recordAnswer(word.id, false, 5000);
-      manager.recordAnswer(word.id, false, 5000);
+      manager.recordAnswer(word.id, false, 5000, NOT_MASTERED);
+      manager.recordAnswer(word.id, false, 5000, NOT_MASTERED);
+      manager.recordAnswer(word.id, false, 5000, NOT_MASTERED);
 
-      // 获取另一个词，让 recentlyShown 更新
+      manager.getNextWordWithReason();
       manager.getNextWordWithReason();
 
-      // 再获取一个词，此时应该会触发 selectFromActiveWords 检查
-      // 并且 word 应该被检查到超过最大尝试次数
-      manager.getNextWordWithReason();
-
-      // 单词应该被自动标记为已掌握（降级处理）
       expect(manager.getWordStatus(word.id)).toBe('mastered');
     });
   });
@@ -405,10 +375,9 @@ describe('WordQueueManager', () => {
       };
       const manager = new WordQueueManager(words, config);
 
-      // 掌握3个单词
       for (let i = 0; i < 3; i++) {
         const word = manager.getNextWordWithReason().word!;
-        manager.recordAnswer(word.id, true, 1000);
+        manager.recordAnswer(word.id, true, 1000, MASTERED);
       }
 
       const progress = manager.getProgress();
@@ -420,28 +389,23 @@ describe('WordQueueManager', () => {
     it('should return correct word status', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
-        masteryThreshold: 3, // 需要连续3次正确
+        masteryThreshold: 3,
         maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
-      // 新词状态
       expect(manager.getWordStatus('word-5')).toBe('new');
 
-      // 学习中状态
       const word = manager.getNextWordWithReason().word!;
       expect(manager.getWordStatus(word.id)).toBe('learning');
 
-      // 答对1次后仍为学习中（使用较长响应时间避免首次秒答规则）
-      manager.recordAnswer(word.id, true, 5000);
+      manager.recordAnswer(word.id, true, 5000, NOT_MASTERED);
       expect(manager.getWordStatus(word.id)).toBe('learning');
 
-      // 差一次就掌握状态（consecutiveCorrect = masteryThreshold - 1 = 2）
-      manager.recordAnswer(word.id, true, 5000);
+      manager.recordAnswer(word.id, true, 5000, NOT_MASTERED);
       expect(manager.getWordStatus(word.id)).toBe('almost');
 
-      // 已掌握状态
-      manager.recordAnswer(word.id, true, 5000);
+      manager.recordAnswer(word.id, true, 5000, MASTERED);
       expect(manager.getWordStatus(word.id)).toBe('mastered');
     });
   });
@@ -454,10 +418,7 @@ describe('WordQueueManager', () => {
       const peek1 = manager.peekNextWordWithReason();
       const peek2 = manager.peekNextWordWithReason();
 
-      // peek 应该返回相同的单词
       expect(peek1.word?.id).toBe(peek2.word?.id);
-
-      // 总题数不应增加
       expect(manager.getProgress().totalQuestions).toBe(0);
     });
   });
@@ -471,7 +432,7 @@ describe('WordQueueManager', () => {
       const result = manager.skipWord(word.id);
 
       expect(result).toBe(true);
-      expect(manager.getWordStatus(word.id)).toBe('new'); // 不在任何队列中
+      expect(manager.getWordStatus(word.id)).toBe('new');
     });
 
     it('should fail to skip word not in active queue', () => {
@@ -493,22 +454,18 @@ describe('WordQueueManager', () => {
       };
       const manager = new WordQueueManager(words, config);
 
-      // 进行一些操作（使用较长响应时间避免首次秒答规则）
       const word1 = manager.getNextWordWithReason().word!;
-      manager.recordAnswer(word1.id, true, 5000);
-      manager.recordAnswer(word1.id, true, 5000); // mastered
+      manager.recordAnswer(word1.id, true, 5000, NOT_MASTERED);
+      manager.recordAnswer(word1.id, true, 5000, MASTERED); // mastered
 
       const word2 = manager.getNextWordWithReason().word!;
-      manager.recordAnswer(word2.id, false, 5000);
+      manager.recordAnswer(word2.id, false, 5000, NOT_MASTERED);
 
-      // 保存状态
       const state = manager.getState();
 
-      // 创建新管理器并恢复状态
       const manager2 = new WordQueueManager(words, config);
       manager2.restoreState(state);
 
-      // 验证状态一致
       expect(manager2.getProgress()).toEqual(manager.getProgress());
       expect(manager2.getMasteredWordIds()).toEqual(manager.getMasteredWordIds());
       expect(manager2.getPendingWordIds()).toEqual(manager.getPendingWordIds());
@@ -520,7 +477,6 @@ describe('WordQueueManager', () => {
       const words = createTestWords(5);
       const manager = new WordQueueManager(words, { maxActiveWords: 3 });
 
-      // 获取一个词使其进入活跃队列
       manager.getNextWordWithReason();
 
       manager.applyAdjustments({
@@ -589,7 +545,7 @@ describe('WordQueueManager', () => {
     it('should use AMAS decision when confidence is high', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
-        masteryThreshold: 5, // 设高一点
+        masteryThreshold: 5,
         maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
@@ -610,7 +566,7 @@ describe('WordQueueManager', () => {
     it('should use AMAS decision regardless of confidence level', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
-        masteryThreshold: 5, // 设高一点
+        masteryThreshold: 5,
         maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
@@ -619,49 +575,28 @@ describe('WordQueueManager', () => {
 
       const amasDecision: MasteryDecision = {
         isMastered: true,
-        confidence: 0.5, // 低置信度
+        confidence: 0.5,
         suggestedRepeats: 0,
       };
 
-      // AMAS 决策优先，无论置信度
       const result = manager.recordAnswer(word.id, true, 5000, amasDecision);
 
       expect(result.mastered).toBe(true);
     });
 
-    it('should master on quick first correct answer', () => {
+    it('should not master when AMAS says not mastered', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
-        masteryThreshold: 3,
+        masteryThreshold: 1,
         maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
       const word = manager.getNextWordWithReason().word!;
 
-      // 首次秒答 (<3秒)
-      const result = manager.recordAnswer(word.id, true, 2000);
+      const result = manager.recordAnswer(word.id, true, 2000, NOT_MASTERED);
 
-      expect(result.mastered).toBe(true);
-    });
-
-    it('should master with 3/4 correct answers', () => {
-      const words = createTestWords(3);
-      const config: Partial<QueueConfig> = {
-        masteryThreshold: 10, // 设高一点
-        maxActiveWords: 3,
-      };
-      const manager = new WordQueueManager(words, config);
-
-      const word = manager.getNextWordWithReason().word!;
-
-      // 3对1错
-      manager.recordAnswer(word.id, true, 5000);
-      manager.recordAnswer(word.id, true, 5000);
-      manager.recordAnswer(word.id, false, 5000);
-      const result = manager.recordAnswer(word.id, true, 5000);
-
-      expect(result.mastered).toBe(true);
+      expect(result.mastered).toBe(false);
     });
   });
 });

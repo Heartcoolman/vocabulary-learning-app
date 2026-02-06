@@ -1,4 +1,4 @@
-import { ArrowUp } from '../Icon';
+import { ArrowUp } from '@phosphor-icons/react';
 
 interface UpdateBadgeProps {
   currentVersion: string | null;

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card } from './ui/Card';
 import { Eye, Headphones, Hand, Brain, Sparkle, BookOpen } from './Icon';
 
 export type LearningStyle = 'visual' | 'auditory' | 'reading' | 'kinesthetic' | 'multimodal';
@@ -120,7 +121,10 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   const maxScore = Math.max(...metrics.map((m) => m.score));
 
   return (
-    <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+    <Card
+      variant="glass"
+      className="flex h-full animate-g3-fade-in flex-col overflow-hidden shadow-soft"
+    >
       <div className="p-6 pb-4">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -176,7 +180,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
           </p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

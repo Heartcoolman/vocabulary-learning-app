@@ -1,9 +1,10 @@
-import { useEffect, useRef, memo } from 'react';
+import { useEffect, useRef, memo, useState } from 'react';
+import { microBehaviorTracker } from '../services/MicroBehaviorTracker';
 
 interface TestOptionsProps {
   options: string[];
   correctAnswers: string[]; // 支持多个正确答案（多义词）
-  onSelect: (selected: string) => void;
+  onSelect: (selected: string, isGuess?: boolean) => void;
   selectedAnswer?: string;
   showResult: boolean;
 }
@@ -21,32 +22,69 @@ function TestOptions({
   showResult,
 }: TestOptionsProps) {
   const optionsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isGuess, setIsGuess] = useState(false);
 
   // 使用 ref 存储最新的回调和选项，避免频繁重新添加事件监听器
-  const stateRef = useRef({ options, onSelect, showResult });
-  stateRef.current = { options, onSelect, showResult };
+  const stateRef = useRef({ options, onSelect, showResult, isGuess });
+  stateRef.current = { options, onSelect, showResult, isGuess };
 
-  // 键盘快捷键支持 (1-4数字键选择选项)
+  // 初始化 MicroBehaviorTracker
+  useEffect(() => {
+    if (!showResult && containerRef.current) {
+      microBehaviorTracker.init(containerRef.current);
+    }
+  }, [showResult, options]);
+
+  // 重置蒙题标记状态
+  useEffect(() => {
+    if (!showResult) {
+      setIsGuess(false);
+    }
+  }, [showResult, options]);
+
+  // 键盘快捷键支持 (1-4数字键选择选项, G键切换蒙题标记)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       const {
         options: currentOptions,
         onSelect: currentOnSelect,
         showResult: currentShowResult,
+        isGuess: currentIsGuess,
       } = stateRef.current;
       if (currentShowResult) return;
 
-      const key = e.key;
-      const numKey = parseInt(key);
+      const key = e.key.toLowerCase();
 
+      // G 键切换蒙题标记
+      if (key === 'g') {
+        e.preventDefault();
+        microBehaviorTracker.handleKeyDown(e.key);
+        setIsGuess((prev) => !prev);
+        return;
+      }
+
+      microBehaviorTracker.handleKeyDown(e.key);
+
+      const numKey = parseInt(e.key);
       if (numKey >= 1 && numKey <= currentOptions.length) {
         e.preventDefault();
-        currentOnSelect(currentOptions[numKey - 1]);
+        currentOnSelect(currentOptions[numKey - 1], currentIsGuess);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!stateRef.current.showResult) {
+        microBehaviorTracker.handleKeyUp(e.key);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []); // 空依赖数组，只在挂载时添加一次监听器
 
   const getButtonStyle = (option: string) => {
@@ -94,36 +132,64 @@ function TestOptions({
 
   return (
     <div
-      className="flex w-full flex-wrap justify-center gap-3 px-4 py-5"
+      ref={containerRef}
+      className="flex w-full flex-col items-center px-4 py-5"
       role="group"
       aria-label="测试选项"
       data-testid="test-options"
+      onPointerMove={(e) => !showResult && microBehaviorTracker.handlePointerMove(e.nativeEvent)}
     >
-      {options.map((option, index) => (
-        <button
-          key={`${option}-${index}`}
-          ref={(el) => (optionsRef.current[index] = el)}
-          onClick={() => !showResult && onSelect(option)}
-          onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !showResult) {
-              e.preventDefault();
-              onSelect(option);
-            }
-          }}
-          disabled={showResult}
-          data-testid={`option-${index}`}
-          className={`stagger-item btn-scale min-w-[150px] max-w-[260px] flex-1 rounded-card px-7 py-4 text-lg font-medium opacity-0 sm:min-w-[170px] md:text-xl ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
-          style={{
-            animation: `staggerFadeIn 0.3s var(--ease-g3-standard) ${index * 50}ms forwards`,
-          }}
-          aria-label={getAriaLabel(option, index)}
-          aria-pressed={showResult && option === selectedAnswer}
-          tabIndex={showResult ? -1 : 0}
+      {/* 蒙题标记复选框 */}
+      {!showResult && (
+        <label
+          className="mb-4 flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700"
+          title="按 G 键切换"
         >
-          <span className="mr-2 inline-block text-sm opacity-70">{index + 1}.</span>
-          {option}
-        </button>
-      ))}
+          <input
+            type="checkbox"
+            checked={isGuess}
+            onChange={(e) => setIsGuess(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500 dark:border-slate-600 dark:bg-slate-700"
+          />
+          <span className={isGuess ? 'font-medium text-amber-600 dark:text-amber-400' : ''}>
+            不确定/蒙的
+          </span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">(G)</span>
+        </label>
+      )}
+
+      {/* 选项按钮 */}
+      <div className="flex w-full flex-wrap justify-center gap-3">
+        {options.map((option, index) => (
+          <button
+            key={`${option}-${index}`}
+            ref={(el) => (optionsRef.current[index] = el)}
+            onClick={() => !showResult && onSelect(option, isGuess)}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') && !showResult) {
+                e.preventDefault();
+                onSelect(option, isGuess);
+              }
+            }}
+            onPointerEnter={(e) =>
+              !showResult && microBehaviorTracker.handleOptionEnter(option, e.nativeEvent)
+            }
+            onPointerLeave={() => !showResult && microBehaviorTracker.handleOptionLeave()}
+            disabled={showResult}
+            data-testid={`option-${index}`}
+            className={`stagger-item btn-scale min-w-[150px] max-w-[260px] flex-1 rounded-card px-7 py-4 text-lg font-medium opacity-0 sm:min-w-[170px] md:text-xl ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
+            style={{
+              animation: `staggerFadeIn 0.3s var(--ease-g3-standard) ${index * 50}ms forwards`,
+            }}
+            aria-label={getAriaLabel(option, index)}
+            aria-pressed={showResult && option === selectedAnswer}
+            tabIndex={showResult ? -1 : 0}
+          >
+            <span className="mr-2 inline-block text-sm opacity-70">{index + 1}.</span>
+            {option}
+          </button>
+        ))}
+      </div>
 
       {showResult && selectedAnswer && !correctAnswers.includes(selectedAnswer) && (
         <div
