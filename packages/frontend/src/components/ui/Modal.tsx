@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from '@phosphor-icons/react';
+import { X } from '../Icon';
 import { Button } from './Button';
 
 interface ModalProps {

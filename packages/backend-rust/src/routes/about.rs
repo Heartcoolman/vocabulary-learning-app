@@ -844,14 +844,8 @@ async fn record_virtual_decision(store: &Arc<AboutStore>, simulation: &AboutSimu
         strategy: simulation.output_strategy.clone(),
         weights: {
             let mut map = HashMap::new();
-            map.insert(
-                "ige".to_string(),
-                simulation.decision_process.weights.ige,
-            );
-            map.insert(
-                "swd".to_string(),
-                simulation.decision_process.weights.swd,
-            );
+            map.insert("ige".to_string(), simulation.decision_process.weights.ige);
+            map.insert("swd".to_string(), simulation.decision_process.weights.swd);
             map.insert(
                 "heuristic".to_string(),
                 simulation.decision_process.weights.heuristic,

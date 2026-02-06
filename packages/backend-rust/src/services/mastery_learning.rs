@@ -1157,8 +1157,9 @@ fn generate_distractors_for_word(word: &LearningWord, pool: &[LearningWord]) -> 
         }
     }
 
-    let mut meaning_options: Vec<String> =
-        std::iter::once(correct_meaning).chain(distractors_m).collect();
+    let mut meaning_options: Vec<String> = std::iter::once(correct_meaning)
+        .chain(distractors_m)
+        .collect();
     shuffle_vec(&mut meaning_options);
 
     // --- Spelling options (meaning-to-word) ---
@@ -1208,7 +1209,7 @@ fn populate_distractors(
     semantic_pool: &HashMap<String, Vec<LearningWord>>,
 ) {
     // Clone words once upfront for fallback usage
-    let words_clone: Vec<LearningWord> = words.iter().cloned().collect();
+    let words_clone: Vec<LearningWord> = words.to_vec();
 
     for word in words.iter_mut() {
         // Build per-word pool: semantic first, then random, then other words

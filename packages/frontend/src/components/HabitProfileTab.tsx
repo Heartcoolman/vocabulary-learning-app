@@ -7,7 +7,7 @@ import {
   FloppyDisk,
   ArrowCounterClockwise,
   Lightbulb,
-} from '@phosphor-icons/react';
+} from './Icon';
 import apiClient from '../services/client';
 import HabitHeatmap from './HabitHeatmap';
 import ChronotypeCard from './ChronotypeCard';

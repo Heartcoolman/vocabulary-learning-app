@@ -6,7 +6,6 @@ import {
   CircleNotch,
   CloudArrowDown,
   ShieldCheck,
-  Warning,
   WifiSlash,
 } from './Icon';
 import { useDesktopSettings } from '../hooks/useDesktopSettings';

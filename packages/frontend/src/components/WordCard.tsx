@@ -1,6 +1,6 @@
 import { useEffect, useRef, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Clock, Target, SpeakerHigh, CircleNotch } from '@phosphor-icons/react';
+import { Star, Clock, Target, SpeakerHigh, CircleNotch } from './Icon';
 import { slideUpVariants, fadeInVariants } from '../utils/animations';
 import { trackingService } from '../services/TrackingService';
 import { IconColor } from '../utils/iconColors';

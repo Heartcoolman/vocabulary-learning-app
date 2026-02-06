@@ -224,9 +224,17 @@ mod tests {
     fn test_shadow_computation() {
         let mdm = MdmState::default();
         let result = MemoryEngine::compute_shadow(
-            1.0, 0.9, 5.0, 0.3,
-            Some(&mdm), 1.0, 0.9,
-            &[], &[], &[], &[],
+            1.0,
+            0.9,
+            5.0,
+            0.3,
+            Some(&mdm),
+            1.0,
+            0.9,
+            &[],
+            &[],
+            &[],
+            &[],
         );
         assert!(result.mdm_interval.is_some());
         assert!(result.amas_retrievability.is_some());
@@ -275,9 +283,17 @@ mod tests {
 
         for _ in 0..100 {
             let _ = MemoryEngine::compute_shadow(
-                1.0, 0.9, 5.0, 0.3,
-                Some(&mdm), 1.0, 0.9,
-                &morphemes, &pairs, &recent, &context,
+                1.0,
+                0.9,
+                5.0,
+                0.3,
+                Some(&mdm),
+                1.0,
+                0.9,
+                &morphemes,
+                &pairs,
+                &recent,
+                &context,
             );
         }
 
@@ -285,9 +301,17 @@ mod tests {
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = MemoryEngine::compute_shadow(
-                1.0, 0.9, 5.0, 0.3,
-                Some(&mdm), 1.0, 0.9,
-                &morphemes, &pairs, &recent, &context,
+                1.0,
+                0.9,
+                5.0,
+                0.3,
+                Some(&mdm),
+                1.0,
+                0.9,
+                &morphemes,
+                &pairs,
+                &recent,
+                &context,
             );
         }
         let elapsed = start.elapsed();

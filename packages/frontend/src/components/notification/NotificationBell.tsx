@@ -7,7 +7,7 @@
  * - 格式: 1-99 显示精确数字
  */
 import { memo } from 'react';
-import { Bell } from '@phosphor-icons/react';
+import { Bell } from '../Icon';
 
 export interface NotificationBellProps {
   count: number;

@@ -10,11 +10,14 @@ use proptest::prelude::*;
 use std::collections::VecDeque;
 
 use danci_backend_rust::amas::decision::ensemble::PerformanceTracker;
-use danci_backend_rust::amas::types::{
-    CognitiveProfile, DifficultyLevel, PersistedAMASState, StrategyParams, SwdRecommendation, UserState,
-};
 use danci_backend_rust::amas::memory::{MasteryAttempt, MasteryHistory};
-use danci_backend_rust::services::mastery_learning::{compute_dynamic_cap, compute_target_with_swd};
+use danci_backend_rust::amas::types::{
+    CognitiveProfile, DifficultyLevel, PersistedAMASState, StrategyParams, SwdRecommendation,
+    UserState,
+};
+use danci_backend_rust::services::mastery_learning::{
+    compute_dynamic_cap, compute_target_with_swd,
+};
 
 // ============================================================================
 // Arbitrary Generators
@@ -402,8 +405,8 @@ fn arb_user_state_for_cap() -> impl Strategy<Value = UserState> {
         arb_f64_0_1(),                       // speed
         proptest::option::of(arb_f64_0_1()), // fused_fatigue
     )
-        .prop_map(|(attention, fatigue, motivation, stability, speed, fused_fatigue)| {
-            UserState {
+        .prop_map(
+            |(attention, fatigue, motivation, stability, speed, fused_fatigue)| UserState {
                 attention,
                 fatigue,
                 motivation,
@@ -414,8 +417,8 @@ fn arb_user_state_for_cap() -> impl Strategy<Value = UserState> {
                 },
                 fused_fatigue,
                 ..Default::default()
-            }
-        })
+            },
+        )
 }
 
 proptest! {

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::amas::decision::ensemble::PerformanceTracker;
+use crate::amas::memory::MasteryHistory;
 use crate::amas::types::{
     HabitProfile, HabitSamples, PersistedAMASState, RhythmPreference, UserState,
 };
@@ -9,7 +10,6 @@ use crate::db::operations::{
     upsert_amas_user_state_tx, AmasUserModel, AmasUserState,
 };
 use crate::db::DatabaseProxy;
-use crate::amas::memory::MasteryHistory;
 
 pub struct AMASPersistence {
     db_proxy: Arc<DatabaseProxy>,
@@ -84,9 +84,7 @@ impl AMASPersistence {
             .as_ref()
             .and_then(|v| serde_json::from_value(v.clone()).ok());
 
-        let algorithm_states: Option<serde_json::Value> = user_state_row
-            .algorithm_states
-            .clone();
+        let algorithm_states: Option<serde_json::Value> = user_state_row.algorithm_states.clone();
 
         Some(PersistedAMASState {
             user_id: user_id.to_string(),

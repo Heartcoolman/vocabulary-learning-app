@@ -27,19 +27,15 @@ impl Default for BcpState {
     fn default() -> Self {
         Self {
             mu: [0.5, 0.5, 0.5],
-            cov: [
-                [0.1, 0.0, 0.0],
-                [0.0, 0.1, 0.0],
-                [0.0, 0.0, 0.1],
-            ],
+            cov: [[0.1, 0.0, 0.0], [0.0, 0.1, 0.0], [0.0, 0.0, 0.1]],
         }
     }
 }
 
 pub struct BcpObservation {
     pub accuracy: f64,
-    pub speed: f64,        // 1/rt_norm
-    pub consistency: f64,  // 1 - error_variance
+    pub speed: f64,       // 1/rt_norm
+    pub consistency: f64, // 1 - error_variance
 }
 
 pub struct BayesianCognitiveProfiler {
@@ -77,46 +73,54 @@ impl BayesianCognitiveProfiler {
         // S = Σ + R (H = I)
         let r = self.config.observation_noise_diag;
         let mut s = state.cov;
-        for i in 0..3 {
-            s[i][i] += r;
+        for (i, row) in s.iter_mut().enumerate() {
+            row[i] += r;
         }
 
         // K = Σ · S^(-1) (simplified: since S is near-diagonal, use element-wise)
         let mut k = [[0.0f64; 3]; 3];
-        for i in 0..3 {
-            for j in 0..3 {
-                let s_inv = if s[j][j].abs() > 1e-12 { 1.0 / s[j][j] } else { 0.0 };
-                k[i][j] = state.cov[i][j] * s_inv;
+        for (i, k_row) in k.iter_mut().enumerate() {
+            for (j, k_cell) in k_row.iter_mut().enumerate() {
+                let s_inv = if s[j][j].abs() > 1e-12 {
+                    1.0 / s[j][j]
+                } else {
+                    0.0
+                };
+                *k_cell = state.cov[i][j] * s_inv;
             }
         }
 
         // Update: μ' = μ + K·y
-        for i in 0..3 {
-            let correction: f64 = k[i].iter().zip(y.iter()).map(|(ki, yi)| ki * yi).sum();
+        for (i, k_row) in k.iter().enumerate() {
+            let correction: f64 = k_row.iter().zip(y.iter()).map(|(ki, yi)| ki * yi).sum();
             state.mu[i] = (state.mu[i] + correction).clamp(0.0, 1.0);
         }
 
         // Update: Σ' = (I - K·H)·Σ  (H = I, so Σ' = (I - K)·Σ)
         let old_cov = state.cov;
-        for i in 0..3 {
-            for j in 0..3 {
-                let ikh: f64 = (0..3).map(|m| k[i][m] * if m == j { 1.0 } else { 0.0 }).sum();
+        for (i, k_row) in k.iter().enumerate() {
+            for (j, cov_cell) in state.cov[i].iter_mut().enumerate() {
+                let ikh: f64 = (0..3)
+                    .map(|m| k[i][m] * if m == j { 1.0 } else { 0.0 })
+                    .sum();
                 let id = if i == j { 1.0 } else { 0.0 };
                 let factor = id - ikh;
-                state.cov[i][j] = (0..3).map(|m| {
-                    let f_im = if i == m { factor } else { -k[i][m] };
-                    let _ = f_im; // appease
-                    0.0
-                }).sum::<f64>();
+                *cov_cell = (0..3)
+                    .map(|m| {
+                        let f_im = if i == m { factor } else { -k[i][m] };
+                        let _ = f_im; // appease
+                        0.0
+                    })
+                    .sum::<f64>();
                 // Simpler approach: direct formula
-                state.cov[i][j] = 0.0;
-                for m in 0..3 {
-                    let i_minus_k = if i == m { 1.0 } else { 0.0 } - k[i][m];
-                    state.cov[i][j] += i_minus_k * old_cov[m][j];
+                *cov_cell = 0.0;
+                for (m, old_cov_row) in old_cov.iter().enumerate() {
+                    let i_minus_k = if i == m { 1.0 } else { 0.0 } - k_row[m];
+                    *cov_cell += i_minus_k * old_cov_row[j];
                 }
                 // Ensure positive semi-definite diagonal
                 if i == j {
-                    state.cov[i][j] = state.cov[i][j].max(1e-6);
+                    *cov_cell = (*cov_cell).max(1e-6);
                 }
             }
         }
@@ -158,11 +162,14 @@ mod tests {
         let bcp = BayesianCognitiveProfiler::default();
         let mut state = BcpState::default();
         for _ in 0..20 {
-            bcp.update(&mut state, &BcpObservation {
-                accuracy: 0.95,
-                speed: 0.9,
-                consistency: 0.85,
-            });
+            bcp.update(
+                &mut state,
+                &BcpObservation {
+                    accuracy: 0.95,
+                    speed: 0.9,
+                    consistency: 0.85,
+                },
+            );
         }
         assert!(state.mu[0] > 0.5);
         assert!(state.mu[1] > 0.5);
@@ -174,11 +181,14 @@ mod tests {
         let bcp = BayesianCognitiveProfiler::default();
         let mut state = BcpState::default();
         for _ in 0..20 {
-            bcp.update(&mut state, &BcpObservation {
-                accuracy: 0.2,
-                speed: 0.1,
-                consistency: 0.2,
-            });
+            bcp.update(
+                &mut state,
+                &BcpObservation {
+                    accuracy: 0.2,
+                    speed: 0.1,
+                    consistency: 0.2,
+                },
+            );
         }
         assert!(state.mu[0] < 0.5);
         assert!(state.mu[1] < 0.5);
@@ -190,11 +200,14 @@ mod tests {
         let mut state = BcpState::default();
         let c0 = 1.0 / (1.0 + state.cov.iter().enumerate().map(|(i, r)| r[i]).sum::<f64>());
         for _ in 0..10 {
-            bcp.update(&mut state, &BcpObservation {
-                accuracy: 0.7,
-                speed: 0.6,
-                consistency: 0.7,
-            });
+            bcp.update(
+                &mut state,
+                &BcpObservation {
+                    accuracy: 0.7,
+                    speed: 0.6,
+                    consistency: 0.7,
+                },
+            );
         }
         let c1 = 1.0 / (1.0 + state.cov.iter().enumerate().map(|(i, r)| r[i]).sum::<f64>());
         assert!(c1 > c0);
@@ -205,11 +218,14 @@ mod tests {
         let bcp = BayesianCognitiveProfiler::default();
         let mut state = BcpState::default();
         for _ in 0..100 {
-            bcp.update(&mut state, &BcpObservation {
-                accuracy: 1.0,
-                speed: 1.0,
-                consistency: 1.0,
-            });
+            bcp.update(
+                &mut state,
+                &BcpObservation {
+                    accuracy: 1.0,
+                    speed: 1.0,
+                    consistency: 1.0,
+                },
+            );
         }
         for v in state.mu {
             assert!(v >= 0.0 && v <= 1.0);
@@ -221,11 +237,14 @@ mod tests {
         let bcp = BayesianCognitiveProfiler::default();
         let mut state = BcpState::default();
         for _ in 0..50 {
-            bcp.update(&mut state, &BcpObservation {
-                accuracy: 0.5,
-                speed: 0.5,
-                consistency: 0.5,
-            });
+            bcp.update(
+                &mut state,
+                &BcpObservation {
+                    accuracy: 0.5,
+                    speed: 0.5,
+                    consistency: 0.5,
+                },
+            );
         }
         for i in 0..3 {
             assert!(state.cov[i][i] > 0.0);

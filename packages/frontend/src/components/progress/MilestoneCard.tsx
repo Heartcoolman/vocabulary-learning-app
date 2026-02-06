@@ -1,4 +1,4 @@
-import { Trophy, Star, Target, Lightning } from '@phosphor-icons/react';
+import { Trophy, Star, Target, Lightning } from '../Icon';
 
 export interface Milestone {
   id: string;

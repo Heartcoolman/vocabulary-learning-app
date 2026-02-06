@@ -136,10 +136,12 @@ describe('WordQueueManager', () => {
       };
       const manager = new WordQueueManager(words, config);
 
-      // 消耗3个问题
-      manager.getNextWordWithReason();
-      manager.getNextWordWithReason();
-      manager.getNextWordWithReason();
+      // 通过答题消耗3个问题（totalQuestions 在 recordAnswer 时增加）
+      for (let i = 0; i < 3; i++) {
+        const next = manager.getNextWordWithReason();
+        expect(next.word).not.toBeNull();
+        manager.recordAnswer(next.word!.id, false, 1000, NOT_MASTERED);
+      }
 
       // 下一次应该返回完成
       const result = manager.getNextWordWithReason();

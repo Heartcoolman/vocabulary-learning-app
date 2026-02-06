@@ -76,8 +76,7 @@ impl AttentionDynamicsFilter {
         let delta = (observation - state.prev_observation).abs();
         let alpha = self.config.alpha_base * (1.0 - delta.clamp(0.0, 1.0));
 
-        state.attention =
-            (alpha * state.attention + (1.0 - alpha) * observation).clamp(0.0, 1.0);
+        state.attention = (alpha * state.attention + (1.0 - alpha) * observation).clamp(0.0, 1.0);
         state.prev_observation = observation;
         state.attention
     }

@@ -207,11 +207,14 @@ mod tests {
         let auc = ActiveUserClassifier::default();
         let mut state = AucState::default();
         for _ in 0..10 {
-            auc.update(&mut state, &ProbeResponse {
-                is_correct: true,
-                response_time_ms: 2000,
-                difficulty: 0.5,
-            });
+            auc.update(
+                &mut state,
+                &ProbeResponse {
+                    is_correct: true,
+                    response_time_ms: 2000,
+                    difficulty: 0.5,
+                },
+            );
         }
         assert!(state.classified.is_some());
     }
@@ -221,11 +224,14 @@ mod tests {
         let auc = ActiveUserClassifier::default();
         let mut state = AucState::default();
         for _ in 0..10 {
-            auc.update(&mut state, &ProbeResponse {
-                is_correct: true,
-                response_time_ms: 6000,
-                difficulty: 0.5,
-            });
+            auc.update(
+                &mut state,
+                &ProbeResponse {
+                    is_correct: true,
+                    response_time_ms: 6000,
+                    difficulty: 0.5,
+                },
+            );
         }
         assert!(state.classified.is_some());
         assert_eq!(state.classified, Some(UserType::Cautious));
@@ -236,18 +242,24 @@ mod tests {
         let auc = ActiveUserClassifier::default();
         let mut state = AucState::default();
         for _ in 0..10 {
-            auc.update(&mut state, &ProbeResponse {
-                is_correct: true,
-                response_time_ms: 2000,
-                difficulty: 0.5,
-            });
+            auc.update(
+                &mut state,
+                &ProbeResponse {
+                    is_correct: true,
+                    response_time_ms: 2000,
+                    difficulty: 0.5,
+                },
+            );
         }
         let priors_before = state.priors;
-        auc.update(&mut state, &ProbeResponse {
-            is_correct: false,
-            response_time_ms: 8000,
-            difficulty: 0.5,
-        });
+        auc.update(
+            &mut state,
+            &ProbeResponse {
+                is_correct: false,
+                response_time_ms: 8000,
+                difficulty: 0.5,
+            },
+        );
         assert_eq!(priors_before, state.priors);
     }
 
@@ -261,11 +273,14 @@ mod tests {
         });
         let mut state = AucState::default();
         for _ in 0..5 {
-            auc.update(&mut state, &ProbeResponse {
-                is_correct: true,
-                response_time_ms: 4000,
-                difficulty: 0.5,
-            });
+            auc.update(
+                &mut state,
+                &ProbeResponse {
+                    is_correct: true,
+                    response_time_ms: 4000,
+                    difficulty: 0.5,
+                },
+            );
         }
         assert!(state.classified.is_some());
     }
@@ -275,11 +290,14 @@ mod tests {
         let auc = ActiveUserClassifier::default();
         let mut state = AucState::default();
         for i in 0..8 {
-            auc.update(&mut state, &ProbeResponse {
-                is_correct: i % 3 != 0,
-                response_time_ms: 2000 + (i * 500) as i64,
-                difficulty: 0.5,
-            });
+            auc.update(
+                &mut state,
+                &ProbeResponse {
+                    is_correct: i % 3 != 0,
+                    response_time_ms: 2000 + (i * 500) as i64,
+                    difficulty: 0.5,
+                },
+            );
             let sum: f64 = state.priors.iter().sum();
             assert!((sum - 1.0).abs() < 1e-10, "Sum = {sum}");
         }

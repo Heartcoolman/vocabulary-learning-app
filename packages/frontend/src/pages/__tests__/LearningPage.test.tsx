@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 const mockNavigate = vi.fn();
 const mockSubmitAnswer = vi.fn();
@@ -194,10 +194,8 @@ vi.mock('../../components/semantic/RelatedWordsPanel', () => ({
 
 // Mock StateCheckIn - immediately trigger onSkip to bypass the check-in dialog
 vi.mock('../../components/StateCheckIn', () => ({
-  default: ({ onSkip }: { onSkip: () => void }) => {
-    // Use useEffect to call onSkip after mount
-    const React = require('react');
-    React.useEffect(() => {
+  default: function MockStateCheckIn({ onSkip }: { onSkip: () => void }) {
+    useEffect(() => {
       onSkip();
     }, [onSkip]);
     return null;

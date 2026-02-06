@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Lightbulb } from '@phosphor-icons/react';
+import { X, Lightbulb } from './Icon';
 import AmasSuggestion from './AmasSuggestion';
 import { AmasProcessResult } from '../types/amas';
 

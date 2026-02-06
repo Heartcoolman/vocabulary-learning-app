@@ -59,7 +59,9 @@ impl WorkerManager {
 
     pub async fn start(&self) -> Result<(), WorkerError> {
         // 桌面模式下跳过所有网络依赖 Worker
-        if crate::db::sqlite_primary::DbMode::detect() == crate::db::sqlite_primary::DbMode::DesktopSqlite {
+        if crate::db::sqlite_primary::DbMode::detect()
+            == crate::db::sqlite_primary::DbMode::DesktopSqlite
+        {
             info!("Desktop mode detected, skipping all workers");
             return Ok(());
         }

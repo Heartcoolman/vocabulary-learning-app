@@ -116,9 +116,8 @@ impl AdaptiveItemResponse {
 
         user.theta = (user.theta + eta * item.alpha * residual).clamp(-3.0, 3.0);
 
-        item.alpha =
-            (item.alpha + self.config.alpha_eta * residual * (user.theta - item.beta))
-                .clamp(0.5, 2.5);
+        item.alpha = (item.alpha + self.config.alpha_eta * residual * (user.theta - item.beta))
+            .clamp(0.5, 2.5);
         item.beta = (item.beta - self.config.beta_eta * residual).clamp(-3.0, 3.0);
 
         let fi = Self::fisher_information(item.alpha, p);
@@ -158,7 +157,10 @@ mod tests {
             for beta in [-3.0, -1.0, 0.0, 1.0, 3.0] {
                 for alpha in [0.5, 1.0, 2.5] {
                     let p = AdaptiveItemResponse::probability(theta, beta, alpha);
-                    assert!(p > 0.0 && p < 1.0, "p={p} for theta={theta}, beta={beta}, alpha={alpha}");
+                    assert!(
+                        p > 0.0 && p < 1.0,
+                        "p={p} for theta={theta}, beta={beta}, alpha={alpha}"
+                    );
                 }
             }
         }
@@ -192,8 +194,15 @@ mod tests {
     #[test]
     fn test_ability_bounded() {
         let air = AdaptiveItemResponse::default();
-        let mut user = AirUserState { theta: 2.9, fisher_info_sum: 0.0, response_count: 0 };
-        let mut item = AirItemParams { alpha: 2.5, beta: -3.0 };
+        let mut user = AirUserState {
+            theta: 2.9,
+            fisher_info_sum: 0.0,
+            response_count: 0,
+        };
+        let mut item = AirItemParams {
+            alpha: 2.5,
+            beta: -3.0,
+        };
         for _ in 0..100 {
             air.update(&mut user, &mut item, &AirResponse { is_correct: true });
         }
@@ -204,7 +213,10 @@ mod tests {
     fn test_item_params_bounded() {
         let air = AdaptiveItemResponse::default();
         let mut user = AirUserState::default();
-        let mut item = AirItemParams { alpha: 2.4, beta: 2.9 };
+        let mut item = AirItemParams {
+            alpha: 2.4,
+            beta: 2.9,
+        };
         for _ in 0..100 {
             air.update(&mut user, &mut item, &AirResponse { is_correct: true });
         }
@@ -247,7 +259,11 @@ mod tests {
 
     #[test]
     fn test_roundtrip_serialization() {
-        let user = AirUserState { theta: 1.5, fisher_info_sum: 3.0, response_count: 10 };
+        let user = AirUserState {
+            theta: 1.5,
+            fisher_info_sum: 3.0,
+            response_count: 10,
+        };
         let json = serde_json::to_value(&user).unwrap();
         let restored: AirUserState = serde_json::from_value(json).unwrap();
         assert!((user.theta - restored.theta).abs() < 1e-10);

@@ -3,6 +3,8 @@
  * 检测 Tauri 环境并提供 invoke 调用封装
  */
 
+import { apiLogger } from './logger';
+
 declare global {
   interface Window {
     __TAURI__?: {
@@ -88,7 +90,7 @@ export async function apiCall<T>(
       // Tauri 命令未实现时的错误包含 "Not implemented"
       const errorMsg = error instanceof Error ? error.message : String(error);
       if (errorMsg.includes('Not implemented')) {
-        console.warn('[TauriBridge] Command not implemented, falling back to HTTP');
+        apiLogger.warn('[TauriBridge] Command not implemented, falling back to HTTP');
         return httpCall();
       }
       throw error;

@@ -74,22 +74,46 @@ mod tests {
     #[test]
     fn test_correct_increases_motivation() {
         let mds = MotivationDynamics::default();
-        let m = mds.update(0.0, &MdsEvent { is_correct: true, is_quit: false });
+        let m = mds.update(
+            0.0,
+            &MdsEvent {
+                is_correct: true,
+                is_quit: false,
+            },
+        );
         assert!(m > 0.0);
     }
 
     #[test]
     fn test_incorrect_decreases_motivation() {
         let mds = MotivationDynamics::default();
-        let m = mds.update(0.0, &MdsEvent { is_correct: false, is_quit: false });
+        let m = mds.update(
+            0.0,
+            &MdsEvent {
+                is_correct: false,
+                is_quit: false,
+            },
+        );
         assert!(m < 0.0);
     }
 
     #[test]
     fn test_quit_strongly_decreases() {
         let mds = MotivationDynamics::default();
-        let m_incorrect = mds.update(0.0, &MdsEvent { is_correct: false, is_quit: false });
-        let m_quit = mds.update(0.0, &MdsEvent { is_correct: false, is_quit: true });
+        let m_incorrect = mds.update(
+            0.0,
+            &MdsEvent {
+                is_correct: false,
+                is_quit: false,
+            },
+        );
+        let m_quit = mds.update(
+            0.0,
+            &MdsEvent {
+                is_correct: false,
+                is_quit: true,
+            },
+        );
         assert!(m_quit < m_incorrect);
     }
 
@@ -98,13 +122,25 @@ mod tests {
         let mds = MotivationDynamics::default();
         let mut m = 0.5;
         for _ in 0..200 {
-            m = mds.update(m, &MdsEvent { is_correct: true, is_quit: false });
+            m = mds.update(
+                m,
+                &MdsEvent {
+                    is_correct: true,
+                    is_quit: false,
+                },
+            );
         }
         assert!(m >= -1.0 && m <= 1.0);
 
         let mut m = -0.5;
         for _ in 0..200 {
-            m = mds.update(m, &MdsEvent { is_correct: false, is_quit: true });
+            m = mds.update(
+                m,
+                &MdsEvent {
+                    is_correct: false,
+                    is_quit: true,
+                },
+            );
         }
         assert!(m >= -1.0 && m <= 1.0);
     }
@@ -114,8 +150,17 @@ mod tests {
         let mds = MotivationDynamics::default();
         let mut m = 0.8;
         // A single failure should not crash motivation when high
-        m = mds.update(m, &MdsEvent { is_correct: false, is_quit: false });
-        assert!(m > 0.5, "High motivation should be resilient to single failure: {m}");
+        m = mds.update(
+            m,
+            &MdsEvent {
+                is_correct: false,
+                is_quit: false,
+            },
+        );
+        assert!(
+            m > 0.5,
+            "High motivation should be resilient to single failure: {m}"
+        );
     }
 
     #[test]
@@ -123,7 +168,13 @@ mod tests {
         let mds = MotivationDynamics::default();
         let mut m = -0.8;
         // A single success should not fully recover from deep low
-        m = mds.update(m, &MdsEvent { is_correct: true, is_quit: false });
+        m = mds.update(
+            m,
+            &MdsEvent {
+                is_correct: true,
+                is_quit: false,
+            },
+        );
         assert!(m < -0.3, "Low motivation should be sticky: {m}");
     }
 }

@@ -227,7 +227,10 @@ async fn create_session(
             return Err(json_error(
                 StatusCode::BAD_REQUEST,
                 "INVALID_ENERGY_LEVEL",
-                format!("无效的精力状态: '{}'. 必须是 'high', 'normal' 或 'low'", invalid),
+                format!(
+                    "无效的精力状态: '{}'. 必须是 'high', 'normal' 或 'low'",
+                    invalid
+                ),
             ));
         }
         None => None,
@@ -1017,7 +1020,9 @@ async fn select_user_sessions(
                 .unwrap_or(0),
             answer_record_count,
             // Fall back to startedAt if there are no answers yet.
-            last_activity_at: Some(format_naive_datetime(last_answer_at.unwrap_or(started_at_dt))),
+            last_activity_at: Some(format_naive_datetime(
+                last_answer_at.unwrap_or(started_at_dt),
+            )),
         };
         sessions.push(row_to_stats(&session_row));
     }
@@ -1125,7 +1130,9 @@ async fn select_learning_session(
             .map(|v| v as i64)
             .unwrap_or(0),
         answer_record_count,
-        last_activity_at: Some(format_naive_datetime(last_answer_at.unwrap_or(started_at_dt))),
+        last_activity_at: Some(format_naive_datetime(
+            last_answer_at.unwrap_or(started_at_dt),
+        )),
     }))
 }
 
@@ -1140,12 +1147,15 @@ async fn select_answer_record_meta(
         WHERE "sessionId" = $1
         "#,
     )
-        .bind(session_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    .bind(session_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
     let count = row.try_get::<i64, _>("cnt").unwrap_or(0);
-    let last_at = row.try_get::<Option<NaiveDateTime>, _>("last_at").ok().flatten();
+    let last_at = row
+        .try_get::<Option<NaiveDateTime>, _>("last_at")
+        .ok()
+        .flatten();
     Ok((count, last_at))
 }

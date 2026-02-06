@@ -586,7 +586,7 @@ pub enum EnergyLevel {
 }
 
 impl EnergyLevel {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "high" => Some(Self::High),
             "normal" => Some(Self::Normal),

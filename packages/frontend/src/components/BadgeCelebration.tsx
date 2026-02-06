@@ -2,7 +2,7 @@ import { useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Badge } from '../types/amas-enhanced';
-import { Confetti, Star, Trophy, Medal, X } from '@phosphor-icons/react';
+import { Confetti, Star, Trophy, Medal, X } from './Icon';
 import {
   backdropVariants,
   celebrationVariants,

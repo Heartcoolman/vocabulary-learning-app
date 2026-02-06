@@ -611,7 +611,7 @@ async fn engine_mtd_detects_improving_trend() {
     // Simulate improving performance: start bad, get better
     for i in 0..20 {
         let event = RawEvent {
-            is_correct: i >= 8, // First 8 wrong, rest correct
+            is_correct: i >= 8,                               // First 8 wrong, rest correct
             response_time: 4000 - (i as i64 * 100).min(2000), // Getting faster
             ..sample_event()
         };
