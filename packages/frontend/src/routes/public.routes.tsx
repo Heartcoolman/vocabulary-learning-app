@@ -13,7 +13,6 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage'));
-const HomePage = lazy(() => import('../pages/HomePage'));
 
 // eslint-disable-next-line react-refresh/only-export-components
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
