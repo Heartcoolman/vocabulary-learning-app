@@ -77,46 +77,46 @@ impl BayesianCognitiveProfiler {
         // S = Σ + R (H = I)
         let r = self.config.observation_noise_diag;
         let mut s = state.cov;
-        for i in 0..3 {
-            s[i][i] += r;
+        for (i, row) in s.iter_mut().enumerate() {
+            row[i] += r;
         }
 
         // K = Σ · S^(-1) (simplified: since S is near-diagonal, use element-wise)
         let mut k = [[0.0f64; 3]; 3];
-        for i in 0..3 {
-            for j in 0..3 {
+        for (i, k_row) in k.iter_mut().enumerate() {
+            for (j, k_cell) in k_row.iter_mut().enumerate() {
                 let s_inv = if s[j][j].abs() > 1e-12 { 1.0 / s[j][j] } else { 0.0 };
-                k[i][j] = state.cov[i][j] * s_inv;
+                *k_cell = state.cov[i][j] * s_inv;
             }
         }
 
         // Update: μ' = μ + K·y
-        for i in 0..3 {
-            let correction: f64 = k[i].iter().zip(y.iter()).map(|(ki, yi)| ki * yi).sum();
+        for (i, k_row) in k.iter().enumerate() {
+            let correction: f64 = k_row.iter().zip(y.iter()).map(|(ki, yi)| ki * yi).sum();
             state.mu[i] = (state.mu[i] + correction).clamp(0.0, 1.0);
         }
 
         // Update: Σ' = (I - K·H)·Σ  (H = I, so Σ' = (I - K)·Σ)
         let old_cov = state.cov;
-        for i in 0..3 {
-            for j in 0..3 {
+        for (i, k_row) in k.iter().enumerate() {
+            for (j, cov_cell) in state.cov[i].iter_mut().enumerate() {
                 let ikh: f64 = (0..3).map(|m| k[i][m] * if m == j { 1.0 } else { 0.0 }).sum();
                 let id = if i == j { 1.0 } else { 0.0 };
                 let factor = id - ikh;
-                state.cov[i][j] = (0..3).map(|m| {
+                *cov_cell = (0..3).map(|m| {
                     let f_im = if i == m { factor } else { -k[i][m] };
                     let _ = f_im; // appease
                     0.0
                 }).sum::<f64>();
                 // Simpler approach: direct formula
-                state.cov[i][j] = 0.0;
-                for m in 0..3 {
-                    let i_minus_k = if i == m { 1.0 } else { 0.0 } - k[i][m];
-                    state.cov[i][j] += i_minus_k * old_cov[m][j];
+                *cov_cell = 0.0;
+                for (m, old_cov_row) in old_cov.iter().enumerate() {
+                    let i_minus_k = if i == m { 1.0 } else { 0.0 } - k_row[m];
+                    *cov_cell += i_minus_k * old_cov_row[j];
                 }
                 // Ensure positive semi-definite diagonal
                 if i == j {
-                    state.cov[i][j] = state.cov[i][j].max(1e-6);
+                    *cov_cell = (*cov_cell).max(1e-6);
                 }
             }
         }

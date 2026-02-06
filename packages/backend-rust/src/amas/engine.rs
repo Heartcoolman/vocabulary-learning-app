@@ -662,7 +662,7 @@ impl AMASEngine {
                 final_algo_states["air_user"] = v;
             }
         }
-        if !final_algo_states.as_object().map_or(true, |o| o.is_empty()) {
+        if !final_algo_states.as_object().is_none_or(|o| o.is_empty()) {
             state.algorithm_states = Some(final_algo_states);
         }
 
@@ -873,8 +873,10 @@ impl AMASEngine {
             }
         }
 
-        let mut user_state = UserState::default();
-        user_state.reward_profile = reward_profile;
+        let user_state = UserState {
+            reward_profile,
+            ..UserState::default()
+        };
 
         let new_state = PersistedAMASState {
             user_id: user_id.to_string(),

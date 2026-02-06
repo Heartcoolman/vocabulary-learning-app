@@ -1678,7 +1678,7 @@ fn build_process_event_response(
                 suggested_adjustments: oe
                     .suggested_adjustments
                     .as_ref()
-                    .map(|s| strategy_to_response(s)),
+                    .map(strategy_to_response),
             }),
         multi_objective_adjusted: result.multi_objective_adjusted,
     }
