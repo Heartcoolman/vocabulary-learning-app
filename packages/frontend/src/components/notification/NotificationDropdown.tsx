@@ -42,8 +42,8 @@ export const NotificationDropdown = memo(function NotificationDropdown({
   const markAsRead = useMarkAsRead();
 
   // 过滤已归档并按时间降序（API 默认排序，但确保顺序正确）
-  const visibleNotifications = notifications
-    ?.filter((n) => n.status !== 'archived')
+  const visibleNotifications = (notifications ?? [])
+    .filter((n) => n.status !== 'archived')
     .filter((n) => !systemOnly || !n.broadcastId)
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5);
