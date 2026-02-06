@@ -107,9 +107,5 @@
     "iOS": { "minimumSystemVersion": "13.0" },
     "android": { "minSdkVersion": 24, "autoIncrementVersionCode": false }
   },
-  "plugins": {
-    "http": { "scope": { "allow": [{ "url": "http://localhost:*" }, { "url": "https://*" }] } },
-    "sql": {},
-    "store": { "path": ".danci-store.json" }
-  }
+  "plugins": {}
 }
