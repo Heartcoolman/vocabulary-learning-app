@@ -118,7 +118,6 @@
   },
   "plugins": {
     "http": { "scope": { "allow": [{ "url": "http://localhost:*" }, { "url": "https://*" }] } },
-    "sql": {},
-    "store": { "path": ".danci-store.json" }
+    "sql": {}
   }
 }
