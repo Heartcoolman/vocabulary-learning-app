@@ -138,12 +138,11 @@ async fn test_sqlite_schema_migration() {
 
     run_migrations(&pool).await.expect("migration failed");
 
-    let version: Option<String> = sqlx::query_scalar(
-        r#"SELECT "value" FROM "_db_metadata" WHERE "key" = 'schema_version'"#,
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("failed to query version");
+    let version: Option<String> =
+        sqlx::query_scalar(r#"SELECT "value" FROM "_db_metadata" WHERE "key" = 'schema_version'"#)
+            .fetch_optional(&pool)
+            .await
+            .expect("failed to query version");
 
     assert_eq!(version, Some("1.0.0".to_string()));
 
@@ -173,12 +172,10 @@ async fn test_sqlite_core_tables_exist() {
     ];
 
     for table in core_tables {
-        let exists: Option<String> = sqlx::query_scalar(
-            &format!(
-                r#"SELECT name FROM sqlite_master WHERE type='table' AND name='{}'"#,
-                table
-            ),
-        )
+        let exists: Option<String> = sqlx::query_scalar(&format!(
+            r#"SELECT name FROM sqlite_master WHERE type='table' AND name='{}'"#,
+            table
+        ))
         .fetch_optional(&pool)
         .await
         .expect(&format!("failed to check table {}", table));
@@ -203,14 +200,15 @@ async fn test_sqlite_local_user_creation() {
         .expect("failed to create pool");
 
     run_migrations(&pool).await.expect("migration failed");
-    ensure_local_user(&pool).await.expect("local user creation failed");
+    ensure_local_user(&pool)
+        .await
+        .expect("local user creation failed");
 
-    let user: Option<(String, String, String)> = sqlx::query_as(
-        r#"SELECT "id", "username", "role" FROM "users" WHERE "id" = '1'"#,
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("failed to query user");
+    let user: Option<(String, String, String)> =
+        sqlx::query_as(r#"SELECT "id", "username", "role" FROM "users" WHERE "id" = '1'"#)
+            .fetch_optional(&pool)
+            .await
+            .expect("failed to query user");
 
     assert!(user.is_some(), "Local user should exist");
     let (id, username, role) = user.unwrap();
@@ -233,7 +231,9 @@ async fn test_sqlite_local_user_idempotent() {
     run_migrations(&pool).await.expect("migration failed");
 
     ensure_local_user(&pool).await.expect("first call failed");
-    ensure_local_user(&pool).await.expect("second call should be idempotent");
+    ensure_local_user(&pool)
+        .await
+        .expect("second call should be idempotent");
 
     let count: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "users" WHERE "id" = '1'"#)
         .fetch_one(&pool)
@@ -255,14 +255,15 @@ async fn test_sqlite_migration_idempotent() {
         .expect("failed to create pool");
 
     run_migrations(&pool).await.expect("first migration failed");
-    run_migrations(&pool).await.expect("second migration should be idempotent");
+    run_migrations(&pool)
+        .await
+        .expect("second migration should be idempotent");
 
-    let version: Option<String> = sqlx::query_scalar(
-        r#"SELECT "value" FROM "_db_metadata" WHERE "key" = 'schema_version'"#,
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("failed to query version");
+    let version: Option<String> =
+        sqlx::query_scalar(r#"SELECT "value" FROM "_db_metadata" WHERE "key" = 'schema_version'"#)
+            .fetch_optional(&pool)
+            .await
+            .expect("failed to query version");
 
     assert_eq!(version, Some("1.0.0".to_string()));
 
@@ -290,12 +291,11 @@ async fn test_sqlite_wordbook_crud() {
     .await
     .expect("failed to insert wordbook");
 
-    let name: Option<String> = sqlx::query_scalar(
-        r#"SELECT "name" FROM "word_books" WHERE "id" = 'wb-1'"#,
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("failed to query wordbook");
+    let name: Option<String> =
+        sqlx::query_scalar(r#"SELECT "name" FROM "word_books" WHERE "id" = 'wb-1'"#)
+            .fetch_optional(&pool)
+            .await
+            .expect("failed to query wordbook");
 
     assert_eq!(name, Some("Test Book".to_string()));
 
@@ -312,7 +312,9 @@ async fn test_sqlite_word_progress_workflow() {
         .expect("failed to create pool");
 
     run_migrations(&pool).await.expect("migration failed");
-    ensure_local_user(&pool).await.expect("local user creation failed");
+    ensure_local_user(&pool)
+        .await
+        .expect("local user creation failed");
 
     sqlx::query(
         r#"
@@ -377,7 +379,9 @@ async fn test_sqlite_learning_session_workflow() {
         .expect("failed to create pool");
 
     run_migrations(&pool).await.expect("migration failed");
-    ensure_local_user(&pool).await.expect("local user creation failed");
+    ensure_local_user(&pool)
+        .await
+        .expect("local user creation failed");
 
     sqlx::query(
         r#"
@@ -431,7 +435,9 @@ async fn test_sqlite_user_study_config() {
         .expect("failed to create pool");
 
     run_migrations(&pool).await.expect("migration failed");
-    ensure_local_user(&pool).await.expect("local user creation failed");
+    ensure_local_user(&pool)
+        .await
+        .expect("local user creation failed");
 
     sqlx::query(
         r#"
@@ -479,7 +485,11 @@ async fn test_sqlite_wal_mode_enabled() {
         .await
         .expect("failed to query journal mode");
 
-    assert_eq!(journal_mode.to_lowercase(), "wal", "WAL mode should be enabled");
+    assert_eq!(
+        journal_mode.to_lowercase(),
+        "wal",
+        "WAL mode should be enabled"
+    );
 
     pool.close().await;
 }

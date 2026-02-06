@@ -3,7 +3,9 @@ use danci_backend_rust::amas::decision::{ColdStartManager, EnsembleDecision};
 use danci_backend_rust::amas::types::{
     CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, SwdRecommendation, UserState,
 };
-use danci_backend_rust::services::mastery_learning::{compute_dynamic_cap, compute_target_with_swd};
+use danci_backend_rust::services::mastery_learning::{
+    compute_dynamic_cap, compute_target_with_swd,
+};
 
 fn sample_strategy() -> StrategyParams {
     StrategyParams {

@@ -1157,8 +1157,9 @@ fn generate_distractors_for_word(word: &LearningWord, pool: &[LearningWord]) -> 
         }
     }
 
-    let mut meaning_options: Vec<String> =
-        std::iter::once(correct_meaning).chain(distractors_m).collect();
+    let mut meaning_options: Vec<String> = std::iter::once(correct_meaning)
+        .chain(distractors_m)
+        .collect();
     shuffle_vec(&mut meaning_options);
 
     // --- Spelling options (meaning-to-word) ---

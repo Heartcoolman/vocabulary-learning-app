@@ -441,8 +441,12 @@ impl Default for EnsembleDecision {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::amas::config::{EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig};
-    use crate::amas::types::{CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState};
+    use crate::amas::config::{
+        EnsembleConfig, FeatureFlags, PerformanceTrackerConfig, SafetyFilterConfig,
+    };
+    use crate::amas::types::{
+        CognitiveProfile, DifficultyLevel, FeatureVector, StrategyParams, UserState,
+    };
 
     fn sample_strategy() -> StrategyParams {
         StrategyParams {

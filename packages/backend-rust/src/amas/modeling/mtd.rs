@@ -129,10 +129,10 @@ impl MultiScaleTrendDetector {
         state.running_mean = alpha * value + (1.0 - alpha) * state.running_mean;
 
         // CUSUM change-point detection
-        state.cusum_high = (state.cusum_high + value - state.running_mean - self.config.cusum_k)
-            .max(0.0);
-        state.cusum_low = (state.cusum_low - value + state.running_mean - self.config.cusum_k)
-            .max(0.0);
+        state.cusum_high =
+            (state.cusum_high + value - state.running_mean - self.config.cusum_k).max(0.0);
+        state.cusum_low =
+            (state.cusum_low - value + state.running_mean - self.config.cusum_k).max(0.0);
 
         let change_detected =
             state.cusum_high > self.config.cusum_h || state.cusum_low > self.config.cusum_h;

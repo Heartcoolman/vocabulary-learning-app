@@ -6,28 +6,27 @@ use tokio::sync::RwLock;
 
 use crate::amas::config::AMASConfig;
 use crate::amas::decision::{ColdStartManager, EnsembleDecision};
+use crate::amas::decision::{IgeModel, SwdModel};
+use crate::amas::memory::mdm::compute_quality as mdm_compute_quality;
+use crate::amas::memory::{
+    compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory, MdmState, MemoryEngine,
+    MsmtModel, ReviewEvent as MsmtReviewEvent,
+};
 use crate::amas::metrics::AlgorithmId;
 use crate::amas::modeling::{
     ActiveUserClassifier, AdaptiveItemResponse, AdfFeatures, AdfState, AirItemParams, AirResponse,
-    AirUserState, AttentionDynamicsFilter, AucState, BayesianCognitiveProfiler,
-    BcpObservation, BcpState, CognitiveFatigueInput, MdsEvent,
-    MentalFatigueInput, MotivationDynamics, MtdState, MultiScaleTrendDetector,
-    PlForgettingConfig, PlForgettingCurve, PlForgettingInput, ProbeResponse,
-    TriPoolFatigue, TriPoolFatigueState,
+    AirUserState, AttentionDynamicsFilter, AucState, BayesianCognitiveProfiler, BcpObservation,
+    BcpState, CognitiveFatigueInput, MdsEvent, MentalFatigueInput, MotivationDynamics, MtdState,
+    MultiScaleTrendDetector, PlForgettingConfig, PlForgettingCurve, PlForgettingInput,
+    ProbeResponse, TriPoolFatigue, TriPoolFatigueState,
 };
 use crate::amas::monitoring::AMASMonitor;
 use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
-use crate::db::DatabaseProxy;
-use crate::track_algorithm;
-use crate::amas::decision::{IgeModel, SwdModel};
-use crate::amas::memory::{
-    compute_adaptive_mastery_with_history, MasteryContext, MasteryHistory, MemoryEngine,
-    MdmState, MsmtModel, ReviewEvent as MsmtReviewEvent,
-};
-use crate::amas::memory::mdm::compute_quality as mdm_compute_quality;
 use crate::amas::vocabulary::{ConfusionPair, ContextEntry, MorphemeState};
+use crate::db::DatabaseProxy;
 use crate::services::user_profile::get_reward_profile;
+use crate::track_algorithm;
 
 struct UserModels {
     cold_start: Option<ColdStartManager>,
@@ -176,11 +175,14 @@ impl AMASEngine {
                     restore_algorithm_state(&state.algorithm_states, "auc");
                 let auc_output = track_algorithm!(
                     AlgorithmId::Auc,
-                    auc.update(&mut auc_state, &ProbeResponse {
-                        is_correct: event.is_correct,
-                        response_time_ms: event.response_time,
-                        difficulty: state.current_strategy.difficulty.difficulty_range().0,
-                    })
+                    auc.update(
+                        &mut auc_state,
+                        &ProbeResponse {
+                            is_correct: event.is_correct,
+                            response_time_ms: event.response_time,
+                            difficulty: state.current_strategy.difficulty.difficulty_range().0,
+                        }
+                    )
                 );
 
                 if let Some(auc_user_type) = auc_output.classified {
@@ -386,12 +388,7 @@ impl AMASEngine {
                 let (init_alpha, init_beta) = options
                     .word_state
                     .as_ref()
-                    .map(|ws| {
-                        (
-                            ws.air_alpha.unwrap_or(1.0),
-                            ws.air_beta.unwrap_or(0.0),
-                        )
-                    })
+                    .map(|ws| (ws.air_alpha.unwrap_or(1.0), ws.air_beta.unwrap_or(0.0)))
                     .unwrap_or((1.0, 0.0));
 
                 let mut air_item = AirItemParams {
@@ -401,13 +398,23 @@ impl AMASEngine {
 
                 let air_out = track_algorithm!(
                     AlgorithmId::Air,
-                    air.update(&mut air_user, &mut air_item, &AirResponse {
-                        is_correct: event.is_correct,
-                    })
+                    air.update(
+                        &mut air_user,
+                        &mut air_item,
+                        &AirResponse {
+                            is_correct: event.is_correct,
+                        }
+                    )
                 );
 
                 air_user_state_to_save = Some(air_user);
-                Some((air_out.theta, air_out.item_alpha, air_out.item_beta, air_out.probability, air_out.confidence))
+                Some((
+                    air_out.theta,
+                    air_out.item_alpha,
+                    air_out.item_beta,
+                    air_out.probability,
+                    air_out.confidence,
+                ))
             };
 
             if let Some(ref ws) = options.word_state {
@@ -416,7 +423,8 @@ impl AMASEngine {
                     self.adjust_retention(ws.desired_retention, &new_user_state, &options, &config);
 
                 // Load or create MDM state
-                let mut mdm = if let (Some(s), Some(c)) = (ws.amas_strength, ws.amas_consolidation) {
+                let mut mdm = if let (Some(s), Some(c)) = (ws.amas_strength, ws.amas_consolidation)
+                {
                     MdmState {
                         strength: s,
                         consolidation: c,
@@ -500,7 +508,8 @@ impl AMASEngine {
                     difficulty: 1.0 - mdm.consolidation,
                     retrievability: new_retrievability,
                     // Guess veto: if user marked as guess and answered correctly, deny mastery
-                    is_mastered: mastery_result.is_mastered && !(event.is_guess && event.is_correct),
+                    is_mastered: mastery_result.is_mastered
+                        && !(event.is_guess && event.is_correct),
                     lapses: if event.is_correct {
                         ws.lapses
                     } else {
@@ -574,7 +583,8 @@ impl AMASEngine {
                     difficulty: 1.0 - mdm.consolidation,
                     retrievability: new_retrievability,
                     // Guess veto: if user marked as guess and answered correctly, deny mastery
-                    is_mastered: mastery_result.is_mastered && !(event.is_guess && event.is_correct),
+                    is_mastered: mastery_result.is_mastered
+                        && !(event.is_guess && event.is_correct),
                     lapses: if event.is_correct { 0 } else { 1 },
                     reps: 1,
                     confidence: mastery_result.confidence,
@@ -594,29 +604,29 @@ impl AMASEngine {
 
         // PLF: Power-Law Forgetting (shadow predictor)
         if let Some(ref ws) = options.word_state {
-                let plf = PlForgettingCurve::new(PlForgettingConfig::default());
-                let elapsed_ms = ws.elapsed_days * 86_400_000.0;
-                let plf_out = track_algorithm!(
-                    AlgorithmId::Plf,
-                    plf.predict(&PlForgettingInput {
-                        elapsed_ms: elapsed_ms.max(0.0),
-                        review_count: ws.reps.max(0) as u32,
-                        stability_days: if ws.stability > 0.0 {
-                            Some(ws.stability)
-                        } else {
-                            None
-                        },
-                        difficulty: Some(ws.difficulty),
-                    })
-                );
-                tracing::debug!(
-                    user_id = %user_id,
-                    word_id = ?event.word_id,
-                    plf_retrievability = %plf_out.retrievability,
-                    mdm_retrievability = ?word_mastery_decision.as_ref().map(|d| d.retrievability),
-                    "PLF shadow prediction"
-                );
-            }
+            let plf = PlForgettingCurve::new(PlForgettingConfig::default());
+            let elapsed_ms = ws.elapsed_days * 86_400_000.0;
+            let plf_out = track_algorithm!(
+                AlgorithmId::Plf,
+                plf.predict(&PlForgettingInput {
+                    elapsed_ms: elapsed_ms.max(0.0),
+                    review_count: ws.reps.max(0) as u32,
+                    stability_days: if ws.stability > 0.0 {
+                        Some(ws.stability)
+                    } else {
+                        None
+                    },
+                    difficulty: Some(ws.difficulty),
+                })
+            );
+            tracing::debug!(
+                user_id = %user_id,
+                word_id = ?event.word_id,
+                plf_retrievability = %plf_out.retrievability,
+                mdm_retrievability = ?word_mastery_decision.as_ref().map(|d| d.retrievability),
+                "PLF shadow prediction"
+            );
+        }
 
         let cold_start_phase = models.cold_start.as_ref().map(|cs| cs.phase());
 
@@ -1038,14 +1048,20 @@ impl AMASEngine {
         let mut adf_state: AdfState = restore_algorithm_state(algorithm_states, "adf");
         let attention = track_algorithm!(
             AlgorithmId::Adf,
-            adf.update(&mut adf_state, &AdfFeatures {
-                rt_norm,
-                accuracy: if event.is_correct { 1.0 } else { 0.0 },
-                pause_count: event.pause_count as f64,
-                switch_count: event.switch_count as f64,
-                focus_loss: event.focus_loss_duration.map(|ms| ms as f64 / 60000.0).unwrap_or(0.0),
-                interaction_density: event.interaction_density.unwrap_or(0.5),
-            })
+            adf.update(
+                &mut adf_state,
+                &AdfFeatures {
+                    rt_norm,
+                    accuracy: if event.is_correct { 1.0 } else { 0.0 },
+                    pause_count: event.pause_count as f64,
+                    switch_count: event.switch_count as f64,
+                    focus_loss: event
+                        .focus_loss_duration
+                        .map(|ms| ms as f64 / 60000.0)
+                        .unwrap_or(0.0),
+                    interaction_density: event.interaction_density.unwrap_or(0.5),
+                }
+            )
         );
         if let Ok(v) = serde_json::to_value(&adf_state) {
             new_algo_states["adf"] = v;
@@ -1053,8 +1069,7 @@ impl AMASEngine {
 
         // TFM: Tri-pool Fatigue Model
         let tfm = TriPoolFatigue::default();
-        let mut tfm_state: TriPoolFatigueState =
-            restore_algorithm_state(algorithm_states, "tfm");
+        let mut tfm_state: TriPoolFatigueState = restore_algorithm_state(algorithm_states, "tfm");
         let tfm_output = track_algorithm!(
             AlgorithmId::Tfm,
             tfm.update(
@@ -1089,11 +1104,14 @@ impl AMASEngine {
         let mut bcp_state: BcpState = restore_algorithm_state(algorithm_states, "bcp");
         let bcp_output = track_algorithm!(
             AlgorithmId::Bcp,
-            bcp.update(&mut bcp_state, &BcpObservation {
-                accuracy: if event.is_correct { 1.0 } else { 0.0 },
-                speed: (1.0 - rt_norm).clamp(0.0, 1.0),
-                consistency: 1.0 - error_variance,
-            })
+            bcp.update(
+                &mut bcp_state,
+                &BcpObservation {
+                    accuracy: if event.is_correct { 1.0 } else { 0.0 },
+                    speed: (1.0 - rt_norm).clamp(0.0, 1.0),
+                    consistency: 1.0 - error_variance,
+                }
+            )
         );
         if let Ok(v) = serde_json::to_value(&bcp_state) {
             new_algo_states["bcp"] = v;
@@ -1122,10 +1140,13 @@ impl AMASEngine {
         let mds = MotivationDynamics::default();
         let motivation = track_algorithm!(
             AlgorithmId::Mds,
-            mds.update(prev_state.motivation, &MdsEvent {
-                is_correct: event.is_correct,
-                is_quit: event.is_quit,
-            })
+            mds.update(
+                prev_state.motivation,
+                &MdsEvent {
+                    is_correct: event.is_correct,
+                    is_quit: event.is_quit,
+                }
+            )
         );
 
         // MTD: Multi-scale Trend Detector
@@ -1133,7 +1154,8 @@ impl AMASEngine {
             (final_cognitive.mem + final_cognitive.speed + final_cognitive.stability) / 3.0;
         let mtd = MultiScaleTrendDetector::default();
         let mut mtd_state: MtdState = restore_algorithm_state(algorithm_states, "mtd");
-        let mtd_output = track_algorithm!(AlgorithmId::Mtd, mtd.update(&mut mtd_state, mastery_score));
+        let mtd_output =
+            track_algorithm!(AlgorithmId::Mtd, mtd.update(&mut mtd_state, mastery_score));
         if let Ok(v) = serde_json::to_value(&mtd_state) {
             new_algo_states["mtd"] = v;
         }
@@ -1208,9 +1230,7 @@ impl AMASEngine {
         let fatigue = state.fused_fatigue.unwrap_or(state.fatigue);
         let motivation = (state.motivation + 1.0) / 2.0;
 
-        let delta = 0.1 * (accuracy - 0.7)
-            + 0.1 * (cognitive - 0.5)
-            - 0.05 * (fatigue - 0.3)
+        let delta = 0.1 * (accuracy - 0.7) + 0.1 * (cognitive - 0.5) - 0.05 * (fatigue - 0.3)
             + 0.05 * (motivation - 0.5);
 
         let base = base_retention.clamp(0.8, 0.95);

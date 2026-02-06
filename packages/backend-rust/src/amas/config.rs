@@ -299,7 +299,10 @@ pub struct FeatureFlags {
     pub amas_evm_enabled: bool,
     #[serde(default, alias = "umm_ab_test_enabled")]
     pub amas_ab_test_enabled: bool,
-    #[serde(default = "default_ab_test_percentage", alias = "umm_ab_test_percentage")]
+    #[serde(
+        default = "default_ab_test_percentage",
+        alias = "umm_ab_test_percentage"
+    )]
     pub amas_ab_test_percentage: u8,
 }
 
@@ -506,7 +509,8 @@ mod tests {
 
     #[test]
     fn test_old_keys_accepted() {
-        let old_json = r#"{"ensemble_enabled": true, "heuristic_enabled": true, "umm_mdm_enabled": false}"#;
+        let old_json =
+            r#"{"ensemble_enabled": true, "heuristic_enabled": true, "umm_mdm_enabled": false}"#;
         let flags: FeatureFlags = serde_json::from_str(old_json).unwrap();
         assert!(!flags.amas_mdm_enabled);
     }

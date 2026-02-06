@@ -10,9 +10,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
+use crate::amas::memory::{MdmState, MemoryEngine};
 use crate::amas::types::{
-    ColdStartPhase, MicroInteractions, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
+    ColdStartPhase, MicroInteractions, ProcessOptions, RawEvent,
+    StrategyParams as AmasStrategyParams,
 };
+use crate::amas::vocabulary::{ConfusionPair, ContextEntry, MorphemeState};
 use crate::db::operations::{
     insert_decision_insight, insert_decision_record, list_algorithm_metrics_daily, DecisionRecord,
 };
@@ -23,8 +26,6 @@ use crate::services::learning_state::{upsert_word_state, WordState, WordStateUpd
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
 use crate::state::AppState;
-use crate::amas::memory::{MdmState, MemoryEngine};
-use crate::amas::vocabulary::{ConfusionPair, ContextEntry, MorphemeState};
 
 #[derive(Debug, Serialize)]
 struct SuccessResponse<T> {
@@ -590,7 +591,11 @@ async fn process_event(
         timestamp_ms: Some(chrono::Utc::now().timestamp_millis()),
         response_time: Some(body.response_time),
         dwell_time: body.dwell_time,
-        session_id: if session_id.is_empty() { None } else { Some(session_id.clone()) },
+        session_id: if session_id.is_empty() {
+            None
+        } else {
+            Some(session_id.clone())
+        },
         mastery_level_before: None,
         mastery_level_after: result
             .word_mastery_decision
@@ -610,28 +615,37 @@ async fn process_event(
         indecision_index: body.micro_interaction.as_ref().and_then(|m| {
             let tl = m.trajectory_length.unwrap_or(0.0);
             let dd = m.direct_distance.unwrap_or(0.0);
-            if dd < 10.0 { return None; }
+            if dd < 10.0 {
+                return None;
+            }
             let ratio = tl / dd;
-            if ratio < 1.5 { return None; }
+            if ratio < 1.5 {
+                return None;
+            }
             let sc = m.option_switch_count.unwrap_or(0) as f64;
             Some(((ratio - 1.0) * (1.0 + 0.2 * sc)).clamp(0.0, 1.0))
         }),
-        reaction_latency_ms: body.micro_interaction.as_ref().and_then(|m| m.reaction_latency_ms),
+        reaction_latency_ms: body
+            .micro_interaction
+            .as_ref()
+            .and_then(|m| m.reaction_latency_ms),
         keystroke_fluency: body.micro_interaction.as_ref().and_then(|m| {
             let reaction = m.reaction_latency_ms.unwrap_or(0) as f64;
             let events = m.keystroke_events.as_ref()?;
-            if events.is_empty() { return None; }
+            if events.is_empty() {
+                return None;
+            }
 
             // Calculate average hold time from keystroke events
             let hold_times: Vec<f64> = events
                 .iter()
-                .filter_map(|e| {
-                    e.up_time.map(|up| (up - e.down_time) as f64)
-                })
+                .filter_map(|e| e.up_time.map(|up| (up - e.down_time) as f64))
                 .filter(|&t| t > 0.0 && t < 2000.0)
                 .collect();
 
-            if hold_times.is_empty() { return None; }
+            if hold_times.is_empty() {
+                return None;
+            }
             let avg_hold = hold_times.iter().sum::<f64>() / hold_times.len() as f64;
 
             // Sigmoid mapping: fast reaction + short hold time = high fluency
@@ -1654,10 +1668,8 @@ fn build_process_event_response(
         } else {
             None
         },
-        objective_evaluation: result
-            .objective_evaluation
-            .as_ref()
-            .map(|oe| ObjectiveEvaluationResponse {
+        objective_evaluation: result.objective_evaluation.as_ref().map(|oe| {
+            ObjectiveEvaluationResponse {
                 metrics: MultiObjectiveMetricsResponse {
                     short_term_score: oe.metrics.short_term_score,
                     long_term_score: oe.metrics.long_term_score,
@@ -1675,11 +1687,9 @@ fn build_process_event_response(
                         actual: cv.actual,
                     })
                     .collect(),
-                suggested_adjustments: oe
-                    .suggested_adjustments
-                    .as_ref()
-                    .map(strategy_to_response),
-            }),
+                suggested_adjustments: oe.suggested_adjustments.as_ref().map(strategy_to_response),
+            }
+        }),
         multi_objective_adjusted: result.multi_objective_adjusted,
     }
 }

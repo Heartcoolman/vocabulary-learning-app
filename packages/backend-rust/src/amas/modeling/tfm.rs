@@ -170,7 +170,14 @@ impl TriPoolFatigue {
         mental_input: &MentalFatigueInput,
         break_minutes: Option<f64>,
     ) -> TfmOutput {
-        self.update_with_energy(state, cognitive_input, visual_raw, mental_input, break_minutes, None)
+        self.update_with_energy(
+            state,
+            cognitive_input,
+            visual_raw,
+            mental_input,
+            break_minutes,
+            None,
+        )
     }
 
     pub fn update_with_energy(
@@ -194,24 +201,27 @@ impl TriPoolFatigue {
         }
 
         let cog_load = self.compute_cognitive_load(cognitive_input) * calibration;
-        state.cognitive.update(cog_load.clamp(0.0, 1.0), &self.config.cognitive);
+        state
+            .cognitive
+            .update(cog_load.clamp(0.0, 1.0), &self.config.cognitive);
 
         if let Some(raw) = visual_raw {
             if raw.confidence >= self.config.min_visual_confidence {
                 let vis_load = self.compute_visual_load(raw) * calibration;
                 let blended = raw.confidence * vis_load.clamp(0.0, 1.0)
                     + (1.0 - raw.confidence) * state.visual.level(&self.config.visual);
-                state.visual.fast = (state.visual.fast * self.config.visual.r_fast + blended)
-                    .clamp(0.0, 1.0);
-                let spill =
-                    (state.visual.fast - self.config.visual.spill_threshold).max(0.0);
+                state.visual.fast =
+                    (state.visual.fast * self.config.visual.r_fast + blended).clamp(0.0, 1.0);
+                let spill = (state.visual.fast - self.config.visual.spill_threshold).max(0.0);
                 state.visual.slow =
                     (state.visual.slow * self.config.visual.r_slow + spill).clamp(0.0, 1.0);
             }
         }
 
         let mental_load = self.compute_mental_load(mental_input) * calibration;
-        state.mental.update(mental_load.clamp(0.0, 1.0), &self.config.mental);
+        state
+            .mental
+            .update(mental_load.clamp(0.0, 1.0), &self.config.mental);
 
         let f_cog = state.cognitive.level(&self.config.cognitive);
         let f_vis = state.visual.level(&self.config.visual);
@@ -259,9 +269,17 @@ mod tests {
         for _ in 0..10 {
             tfm.update(
                 &mut state,
-                &CognitiveFatigueInput { error_rate_trend: 0.5, rt_increase_rate: 0.3, repeat_errors: 2 },
+                &CognitiveFatigueInput {
+                    error_rate_trend: 0.5,
+                    rt_increase_rate: 0.3,
+                    repeat_errors: 2,
+                },
                 None,
-                &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 },
+                &MentalFatigueInput {
+                    consecutive_failures: 0,
+                    is_quit: false,
+                    motivation: 0.5,
+                },
                 None,
             );
         }
@@ -275,18 +293,34 @@ mod tests {
         for _ in 0..10 {
             tfm.update(
                 &mut state,
-                &CognitiveFatigueInput { error_rate_trend: 0.8, rt_increase_rate: 0.5, repeat_errors: 3 },
+                &CognitiveFatigueInput {
+                    error_rate_trend: 0.8,
+                    rt_increase_rate: 0.5,
+                    repeat_errors: 3,
+                },
                 None,
-                &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 },
+                &MentalFatigueInput {
+                    consecutive_failures: 0,
+                    is_quit: false,
+                    motivation: 0.5,
+                },
                 None,
             );
         }
         let before_rest = state.cognitive.level(&tfm.config.cognitive);
         tfm.update(
             &mut state,
-            &CognitiveFatigueInput { error_rate_trend: 0.0, rt_increase_rate: 0.0, repeat_errors: 0 },
+            &CognitiveFatigueInput {
+                error_rate_trend: 0.0,
+                rt_increase_rate: 0.0,
+                repeat_errors: 0,
+            },
             None,
-            &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 },
+            &MentalFatigueInput {
+                consecutive_failures: 0,
+                is_quit: false,
+                motivation: 0.5,
+            },
             Some(10.0),
         );
         let after_rest = state.cognitive.level(&tfm.config.cognitive);
@@ -298,11 +332,33 @@ mod tests {
         let tfm = default_model();
         let mut s1 = TriPoolFatigueState::default();
         let mut s2 = TriPoolFatigueState::default();
-        let cog = CognitiveFatigueInput { error_rate_trend: 0.0, rt_increase_rate: 0.0, repeat_errors: 0 };
-        tfm.update(&mut s1, &cog, None,
-            &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 }, None);
-        tfm.update(&mut s2, &cog, None,
-            &MentalFatigueInput { consecutive_failures: 0, is_quit: true, motivation: 0.5 }, None);
+        let cog = CognitiveFatigueInput {
+            error_rate_trend: 0.0,
+            rt_increase_rate: 0.0,
+            repeat_errors: 0,
+        };
+        tfm.update(
+            &mut s1,
+            &cog,
+            None,
+            &MentalFatigueInput {
+                consecutive_failures: 0,
+                is_quit: false,
+                motivation: 0.5,
+            },
+            None,
+        );
+        tfm.update(
+            &mut s2,
+            &cog,
+            None,
+            &MentalFatigueInput {
+                consecutive_failures: 0,
+                is_quit: true,
+                motivation: 0.5,
+            },
+            None,
+        );
         assert!(s2.mental.level(&tfm.config.mental) > s1.mental.level(&tfm.config.mental));
     }
 
@@ -324,9 +380,17 @@ mod tests {
         };
         tfm.update(
             &mut state,
-            &CognitiveFatigueInput { error_rate_trend: 0.0, rt_increase_rate: 0.0, repeat_errors: 0 },
+            &CognitiveFatigueInput {
+                error_rate_trend: 0.0,
+                rt_increase_rate: 0.0,
+                repeat_errors: 0,
+            },
             Some(&raw),
-            &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 },
+            &MentalFatigueInput {
+                consecutive_failures: 0,
+                is_quit: false,
+                motivation: 0.5,
+            },
             None,
         );
         assert!(state.visual.level(&tfm.config.visual) > 0.0);
@@ -343,9 +407,17 @@ mod tests {
         };
         tfm.update(
             &mut state,
-            &CognitiveFatigueInput { error_rate_trend: 0.0, rt_increase_rate: 0.0, repeat_errors: 0 },
+            &CognitiveFatigueInput {
+                error_rate_trend: 0.0,
+                rt_increase_rate: 0.0,
+                repeat_errors: 0,
+            },
             Some(&raw),
-            &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 },
+            &MentalFatigueInput {
+                consecutive_failures: 0,
+                is_quit: false,
+                motivation: 0.5,
+            },
             None,
         );
         assert_eq!(state.visual.level(&tfm.config.visual), 0.0);
@@ -358,9 +430,17 @@ mod tests {
         for _ in 0..100 {
             let out = tfm.update(
                 &mut state,
-                &CognitiveFatigueInput { error_rate_trend: 1.0, rt_increase_rate: 1.0, repeat_errors: 10 },
+                &CognitiveFatigueInput {
+                    error_rate_trend: 1.0,
+                    rt_increase_rate: 1.0,
+                    repeat_errors: 10,
+                },
                 None,
-                &MentalFatigueInput { consecutive_failures: 10, is_quit: true, motivation: -1.0 },
+                &MentalFatigueInput {
+                    consecutive_failures: 10,
+                    is_quit: true,
+                    motivation: -1.0,
+                },
                 None,
             );
             assert!(out.total >= 0.0 && out.total <= 1.0);
@@ -377,12 +457,23 @@ mod tests {
         for _ in 0..20 {
             tfm.update(
                 &mut state,
-                &CognitiveFatigueInput { error_rate_trend: 0.9, rt_increase_rate: 0.8, repeat_errors: 5 },
+                &CognitiveFatigueInput {
+                    error_rate_trend: 0.9,
+                    rt_increase_rate: 0.8,
+                    repeat_errors: 5,
+                },
                 None,
-                &MentalFatigueInput { consecutive_failures: 0, is_quit: false, motivation: 0.5 },
+                &MentalFatigueInput {
+                    consecutive_failures: 0,
+                    is_quit: false,
+                    motivation: 0.5,
+                },
                 None,
             );
         }
-        assert!(state.cognitive.slow > 0.0, "Slow pool should accumulate via spill");
+        assert!(
+            state.cognitive.slow > 0.0,
+            "Slow pool should accumulate via spill"
+        );
     }
 }

@@ -252,9 +252,18 @@ fn parse_word_learning_state(row: &sqlx::postgres::PgRow) -> Result<WordLearning
         reps: row.try_get("reps").unwrap_or(0),
         scheduled_days: row.try_get("scheduledDays").unwrap_or(0.0),
         elapsed_days: row.try_get("elapsedDays").unwrap_or(0.0),
-        amas_strength: row.try_get("amasStrength").ok().or_else(|| row.try_get("ummStrength").ok()),
-        amas_consolidation: row.try_get("amasConsolidation").ok().or_else(|| row.try_get("ummConsolidation").ok()),
-        amas_last_review_ts: row.try_get("amasLastReviewTs").ok().or_else(|| row.try_get("ummLastReviewTs").ok()),
+        amas_strength: row
+            .try_get("amasStrength")
+            .ok()
+            .or_else(|| row.try_get("ummStrength").ok()),
+        amas_consolidation: row
+            .try_get("amasConsolidation")
+            .ok()
+            .or_else(|| row.try_get("ummConsolidation").ok()),
+        amas_last_review_ts: row
+            .try_get("amasLastReviewTs")
+            .ok()
+            .or_else(|| row.try_get("ummLastReviewTs").ok()),
         air_alpha: row.try_get("airAlpha").ok(),
         air_beta: row.try_get("airBeta").ok(),
     })

@@ -65,12 +65,11 @@ pub async fn init_sqlite_pool() -> Result<SqlitePool, SqliteInitError> {
 }
 
 async fn run_sqlite_migrations(pool: &SqlitePool) -> Result<(), SqliteInitError> {
-    let version: Option<String> = sqlx::query_scalar(
-        r#"SELECT "value" FROM "_db_metadata" WHERE "key" = 'schema_version'"#,
-    )
-    .fetch_optional(pool)
-    .await
-    .unwrap_or(None);
+    let version: Option<String> =
+        sqlx::query_scalar(r#"SELECT "value" FROM "_db_metadata" WHERE "key" = 'schema_version'"#)
+            .fetch_optional(pool)
+            .await
+            .unwrap_or(None);
 
     if version.is_some() {
         return Ok(());
