@@ -16,6 +16,7 @@ pub mod routes;
 pub mod seed;
 pub mod services;
 pub mod state;
+pub mod umm;
 pub mod workers;
 
 use tower_http::{cors::CorsLayer, trace::TraceLayer};

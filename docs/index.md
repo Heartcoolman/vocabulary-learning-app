@@ -17,7 +17,7 @@ features:
   - icon:
       src: /icons/brain.svg
     title: AMAS 智能引擎
-    details: Thompson 采样 + LinUCB + FSRS 调度 + ELO 评分 + ZPD 分析，多算法集成决策
+    details: IGE 信息增益 + SWD 相似度加权 + FSRS 调度 + ELO 评分 + ZPD 分析，多算法集成决策
   - icon:
       src: /icons/eye.svg
     title: 视觉疲劳检测
