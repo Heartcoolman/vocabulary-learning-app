@@ -7,7 +7,6 @@ pub mod amas;
 pub mod auth;
 pub mod cache;
 pub mod config;
-pub mod core;
 pub mod db;
 pub mod logging;
 pub mod middleware;
@@ -16,7 +15,6 @@ pub mod routes;
 pub mod seed;
 pub mod services;
 pub mod state;
-pub mod umm;
 pub mod workers;
 
 use tower_http::{cors::CorsLayer, trace::TraceLayer};

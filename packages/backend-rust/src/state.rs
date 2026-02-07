@@ -7,7 +7,6 @@ use tokio::sync::RwLock;
 use crate::amas::config::FeatureFlags;
 use crate::amas::AMASEngine;
 use crate::cache::RedisCache;
-use crate::core::EventBus;
 use crate::db::DatabaseProxy;
 use crate::services::email_provider::EmailService;
 
@@ -85,7 +84,6 @@ pub struct AppState {
     db_proxy: Option<Arc<DatabaseProxy>>,
     cache: Option<Arc<RedisCache>>,
     amas_engine: Arc<AMASEngine>,
-    event_bus: Arc<EventBus>,
     runtime: Arc<RuntimeConfig>,
     email_service: Arc<EmailService>,
 }
@@ -102,7 +100,6 @@ impl AppState {
             db_proxy,
             cache,
             amas_engine,
-            event_bus: Arc::new(EventBus::new()),
             runtime: Arc::new(RuntimeConfig::new()),
             email_service: Arc::new(EmailService::from_env()),
         }
@@ -140,10 +137,6 @@ impl AppState {
 
     pub fn amas_engine(&self) -> Arc<AMASEngine> {
         Arc::clone(&self.amas_engine)
-    }
-
-    pub fn event_bus(&self) -> Arc<EventBus> {
-        Arc::clone(&self.event_bus)
     }
 
     pub fn runtime(&self) -> Arc<RuntimeConfig> {

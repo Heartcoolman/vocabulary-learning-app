@@ -39,35 +39,6 @@ export type {
   UseAutoPlayPronunciationReturn,
 } from './useAutoPlayPronunciation';
 
-// ==================== 灰度发布 Hooks ====================
-export {
-  RolloutProvider,
-  useRolloutContext,
-  useFeatureFlag,
-  useFeatureFlags,
-  Feature,
-  useExperiment,
-  useExperimentConfig,
-  ExperimentComponent,
-  Experiment,
-  useRolloutStage,
-  useActiveRollouts,
-  useFeatureWithExperiment,
-  useRolloutDebug,
-} from './useRollout';
-
-// ==================== 灰度发布监控 Hooks ====================
-export {
-  useHealthReport,
-  useAllHealthReports,
-  useAlerts,
-  useAlertRules,
-  useMetricsRecorder,
-  usePerformanceMonitor,
-  useMetricsComparison,
-  useRolloutDashboard,
-} from './useRolloutMonitoring';
-
 // ==================== 视觉疲劳检测 Hooks ====================
 export { useVisualFatigue } from './useVisualFatigue';
 export type { UseVisualFatigueOptions, UseVisualFatigueReturn } from './useVisualFatigue';

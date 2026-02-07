@@ -19,12 +19,6 @@ export * from './study';
 // AMAS算法相关
 export * from './amas';
 
-// 管理员相关
-export * from './admin';
-
-// Express相关（Backend专用）
-export * from './express';
-
 // 视觉疲劳检测相关
 export * from './visual-fatigue';
 

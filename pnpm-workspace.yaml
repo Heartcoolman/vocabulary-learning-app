@@ -4,9 +4,5 @@ packages:
   # so excluding it avoids pnpm workspace/lockfile mismatches in CI.
   - '!packages/wordbook-counter-worker'
 onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
-  - bcrypt
   - esbuild
   - msw
-  - prisma

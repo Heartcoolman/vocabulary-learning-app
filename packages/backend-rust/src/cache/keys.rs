@@ -21,7 +21,3 @@ pub fn word_key(word_id: &str) -> String {
 pub fn wordbook_system_list_key() -> &'static str {
     "wordbook:system:list"
 }
-
-pub fn amas_config_key() -> &'static str {
-    "amas:config"
-}

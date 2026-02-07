@@ -6,5 +6,4 @@
 export * from './user.schema';
 export * from './word.schema';
 export * from './study.schema';
-export * from './amas.schema';
 export * from './api-response.schema';

@@ -1,1 +1,1 @@
-export * from './state-converter';
+// Shared utilities (currently empty)
