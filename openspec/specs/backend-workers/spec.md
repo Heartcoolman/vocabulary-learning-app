@@ -2,7 +2,7 @@
 
 ### Requirement: Embedding Worker Activation
 
-嵌入服务Worker **MUST** 被激活并正常运行，但在桌面模式下可配置禁用。
+嵌入服务Worker **MUST** 被激活并正常运行。
 
 #### Scenario: Worker正常启动
 
@@ -32,16 +32,9 @@
 - **Then** 应记录错误日志
 - **And** 继续处理队列中的其他任务
 
-#### Scenario: 桌面模式默认禁用
-
-- **Given** 应用以桌面模式运行 (无 DATABASE_URL 环境变量)
-- **When** 应用启动
-- **Then** embedding_worker 默认不启动
-- **AND** 不产生错误日志
-
 ### Requirement: Clustering Worker Activation
 
-聚类服务Worker **MUST** 被激活并按周期运行，但在桌面模式下可配置禁用。
+聚类服务Worker **MUST** 被激活并按周期运行。
 
 #### Scenario: Worker定时触发
 
@@ -63,43 +56,7 @@
 - **Then** 应更新word_clusters表
 - **And** 记录聚类统计信息
 
-#### Scenario: 桌面模式禁用
-
-- **Given** 应用以桌面模式运行
-- **When** 应用启动
-- **Then** clustering_worker 不启动
-- **AND** 聚类相关 API 返回 "unsupported in desktop mode"
-
-## ADDED Requirements
-
-### Requirement: 桌面模式 Worker 管理
-
-系统 SHALL 在桌面模式下简化 Worker 管理。
-
-#### Scenario: Worker 全部禁用
-
-- **WHEN** 应用以桌面模式运行
-- **THEN** 仅启动必要的本地 Worker (如延迟奖励计算)
-- **AND** 网络依赖的 Worker (embedding, clustering) 不启动
-
-#### Scenario: Worker 状态查询
-
-- **WHEN** 前端查询 Worker 状态
-- **THEN** 返回 "desktop_mode" 标识
-- **AND** 显示已禁用的 Worker 列表
-
-#### Scenario: 无 Worker 依赖功能
-
-- **WHEN** Worker 被禁用
-- **THEN** 依赖 Worker 的功能 (如语义搜索) 显示 "离线模式不可用"
-- **AND** 核心学习功能不受影响
-
 ## Property-Based Testing Invariants
-
-### PBT: Desktop Default-Disable
-
-- **INVARIANT**: 桌面模式下，`enabled_workers ∩ network_dependent_workers = ∅`（除非显式覆盖）
-- **FALSIFICATION**: 生成随机 worker flag 组合，断言桌面模式从不默认启动 embedding/clustering
 
 ### PBT: Status Reflects Reality
 

@@ -41,7 +41,6 @@ function resolveApiConnectionTargets(
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
-  const isTauri = !!process.env.TAURI_ENV_PLATFORM;
   const appVersion = getGitVersion();
 
   // Vite 配置文件运行在 Node 侧，需显式加载 packages/frontend/.env* 供此处使用
@@ -59,13 +58,11 @@ export default defineConfig(({ mode }) => {
   const preconnectTargets = apiUrlRaw ? resolveApiConnectionTargets(apiUrlRaw, isProduction) : null;
 
   return {
-    // Tauri 构建使用相对路径，Web 使用绝对路径
-    base: isTauri ? './' : '/',
+    base: '/',
 
     // 定义环境变量（构建时注入）
     define: {
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
-      'import.meta.env.VITE_TAURI_BUILD': JSON.stringify(isTauri),
     },
 
     plugins: [

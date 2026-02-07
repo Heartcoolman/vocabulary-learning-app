@@ -93,7 +93,5 @@ packages/frontend/failed-tests.list
 
 *storybook.log
 storybook-static
-packages/tauri-app/src-tauri/gen/android/app/build/
-packages/tauri-app/src-tauri/gen/android/local.properties
 blob-report/
 test-results*/
