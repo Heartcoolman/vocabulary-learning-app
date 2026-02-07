@@ -1,6 +1,6 @@
 # Spec: frontend-bundle
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: LearningPage Code Splitting
 

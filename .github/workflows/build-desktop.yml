@@ -35,7 +35,9 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: packages/tauri-app/src-tauri
+          workspaces: |
+            packages/tauri-app/src-tauri
+            packages/backend-rust
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -64,6 +66,16 @@ jobs:
         run: pnpm --filter @danci/frontend build
         env:
           TAURI_ENV_PLATFORM: windows
+
+      - name: Build sidecar binary
+        shell: pwsh
+        run: |
+          cargo build --release --target x86_64-pc-windows-msvc --manifest-path packages/backend-rust/Cargo.toml
+          $binDir = "packages/tauri-app/src-tauri/binaries"
+          New-Item -Path $binDir -ItemType Directory -Force | Out-Null
+          Copy-Item "packages/backend-rust/target/x86_64-pc-windows-msvc/release/danci-backend-rust.exe" `
+            "$binDir/danci-backend-x86_64-pc-windows-msvc.exe" -Force
+          Write-Host "Sidecar binary size: $((Get-Item "$binDir/danci-backend-x86_64-pc-windows-msvc.exe").Length / 1MB)MB"
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0

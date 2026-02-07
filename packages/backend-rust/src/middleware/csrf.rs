@@ -27,7 +27,15 @@ pub async fn csrf_token_middleware(req: Request<Body>, next: Next) -> Response {
     response
 }
 
-pub async fn csrf_validation_middleware(req: Request<Body>, next: Next) -> Response {
+pub async fn csrf_validation_middleware(
+    axum::extract::State(state): axum::extract::State<crate::state::AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    if state.config().desktop_mode {
+        return next.run(req).await;
+    }
+
     let method = req.method().as_str();
     let should_validate = matches!(method, "POST" | "PUT" | "DELETE" | "PATCH");
     if !should_validate {

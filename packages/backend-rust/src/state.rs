@@ -7,6 +7,7 @@ use tokio::sync::RwLock;
 use crate::amas::config::FeatureFlags;
 use crate::amas::AMASEngine;
 use crate::cache::RedisCache;
+use crate::config::Config;
 use crate::core::EventBus;
 use crate::db::DatabaseProxy;
 use crate::services::email_provider::EmailService;
@@ -82,6 +83,7 @@ impl Default for RuntimeConfig {
 pub struct AppState {
     started_at: Instant,
     started_at_system: SystemTime,
+    config: Config,
     db_proxy: Option<Arc<DatabaseProxy>>,
     cache: Option<Arc<RedisCache>>,
     amas_engine: Arc<AMASEngine>,
@@ -92,6 +94,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(
+        config: Config,
         db_proxy: Option<Arc<DatabaseProxy>>,
         amas_engine: Arc<AMASEngine>,
         cache: Option<Arc<RedisCache>>,
@@ -99,6 +102,7 @@ impl AppState {
         Self {
             started_at: Instant::now(),
             started_at_system: SystemTime::now(),
+            config,
             db_proxy,
             cache,
             amas_engine,
@@ -121,6 +125,10 @@ impl AppState {
 
     pub fn started_at_system(&self) -> SystemTime {
         self.started_at_system
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     pub fn db_proxy(&self) -> Option<Arc<DatabaseProxy>> {

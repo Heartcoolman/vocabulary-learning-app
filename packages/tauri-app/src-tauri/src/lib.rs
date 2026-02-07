@@ -1,9 +1,16 @@
 mod commands;
 
-use tauri::Manager;
-
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::sync::Mutex;
+
+use tauri::Manager;
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
+
+pub struct SidecarState {
+    pub port: Mutex<Option<u16>>,
+}
 
 fn log(msg: &str) {
     let path = dirs::desktop_dir()
@@ -16,7 +23,6 @@ fn log(msg: &str) {
 }
 
 pub fn run() {
-    // panic hook：将 panic 信息写入桌面日志文件
     std::panic::set_hook(Box::new(|info| {
         log(&format!("PANIC: {info}"));
     }));
@@ -25,7 +31,7 @@ pub fn run() {
 
     log("building tauri app...");
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -35,6 +41,9 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .manage(SidecarState {
+            port: Mutex::new(None),
+        })
         .setup(|app| {
             log("setup: looking for main window...");
             let window = app
@@ -47,20 +56,17 @@ pub fn run() {
                 let _ = win.show();
                 let _ = win.set_focus();
             });
+
+            spawn_sidecar(app.handle().clone());
+
             log("setup: complete");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::learning::get_learning_words,
-            commands::learning::submit_answer,
-            commands::learning::get_session,
-            commands::statistics::get_statistics,
-            commands::statistics::get_weekly_report,
-            commands::wordbooks::list_wordbooks,
-            commands::wordbooks::select_wordbook,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::reset_window_layout,
+            commands::sidecar::get_sidecar_port,
         ]);
 
     log("calling run()...");
@@ -68,7 +74,6 @@ pub fn run() {
         Ok(()) => log("run() returned Ok"),
         Err(e) => {
             log(&format!("run() FAILED: {e}"));
-            // 在 Windows 上也弹出一个消息框让用户看到错误
             #[cfg(target_os = "windows")]
             {
                 use std::ffi::CString;
@@ -93,4 +98,168 @@ pub fn run() {
             }
         }
     }
+}
+
+fn spawn_sidecar(handle: tauri::AppHandle) {
+    spawn_sidecar_inner(handle, 0);
+}
+
+fn spawn_sidecar_inner(handle: tauri::AppHandle, restart_count: u32) {
+    const MAX_RESTARTS: u32 = 3;
+
+    let cmd = handle
+        .shell()
+        .sidecar("binaries/danci-backend")
+        .expect("failed to create sidecar command")
+        .env("HOST", "127.0.0.1")
+        .env("PORT", "0");
+
+    let (mut rx, child) = cmd.spawn().expect("failed to spawn sidecar");
+
+    log(&format!("sidecar spawned (pid={})", child.pid()));
+
+    let h = handle.clone();
+    let h_restart = handle.clone();
+
+    // Store the child so we can kill it on window close
+    let child = std::sync::Arc::new(Mutex::new(Some(child)));
+    let child_close = child.clone();
+
+    // Graceful shutdown on window close (task 3.7)
+    let h_close = handle.clone();
+    handle.on_window_event(move |_window, event| {
+        if let tauri::WindowEvent::CloseRequested { .. } = event {
+            log("window close requested, killing sidecar");
+            if let Ok(mut guard) = child_close.lock() {
+                if let Some(c) = guard.take() {
+                    let _ = c.kill();
+                }
+            }
+            // Reset port
+            if let Ok(mut port) = h_close.state::<SidecarState>().port.lock() {
+                *port = None;
+            }
+        }
+    });
+
+    tauri::async_runtime::spawn(async move {
+        let mut port_found = false;
+
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line_bytes) => {
+                    let line = String::from_utf8_lossy(&line_bytes);
+                    let line = line.trim();
+
+                    if !port_found {
+                        if let Some(port_str) = line.strip_prefix("LISTENING_PORT=") {
+                            if let Ok(port) = port_str.parse::<u16>() {
+                                log(&format!("sidecar port: {port}"));
+
+                                // Health check
+                                if health_check(port).await {
+                                    log("sidecar health check passed");
+                                    if let Ok(mut p) = h.state::<SidecarState>().port.lock() {
+                                        *p = Some(port);
+                                    }
+                                    port_found = true;
+                                } else {
+                                    log("sidecar health check failed");
+                                }
+                            }
+                        }
+                    }
+                }
+                CommandEvent::Stderr(line_bytes) => {
+                    let line = String::from_utf8_lossy(&line_bytes);
+                    log(&format!("sidecar stderr: {}", line.trim()));
+                }
+                CommandEvent::Terminated(payload) => {
+                    let code = payload.code.unwrap_or(-1);
+                    log(&format!(
+                        "sidecar terminated (code={code}, signal={:?}, restarts={restart_count})",
+                        payload.signal
+                    ));
+
+                    // Reset port
+                    if let Ok(mut p) = h.state::<SidecarState>().port.lock() {
+                        *p = None;
+                    }
+
+                    // Drop the child handle since process is terminated
+                    if let Ok(mut guard) = child.lock() {
+                        let _ = guard.take();
+                    }
+
+                    // Normal exit — don't restart
+                    if code == 0 {
+                        return;
+                    }
+
+                    // Crash recovery (task 3.6)
+                    if restart_count < MAX_RESTARTS {
+                        log(&format!(
+                            "restarting sidecar in 2s (attempt {}/{})",
+                            restart_count + 1,
+                            MAX_RESTARTS
+                        ));
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        spawn_sidecar_inner(h_restart, restart_count + 1);
+                    } else {
+                        log("sidecar exceeded max restarts");
+                        show_error_dialog("后端服务启动失败，请重启应用或联系支持。\n\nBackend service failed to start. Please restart the application.");
+                    }
+                    return;
+                }
+                CommandEvent::Error(err) => {
+                    log(&format!("sidecar error: {err}"));
+                }
+            }
+        }
+    });
+}
+
+fn show_error_dialog(msg: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::ffi::CString;
+        let msg = CString::new(msg).unwrap_or_default();
+        let title = CString::new("Danci Error").unwrap_or_default();
+        unsafe {
+            extern "system" {
+                fn MessageBoxA(
+                    hwnd: *mut std::ffi::c_void,
+                    text: *const i8,
+                    caption: *const i8,
+                    utype: u32,
+                ) -> i32;
+            }
+            MessageBoxA(
+                std::ptr::null_mut(),
+                msg.as_ptr(),
+                title.as_ptr(),
+                0x10, // MB_ICONERROR
+            );
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = msg;
+    }
+}
+
+async fn health_check(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{port}/api/health");
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .unwrap();
+
+    for _ in 0..50 {
+        if client.get(&url).send().await.is_ok_and(|r| r.status().is_success()) {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    false
 }

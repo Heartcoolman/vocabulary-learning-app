@@ -1,6 +1,6 @@
 # Spec: backend-query
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Eliminate Redundant Queries
 

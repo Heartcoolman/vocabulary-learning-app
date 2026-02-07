@@ -5,6 +5,7 @@ pub struct Config {
     pub host: IpAddr,
     pub port: u16,
     pub log_level: String,
+    pub desktop_mode: bool,
 }
 
 impl Config {
@@ -21,10 +22,13 @@ impl Config {
 
         let log_level = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
 
+        let desktop_mode = std::env::var("JWT_SECRET").is_err();
+
         Self {
             host,
             port,
             log_level,
+            desktop_mode,
         }
     }
 

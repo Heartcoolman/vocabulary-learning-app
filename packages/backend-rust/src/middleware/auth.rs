@@ -7,11 +7,27 @@ use axum::response::{IntoResponse, Response};
 use crate::response::json_error;
 use crate::state::AppState;
 
+fn desktop_local_user() -> crate::auth::AuthUser {
+    crate::auth::AuthUser {
+        id: "1".to_string(),
+        email: "local@localhost".to_string(),
+        username: "local_user".to_string(),
+        role: "USER".to_string(),
+        created_at: 0,
+        updated_at: 0,
+    }
+}
+
 pub async fn require_auth(
     State(state): State<AppState>,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    if state.config().desktop_mode {
+        req.extensions_mut().insert(desktop_local_user());
+        return next.run(req).await;
+    }
+
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
@@ -47,6 +63,11 @@ pub async fn optional_auth(
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    if state.config().desktop_mode {
+        req.extensions_mut().insert(desktop_local_user());
+        return next.run(req).await;
+    }
+
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
         return next.run(req).await;

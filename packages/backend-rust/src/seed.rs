@@ -3,6 +3,47 @@ use uuid::Uuid;
 
 use crate::db::DatabaseProxy;
 
+pub async fn seed_desktop_user(proxy: &DatabaseProxy) {
+    let pool = proxy.pool();
+
+    let existing: Option<String> =
+        sqlx::query(r#"SELECT "id" FROM "users" WHERE "id" = $1"#)
+            .bind("1")
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|row| row.try_get("id").ok());
+
+    if existing.is_some() {
+        tracing::debug!("desktop local user already exists");
+        return;
+    }
+
+    let password_hash = bcrypt::hash("desktop_local", 4).unwrap_or_default();
+    let updated_at = chrono::Utc::now().naive_utc();
+
+    if let Err(err) = sqlx::query(
+        r#"
+        INSERT INTO "users" ("id", "email", "passwordHash", "username", "role", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5::"UserRole", $6)
+        "#,
+    )
+    .bind("1")
+    .bind("local@localhost")
+    .bind(&password_hash)
+    .bind("local_user")
+    .bind("USER")
+    .bind(updated_at)
+    .execute(pool)
+    .await
+    {
+        tracing::warn!(error = %err, "failed to seed desktop local user");
+    } else {
+        tracing::info!("seeded desktop local user (id=1)");
+    }
+}
+
 struct TestUser {
     email: &'static str,
     username: &'static str,

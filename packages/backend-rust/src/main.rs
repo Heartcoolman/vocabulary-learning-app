@@ -29,6 +29,10 @@ async fn main() {
 
     let _file_log_guard = logging::init_tracing(&config.log_level);
 
+    if config.desktop_mode {
+        tracing::info!("running in desktop mode (JWT_SECRET not set)");
+    }
+
     let db_proxy = match db::DatabaseProxy::from_env().await {
         Ok(proxy) => Some(proxy),
         Err(err) => {
@@ -46,6 +50,9 @@ async fn main() {
             tracing::warn!(error = %err, "failed to restore algorithm metrics");
         }
         danci_backend_rust::seed::seed_test_users(proxy.as_ref()).await;
+        if config.desktop_mode {
+            danci_backend_rust::seed::seed_desktop_user(proxy.as_ref()).await;
+        }
     }
 
     let cache = match std::env::var("REDIS_URL") {
@@ -67,7 +74,10 @@ async fn main() {
         tracing::warn!(error = %err, "failed to reload AMAS config");
     }
 
-    let worker_manager = if let Some(ref proxy) = db_proxy {
+    let worker_manager = if config.desktop_mode {
+        tracing::info!("desktop mode: skipping worker manager");
+        None
+    } else if let Some(ref proxy) = db_proxy {
         match WorkerManager::new(Arc::clone(proxy), Arc::clone(&amas_engine)).await {
             Ok(manager) => {
                 if let Err(e) = manager.start().await {
@@ -84,7 +94,7 @@ async fn main() {
         None
     };
 
-    let state = AppState::new(db_proxy, amas_engine, cache);
+    let state = AppState::new(config.clone(), db_proxy, amas_engine, cache);
 
     let cors = match std::env::var("CORS_ORIGIN") {
         Ok(origin) if !origin.is_empty() => {
@@ -116,11 +126,14 @@ async fn main() {
         .layer(cors);
 
     let addr = config.bind_addr();
-    tracing::info!(%addr, "backend-rust listening");
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("bind listener failed");
+
+    let actual_addr = listener.local_addr().expect("failed to get local address");
+    tracing::info!(%actual_addr, "backend-rust listening");
+    println!("LISTENING_PORT={}", actual_addr.port());
 
     let server = axum::serve(
         listener,

@@ -599,7 +599,7 @@ pub fn router(state: AppState) -> Router {
         app = app.nest(path.as_str(), health::router());
     }
 
-    app.layer(middleware::from_fn(csrf_validation_middleware))
+    app.layer(middleware::from_fn_with_state(state.clone(), csrf_validation_middleware))
         .layer(middleware::from_fn(csrf_token_middleware))
         .layer(middleware::from_fn(auth_rate_limit_middleware))
         .layer(middleware::from_fn(api_rate_limit_middleware))

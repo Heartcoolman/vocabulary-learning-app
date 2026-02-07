@@ -138,6 +138,16 @@ pub async fn require_admin_auth(
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    if state.config().desktop_mode {
+        req.extensions_mut().insert(AdminAuthUser {
+            id: "1".to_string(),
+            email: "local@localhost".to_string(),
+            username: "local_user".to_string(),
+            permissions: serde_json::json!(["*"]),
+        });
+        return next.run(req).await;
+    }
+
     let token = extract_admin_token(req.headers());
     let Some(token) = token else {
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
