@@ -67,13 +67,17 @@ function getCsrfTokenFromCookie(): string | null {
  * - 管理401未授权回调
  */
 export abstract class BaseClient {
-  protected baseUrl: string;
+  private _baseUrl: string;
   protected tokenManager: ITokenManager;
   protected onUnauthorizedCallback: (() => void) | null = null;
   protected defaultTimeout: number = DEFAULT_TIMEOUT;
 
-  constructor(baseUrl: string = env.apiUrl, tokenManager?: ITokenManager) {
-    this.baseUrl = baseUrl;
+  protected get baseUrl(): string {
+    return this._baseUrl || env.apiUrl;
+  }
+
+  constructor(baseUrl: string = '', tokenManager?: ITokenManager) {
+    this._baseUrl = baseUrl;
     this.tokenManager = tokenManager ?? TokenManager.getInstance();
   }
 
