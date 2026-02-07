@@ -10,6 +10,7 @@ use tauri_plugin_shell::process::CommandEvent;
 
 pub struct SidecarState {
     pub port: Mutex<Option<u16>>,
+    child: Mutex<Option<tauri_plugin_shell::process::CommandChild>>,
 }
 
 fn log(msg: &str) {
@@ -43,6 +44,21 @@ pub fn run() {
         }))
         .manage(SidecarState {
             port: Mutex::new(None),
+            child: Mutex::new(None),
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                log("window close requested, killing sidecar");
+                let state = window.state::<SidecarState>();
+                if let Ok(mut guard) = state.child.lock() {
+                    if let Some(c) = guard.take() {
+                        let _ = c.kill();
+                    }
+                }
+                if let Ok(mut port) = state.port.lock() {
+                    *port = None;
+                }
+            }
         })
         .setup(|app| {
             log("setup: looking for main window...");
@@ -74,28 +90,7 @@ pub fn run() {
         Ok(()) => log("run() returned Ok"),
         Err(e) => {
             log(&format!("run() FAILED: {e}"));
-            #[cfg(target_os = "windows")]
-            {
-                use std::ffi::CString;
-                let msg = CString::new(format!("Danci failed to start:\n{e}")).unwrap_or_default();
-                let title = CString::new("Danci Error").unwrap_or_default();
-                unsafe {
-                    extern "system" {
-                        fn MessageBoxA(
-                            hwnd: *mut std::ffi::c_void,
-                            text: *const i8,
-                            caption: *const i8,
-                            utype: u32,
-                        ) -> i32;
-                    }
-                    MessageBoxA(
-                        std::ptr::null_mut(),
-                        msg.as_ptr(),
-                        title.as_ptr(),
-                        0x10, // MB_ICONERROR
-                    );
-                }
-            }
+            show_error_dialog(&format!("Danci failed to start:\n{e}"));
         }
     }
 }
@@ -118,29 +113,13 @@ fn spawn_sidecar_inner(handle: tauri::AppHandle, restart_count: u32) {
 
     log(&format!("sidecar spawned (pid={})", child.pid()));
 
+    // Store child in state for graceful shutdown on window close
+    if let Ok(mut guard) = handle.state::<SidecarState>().child.lock() {
+        *guard = Some(child);
+    }
+
     let h = handle.clone();
     let h_restart = handle.clone();
-
-    // Store the child so we can kill it on window close
-    let child = std::sync::Arc::new(Mutex::new(Some(child)));
-    let child_close = child.clone();
-
-    // Graceful shutdown on window close (task 3.7)
-    let h_close = handle.clone();
-    handle.on_window_event(move |_window, event| {
-        if let tauri::WindowEvent::CloseRequested { .. } = event {
-            log("window close requested, killing sidecar");
-            if let Ok(mut guard) = child_close.lock() {
-                if let Some(c) = guard.take() {
-                    let _ = c.kill();
-                }
-            }
-            // Reset port
-            if let Ok(mut port) = h_close.state::<SidecarState>().port.lock() {
-                *port = None;
-            }
-        }
-    });
 
     tauri::async_runtime::spawn(async move {
         let mut port_found = false;
@@ -156,7 +135,6 @@ fn spawn_sidecar_inner(handle: tauri::AppHandle, restart_count: u32) {
                             if let Ok(port) = port_str.parse::<u16>() {
                                 log(&format!("sidecar port: {port}"));
 
-                                // Health check
                                 if health_check(port).await {
                                     log("sidecar health check passed");
                                     if let Ok(mut p) = h.state::<SidecarState>().port.lock() {
@@ -181,22 +159,17 @@ fn spawn_sidecar_inner(handle: tauri::AppHandle, restart_count: u32) {
                         payload.signal
                     ));
 
-                    // Reset port
                     if let Ok(mut p) = h.state::<SidecarState>().port.lock() {
                         *p = None;
                     }
-
-                    // Drop the child handle since process is terminated
-                    if let Ok(mut guard) = child.lock() {
+                    if let Ok(mut guard) = h.state::<SidecarState>().child.lock() {
                         let _ = guard.take();
                     }
 
-                    // Normal exit — don't restart
                     if code == 0 {
                         return;
                     }
 
-                    // Crash recovery (task 3.6)
                     if restart_count < MAX_RESTARTS {
                         log(&format!(
                             "restarting sidecar in 2s (attempt {}/{})",
