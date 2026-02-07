@@ -49,13 +49,12 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 log("window close requested, killing sidecar");
-                let state = window.state::<SidecarState>();
-                if let Ok(mut guard) = state.child.lock() {
+                if let Ok(mut guard) = window.state::<SidecarState>().child.lock() {
                     if let Some(c) = guard.take() {
                         let _ = c.kill();
                     }
                 }
-                if let Ok(mut port) = state.port.lock() {
+                if let Ok(mut port) = window.state::<SidecarState>().port.lock() {
                     *port = None;
                 }
             }
