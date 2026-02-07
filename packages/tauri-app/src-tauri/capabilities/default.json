@@ -15,7 +15,6 @@
       ]
     },
     "window-state:default",
-    "single-instance:default",
     "shell:default",
     {
       "identifier": "shell:allow-spawn",
