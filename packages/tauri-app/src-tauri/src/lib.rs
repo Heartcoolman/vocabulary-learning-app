@@ -186,6 +186,7 @@ fn spawn_sidecar_inner(handle: tauri::AppHandle, restart_count: u32) {
                 CommandEvent::Error(err) => {
                     log(&format!("sidecar error: {err}"));
                 }
+                _ => {}
             }
         }
     });
