@@ -31,6 +31,9 @@ vi.mock('../../services/client', () => ({
     getToken: (...args: unknown[]) => mockGetToken(...args),
     setOnUnauthorized: (...args: unknown[]) => mockSetOnUnauthorized(...args),
   },
+  apiClient: {
+    setOnUnauthorized: (...args: unknown[]) => mockSetOnUnauthorized(...args),
+  },
   wordClient: {
     getWords: (...args: unknown[]) => mockGetWords(...args),
   },

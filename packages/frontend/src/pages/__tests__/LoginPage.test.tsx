@@ -10,8 +10,12 @@ import LoginPage from '../LoginPage';
 const mockNavigate = vi.fn();
 const mockLogin = vi.fn();
 
+const mockSearchParams = new URLSearchParams();
+const mockUseSearchParams = vi.fn(() => [mockSearchParams]);
+
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => mockUseSearchParams(),
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
@@ -130,7 +134,7 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: '登录' }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/');
+        expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
       });
     });
 
