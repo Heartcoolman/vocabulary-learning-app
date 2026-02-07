@@ -97,17 +97,6 @@ export {
   CreateRecordDtoSchema,
   AnswerRecordSchema,
   LearningSessionSchema,
-  // AMAS 相关 Schemas
-  DifficultyLevelSchema,
-  LearningObjectiveModeSchema,
-  ColdStartPhaseSchema,
-  TrendStateSchema,
-  LearningEventInputSchema,
-  LearningStrategySchema,
-  UserCognitiveStateSchema,
-  UserStateSchema,
-  LearningObjectivesSchema,
-  MultiObjectiveMetricsSchema,
   // API 响应相关 Schemas (核心 API 验证)
   AuthResponseSchema,
   UserStatisticsSchema,
