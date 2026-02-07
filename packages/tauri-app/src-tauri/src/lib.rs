@@ -103,7 +103,7 @@ fn spawn_sidecar_inner(handle: tauri::AppHandle, restart_count: u32) {
 
     let cmd = handle
         .shell()
-        .sidecar("binaries/danci-backend")
+        .sidecar("danci-backend")
         .expect("failed to create sidecar command")
         .env("HOST", "127.0.0.1")
         .env("PORT", "0");

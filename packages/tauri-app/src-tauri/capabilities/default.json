@@ -20,7 +20,7 @@
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "binaries/danci-backend",
+          "name": "danci-backend",
           "sidecar": true
         }
       ]
