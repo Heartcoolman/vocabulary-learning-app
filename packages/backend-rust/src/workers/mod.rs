@@ -218,6 +218,29 @@ impl WorkerManager {
             info!(schedule = %schedule, "Etymology worker scheduled");
         }
 
+        // Session cleanup - runs hourly
+        {
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async("0 0 * * * *", move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = session_cleanup::cleanup_expired_sessions(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "Session cleanup worker error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!("Session cleanup worker scheduled (hourly)");
+        }
+
         // AMAS cache cleanup - runs every 10 minutes
         {
             let amas = Arc::clone(&self.amas_engine);

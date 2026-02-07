@@ -328,6 +328,15 @@ pub async fn reset_password(
         tracing::warn!(error = %err, "mark token used failed");
     }
 
+    // Invalidate all existing sessions for this user
+    if let Err(err) = sqlx::query(r#"DELETE FROM "sessions" WHERE "userId" = $1"#)
+        .bind(&token_record.user_id)
+        .execute(pool)
+        .await
+    {
+        tracing::warn!(error = %err, "session invalidation after password reset failed");
+    }
+
     Json(MessageResponse {
         success: true,
         message: "密码重置成功",
@@ -458,6 +467,8 @@ pub async fn register(State(state): State<AppState>, req: Request<Body>) -> Resp
             .into_response();
     }
 
+    let email = payload.email.trim().to_lowercase();
+
     if let Some(message) = validate_register_password(&payload.password) {
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", message).into_response();
     }
@@ -480,7 +491,7 @@ pub async fn register(State(state): State<AppState>, req: Request<Body>) -> Resp
         .into_response();
     };
 
-    match select_user_id_by_email(proxy.as_ref(), &payload.email).await {
+    match select_user_id_by_email(proxy.as_ref(), &email).await {
         Ok(Some(_)) => {
             return json_error(StatusCode::CONFLICT, "CONFLICT", "该邮箱已被注册").into_response();
         }
@@ -547,7 +558,7 @@ pub async fn register(State(state): State<AppState>, req: Request<Body>) -> Resp
         "#,
     )
     .bind(&user_id)
-    .bind(&payload.email)
+    .bind(&email)
     .bind(&password_hash)
     .bind(&payload.username)
     .bind(updated_at)
@@ -613,7 +624,7 @@ pub async fn register(State(state): State<AppState>, req: Request<Body>) -> Resp
             data: AuthData {
                 user: AuthUserSummary {
                     id: user_id,
-                    email: payload.email,
+                    email,
                     username: payload.username,
                     role: "USER".to_string(),
                     created_at,
@@ -648,6 +659,8 @@ pub async fn login(State(state): State<AppState>, req: Request<Body>) -> Respons
             .into_response();
     }
 
+    let email = payload.email.trim().to_lowercase();
+
     if payload.password.is_empty() {
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "密码不能为空")
             .into_response();
@@ -662,7 +675,7 @@ pub async fn login(State(state): State<AppState>, req: Request<Body>) -> Respons
         .into_response();
     };
 
-    let user = match select_user_for_login(proxy.as_ref(), &payload.email).await {
+    let user = match select_user_for_login(proxy.as_ref(), &email).await {
         Ok(Some(user)) => user,
         Ok(None) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "该邮箱尚未注册")

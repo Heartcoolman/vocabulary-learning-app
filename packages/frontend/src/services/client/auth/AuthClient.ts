@@ -8,9 +8,9 @@ export interface User {
   email: string;
   username: string;
   role: 'USER' | 'ADMIN' | 'BANNED';
-  rewardProfile: string;
+  rewardProfile?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 /**
@@ -142,20 +142,11 @@ export class AuthClient extends BaseClient {
     const formData = new FormData();
     formData.append('avatar', file);
 
-    const response = await fetch(`${this.baseUrl}/api/users/me/avatar`, {
+    return this.request<{ avatarUrl: string }>('/api/users/me/avatar', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.tokenManager.getToken()}`,
-      },
+      headers: {},
       body: formData,
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Upload failed' }));
-      throw new Error(error.message || 'Avatar upload failed');
-    }
-
-    return response.json();
   }
 
   /**

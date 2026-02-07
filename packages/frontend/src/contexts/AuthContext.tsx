@@ -9,12 +9,11 @@ import {
   ReactNode,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { authClient, User, wordClient, learningClient } from '../services/client';
+import { authClient, apiClient, User, wordClient, learningClient } from '../services/client';
 import StorageService from '../services/StorageService';
 import { authLogger } from '../utils/logger';
 import { queryKeys } from '../lib/queryKeys';
 import { DATA_CACHE_CONFIG } from '../lib/cacheConfig';
-import { isTauriEnvironment, getDesktopLocalUser } from '../utils/tauri-bridge';
 
 /**
  * 认证上下文类型
@@ -116,19 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUser = useCallback(
     async (isMounted: () => boolean) => {
       try {
-        // 桌面模式：自动使用本地用户，无需网络认证
-        if (isTauriEnvironment()) {
-          authLogger.info('桌面模式：自动登录本地用户');
-          const desktopUser = getDesktopLocalUser() as User;
-          if (isMounted()) {
-            setUser(desktopUser);
-            setLoading(false);
-          }
-          void StorageService.setCurrentUser(desktopUser.id);
-          schedulePrefetchUserData();
-          return;
-        }
-
         const token = authClient.getToken();
         if (!token) {
           if (isMounted()) setLoading(false);
@@ -196,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isMounted = () => mounted;
 
     // 注册全局 401 回调：当 token 失效时自动清空状态
-    authClient.setOnUnauthorized(() => {
+    apiClient.setOnUnauthorized(() => {
       if (mounted) {
         setUser(null);
         setLoading(false);
@@ -221,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 清理函数：恢复回调并标记组件已卸载
     return () => {
       mounted = false;
-      authClient.setOnUnauthorized(null);
+      apiClient.setOnUnauthorized(null);
       window.removeEventListener('auth:logout', handleAuthLogout);
     };
   }, [loadUser]);
@@ -297,10 +283,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       authClient.clearToken();
       setUser(null);
+      queryClient.clear();
       await StorageService.setCurrentUser(null);
       await StorageService.clearLocalData();
     }
-  }, []);
+  }, [queryClient]);
 
   /**
    * 刷新用户信息

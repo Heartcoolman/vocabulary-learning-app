@@ -9,6 +9,7 @@ import { OfflineIndicator } from './components/ui/OfflineIndicator';
 import Navigation from './components/Navigation';
 import SyncIndicator from './components/SyncIndicator';
 import { BroadcastListener } from './components/notification/BroadcastListener';
+import { ErrorBoundary } from './services/sentry';
 import { routes } from './routes';
 import { queryClient } from './lib/queryClient';
 import { prefetchPriorityRoutes, prefetchPriorityData } from './routes/prefetch';
@@ -73,7 +74,15 @@ function App() {
           <BrowserRouter>
             <AuthProvider>
               <ToastProvider>
-                <AppContent />
+                <ErrorBoundary
+                  fallback={
+                    <div className="flex min-h-screen items-center justify-center">
+                      <p className="text-lg text-red-600">应用出现异常，请刷新页面重试</p>
+                    </div>
+                  }
+                >
+                  <AppContent />
+                </ErrorBoundary>
               </ToastProvider>
             </AuthProvider>
           </BrowserRouter>

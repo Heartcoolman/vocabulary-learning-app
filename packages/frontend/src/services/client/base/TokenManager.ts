@@ -1,5 +1,6 @@
 import { apiLogger } from '../../../utils/logger';
 import { STORAGE_KEYS } from '../../../constants/storageKeys';
+import { env } from '../../../config/env';
 
 const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
@@ -189,7 +190,7 @@ class TokenManager {
           if (csrfToken) {
             headers[CSRF_HEADER_NAME] = csrfToken;
           }
-          return fetch('/api/v1/auth/refresh_token', {
+          return fetch(`${env.apiUrl}/api/v1/auth/refresh_token`, {
             method: 'POST',
             headers,
             credentials: 'include',

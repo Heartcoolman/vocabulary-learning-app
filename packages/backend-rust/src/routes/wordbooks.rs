@@ -579,7 +579,25 @@ pub async fn delete_wordbook(State(state): State<AppState>, req: Request<Body>) 
             .into_response();
     }
 
-    if let Err(err) = delete_words_in_wordbook(proxy.as_ref(), &word_book_id).await {
+    let pool = proxy.pool();
+    let mut tx = match pool.begin().await {
+        Ok(tx) => tx,
+        Err(err) => {
+            tracing::warn!(error = %err, "wordbook delete tx begin failed");
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
+        }
+    };
+
+    if let Err(err) = sqlx::query(r#"DELETE FROM "words" WHERE "wordBookId" = $1"#)
+        .bind(&word_book_id)
+        .execute(&mut *tx)
+        .await
+    {
         tracing::warn!(error = %err, "wordbook words delete failed");
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -589,8 +607,22 @@ pub async fn delete_wordbook(State(state): State<AppState>, req: Request<Body>) 
         .into_response();
     }
 
-    if let Err(err) = delete_word_book_record(proxy.as_ref(), &word_book_id).await {
+    if let Err(err) = sqlx::query(r#"DELETE FROM "word_books" WHERE "id" = $1"#)
+        .bind(&word_book_id)
+        .execute(&mut *tx)
+        .await
+    {
         tracing::warn!(error = %err, "wordbook delete failed");
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
+    }
+
+    if let Err(err) = tx.commit().await {
+        tracing::warn!(error = %err, "wordbook delete tx commit failed");
         return json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "INTERNAL_ERROR",

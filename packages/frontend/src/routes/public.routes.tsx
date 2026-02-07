@@ -1,14 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { Navigate } from 'react-router-dom';
 import type { AppRoute } from './types';
 import { PageLoader } from './components';
-import { isTauriEnvironment } from '../utils/tauri-bridge';
 
 // 懒加载页面
 const ForbiddenPage = lazy(() => import('../pages/ForbiddenPage'));
 const HomePage = lazy(() => import('../pages/HomePage'));
-
-// 仅 Web 模式需要的页面（懒加载）
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/ForgotPasswordPage'));
@@ -44,17 +40,7 @@ const baseRoutes: AppRoute[] = [
   },
 ];
 
-// 认证相关路由（仅 Web 模式）
 const authRoutes: AppRoute[] = [
-  {
-    path: '/',
-    element: (
-      <LazyWrapper>
-        <HomePage />
-      </LazyWrapper>
-    ),
-    meta: { title: '首页', requireAuth: false },
-  },
   {
     path: '/login',
     element: (
@@ -93,31 +79,4 @@ const authRoutes: AppRoute[] = [
   },
 ];
 
-// 桌面模式：认证路由重定向到学习页面
-const desktopAuthRedirects: AppRoute[] = [
-  {
-    path: '/login',
-    element: <Navigate to="/learning" replace />,
-    meta: { title: '登录', requireAuth: false },
-  },
-  {
-    path: '/register',
-    element: <Navigate to="/learning" replace />,
-    meta: { title: '注册', requireAuth: false },
-  },
-  {
-    path: '/forgot-password',
-    element: <Navigate to="/learning" replace />,
-    meta: { title: '忘记密码', requireAuth: false },
-  },
-  {
-    path: '/reset-password',
-    element: <Navigate to="/learning" replace />,
-    meta: { title: '重置密码', requireAuth: false },
-  },
-];
-
-export const publicRoutes: AppRoute[] = [
-  ...baseRoutes,
-  ...(isTauriEnvironment() ? desktopAuthRedirects : authRoutes),
-];
+export const publicRoutes: AppRoute[] = [...baseRoutes, ...authRoutes];

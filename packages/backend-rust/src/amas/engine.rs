@@ -2,7 +2,7 @@ use chrono::Timelike;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::amas::config::AMASConfig;
 use crate::amas::decision::{ColdStartManager, EnsembleDecision};
@@ -72,6 +72,7 @@ pub struct AMASEngine {
     ensemble: Arc<RwLock<EnsembleDecision>>,
     user_models: Arc<RwLock<HashMap<String, UserModels>>>,
     user_states: Arc<RwLock<HashMap<String, PersistedAMASState>>>,
+    user_locks: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
     monitor: Option<Arc<AMASMonitor>>,
     db_proxy: Option<Arc<DatabaseProxy>>,
 }
@@ -93,6 +94,7 @@ impl AMASEngine {
             ensemble: Arc::new(RwLock::new(ensemble)),
             user_models: Arc::new(RwLock::new(HashMap::new())),
             user_states: Arc::new(RwLock::new(HashMap::new())),
+            user_locks: Arc::new(Mutex::new(HashMap::new())),
             monitor,
             db_proxy,
         }
@@ -140,6 +142,16 @@ impl AMASEngine {
         event: RawEvent,
         options: ProcessOptions,
     ) -> Result<ProcessResult, String> {
+        // Per-user lock to prevent concurrent state mutations (TOCTOU)
+        let user_lock = {
+            let mut locks = self.user_locks.lock().await;
+            locks
+                .entry(user_id.to_string())
+                .or_insert_with(|| Arc::new(Mutex::new(())))
+                .clone()
+        };
+        let _guard = user_lock.lock().await;
+
         let start_time = Instant::now();
         let config = self.config.read().await.clone();
 

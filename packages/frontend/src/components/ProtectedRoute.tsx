@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Spinner } from './ui';
 
@@ -13,6 +13,7 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   // 加载中显示加载状态
   if (loading) {
@@ -26,9 +27,15 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     );
   }
 
-  // 未登录则重定向到登录页
+  // 未登录则重定向到登录页，携带当前路径以便登录后返回
   if (!isAuthenticated) {
-    return <Navigate to={requireAdmin ? '/admin-login' : '/login'} replace />;
+    const loginPath = requireAdmin ? '/admin-login' : '/login';
+    const redirect = location.pathname + location.search;
+    const to =
+      redirect && redirect !== '/'
+        ? `${loginPath}?redirect=${encodeURIComponent(redirect)}`
+        : loginPath;
+    return <Navigate to={to} replace />;
   }
 
   // 如果要求管理员权限，检查用户角色

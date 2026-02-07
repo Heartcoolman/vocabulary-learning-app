@@ -140,6 +140,11 @@ export abstract class BaseClient {
       ...(options.headers as Record<string, string> | undefined),
     };
 
+    // FormData: let browser set Content-Type with boundary
+    if (options.body instanceof FormData) {
+      delete headers['Content-Type'];
+    }
+
     const token = this.tokenManager.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -248,6 +253,15 @@ export abstract class BaseClient {
     const token = this.tokenManager.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // CSRF token for state-changing requests
+    const method = (options.method || 'GET').toUpperCase();
+    if (CSRF_METHODS.includes(method)) {
+      const csrfToken = getCsrfTokenFromCookie();
+      if (csrfToken) {
+        headers[CSRF_HEADER_NAME] = csrfToken;
+      }
     }
 
     const controller = new AbortController();

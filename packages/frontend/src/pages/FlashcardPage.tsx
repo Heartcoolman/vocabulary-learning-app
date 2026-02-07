@@ -5,10 +5,14 @@ import MasteryProgress from '../components/MasteryProgress';
 import { CircleNotch, Books, Confetti, ArrowLeft } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
+import { useStudyConfig } from '../hooks/queries/useStudyConfig';
 
 export default function FlashcardPage() {
   const navigate = useNavigate();
   const [responseStartTime, setResponseStartTime] = useState<number>(Date.now());
+
+  const { data: studyConfig } = useStudyConfig();
+  const targetCount = studyConfig?.dailyWordCount ?? 20;
 
   const {
     currentWord,
@@ -18,7 +22,7 @@ export default function FlashcardPage() {
     submitAnswer,
     advanceToNext,
     resetSession,
-  } = useMasteryLearning({ targetMasteryCount: 20 });
+  } = useMasteryLearning({ targetMasteryCount: targetCount });
 
   const { isPlaying: isPronouncing, play: playPronunciation } = useAutoPlayPronunciation({
     word: currentWord?.spelling,
@@ -90,7 +94,7 @@ export default function FlashcardPage() {
               重新开始
             </button>
             <button
-              onClick={() => navigate('/learn')}
+              onClick={() => navigate('/learning')}
               className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 hover:bg-gray-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
             >
               返回学习
@@ -115,7 +119,7 @@ export default function FlashcardPage() {
       <div className="mx-auto w-full max-w-4xl p-4">
         <div className="mb-4 flex items-center gap-4">
           <button
-            onClick={() => navigate('/learn')}
+            onClick={() => navigate('/learning')}
             className="rounded-button p-2 hover:bg-gray-100 dark:text-white dark:hover:bg-slate-700"
           >
             <ArrowLeft size={24} />

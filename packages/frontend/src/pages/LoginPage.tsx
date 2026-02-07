@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft } from '../components/Icon';
 import { Button, Input } from '../components/ui';
@@ -9,6 +9,7 @@ import { Button, Input } from '../components/ui';
  */
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -40,7 +41,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/');
+      const redirect = searchParams.get('redirect');
+      navigate(redirect || '/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请检查邮箱和密码');
     } finally {

@@ -200,15 +200,25 @@ export function useMasteryLearning(
       const payload = JSON.stringify({ sessionId: sid, authToken: token });
       const url = `${import.meta.env.VITE_API_URL || ''}${END_SESSION_ENDPOINT}`;
 
-      // Sync progress via beacon
+      // Sync progress via keepalive fetch (beacon cannot send PUT with auth headers)
       const progressUrl = `${import.meta.env.VITE_API_URL || ''}/api/learning-sessions/${sid}/progress`;
       const progressPayload = JSON.stringify({
         totalQuestions: progress.totalQuestions,
         actualMasteryCount: progress.masteredCount,
       });
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        const progressBlob = new Blob([progressPayload], { type: 'application/json' });
-        navigator.sendBeacon(progressUrl, progressBlob);
+      try {
+        void fetch(progressUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: progressPayload,
+          keepalive: true,
+          credentials: 'include',
+        });
+      } catch {
+        // Best-effort; if keepalive fails the progress was already synced every 5 questions
       }
 
       if (typeof navigator !== 'undefined' && navigator.sendBeacon) {

@@ -448,6 +448,7 @@ export const apiClient = {
     notificationClient.setOnUnauthorized(callback);
     preferencesClient.setOnUnauthorized(callback);
     semanticClient.setOnUnauthorized(callback);
+    wordBookCenterClient.setOnUnauthorized(callback);
   },
 };
 
